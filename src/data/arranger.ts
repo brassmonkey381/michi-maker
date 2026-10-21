@@ -68,19 +68,21 @@ export interface ArrangerWeights {
 /**
  * The champion. Starting values followed the two lab runs before the arranger; every change
  * since comes from a lab duel the owner decided (docs/ARRANGE.md, "Lab run 3" onward). Run 3
- * (2026-10-22): depth x2, type x2, lines x0.5, similar x0.5, held x0.5; palette and art stayed.
+ * (2026-10-22): depth x2, type x2, lines x0.5, similar x0.5, held x0.5. Run 4 (2026-10-22): held
+ * x2 and similar x2 back, rowSimilar x2, palette x0.5, open x2; thirteen nudges tied, which is
+ * the champion settling. Two-round records swing; a weight that flips twice is left alone next time.
  * A card to the tray is cheap but not free: templates must seat half the cards (arrangePage).
  */
 export const ARRANGER_WEIGHTS: ArrangerWeights = {
-  palette: 1,
-  similar: 0.75,
-  rowSimilar: 0.5,
+  palette: 0.5,
+  similar: 1.5,
+  rowSimilar: 1,
   depth: 4,
   lines: 1,
   type: 3,
   art: 1,
-  held: 0.125,
-  open: 0.3,
+  held: 0.25,
+  open: 0.6,
 };
 
 export interface Terms {

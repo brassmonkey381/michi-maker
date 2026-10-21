@@ -290,6 +290,14 @@ Misses: 4 of 33 cards on the arranger's answers (a Hiker and a Skarmory in a sky
 clouds-first captions; a rainbow Togekiss; a Patrat on a field). The clouds and rainbow words
 want watching in run 4.
 
+### Lab run 4 (2026-10-22, 39 of 39 rounds)
+
+Adopted: held x2 (back to 0.25), similar x2 (back to 1.5), rowSimilar x2 (1), palette x0.5 (0.5),
+open x2 (0.6). Thirteen of seventeen nudges tied or were "none", and type x2 lost 2 to 0 where it
+had won 2 to 0 the run before: the champion is settling, and two-round records swing. Rule from
+here: a weight that flips twice in a row is left alone on the next run. Misses: 4 of 36 (Ralts in a
+garden, Annihilape under trees with clouds, Metang and Masquerain on ice): no word pattern yet.
+
 ## Open for the owner
 
 - Add cards: decided, one sparing suggestion per candidate, see above.

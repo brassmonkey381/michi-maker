@@ -370,6 +370,9 @@ test('art class: the three full-art kinds are full, everything else is windowed;
   assert.equal(artClassOf('named_full_art'), 'full');
   for (const k of ['measured', 'double_rare']) assert.equal(artClassOf(k), 'full');
   for (const k of ['scene_tagged', '', undefined]) assert.equal(artClassOf(k), 'windowed');
+  // The catalogue's own flag wins over the kind either way.
+  assert.equal(artClassOf('scene_tagged', true), 'full');
+  assert.equal(artClassOf('illustration_rare', false), 'windowed');
   assert.deepEqual(pageArtMix([{ fullArtKind: 'illustration_rare' }, { fullArtKind: 'scene_tagged' }, { fullArtKind: '' }]), { full: 1, windowed: 2, mixed: true, dominant: 'windowed' });
   assert.equal(pageArtMix([{ fullArtKind: 'illustration_rare' }, { fullArtKind: 'named_full_art' }, { fullArtKind: '' }]).dominant, 'full');
   assert.equal(pageArtMix([{ fullArtKind: 'named_full_art' }, { fullArtKind: 'illustration_rare' }]).mixed, false);

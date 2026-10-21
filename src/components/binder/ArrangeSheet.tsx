@@ -130,7 +130,7 @@ export function ArrangeSheet({
   const similarity = depthAnswer && depthAnswer.key === idsKey ? depthAnswer.sim : null;
 
   // All full arts or all windowed cards: a mixed page is refused with the count, not seated.
-  const mix = useMemo(() => (catalog ? pageArtMix(pockets.map((p) => ({ fullArtKind: catalog.getCard(p.slot.cardId!)?.fullArtKind }))) : null), [catalog, pockets]);
+  const mix = useMemo(() => (catalog ? pageArtMix(pockets.map((p) => { const c = catalog.getCard(p.slot.cardId!); return { fullArtKind: c?.fullArtKind, fullArt: c?.fullArt }; })) : null), [catalog, pockets]);
 
   const candidates = useMemo<Candidate[] | null>(() => {
     if (!visible || !catalog || !depth || pockets.length < 2 || !mix) return null;
@@ -149,6 +149,7 @@ export function ArrangeSheet({
         setId: c?.setId,
         number: c?.number,
         fullArtKind: c?.fullArtKind,
+        fullArt: c?.fullArt,
         rarity: c?.rarity,
         palette: index?.has(id) ? index.colors(id, 'art') : undefined,
         types: c?.types,

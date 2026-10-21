@@ -61,6 +61,8 @@ export interface ArrangeCard {
   number?: string;
   /** The pipeline's `full_art_kind`. */
   fullArtKind?: string;
+  /** The catalogue's full-art flag (kit 0.9.31, Pokémon only): the Full art filter's own answer. Wins over the kind when present. */
+  fullArt?: boolean;
   rarity?: string;
   palette?: readonly PaletteColor[];
   /** The card's energy types, e.g. ["Fire"]; empty or absent for a Trainer. The frame's colour. */
@@ -229,22 +231,23 @@ export const FULL_ART_KINDS: ReadonlySet<string> = new Set(['special_illustratio
 
 export type ArtClass = 'full' | 'windowed';
 
-export const artClassOf = (fullArtKind: string | undefined): ArtClass => (FULL_ART_KINDS.has(fullArtKind ?? '') ? 'full' : 'windowed');
+export const artClassOf = (fullArtKind: string | undefined, fullArt?: boolean): ArtClass =>
+  fullArt === undefined ? (FULL_ART_KINDS.has(fullArtKind ?? '') ? 'full' : 'windowed') : fullArt ? 'full' : 'windowed';
 
 /**
  * A page Arrange seats is all full arts or all windowed cards (owner, 2026-10-21: "either the
  * entire page is full arts, or the entire page is windowed arts"; a product rule, not only a lab
  * one). A page that mixes the two is not offered. This counts both, so the sheet can say which.
  */
-export function pageArtMix(cards: readonly Pick<ArrangeCard, 'fullArtKind'>[]): { full: number; windowed: number; mixed: boolean; dominant: ArtClass } {
+export function pageArtMix(cards: readonly Pick<ArrangeCard, 'fullArtKind' | 'fullArt'>[]): { full: number; windowed: number; mixed: boolean; dominant: ArtClass } {
   let full = 0;
   let windowed = 0;
-  for (const c of cards) if (artClassOf(c.fullArtKind) === 'full') full += 1; else windowed += 1;
+  for (const c of cards) if (artClassOf(c.fullArtKind, c.fullArt) === 'full') full += 1; else windowed += 1;
   return { full, windowed, mixed: full > 0 && windowed > 0, dominant: full > windowed ? 'full' : 'windowed' };
 }
 
 /** The page reads as windowed: its frames are what the eye sees (majority rule, see pageArtMix). */
-export const readsWindowed = (cards: readonly Pick<ArrangeCard, 'fullArtKind'>[]): boolean => pageArtMix(cards).dominant === 'windowed';
+export const readsWindowed = (cards: readonly Pick<ArrangeCard, 'fullArtKind' | 'fullArt'>[]): boolean => pageArtMix(cards).dominant === 'windowed';
 
 /** How much a card carries a page: full-art kind first, then a picture rarity. */
 export function strength(card: ArrangeCard): number {

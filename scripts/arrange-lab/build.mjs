@@ -157,7 +157,7 @@ const ids = [...wantIds];
 const facts = new Map();
 for (let i = 0; i < ids.length; i += 400) {
   const rows = await dataSql(`
-    select id, name, set_name, number, rarity, illustrator, evolution_line, evolution_stage_index, full_art_kind, scene_tags, color_art, types
+    select id, name, set_name, number, rarity, illustrator, evolution_line, evolution_stage_index, full_art_kind, full_art, scene_tags, color_art, types
       from public.cards_en where id = any(${textArray(ids.slice(i, i + 400))});`);
   for (const r of rows) facts.set(r.id, r);
 }
@@ -194,6 +194,7 @@ function arrangeCard(id) {
     setId: f.set_name || undefined,
     number: f.number || undefined,
     fullArtKind: f.full_art_kind || undefined,
+    fullArt: typeof f.full_art === 'boolean' ? f.full_art : undefined,
     rarity: f.rarity || undefined,
     palette: (f.color_art ?? []).map(([L, a, b, w]) => ({ L, a, b, w })),
     types: f.types ?? [],

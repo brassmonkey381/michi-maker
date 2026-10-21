@@ -24,7 +24,9 @@ tags, not hand labels. Lines marked **[owner]** are decisions that are theirs.
   which the app's catalogue does not carry), so a page is read as whatever most of its cards are
   and never refused: refusing blocked the owner on an all-full-art page (2026-10-22). The sheet says
   when it had to decide. `artClassOf`, `pageArtMix` and `readsWindowed` in `src/data/arrange.ts`
-  are the one definition. Handoff: ship the server's `full_art` flag in the browse catalogue.
+  are the one definition. Since kit 0.9.31 the catalogue carries `CatalogCard.fullArt` (the Full
+  art filter's own flag, Pokémon only) and it wins over the kind wherever it is present; the kind
+  rule remains for cards without it.
 
 ## What it is
 

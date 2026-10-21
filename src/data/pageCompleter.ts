@@ -181,8 +181,9 @@ export async function completePage(
   const want = cells.length;
   // The page's art class decides which prints are offered first: a windowed page gets windowed
   // cards, a full-art page full arts, so the page stays one class (docs/ARRANGE.md scope).
-  const full = cards.filter((c) => artClassOf(c.fullArtKind) === 'full').length * 2 > cards.length;
-  const sameClass = (xs: CatalogCard[]) => [...xs.filter((c) => (artClassOf(c.fullArtKind) === 'full') === full), ...xs.filter((c) => (artClassOf(c.fullArtKind) === 'full') !== full)];
+  const isFull = (c: CatalogCard) => artClassOf(c.fullArtKind, c.fullArt) === 'full';
+  const full = cards.filter(isFull).length * 2 > cards.length;
+  const sameClass = (xs: CatalogCard[]) => [...xs.filter((c) => isFull(c) === full), ...xs.filter((c) => isFull(c) !== full)];
 
   if (method === 'similar') {
     if (!providers.similar) return [];

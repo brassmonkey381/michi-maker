@@ -74,15 +74,19 @@ function pageRow(page: DemoPage, binderId: string, position: number): Tables['bi
 
 /**
  * A page row names its page. A TRAY row names its binder instead and no page (the migration's
- * check constraint wants exactly one of the two), with `col` as its position in the tray. The
- * binder_id key is only ever sent for a tray row, so a page write still works on a database the
- * tray migration (20261022120000) has not reached.
+ * check constraint wants exactly one of the two), with `col` as its position in the tray.
+ *
+ * BOTH KEYS, ALWAYS. A page row sends binder_id null on purpose: the same row may have been a
+ * tray row a moment ago (an undo of "Tray", a card dragged back by a snapshot write), and an
+ * upsert that names only page_id leaves the old binder_id standing, which the check constraint
+ * refuses as a row on a page AND in the tray. That was the "change didn't save" banner on the
+ * tray's first evening (2026-10-21). Requires migration 20261022120000, like the tray itself.
  */
 function slotRow(slot: DemoSlot, pageId: string | null, binderId?: string): Tables['binder_slots']['Insert'] {
   return {
     id: slot.id,
     page_id: pageId,
-    ...(pageId === null && binderId ? { binder_id: binderId } : {}),
+    binder_id: pageId === null ? (binderId ?? null) : null,
     row_index: slot.row,
     col_index: slot.col,
     row_span: slot.rowSpan,

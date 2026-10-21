@@ -20,6 +20,7 @@ import { similarAvailable } from 'tcgscan-browse';
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
 import { ArrangeSheet } from '@/components/binder/ArrangeSheet';
+import { CompletePageSheet } from '@/components/binder/CompletePageSheet';
 import { ComposeAllSheet } from '@/components/binder/ComposeAllSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import { CardTray } from '@/components/binder/CardTray';
@@ -346,6 +347,8 @@ export function BinderScreen({
   const [moving, setMoving] = useState<{ pageId: string | null; slotId: string } | null>(null);
   // "✨ Fill page" sheet (auto-curate around the selected card).
   const [autoFillOpen, setAutoFillOpen] = useState(false);
+  // Complete page: the empty pockets filled from what the page already holds (owner, 2026-10-22).
+  const [completeOpen, setCompleteOpen] = useState(false);
   // Arrange sheet: several finished seatings of the cards this page (or spread) already has.
   const [arrangeOpen, setArrangeOpen] = useState(false);
   // "Find art" sheet: searches tuned to what the open page is about (owner, 2026-10-13).
@@ -2209,6 +2212,16 @@ export function BinderScreen({
         {/* Arrange: the cards this page has, seated several ways (docs/ARRANGE.md). Carries its
             word like "+ Page" does: a bare glyph for a feature nobody has seen yet is a riddle. */}
         <IconBtn glyph="☷" word="Arrange" label="Arrange the cards on this page (G)" onPress={() => setArrangeOpen(true)} testID="tool-arrange" />
+        {/* Complete: fill the empty pockets from what the page holds. Also offered where the owner
+            asked for it, on the Cards side when an empty pocket is aimed at. */}
+        <IconBtn
+          glyph="✦"
+          word="Complete"
+          label="Complete this page: fill the empty pockets from the cards already here"
+          onPress={() => setCompleteOpen(true)}
+          disabled={!page.slots.some((s) => s.cardId) || page.slots.length >= page.rows * page.cols}
+          testID="tool-complete"
+        />
         {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
         {store.userBinders.some((b) => b.id !== binder.id) ? (
           <IconBtn
@@ -2861,6 +2874,14 @@ export function BinderScreen({
           collapsed={!cardsWantsPanel}
           onToggleCollapsed={() => setCardsCollapsed((v) => !v)}
           collapsedLabel="Cards"
+          aimedAction={
+            editing && page.slots.some((s) => s.cardId) ? (
+              <Pressable onPress={() => setCompleteOpen(true)} style={styles.completePill} accessibilityRole="button" accessibilityLabel="Complete this page">
+                <Text style={styles.completePillText}>✦ Complete page</Text>
+                <Text style={styles.completePillHint}>fill the empty pockets from the cards already here</Text>
+              </Pressable>
+            ) : undefined
+          }
           trayHead={
             editing ? (
               <CardTray
@@ -2898,6 +2919,14 @@ export function BinderScreen({
             setSelectedSlotId(null);
             showToast(moved || art.length ? `${what} · ${moved} pocket${moved === 1 ? '' : 's'} moved` : 'Already seated that way', moved > 0 || art.length > 0);
           }}
+        />
+
+        <CompletePageSheet
+          visible={completeOpen}
+          page={page}
+          onClose={() => setCompleteOpen(false)}
+          onPlaced={handleAutoFillPlaced}
+          onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
         />
 
         <AutoFillSheet
@@ -3473,7 +3502,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onPrint, onDownloadFullImage, onMovePage, onNewPage, onGoToPage, onEscape]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onPrint, onDownloadFullImage, onMovePage, onNewPage, onArrange, onGoToPage, onEscape]);
   return null;
 }
 
@@ -3840,6 +3869,19 @@ const styles = StyleSheet.create({
   // not the whole row width (an easy place to fat-finger a destructive action).
   // Floating drag preview that follows the finger while a slice is dragged from the tray.
   dragGhostCard: { width: 56, height: 78 },
+  completePill: {
+    marginHorizontal: Spacing.three,
+    marginTop: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.panel,
+    borderWidth: 1,
+    borderColor: Palette.controlBorder,
+    backgroundColor: Palette.panelAlt,
+    gap: 2,
+  },
+  completePillText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
+  completePillHint: { fontSize: FontSize.sm, color: Palette.muted3 },
   dragGhost: {
     position: 'absolute',
     top: 0,

@@ -301,6 +301,23 @@ had won 2 to 0 the run before: the champion is settling, and two-round records s
 here: a weight that flips twice in a row is left alone on the next run. Misses: 4 of 36 (Ralts in a
 garden, Annihilape under trees with clouds, Metang and Masquerain on ice): no word pattern yet.
 
+## Complete page (2026-10-22)
+
+Owner: "clicked on an empty cell of the page and clicked a button 'complete page'. It would show
+the output of completing the page, taking all the other already existing slotted cards on the page
+into account, and doing a similarity fill, color palette fill, theme fill, or other fill." Fill
+page takes one seed card; this takes the whole page as the seed and fills only the empty pockets,
+in reading order; placed cards never move and Arrange stays a separate tap ("arrange comes later").
+
+`src/data/pageCompleter.ts` (pure; the similarity and palette providers are passed in) and
+`CompletePageSheet.tsx`, opened from the page tools (Complete) and from the Cards side when an
+empty pocket is aimed at. Fills: like the whole page (Find Similar over the page's ids, the
+server averages the vectors; PRO), same palette (every placed card's colours against the device
+index), same type, same artist, finish the lines (the missing stages, from the line's own set
+when it has one). The page's art class steers which prints come first. Not yet: theme fill, which
+needs a data-server RPC that turns a page's ids into theme-search hits without any tag reaching
+the client (docs/DATA-SERVER.md handoffs).
+
 ## Open for the owner
 
 - Add cards: decided, one sparing suggestion per candidate, see above.

@@ -29,6 +29,16 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
 
 ## Pending items this session may pick up
 
+0. **Two handoffs from michi's Arrange and Complete page work (2026-10-22).** (a) Ship
+   `cards_en.full_art` (the boolean the theme toolbar's Full art filter uses) in the browse
+   `catalog.json` / `CatalogCard`, so michi reads a page's art class the way the filter does
+   instead of guessing from `full_art_kind`; three cards on the owner's full-art pages
+   (Kricketune 478019, Teal Mask Ogerpon ex 596439, Victini 646169) read `full_art = false` and
+   look wrong. (b) A theme fill for Complete page: one RPC taking a page's card ids and returning
+   theme-search hits (ids, art band, full_art) for the scene words those cards share, ranked
+   server side, so no tag reaches the client. michi wires it the day it lands
+   (`src/data/pageCompleter.ts`, method `theme`).
+
 1. **⚠️ THE PAID DATA IS PUBLICLY READABLE** — **superseded by `DATA-EXPOSURE.md` (2026-09-10).**
    Read that first: it corrects two things in the summary below. The captioned corpus is **3,272**
    cards, not 28,533 (`scene_caption` defaults to `''`, so `not.is.null` matches every row and

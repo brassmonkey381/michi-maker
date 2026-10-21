@@ -112,6 +112,8 @@ interface CardPickerProps {
   trayLimit?: number;
   /** The card tray (CardTray), drawn under the header on every tab. The editor owns its wiring. */
   trayHead?: ReactNode;
+  /** Shown when the picker is aimed at an EMPTY pocket: the editor's Complete page offer. */
+  aimedAction?: ReactNode;
   /** Guests can't keep artworks (cap 0): the studio shows a sign-in note, not an upgrade pitch. */
   guest?: boolean;
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
@@ -164,6 +166,7 @@ export function CardPicker({
   trayCount,
   trayLimit,
   trayHead,
+  aimedAction,
   guest,
   armedSliceId,
   onArmSlice,
@@ -408,6 +411,7 @@ export function CardPicker({
       </View>
 
       {trayHead}
+      {cell && !slot ? aimedAction : null}
 
       {/* Content type — decide *what* goes in the pocket first.
 

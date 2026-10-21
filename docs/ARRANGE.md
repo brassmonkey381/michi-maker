@@ -7,7 +7,8 @@ Built 2026-10-21 as a first version: `src/data/arrange.ts` (pure seating, tests)
 button in the page tools; `reseat_slots` (migration 20261021120000) lands a whole rearrangement
 in one transaction. Not yet: holding cards for the next page, the card lookup behind a
 suggestion (the chip names what would complete the row; it does not yet fetch the card), and
-the connected-art embedding proxy. The visual demo of each mode on real pages is at
+the connected-art embedding proxy. The Arrange Lab (below) is the blind test bench for
+what is built. The visual demo of each mode on real pages is at
 https://claude.ai/artifact/LS4NwvX98QTMbqDmLa58ax (owner-private artifact; the generator is in the
 session scratchpad, not this repo). The demo pool is 24 lava cards whose depth comes from their
 tags, not hand labels. Lines marked **[owner]** are decisions that are theirs.
@@ -180,6 +181,34 @@ restarts. Milliseconds in the browser, no server. Pure functions in `src/data/ar
 | Candidate sheet with thumbnails, undo, pick log | 1 day |
 | Stratum table and connected-art proxy, tuned on real pages | 1 day |
 | Template pairing weights, tuned by eye | half a day |
+
+## The Arrange Lab: blind testing, like the Colour Lab
+
+Looking at one page at a time cannot tell which rule or setting earns its place, so the lab puts
+several finished pages side by side, never says which mode or setting made which, and records what
+the owner picks (owner, 2026-10-21: "we need more testing, kind of like how you designed the color
+lab testing where I picked or skipped"). The shape is the data-science repo's Colour Lab: shuffled
+columns, hidden variant keys, pick / about equal / none / skip, a tally at the end.
+
+`scripts/arrange-lab/`: `build.mjs` writes `state/out/arrange-lab/rounds.json` from the owner's own
+full pages and spreads (fakemichi, michimaker; cards only, no art) and six theme pools of 24 cards
+(lava, sea, forest, night, snow, city; eight per band so Strata has material); `serve.mjs` serves
+`lab.html` on 127.0.0.1:8766 and appends votes to `votes.jsonl`; `results.mjs` tallies. The seating
+is the real module, run by Node as TypeScript, with the card facts straight from `cards_en`.
+Launcher: `state/out/arrange-lab.ps1` (`-SkipBuild` keeps the rounds and the answers so far,
+`-Results` prints the tally). Four tests, 49 rounds, about ten minutes:
+
+| Test | Shows | Answers |
+| --- | --- | --- |
+| modes | one pool, one column per mode that is offered | which modes read, on which pools |
+| sheet | the three candidates the app would rank first, art panels hatched | whether rank 1 is what the owner picks; wins by mode and template |
+| variants | one mode, one `Tuning` knob changed per column | which setting becomes the default |
+| misses | one arranged spread, big; click the cards that sit wrong | per-card precision; for Strata, by first depth word, which tunes the table |
+
+`Tuning` (`src/data/arrange.ts`) holds the taste knobs the variants test turns: Strata row order
+(hue, light, chain) and transitions at the ends; Flow vertical weight and seed card; Mirror twin by
+illustrator or palette. The app passes nothing and gets `DEFAULT_TUNING`; a knob the lab settles
+moves the default, not the app code.
 
 ## Open for the owner
 

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arrange Lab</title>
+<style>
+:root{--ground:#EEF0F2;--panel:#FFFFFF;--ink:#171B20;--ink2:#5B6670;--line:#D3D8DE;--accent:#8A4B2D;--pick:#2E7D4F;--miss:#B3263A;--art:repeating-linear-gradient(135deg,#D9CFC4 0 6px,#EDE6DD 6px 12px)}
+@media (prefers-color-scheme:dark){:root{--ground:#12151A;--panel:#1A1F26;--ink:#E6EAEE;--ink2:#97A2AD;--line:#2B323A;--accent:#D89A74;--pick:#7BC29B;--miss:#E27384;--art:repeating-linear-gradient(135deg,#3A3129 0 6px,#2A2521 6px 12px)}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+h1{font-size:17px;margin:0;letter-spacing:.2px}
+.prog{flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.meta{color:var(--ink2);font-size:13px;white-space:nowrap}
+button{font:inherit;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding:16px;max-width:1900px;margin:0 auto}
+.prompt{font-size:18px;margin:4px 0 2px;text-wrap:balance}
+.keys{color:var(--ink2);font-size:13px;margin-bottom:14px}
+.cols{display:grid;gap:14px}
+.col{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.col.chosen{border-color:var(--pick);box-shadow:0 0 0 3px color-mix(in srgb,var(--pick) 35%,transparent)}
+.col h3{margin:0;display:flex;align-items:center;justify-content:space-between;font-size:15px}
+.col h3 .pickbtn{padding:5px 12px}
+.spread{display:flex;gap:10px}
+.leaf{flex:1;display:grid;gap:4px;background:var(--line);padding:4px;border-radius:6px}
+.cell{aspect-ratio:2.5/3.5;border-radius:4px;overflow:hidden;background:var(--panel);position:relative}
+.cell img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.cell.art{background:var(--art)}
+.cell.open{border:1.5px dashed var(--line);background:transparent}
+.cell.miss{outline:3px solid var(--miss);outline-offset:-3px}
+.cell.miss::after{content:'✕';position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:34px;font-weight:700;text-shadow:0 1px 6px #000;background:rgba(179,38,58,.35);pointer-events:none}
+.held{color:var(--ink2);font-size:12px}
+.bar{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap}
+.done{font-size:1.2rem;margin-top:2rem}
+.big .spread{gap:16px}
+.big .leaf{gap:6px;padding:6px}
+.big .cell{cursor:pointer}
+.big .cell img{cursor:pointer}
+.bands{display:grid;gap:6px;align-content:start;padding-top:6px;width:84px;color:var(--ink2);font-size:12px;text-align:right}
+.withbands{display:flex;gap:10px;align-items:stretch}
+.withbands .spread{flex:1}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;place-items:center;z-index:20;cursor:zoom-out}
+#zoom.on{display:grid}
+#zoom img{max-height:88vh;max-width:92vw;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#zoom figcaption{color:#fff;text-align:center;margin-top:10px;font-size:15px}
+@media (max-width:900px){.cols{grid-template-columns:1fr!important}main{padding:12px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Arrange Lab</h1>
+  <div class="prog"><i id="bar"></i></div>
+  <span class="meta" id="count"></span>
+  <button id="back">◀ Back</button>
+  <button id="skip">Skip ▶</button>
+</header>
+<main id="app">Loading…</main>
+<div id="zoom"><figure style="margin:0"><img id="zoomimg" alt=""><figcaption id="zoomcap"></figcaption></figure></div>
+<script>
+const app = document.getElementById('app');
+let rounds = [], cards = {}, votes = {}, at = 0, misses = new Set();
+const LETTERS = 'ABCD';
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+async function boot() {
+  const data = await (await fetch('/rounds.json')).json();
+  rounds = data.rounds; cards = data.cards;
+  for (const v of await (await fetch('/votes.json')).json()) votes[v.round] = v;
+  at = rounds.findIndex((r) => !votes[r.id]); if (at < 0) at = rounds.length;
+  render();
+}
+async function vote(row) {
+  votes[row.round] = row;
+  await fetch('/vote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row) });
+  at++; render();
+}
+
+/** One canvas: a page, or a spread of two leaves, every cell drawn. `big` turns cards into miss toggles. */
+function canvas(r, grid, big) {
+  const leaves = r.shape.spread ? ['left', 'right'] : ['single'];
+  const html = leaves.map((leaf) => {
+    const cells = grid.filter((c) => c.leaf === leaf).sort((a, b) => a.row - b.row || a.col - b.col);
+    return `<div class="leaf" style="grid-template-columns:repeat(${r.shape.cols},1fr)">${cells.map((c) => {
+      if (c.card) {
+        const info = cards[c.card] || {};
+        return `<div class="cell ${big && misses.has(c.card) ? 'miss' : ''}" data-id="${esc(c.card)}"><img loading="lazy" src="${esc(info.img)}" alt="${esc(info.name)}" title="${esc(info.name)} · ${esc(info.set)}"></div>`;
+      }
+      return `<div class="cell ${c.art ? 'art' : 'open'}" title="${c.art ? 'art panel' : 'open pocket'}"></div>`;
+    }).join('')}</div>`;
+  }).join('');
+  return `<div class="spread ${big ? 'big' : ''}">${html}</div>`;
+}
+
+function render() {
+  const done = Object.keys(votes).filter((k) => rounds.some((r) => r.id === k)).length;
+  document.getElementById('bar').style.width = `${(100 * done) / rounds.length}%`;
+  document.getElementById('count').textContent = `${Math.min(at + 1, rounds.length)} / ${rounds.length} · ${done} answered`;
+  if (at >= rounds.length) {
+    app.innerHTML = `<p class="done">All ${rounds.length} rounds answered. Tell Claude "arrange lab done".</p>`;
+    return;
+  }
+  const r = rounds[at]; window.scrollTo(0, 0);
+  if (r.test === 'misses') return renderMisses(r);
+  const prev = votes[r.id]?.pick;
+  const cols = r.cols.map((c, i) => `<div class="col ${prev === c.v ? 'chosen' : ''}" data-v="${esc(c.v)}">
+      <h3><span>${LETTERS[i]} <span class="meta">(key ${i + 1})</span></span><button class="pickbtn" data-pick="${esc(c.v)}">Pick ${LETTERS[i]}</button></h3>
+      ${canvas(r, c.grid, false)}
+      ${c.held && c.held.length ? `<div class="held">${c.held.length} card${c.held.length > 1 ? 's' : ''} held for the next page</div>` : ''}
+    </div>`).join('');
+  app.innerHTML = `<p class="prompt">${esc(r.prompt)}</p>
+    <div class="keys">${esc(r.pool.kind === 'theme' ? `${r.pool.label} pool` : 'one of your pages')} · Press 1–${r.cols.length} or the Pick button. T = about equal. 0 = none are good. Click a card to see it large.</div>
+    <div class="cols" style="grid-template-columns:repeat(${Math.min(r.cols.length, r.shape.spread ? 2 : 3)},1fr)">${cols}</div>
+    <div class="bar"><button id="tie">About equal (T)</button><button id="none">None are good (0)</button></div>`;
+  app.querySelectorAll('.pickbtn').forEach((el) => (el.onclick = () => pick(el.dataset.pick)));
+  app.querySelectorAll('.cell img').forEach((el) => (el.onclick = () => zoom(el.parentElement.dataset.id)));
+  document.getElementById('tie').onclick = () => pick('tie');
+  document.getElementById('none').onclick = () => pick('none');
+}
+function pick(v) { const r = rounds[at]; vote({ round: r.id, test: r.test, pick: v, order: r.cols.map((c) => c.v) }); }
+
+function renderMisses(r) {
+  misses = new Set(votes[r.id]?.misses || []);
+  const bandCol = r.bands ? `<div class="bands" style="grid-template-rows:repeat(${r.shape.rows},1fr)">${Array.from({ length: r.shape.rows }, (_, i) => `<div>${esc(r.bands[i] ?? '')}</div>`).join('')}</div>` : '';
+  app.innerHTML = `<p class="prompt">${esc(r.prompt)}</p>
+    <div class="keys">${esc(r.pool.kind === 'theme' ? `${r.pool.label} pool` : 'one of your pages')} · Click a card to mark it wrong; click again to undo. Enter = next. Hold Shift and click to see a card large.</div>
+    <div class="withbands">${bandCol}${canvas(r, r.grid, true)}</div>
+    <div class="bar"><button class="primary" id="next">Next (Enter)</button><span class="meta" id="misscount"></span></div>`;
+  const count = () => { document.getElementById('misscount').textContent = `${misses.size} marked`; };
+  count();
+  app.querySelectorAll('.big .cell[data-id]').forEach((el) => (el.onclick = (e) => {
+    const id = el.dataset.id;
+    if (e.shiftKey) return zoom(id);
+    misses.has(id) ? misses.delete(id) : misses.add(id);
+    el.classList.toggle('miss');
+    count();
+  }));
+  document.getElementById('next').onclick = submitMisses;
+}
+function submitMisses() { const r = rounds[at]; vote({ round: r.id, test: 'misses', mode: r.mode, misses: [...misses], shown: r.grid.filter((c) => c.card).length }); }
+
+function zoom(id) {
+  const info = cards[id]; if (!info) return;
+  document.getElementById('zoomimg').src = info.img;
+  document.getElementById('zoomcap').textContent = `${info.name} · ${info.set}`;
+  document.getElementById('zoom').classList.add('on');
+}
+document.getElementById('zoom').onclick = () => document.getElementById('zoom').classList.remove('on');
+
+document.addEventListener('keydown', (e) => {
+  if (document.getElementById('zoom').classList.contains('on')) { document.getElementById('zoom').classList.remove('on'); return; }
+  if (at >= rounds.length) return;
+  const r = rounds[at];
+  if (r.test === 'misses') { if (e.key === 'Enter') submitMisses(); return; }
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= r.cols.length) pick(r.cols[n - 1].v);
+  else if (e.key === '0') pick('none');
+  else if (e.key.toLowerCase() === 't') pick('tie');
+});
+document.getElementById('back').onclick = () => { if (at > 0) { at--; render(); } };
+document.getElementById('skip').onclick = () => { if (at < rounds.length) { at++; render(); } };
+boot();
+</script>
+</body>
+</html>

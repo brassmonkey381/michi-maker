@@ -105,7 +105,36 @@ export interface ArrangeInput {
    * layouts that seat everything.
    */
   allowHeld?: boolean;
+  /** The soft choices inside each mode. Absent means `DEFAULT_TUNING`, which is what the app ships. */
+  tuning?: Partial<Tuning>;
 }
+
+/**
+ * The choices a mode makes that are taste, not rule. Each one is a knob the Arrange Lab
+ * (scripts/arrange-lab) puts in front of the owner blind, so the default can follow what they
+ * actually pick rather than what read well in a first draft. The app passes nothing and gets
+ * `DEFAULT_TUNING`.
+ */
+export interface Tuning {
+  /** Strata: how a row orders its cards. `hue` by hue angle; `light` dark to bright; `chain` nearest palette neighbour from the darkest. */
+  strataOrder: 'hue' | 'light' | 'chain';
+  /** Strata: transition cards sit at a row's ends (true) or are sorted in with the clean cards. */
+  transitionsAtEnds: boolean;
+  /** Flow: how much a vertical neighbour counts against a horizontal one, 0..1. */
+  flowVertical: number;
+  /** Flow: the gradient's seed card, the darkest or the brightest. */
+  flowStart: 'dark' | 'light';
+  /** Mirror: a card's twin is one by the same illustrator first, or the closest palette outright. */
+  mirrorTwin: 'illustrator' | 'palette';
+}
+
+export const DEFAULT_TUNING: Tuning = {
+  strataOrder: 'hue',
+  transitionsAtEnds: true,
+  flowVertical: 0.5,
+  flowStart: 'dark',
+  mirrorTwin: 'illustrator',
+};
 
 // ---------------------------------------------------------------------------------------------
 // Depth
@@ -301,12 +330,31 @@ function belowOf(a: Cell, b: Cell): boolean {
 /** `seating[i]` is the card in `cells[i]`, or null for an open pocket. */
 export type Seating = (ArrangeCard | null)[];
 
-interface Ctx {
+/** The canvas a mode seats onto: its card pockets, its shape, the connected pairs, the tuning. */
+export interface SeatCtx {
   cells: readonly Cell[];
   cols: number;
   rows: number;
   spread: boolean;
   pairs: readonly ConnectedPair[];
+  /** Absent means `DEFAULT_TUNING`. */
+  tuning?: Partial<Tuning>;
+}
+type Ctx = SeatCtx;
+
+const tuningOf = (ctx: Ctx): Tuning => ({ ...DEFAULT_TUNING, ...(ctx.tuning ?? {}) });
+
+/** Nearest palette neighbour chain from the darkest card: the order the eye reads as one gradient. */
+function paletteChain(cards: readonly ArrangeCard[], start: 'dark' | 'light'): ArrangeCard[] {
+  const rest = [...cards].sort((x, y) => (start === 'dark' ? dominant(x).L - dominant(y).L : dominant(y).L - dominant(x).L));
+  if (rest.length < 2) return rest;
+  const chain: ArrangeCard[] = [rest.shift()!];
+  while (rest.length) {
+    const last = chain[chain.length - 1];
+    rest.sort((x, y) => paletteDist(last, x) - paletteDist(last, y));
+    chain.push(rest.shift()!);
+  }
+  return chain;
 }
 
 /**
@@ -435,6 +483,7 @@ export function bandRows(rows: number): Record<Depth, number[]> {
  * borrowed. A pocket left open is the ask.
  */
 export function seatStrata(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult | null {
+  const tune = tuningOf(ctx);
   const bands: Record<Depth, ArrangeCard[]> = { above: [], surface: [], below: [] };
   const free: ArrangeCard[] = [];
   for (const c of cards) {
@@ -479,10 +528,14 @@ export function seatStrata(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult 
     const take = bands[d].slice(0, idx.length);
     held.push(...bands[d].slice(idx.length));
     // Palette flows left to right; transition cards sit at the ends, where the eye expects an edge.
-    const clean = take.filter((c) => !depthOf(c).partly).sort((x, y) => hue(x) - hue(y));
-    const trans = take.filter((c) => depthOf(c).partly).sort((x, y) => hue(x) - hue(y));
+    const order = (xs: ArrangeCard[]): ArrangeCard[] =>
+      tune.strataOrder === 'hue' ? [...xs].sort((x, y) => hue(x) - hue(y))
+        : tune.strataOrder === 'light' ? [...xs].sort((x, y) => dominant(x).L - dominant(y).L)
+          : paletteChain(xs, 'dark');
+    const clean = order(take.filter((c) => !depthOf(c).partly));
+    const trans = order(take.filter((c) => depthOf(c).partly));
     const half = Math.ceil(trans.length / 2);
-    const ordered = [...trans.slice(0, half), ...clean, ...trans.slice(half)];
+    const ordered = tune.transitionsAtEnds ? [...trans.slice(0, half), ...clean, ...trans.slice(half)] : order(take);
     idx.forEach((i, k) => {
       seating[i] = ordered[k] ?? null;
     });
@@ -597,14 +650,9 @@ export function seatLines(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult |
 /** FLOW. Nearest-neighbour chain from the darkest card, then swaps until no swap shortens the gradient. */
 export function seatFlow(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult | null {
   if (cards.length < 2) return null;
-  const rest = [...cards].sort((x, y) => dominant(x).L - dominant(y).L);
-  const chain: ArrangeCard[] = [rest.shift()!];
-  while (rest.length && chain.length < ctx.cells.length) {
-    const last = chain[chain.length - 1];
-    rest.sort((x, y) => paletteDist(last, x) - paletteDist(last, y));
-    chain.push(rest.shift()!);
-  }
-  const held = rest;
+  const whole = paletteChain(cards, tuningOf(ctx).flowStart);
+  const chain = whole.slice(0, ctx.cells.length);
+  const held = whole.slice(ctx.cells.length);
   const seating: Seating = ctx.cells.map((_, i) => chain[i] ?? null);
   const score = (s: Seating) => -flowRoughness(s, ctx);
   const improved = improve(seating, score, () => true);
@@ -623,19 +671,21 @@ export function seatFlow(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult | 
 
 /** How many neighbour pairs the roughness summed over, weighted the same way. */
 function neighbourCount(s: Seating, ctx: Ctx): number {
+  const v = tuningOf(ctx).flowVertical;
   let n = 0;
   for (let i = 0; i < ctx.cells.length; i += 1) {
     for (let j = i + 1; j < ctx.cells.length; j += 1) {
       if (!s[i] || !s[j]) continue;
       if (besideOf(ctx.cells[i], ctx.cells[j], ctx.cols)) n += 1;
-      else if (belowOf(ctx.cells[i], ctx.cells[j])) n += 0.5;
+      else if (belowOf(ctx.cells[i], ctx.cells[j])) n += v;
     }
   }
   return n;
 }
 
-/** Total palette distance between neighbours: horizontal at full weight, vertical at half. */
+/** Total palette distance between neighbours: horizontal at full weight, vertical at `flowVertical` (half by default). */
 export function flowRoughness(s: Seating, ctx: Ctx): number {
+  const v = tuningOf(ctx).flowVertical;
   let d = 0;
   for (let i = 0; i < ctx.cells.length; i += 1) {
     for (let j = i + 1; j < ctx.cells.length; j += 1) {
@@ -643,7 +693,7 @@ export function flowRoughness(s: Seating, ctx: Ctx): number {
       const b = s[j];
       if (!a || !b) continue;
       if (besideOf(ctx.cells[i], ctx.cells[j], ctx.cols)) d += paletteDist(a, b);
-      else if (belowOf(ctx.cells[i], ctx.cells[j])) d += 0.5 * paletteDist(a, b);
+      else if (belowOf(ctx.cells[i], ctx.cells[j])) d += v * paletteDist(a, b);
     }
   }
   return d;
@@ -675,9 +725,10 @@ export function seatMirror(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult 
       return edge(p.c) - edge(q.c) || p.i - q.i;
     });
   const pool = byStrength.filter((c) => !taken.has(c.id));
+  const byIllustrator = tuningOf(ctx).mirrorTwin === 'illustrator';
   const twin = (a: ArrangeCard) => {
     const rest = pool.filter((c) => !taken.has(c.id) && c.id !== a.id);
-    const same = rest.filter((c) => c.illustrator && c.illustrator === a.illustrator).sort((x, y) => paletteDist(a, x) - paletteDist(a, y));
+    const same = byIllustrator ? rest.filter((c) => c.illustrator && c.illustrator === a.illustrator).sort((x, y) => paletteDist(a, x) - paletteDist(a, y)) : [];
     if (same.length) return same[0];
     return rest.sort((x, y) => paletteDist(a, x) - paletteDist(a, y))[0];
   };
@@ -775,7 +826,13 @@ const MODES: { mode: ArrangeMode; seat: (cards: readonly ArrangeCard[], ctx: Ctx
   { mode: 'mirror', seat: seatMirror },
 ];
 
-function toCandidate(res: ModeResult, mode: ArrangeMode, t: ArtTemplate | null, ctx: Ctx, total: number): Candidate {
+/** One mode on one canvas, or null when the mode is not offered for these cards. */
+export function seatWith(mode: ArrangeMode, cards: readonly ArrangeCard[], ctx: SeatCtx): ModeResult | null {
+  return MODES.find((m) => m.mode === mode)!.seat(cards, ctx);
+}
+
+/** A mode's result as the sheet would show it: placements, open pockets, held cards, score. */
+export function toCandidate(res: ModeResult, mode: ArrangeMode, t: ArtTemplate | null, ctx: SeatCtx, total: number): Candidate {
   const placements: Placement[] = [];
   const open: Cell[] = [];
   res.seating.forEach((c, i) => {
@@ -818,7 +875,7 @@ export function arrangeCandidates(input: ArrangeInput): Candidate[] {
   }
   const all: Candidate[] = [];
   for (const g of geometries) {
-    const ctx: Ctx = { cells: g.cells, cols: input.cols, rows: input.rows, spread: input.spread, pairs };
+    const ctx: Ctx = { cells: g.cells, cols: input.cols, rows: input.rows, spread: input.spread, pairs, tuning: input.tuning };
     if (!ctx.cells.length) continue;
     for (const m of MODES) {
       const res = m.seat(input.cards, ctx);

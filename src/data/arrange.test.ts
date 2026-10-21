@@ -17,6 +17,7 @@ import { ART_TEMPLATES } from './artTemplates.ts';
 import {
   type ArrangeCard,
   type Cell,
+  DEFAULT_TUNING,
   arrangeCandidates,
   bandRows,
   cardCells,
@@ -24,6 +25,7 @@ import {
   connectedPairs,
   depthOf,
   depthTagQuery,
+  flowRoughness,
   movesFor,
   seatFlow,
   seatLines,
@@ -291,4 +293,65 @@ test('connectedPairs: Legend halves by name, consecutive numbers by one illustra
     { a: 'X Legend (Top)', b: 'X Legend (Bottom)', dir: 'vertical' },
     { a: 'a', b: 'b', dir: 'horizontal' },
   ]);
+});
+
+// --- Tuning: the taste knobs the Arrange Lab puts in front of the owner ---------------------
+
+test('tuning: strataOrder light sorts a row dark to bright; hue is the default', () => {
+  const cards = lavaPool();
+  const base = seatStrata(cards, ctxFor(cards))!;
+  const light = seatStrata(cards, { ...ctxFor(cards), tuning: { strataOrder: 'light' } })!;
+  const ctx = ctxFor(cards);
+  // The sky row (row 0) under 'light': its clean cards run dark to bright (the transition cards keep the ends).
+  const row0 = (ctx.cells.map((c, i) => (c.row === 0 ? light.seating[i] : null)).filter(Boolean) as ArrangeCard[]).filter((c) => !depthOf(c).partly);
+  assert.ok(row0.length >= 4);
+  for (let i = 1; i < row0.length; i += 1) assert.ok(row0[i].palette![0].L >= row0[i - 1].palette![0].L);
+  // Still pure: the same cards per row as the default, only the order inside the row differs.
+  const rowSet = (res: typeof base, r: number) => new Set(ctx.cells.map((c, i) => (c.row === r ? res.seating[i]?.id : null)).filter(Boolean));
+  for (let r = 0; r < 3; r += 1) assert.deepEqual(rowSet(light, r), rowSet(base, r));
+});
+
+test('tuning: transitionsAtEnds off lets a transition card sit mid-row', () => {
+  const cards = lavaPool();
+  const ctx = ctxFor(cards);
+  const mixed = seatStrata(cards, { ...ctx, tuning: { transitionsAtEnds: false, strataOrder: 'light' } })!;
+  const row0 = ctx.cells.map((c, i) => (c.row === 0 ? mixed.seating[i] : null)).filter(Boolean) as ArrangeCard[];
+  // The two flying-over-volcano transitions are the darkest sky cards, so under 'light' they come first, together.
+  const ends = row0.filter((c) => depthOf(c).partly);
+  assert.equal(ends.length, 2);
+  assert.ok(row0.indexOf(ends[1]) < row0.length - 1, 'a transition card is not forced to the row end');
+});
+
+test('tuning: flowStart light seeds the gradient from the brightest card', () => {
+  const cards = lavaPool();
+  const dark = seatFlow(cards, ctxFor(cards))!;
+  const light = seatFlow(cards, { ...ctxFor(cards), tuning: { flowStart: 'light' } })!;
+  const first = (res: typeof dark) => res.seating.find(Boolean)!;
+  assert.ok(first(dark).palette![0].L < first(light).palette![0].L);
+});
+
+test('tuning: flowVertical changes the roughness a seating is judged by', () => {
+  const cards = lavaPool();
+  const ctx = ctxFor(cards);
+  const res = seatFlow(cards, ctx)!;
+  const half = flowRoughness(res.seating, ctx);
+  const none = flowRoughness(res.seating, { ...ctx, tuning: { flowVertical: 0 } });
+  const full = flowRoughness(res.seating, { ...ctx, tuning: { flowVertical: 1 } });
+  assert.ok(none < half && half < full);
+});
+
+test('tuning: mirrorTwin palette ignores the illustrator', () => {
+  const cards = lavaPool().map((c, i) => ({ ...c, illustrator: i % 2 ? 'A' : 'B', fullArtKind: i === 0 ? 'special_illustration_rare' : undefined }));
+  const byArtist = seatMirror(cards, ctxFor(cards))!;
+  const byPalette = seatMirror(cards, { ...ctxFor(cards), tuning: { mirrorTwin: 'palette' } })!;
+  // The default pairs the strongest card with one by the same illustrator and says so in its fit.
+  assert.ok(byArtist.fit > byPalette.fit);
+});
+
+test('tuning: the app passes nothing and gets the defaults', () => {
+  assert.deepEqual(DEFAULT_TUNING, { strataOrder: 'hue', transitionsAtEnds: true, flowVertical: 0.5, flowStart: 'dark', mirrorTwin: 'illustrator' });
+  const cards = lavaPool();
+  const a = arrangeCandidates({ ...spread, cards });
+  const b = arrangeCandidates({ ...spread, cards, tuning: {} });
+  assert.deepEqual(a.map((c) => c.placements), b.map((c) => c.placements));
 });

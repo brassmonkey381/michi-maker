@@ -5,8 +5,7 @@ Spec for an **Arrange** button in the binder editor. Status: approved for a v1 o
 Nothing is built yet. The visual demo of each mode on real pages is at
 https://claude.ai/artifact/LS4NwvX98QTMbqDmLa58ax (owner-private artifact; the generator is in the
 session scratchpad, not this repo). The demo pool is 24 lava cards whose depth comes from their
-tags, not hand labels; it includes one conflicted card (Galarian Moltres, flying over a volcano)
-on purpose so the hold-out reads. Lines marked **[owner]** are decisions that are theirs.
+tags, not hand labels. Lines marked **[owner]** are decisions that are theirs.
 
 ## What it is
 
@@ -47,16 +46,14 @@ natural case; a 2x4 page gets two bands.
 
 - Hard: every card in a row shares the row's stratum, where the card has one.
 - Hard, **row purity** (owner, 2026-10-20: "make sure the themes at the top row are not present
-  in the other rows"): a row owns its band's words, so no other row may show them. Each card is
-  one of:
+  in the other rows"): a row owns its band's words, so no other row may show them. The **first**
+  depth word in a card's caption decides its band, because it is what the picture is mostly of:
+  Galarian Moltres flying over a volcano is a sky card (owner, 2026-10-20, after a draft held it
+  out: "a bad decision"). Each card is then one of:
   - **clean**: all its depth words are in one band;
-  - **transition**: its first depth word is its band and a word of another band comes third or
-    later in its caption ("partially underground, mostly above ground"). Allowed in its own row,
-    seated at the row's ends, and marked so the user can see which cards carry a little of the
-    next depth;
-  - **conflicted**: another band's word is its first or second depth word. Never seated by Strata.
-    It is held out and named with the reason, so the owner can swap it for a printing that reads
-    one depth.
+  - **transition**: a later word names another band ("partially underground, mostly above
+    ground"). Allowed in its own row, seated at the row's ends, and marked so the user can see
+    which cards carry a little of the next depth.
 - Nothing is borrowed across bands. A pocket stays open rather than hold a card from the wrong
   depth, and that open pocket is what earns the one sparing suggestion (a clean card of the short
   band, same theme, a species the page does not have).

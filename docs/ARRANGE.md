@@ -321,6 +321,33 @@ more of the page's cards share, cards sharing at least two of them, ids only; `l
 The page's art class steers which prints come first and is passed to theme fill. Theme fill has no
 paid gate on either side yet (owner undecided).
 
+## Binder building: identity-seeded pages (2026-10-21)
+
+The owner asked for a few private full-art theme binders built with the arranger, to inspect. The
+first cut dealt a theme's full arts onto pages by depth band and arranged each page: "the cards on
+a page did not belong together ... half the page is clearly one theme, and then the others seem
+random." The second cut is the one the owner rated **one of the best binder-building methods so
+far**, and named as a possible feature (a story-binder type, with more pages and cards to draw on):
+
+1. **Pool**: the theme's full arts (scene words), ranked by how strongly each is the theme.
+2. **Identity**: tight groups found in the pool, each one page's reason: an evolution family, one
+   illustrator, one palette family (a 30-degree hue bin of the dominant colour, or the darks, or
+   the pales), or a clique whose art reads alike (embedding cosine). Three to six seed cards go
+   down first: the owner's "load 25-50% of the page with intentionality".
+3. **Fill only while the identity holds**: candidates by the page's own method (same family or
+   same hand first, then likeness to the seeds' centre, or palette distance to the seeds); a card
+   that reads less like the seeds than the seeds do to each other is not placed. Pages stop
+   short rather than take a random card.
+4. **Trim to a template size** (6, 8, 9, 12 on 3x4), then the shipped arranger with exact-fit
+   templates only: no hole, nothing to the tray.
+5. **Order** pages by mean hue so the binder flows. Page title is the identity, page notes say
+   seeds, fill method, where the fill stopped and the arranger's reason.
+
+At the strict floor (0.68 cosine) most pages come out as six cards and a poster panel; the
+twelve-card pages are the palette ones. The dial is the fill floor. Builder:
+`scripts/arranged-binders.mjs` (dry run prints every page; `--apply` writes private binders on
+fakemichi, replacing same-titled ones). The three inspection binders were deleted on request.
+
 ## Open for the owner
 
 - Add cards: decided, one sparing suggestion per candidate, see above.

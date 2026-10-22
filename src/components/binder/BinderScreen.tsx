@@ -15,7 +15,7 @@ import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanima
 import { Image } from 'expo-image';
 
 import { cardThumbUrl } from '@/lib/catalogConfig';
-import { browseState, loadColorIndex, similarAvailable } from 'tcgscan-browse';
+import { browseState, similarAvailable } from 'tcgscan-browse';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
@@ -53,6 +53,7 @@ import { PAGE_NUMBER_DEBOUNCE_MS, PLAIN_KEYS, SHORTCUTS_SEEN_KEY } from '@/data/
 import { canSplitSlice, isSlicedArt, mergeRefusalText, mergeSlices } from '@/data/sliceMerge';
 import { pageHalfFull } from '@/data/editorHints';
 import { useEditorHint } from '@/hooks/use-editor-hint';
+import { loadPokemonColorIndexes } from '@/lib/colorIndexes';
 import { MovePageSheet } from '@/components/binder/MovePageSheet';
 import { QuickPreviewModal } from '@/components/binder/SharePreview';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
@@ -336,9 +337,10 @@ export function BinderScreen({
   const [paletteSeed, setPaletteSeed] = useState<{ cardId: string } | null>(null);
   // WARM THE COLOUR DATA with the editor (owner, 2026-10-22): a pocket's Colors button reads the
   // card's palette from the on-device blob, and the first press used to be what started that
-  // download, so the sheet opened on the old mix. Load-once in the kit, about 900 KB, cached after.
+  // download, so the sheet opened on the old mix. Load-once in the kit, about 900 KB per language,
+  // cached after. English and Japanese both (lib/colorIndexes).
   useEffect(() => {
-    void loadColorIndex();
+    void loadPokemonColorIndexes();
   }, []);
   // Held so a dismiss can commit unsaved framing before the studio unmounts.
   const studioRef = useRef<SliceStudioHandle>(null);

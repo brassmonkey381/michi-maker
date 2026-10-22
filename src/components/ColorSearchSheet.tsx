@@ -10,11 +10,12 @@
 import { Image } from 'expo-image';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { findSimilarByColor, loadColorIndex, searchByColors, srgbToLab, useColorIndex, type ColorRegion, type Lab } from 'tcgscan-browse';
+import { srgbToLab, type ColorRegion, type Lab } from 'tcgscan-browse';
 
 import { GradientMixBar, HsvColorPicker, stopWeights, type Stop } from '@/components/color/ColorPicker';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { stopsForCard } from '@/lib/cardPalette';
+import { colorIndexHolding, searchLoadedIndexes, usePokemonColorIndexes } from '@/lib/colorIndexes';
 import { track } from '@/lib/analytics';
 
 const REGIONS: { value: ColorRegion; label: string }[] = [
@@ -79,7 +80,8 @@ export function ColorSearchSheet({
   onResults: (ids: string[], label: string) => void;
   onClose: () => void;
 }) {
-  const colorIndex = useColorIndex(true);
+  // Both Pokémon blobs, English and Japanese; the hook re-renders this as each one lands.
+  const { settled: indexesSettled, failed: indexesFailed } = usePokemonColorIndexes();
   const [region, setRegion] = useState<ColorRegion>(savedRegion);
   const [stops, setStops] = useState<Stop[]>(savedStops);
   const [active, setActive] = useState<number>(savedActive); // the stop the HSV picker edits
@@ -94,15 +96,17 @@ export function ColorSearchSheet({
   const [dropped, setDropped] = useState<string | undefined>(undefined);
   // Adjusted DURING RENDER rather than in an effect: React's own idiom for "a prop changed, fold it
   // into state", and it paints the new mix in the same pass instead of flashing the old one first.
-  if (paletteCardId && colorIndex && paletteCardId !== dropped) {
+  const holder = paletteCardId ? colorIndexHolding(paletteCardId) : null;
+  if (paletteCardId && paletteCardId !== dropped && (holder || indexesSettled)) {
     setDropped(paletteCardId);
-    const picked = stopsForCard(colorIndex, paletteCardId, region);
+    const picked = stopsForCard(holder, paletteCardId, region);
     if (picked.length) {
       setStops(picked);
       setActive(0); // a two-colour card would leave the HSV editor pointing past the end
       setNote('');
     } else {
-      setNote('That card has no colour data yet. Take from another card, or mix by hand.');
+      // Colour is computed from the picture; a card without one in the mirror has none yet.
+      setNote('Colours appear once this card has a picture. Take from another card, or mix by hand.');
     }
   }
   /**
@@ -113,23 +117,13 @@ export function ColorSearchSheet({
    * until the card's palette lands, and a failed load says so instead of waiting forever.
    */
   const reading = Boolean(paletteCardId) && paletteCardId !== dropped;
-  const [loadFailed, setLoadFailed] = useState(false);
-  useEffect(() => {
-    if (!reading || colorIndex) return;
-    let live = true;
-    loadColorIndex().then((idx) => {
-      if (live && !idx) setLoadFailed(true);
-    });
-    return () => {
-      live = false;
-    };
-  }, [reading, colorIndex]);
+  const loadFailed = indexesFailed;
 
   /** Switching Full art / Art panel re-reads the card that is on the bar, as the toggle promises. */
   const pickRegion = (r: ColorRegion) => {
     setRegion(r);
-    if (!dropped || !colorIndex) return;
-    const picked = stopsForCard(colorIndex, dropped, r);
+    if (!dropped) return;
+    const picked = stopsForCard(colorIndexHolding(dropped), dropped, r);
     if (picked.length) {
       setStops(picked);
       setActive(0);
@@ -143,7 +137,7 @@ export function ColorSearchSheet({
     savedActive = active;
   }, [stops, region, active]);
 
-  const similarUnavailable = Boolean(seedCardId) && !(colorIndex && seedCardId && colorIndex.has(seedCardId));
+  const similarUnavailable = Boolean(seedCardId) && !colorIndexHolding(seedCardId ?? '');
 
   const query = useMemo<Lab[]>(() => {
     const w = stopWeights(stops);
@@ -156,9 +150,10 @@ export function ColorSearchSheet({
     // No `languages` argument: both helpers inherit the shared EN/JP preference, and the bound is
     // applied inside the search (server `p_lang`, or the on-device index's scan) rather than to the
     // 120 ids we get back — otherwise an EN-only collector saw roughly half a result set.
+    // Both language blobs, merged by distance; the browser's own language filter narrows after.
     const ids = seedCardId
-      ? await findSimilarByColor(seedCardId, region, { limit: 120 })
-      : await searchByColors(query, region, { limit: 120 });
+      ? (colorIndexHolding(seedCardId)?.findSimilar(seedCardId, region, 120) ?? []).map((h) => h.id)
+      : searchLoadedIndexes(query, region, 120).map((h) => h.id);
     setBusy(false);
     if (ids.length) onResults(ids, seedCardId ? `Similar: ${seedName ?? 'card'}` : 'Color mix');
     else {

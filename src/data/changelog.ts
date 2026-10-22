@@ -144,7 +144,8 @@ export const CHANGELOG: ChangelogEntry[] = [
           + 'look). The picture lands on the page as one pocket. Drag it where you like and drag its '
           + 'corner to make it as big as you like. Zoom, rotate, flip and cutting into pieces are '
           + 'behind Advanced editing, which now opens on one whole piece with a Place on page button. '
-          + 'Just the art is retired.',
+          + 'A placed picture keeps the whole image, so Edit on its pocket reopens it exactly as '
+          + 'framed and Apply puts the new framing back in the same pocket. Just the art is retired.',
       },
       {
         products: ['michi'],

@@ -225,6 +225,8 @@ interface BinderGridProps {
   onResizeSlot?: (row: number, col: number, rowSpan: number, colSpan: number) => void;
   /** Selected-pocket actions, shown in a toolbar anchored to the slot (edit mode). */
   onReplaceSlot?: () => void;
+  /** Reopen the selected art pocket's picture in the studio, framed as it is placed. */
+  onEditArtSlot?: () => void;
   onDuplicateSlot?: () => void;
   onRemoveSlot?: () => void;
   onDeselectSlot?: () => void;
@@ -335,6 +337,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onDropSlot,
     onResizeSlot,
     onReplaceSlot,
+    onEditArtSlot,
     onDuplicateSlot,
     onRemoveSlot,
     onDeselectSlot,
@@ -1003,6 +1006,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             captionH={captionH}
             innerW={innerW}
             onReplace={onReplaceSlot}
+            onEditArt={resizeSlot.type === 'artwork' && resizeSlot.imageUrl ? onEditArtSlot : undefined}
             onDuplicate={onDuplicateSlot}
             onRemove={onRemoveSlot}
             onDeselect={onDeselectSlot}
@@ -1037,6 +1041,7 @@ function SlotToolbar({
   captionH,
   innerW,
   onReplace,
+  onEditArt,
   onDuplicate,
   onRemove,
   onDeselect,
@@ -1058,6 +1063,8 @@ function SlotToolbar({
   captionH: number;
   innerW: number;
   onReplace?: () => void;
+  /** An art pocket: back into the studio with this picture, window and turn. */
+  onEditArt?: () => void;
   onDuplicate?: () => void;
   onRemove?: () => void;
   onDeselect?: () => void;
@@ -1111,6 +1118,7 @@ function SlotToolbar({
       ) : (
         <ToolButton label="Replace" onPress={onReplace} />
       )}
+      {onEditArt && !more ? <ToolButton label="Edit" onPress={onEditArt} accessibilityLabel="Edit this picture: zoom, rotate, flip, cut" /> : null}
       {!twoFaces || more ? <ToolButton label="Duplicate" onPress={onDuplicate} /> : null}
       {/* "✨ Fill page" is what this feature is called EVERYWHERE else — the sheet's title, the
           guide that tells you to look for it here, the tier limits, the sign-in perk. The button

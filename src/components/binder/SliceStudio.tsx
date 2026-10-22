@@ -213,6 +213,13 @@ interface SliceStudioProps {
   embedded?: boolean;
   /** The page the studio was opened from, so Art sources can lead with searches for its subject. */
   pageArt?: { cardIds: readonly string[]; title?: string | null };
+  /**
+   * EDITING A PLACED POCKET (owner, 2026-10-22: "we could always go back to editing it"). The
+   * pocket keeps the whole picture and only a window into it, so the studio opens on that window,
+   * turn and fit, and Place becomes Apply: the same pocket, re-framed.
+   */
+  initial?: { crop?: { x: number; y: number; w: number; h: number } | null; transform?: ImageTransform | null; fit?: 'cover' | 'contain' };
+  replacing?: boolean;
 }
 
 /** One piece of a cut: the slice, and where it sits in the cut (row and column offsets). */
@@ -237,6 +244,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     onSaveSlices,
     onPlace,
     onClose,
+    initial,
+    replacing = false,
     trayCount = 0,
     trayLimit = Infinity,
     guest = false,
@@ -272,10 +281,10 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   const [sourceOpen, setSourceOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState(initUrl ?? '');
   const [urlInput, setUrlInput] = useState('');
-  const [win, setWin] = useState<Win>({ x: 0, y: 0, w: 1, h: 1 });
+  const [win, setWin] = useState<Win>(initial?.crop ?? { x: 0, y: 0, w: 1, h: 1 });
   // How the art fills its pocket(s): 'cover' fills edge-to-edge (crop overflow, pan/zoom to frame),
   // 'contain' shows the whole image at its original aspect (letterboxed, nothing cropped).
-  const [fit, setFit] = useState<'cover' | 'contain'>('cover');
+  const [fit, setFit] = useState<'cover' | 'contain'>(initial?.fit ?? 'cover');
   const [panels, setPanels] = useState<Panel[]>(() => makeGrid(rows, cols));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sliced, setSliced] = useState(false);
@@ -288,9 +297,9 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   // Lossless orientation: quarter-turn rotation + mirror flips, applied at render time only —
   // the original image is never modified.
-  const [rot, setRot] = useState<Rot>(0);
-  const [flipH, setFlipH] = useState(false);
-  const [flipV, setFlipV] = useState(false);
+  const [rot, setRot] = useState<Rot>(initial?.transform?.rot ?? 0);
+  const [flipH, setFlipH] = useState(!!initial?.transform?.flipH);
+  const [flipV, setFlipV] = useState(!!initial?.transform?.flipV);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   // The controls/shortcuts reference now lives behind a header "?" (was a permanent right column).
   const [guideOpen, setGuideOpen] = useState(false);
@@ -1130,7 +1139,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
       <Pressable onPress={placePieces} hitSlop={10} disabled={actionOff} testID="studio-place">
         <View style={[styles.placeBtn, actionOff && styles.disabled]}>
           <Text style={styles.placeBtnText}>
-            {hasImage && panels.length > 1 ? `Place ${panels.length} ${pieceWord}` : 'Place on page'}
+            {hasImage && panels.length > 1 ? `Place ${panels.length} ${pieceWord}` : replacing ? 'Apply to pocket' : 'Place on page'}
           </Text>
         </View>
       </Pressable>

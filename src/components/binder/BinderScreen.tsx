@@ -354,7 +354,17 @@ export function BinderScreen({
   // pocket; the studio is behind its Advanced editing link.
   const [addArtOpen, setAddArtOpen] = useState(false);
   const [studio, setStudio] = useState<
-    { rows: number; cols: number; row: number; col: number; imageUrl?: string } | null
+    | {
+        rows: number;
+        cols: number;
+        row: number;
+        col: number;
+        imageUrl?: string;
+        /** Set when the studio is re-framing a placed pocket: Apply writes back to this slot. */
+        editSlotId?: string;
+        initial?: { crop?: DemoSlot['imageCrop'] | null; transform?: DemoSlot['imageTransform'] | null; fit?: DemoSlot['imageFit'] };
+      }
+    | null
   >(null);
   // The pocket selected for quick actions (action bar + resize handle); distinct from pickerCell.
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
@@ -1007,9 +1017,28 @@ export function BinderScreen({
 
   /** The studio's Place on page. True when the studio can close: the art is on the page or in the tray. */
   const placeStudioPieces = (pieces: StudioPiece[]): boolean => {
-    if (artCapBlocks(pieces.length)) return false;
     const first = pieces[0]?.slice;
     if (!first) return false;
+    // RE-FRAMING A PLACED POCKET: one piece goes back into the pocket it came from, same place,
+    // same span, new window. A cut of several pieces falls through and is placed as new art.
+    const editing = studio?.editSlotId ? page.slots.find((s) => s.id === studio.editSlotId) : undefined;
+    if (editing && pieces.length === 1) {
+      if (binder.isPublic && isPrivateArt(first.attribution, first.imageUrl)) {
+        showToast('This is a shared binder, private art (added from a link) can’t go in it. Upload your own art instead.', true);
+        return false;
+      }
+      store.setSlotArt(binder.id, page.id, editing.id, {
+        imageUrl: first.imageUrl,
+        imageCrop: first.crop ?? { x: 0, y: 0, w: 1, h: 1 },
+        imageFit: first.fit ?? 'cover',
+        imageTransform: first.transform,
+        attribution: first.attribution,
+      });
+      setStudio(null);
+      showToast('Pocket updated.', true);
+      return true;
+    }
+    if (artCapBlocks(pieces.length)) return false;
     if (binder.isPublic && isPrivateArt(first.attribution, first.imageUrl)) {
       showToast('This is a shared binder, private art (added from a link) can’t go in it. Upload your own art instead.', true);
       return false;
@@ -1061,6 +1090,20 @@ export function BinderScreen({
   const openStudioForPage = (imageUrl?: string) =>
     setStudio({ rows: page.rows, cols: page.cols, row: 0, col: 0, imageUrl });
   const openAddArt = () => setAddArtOpen(true);
+  /** Edit on an art pocket's toolbar: the studio, on this pocket's picture, framed as placed. */
+  const editSelectedArt = () => {
+    if (!selectedSlot || selectedSlot.type !== 'artwork' || !selectedSlot.imageUrl) return;
+    setStudio({
+      rows: page.rows,
+      cols: page.cols,
+      row: selectedSlot.row,
+      col: selectedSlot.col,
+      imageUrl: selectedSlot.imageUrl,
+      editSlotId: selectedSlot.id,
+      initial: { crop: selectedSlot.imageCrop, transform: selectedSlot.imageTransform, fit: selectedSlot.imageFit },
+    });
+    setSelectedSlotId(null);
+  };
   /** The Add art sheet chose a picture: one whole piece, seated where the studio would seat it. */
   const placeQuickArt = (imageUrl: string, attribution: ArtAttribution) => {
     const slice: SavedSlice = {
@@ -2207,6 +2250,7 @@ export function BinderScreen({
         onSlotPress={handleSelectSlot}
         onResizeSlot={handleResizeSlot}
         onReplaceSlot={replaceSelected}
+        onEditArtSlot={editSelectedArt}
         onDuplicateSlot={duplicateSelected}
         onRemoveSlot={removeSelected}
         onDeselectSlot={() => setSelectedSlotId(null)}
@@ -3187,6 +3231,8 @@ export function BinderScreen({
             trayLimit={store.limits.artUploads}
             pageArt={{ cardIds: pageCardIds, title: page.title }}
             guest={store.tier === 'guest'}
+            initial={studio.initial}
+            replacing={!!studio.editSlotId}
           />
         )}
 

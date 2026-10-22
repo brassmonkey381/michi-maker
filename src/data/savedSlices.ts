@@ -18,8 +18,9 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
 import { domainOf, type ArtAttribution } from '@/data/artworkLibrary';
-import { uuidv4, type DemoSlot, type ImageTransform } from '@/data/binderTypes';
+import { uuidv4, type ImageTransform } from '@/data/binderTypes';
 import * as repo from '@/data/sliceRepo';
+import { sliceSignature } from '@/data/sliceSignature';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
 
@@ -45,38 +46,11 @@ export interface SavedSlice {
   deletedAt?: string;
 }
 
-/**
- * Content identity of a slice, independent of which row/slot holds it. Crop fractions are rounded
- * so a float that round-tripped through jsonb still matches; absent fit/transform normalize to
- * their defaults ('cover', no rotation/flips).
- */
-export function sliceSignature(s: Omit<SavedSlice, 'id'>): string {
-  const r6 = (v: number) => Math.round(v * 1e6) / 1e6;
-  const crop = s.crop ? [r6(s.crop.x), r6(s.crop.y), r6(s.crop.w), r6(s.crop.h)].join(',') : '-';
-  const t = s.transform;
-  return [
-    s.imageUrl,
-    crop,
-    s.fit ?? 'cover',
-    `${t?.rot ?? 0}${t?.flipH ? 'h' : ''}${t?.flipV ? 'v' : ''}`,
-    `${s.rs}x${s.cs}`,
-  ].join('|');
-}
-
-/** The same content identity computed from a PLACED artwork slot, so tray slices and binder
- *  pockets can be matched (used by delete-everywhere and the binder-art import scan). */
-export function slotSignature(slot: DemoSlot): string {
-  return sliceSignature({
-    imageUrl: slot.imageUrl ?? '',
-    crop: slot.imageCrop ?? null,
-    fit: (slot.imageFit as 'cover' | 'contain' | undefined) ?? 'cover',
-    transform: slot.imageTransform,
-    rs: slot.rowSpan,
-    cs: slot.colSpan,
-  });
-}
+export { sliceSignature, slotSignature } from '@/data/sliceSignature';
 
 let saved: SavedSlice[] = [];
+/** Pieces removed this session, newest first, so a tidy-up can be undone piece by piece. */
+let recentlyRemoved: SavedSlice[] = [];
 let currentOwner: string | null = null;
 let syncGen = 0;
 const listeners = new Set<() => void>();
@@ -92,6 +66,14 @@ function subscribe(notify: () => void): () => void {
 }
 function snapshot(): SavedSlice[] {
   return saved;
+}
+function removedSnapshot(): SavedSlice[] {
+  return recentlyRemoved;
+}
+
+/** Reactive list of pieces removed this session (Tidy up's Restore reads it). */
+export function useRecentlyRemovedSlices(): SavedSlice[] {
+  return useSyncExternalStore(subscribe, removedSnapshot, removedSnapshot);
 }
 
 /** Reactive list of the current user's saved slices, newest first. */
@@ -113,16 +95,36 @@ export function addSavedSlices(slices: SavedSlice[]): void {
 
 /** Remove one slice from the tray (optimistic) and tombstone it. */
 export function removeSavedSlice(id: string): void {
-  const next = saved.filter((s) => s.id !== id);
-  if (next === saved || next.length === saved.length) {
-    if (!saved.some((s) => s.id === id)) return;
-  }
-  saved = next;
+  removeSavedSlices([id]);
+}
+
+/** Remove several at once (Tidy up): one write, every piece kept for Restore. */
+export function removeSavedSlices(ids: readonly string[]): void {
+  const gone = new Set(ids);
+  const removed = saved.filter((s) => gone.has(s.id));
+  if (!removed.length) return;
+  saved = saved.filter((s) => !gone.has(s.id));
+  recentlyRemoved = [...removed, ...recentlyRemoved];
   emit();
   if (supabase) {
     void repo
-      .deleteSavedSlice(id)
+      .deleteSavedSlices(removed.map((s) => s.id))
       .catch((e) => console.warn(`[michi-maker] slice delete failed: ${(e as Error).message}`));
+  }
+}
+
+/** Put removed pieces back (optimistic) and clear their tombstones. */
+export function restoreSavedSlices(ids: readonly string[]): void {
+  const back = new Set(ids);
+  const restored = recentlyRemoved.filter((s) => back.has(s.id));
+  if (!restored.length) return;
+  recentlyRemoved = recentlyRemoved.filter((s) => !back.has(s.id));
+  saved = [...restored.map((s) => ({ ...s, deletedAt: undefined })), ...saved];
+  emit();
+  if (supabase) {
+    void repo
+      .restoreSavedSlices(restored.map((s) => s.id))
+      .catch((e) => console.warn(`[michi-maker] slice restore failed: ${(e as Error).message}`));
   }
 }
 
@@ -140,6 +142,7 @@ export async function syncSavedSlices(ownerId: string | null): Promise<void> {
   currentOwner = ownerId;
   const gen = ++syncGen;
   saved = [];
+  recentlyRemoved = [];
   emit();
   if (!supabase || !ownerId) return;
   try {

@@ -135,6 +135,17 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Tidy up the Artwork panel',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'The Artwork panel now knows which pieces are in a binder, any of your binders. Filter it '
+          + 'to the ones that are not, or press Tidy up: every unused piece is shown, grouped by the '
+          + 'picture it was cut from, ticked for deletion; untick what you want to keep and delete the '
+          + 'rest in one go. Removed pieces can be restored until you leave the editor.',
+      },
+      {
+        products: ['michi'],
         head: 'One Add art button, and art searches that start where you left off',
         kind: 'better',
         area: 'binders',

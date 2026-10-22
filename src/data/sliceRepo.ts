@@ -87,11 +87,25 @@ export async function insertSavedSlices(slices: SavedSlice[]): Promise<void> {
 
 /** Soft delete: tombstone the row so the binder-art import never resurrects it. */
 export async function deleteSavedSlice(id: string): Promise<void> {
+  return deleteSavedSlices([id]);
+}
+
+/** The same, for a tidy-up's batch: one round trip. */
+export async function deleteSavedSlices(ids: readonly string[]): Promise<void> {
+  if (!ids.length) return;
   const supabase = requireSupabase();
   const { error } = await supabase
     .from('saved_slices')
     .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
+    .in('id', [...ids]);
+  if (error) throw error;
+}
+
+/** Undo a tombstone: the piece is back in the tray on the next load too. */
+export async function restoreSavedSlices(ids: readonly string[]): Promise<void> {
+  if (!ids.length) return;
+  const supabase = requireSupabase();
+  const { error } = await supabase.from('saved_slices').update({ deleted_at: null }).in('id', [...ids]);
   if (error) throw error;
 }
 

@@ -112,6 +112,7 @@ import { track, type CardAddVia } from '@/lib/analytics';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
+import { usedSliceSignatures } from '@/data/sliceTidy';
 import { artLimitMessage, artTrialMessage, binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
 
 import { SliceThumb } from '@/components/binder/SliceTray';
@@ -334,6 +335,9 @@ export function BinderScreen({
   const [similarSeed, setSimilarSeed] = useState<string[] | null>(null);
   // A pocket's Colors button: the card whose palette the picker's colour sheet should open on.
   const [paletteSeed, setPaletteSeed] = useState<{ cardId: string } | null>(null);
+  // WHICH TRAY PIECES ARE IN A BINDER, any binder of this account (owner, 2026-10-22): the Artwork
+  // panel's filter and its Tidy up read this. Recomputed only when a binder changes.
+  const usedSignatures = useMemo(() => usedSliceSignatures(store.userBinders), [store.userBinders]);
   // WARM THE COLOUR DATA with the editor (owner, 2026-10-22): a pocket's Colors button reads the
   // card's palette from the on-device blob, and the first press used to be what started that
   // download, so the sheet opened on the old mix. Load-once in the kit, about 900 KB per language,
@@ -2847,6 +2851,8 @@ export function BinderScreen({
           onDrop={handleSliceDrop}
           onRemove={handleRemoveSlice}
           onNewSlice={openStudioForPage}
+          usedSignatures={usedSignatures}
+          onToast={(m) => showToast(m)}
           // Inserts moved to this side with the artwork: both are "not a card", and the card
           // browser has to stay alone on its own side anyway.
           onPickInsert={handlePickInsert}

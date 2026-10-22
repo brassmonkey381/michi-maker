@@ -62,6 +62,9 @@ export interface ArtworkDockProps {
   onDrop: (slice: SavedSlice, windowX: number, windowY: number) => void;
   onRemove: (slice: SavedSlice) => void;
   onNewSlice: () => void;
+  /** See ArtworkPanel: which pieces are placed somewhere, for the filter and Tidy up. */
+  usedSignatures?: ReadonlySet<string>;
+  onToast?: (message: string) => void;
   /** Inserts live on this side too — see the tab note below. */
   onPickInsert?: (color: string, rowSpan: number, colSpan: number) => void;
   onClear?: () => void;

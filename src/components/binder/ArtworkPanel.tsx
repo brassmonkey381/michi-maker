@@ -29,12 +29,22 @@ import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 import type { SharedValue } from 'react-native-reanimated';
 
 import { SliceChip } from '@/components/binder/SliceTray';
+import { TidyUpSheet } from '@/components/binder/TidyUpSheet';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { domainOf } from '@/data/artworkLibrary';
-import { useSavedSlices, type SavedSlice } from '@/data/savedSlices';
+import { removeSavedSlices, restoreSavedSlices, useRecentlyRemovedSlices, useSavedSlices, type SavedSlice } from '@/data/savedSlices';
+import { isSliceUsed } from '@/data/sliceTidy';
 
 type Sort = 'newest' | 'oldest' | 'source' | 'largest';
+/** Which pieces to show: every one, only the ones no binder uses, or only the placed ones. */
+type Use = 'all' | 'unused' | 'used';
+const USES: { id: Use; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'unused', label: 'Not in a binder' },
+  { id: 'used', label: 'In a binder' },
+];
+const EMPTY_SET: ReadonlySet<string> = new Set();
 const SORTS: { id: Sort; label: string }[] = [
   { id: 'newest', label: 'Newest' },
   { id: 'oldest', label: 'Oldest' },
@@ -63,6 +73,8 @@ export function ArtworkPanel({
   onDrop,
   onRemove,
   onNewSlice,
+  usedSignatures = EMPTY_SET,
+  onToast,
   ghostOn,
   ghostX,
   ghostY,
@@ -75,6 +87,10 @@ export function ArtworkPanel({
   /** ADD ART opens the Slice Studio, full screen, because that is the room it needs. Finding art
    *  (tuned searches, free photos) lives inside it: one door, not two (owner, 2026-10-22). */
   onNewSlice: () => void;
+  /** Content signatures of every artwork pocket across the account's binders (data/sliceTidy),
+   *  so the panel can say which pieces are in use and offer to tidy the rest. */
+  usedSignatures?: ReadonlySet<string>;
+  onToast?: (message: string) => void;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
   ghostY: SharedValue<number>;
@@ -82,6 +98,10 @@ export function ArtworkPanel({
   const slices = useSavedSlices();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('newest');
+  const [use, setUse] = useState<Use>('all');
+  const [tidyOpen, setTidyOpen] = useState(false);
+  const removed = useRecentlyRemovedSlices();
+  const unusedCount = useMemo(() => slices.filter((s) => !isSliceUsed(s, usedSignatures)).length, [slices, usedSignatures]);
 
   // THE HANDLERS, BEHIND A REF. The caller passes new closures every render; the chips are
   // memoised, so they are handed these four, which never change, and read the latest through it.
@@ -104,6 +124,7 @@ export function ArtworkPanel({
     const byKey = new Map<string, Group>();
     for (const slice of slices) {
       if (q && !haystack(slice).includes(q)) continue;
+      if (use !== 'all' && isSliceUsed(slice, usedSignatures) !== (use === 'used')) continue;
       const key = slice.groupId ?? slice.id;
       let g = byKey.get(key);
       if (!g) {
@@ -119,7 +140,7 @@ export function ArtworkPanel({
     else if (sort === 'source') out.sort((a, b) => a.name.localeCompare(b.name) || b.newest.localeCompare(a.newest));
     else out.sort((a, b) => b.items.length - a.items.length || b.newest.localeCompare(a.newest));
     return out;
-  }, [slices, query, sort]);
+  }, [slices, query, sort, use, usedSignatures]);
   const shown = groups.reduce((n, g) => n + g.items.length, 0);
 
   const renderGroup = useCallback(
@@ -160,6 +181,15 @@ export function ArtworkPanel({
           Artwork{slices.length ? ` · ${slices.length}` : ''}
         </ThemedText>
         <View style={styles.headBtns}>
+          {unusedCount > 0 || removed.length > 0 ? (
+            <Pressable
+              onPress={() => setTidyOpen(true)}
+              accessibilityRole="button"
+              testID="art-tidy"
+              style={({ pressed }) => [styles.newBtn, styles.tidyBtn, pressed && styles.pressed]}>
+              <Text style={[styles.newBtnText, styles.tidyBtnText]}>{unusedCount > 0 ? `Tidy up · ${unusedCount}` : 'Tidy up'}</Text>
+            </Pressable>
+          ) : null}
           <Pressable
             onPress={onNewSlice}
             accessibilityRole="button"
@@ -179,6 +209,14 @@ export function ArtworkPanel({
         </View>
       ) : (
         <>
+          {removed.length > 0 ? (
+            <Pressable onPress={() => restoreSavedSlices(removed.map((s) => s.id))} hitSlop={4} style={styles.restoreRow}>
+              <Text style={styles.restoreText}>
+                {`${removed.length} piece${removed.length === 1 ? '' : 's'} removed. `}
+                <Text style={styles.restoreLink}>Restore</Text>
+              </Text>
+            </Pressable>
+          ) : null}
           {/* Worth its row from a dozen pieces up; below that the whole tray is on screen anyway. */}
           {slices.length >= 12 ? (
             <View style={styles.tools}>
@@ -193,6 +231,18 @@ export function ArtworkPanel({
                 testID="artwork-search"
                 style={styles.search}
               />
+              <View style={styles.sorts}>
+                {USES.map((u) => (
+                  <Pressable
+                    key={u.id}
+                    onPress={() => setUse(u.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: use === u.id }}
+                    style={[styles.sortChip, styles.useChip, use === u.id && styles.sortChipOn]}>
+                    <Text style={[styles.sortText, use === u.id && styles.sortTextOn]}>{u.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
               <View style={styles.sorts}>
                 {SORTS.map((s) => (
                   <Pressable
@@ -224,10 +274,29 @@ export function ArtworkPanel({
                 {query.trim() ? `${shown} of ${slices.length} pieces match.` : 'Drag a piece into a pocket, or tap it then tap the pocket.'}
               </Text>
             }
-            ListEmptyComponent={<Text style={styles.emptyText}>Nothing matches that. Try the source site, or a size like 1x2.</Text>}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>
+                {use === 'unused' && !query.trim()
+                  ? 'Every piece is in a binder.'
+                  : use === 'used' && !query.trim()
+                    ? 'No piece is in a binder yet.'
+                    : 'Nothing matches that. Try the source site, or a size like 1x2.'}
+              </Text>
+            }
           />
         </>
       )}
+      {tidyOpen ? (
+        <TidyUpSheet
+          slices={slices}
+          usedSignatures={usedSignatures}
+          onDelete={(gone) => {
+            removeSavedSlices(gone.map((s) => s.id));
+            onToast?.(`Removed ${gone.length} piece${gone.length === 1 ? '' : 's'}. Restore from the Artwork panel.`);
+          }}
+          onClose={() => setTidyOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -251,6 +320,12 @@ const styles = StyleSheet.create({
   },
   newBtnText: { color: Palette.white, fontSize: FontSize.label, fontWeight: Weight.semibold },
   headBtns: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  tidyBtn: { backgroundColor: Palette.panel },
+  tidyBtnText: { color: Palette.ink2 },
+  useChip: { borderWidth: 1, borderColor: Palette.hairline },
+  restoreRow: { paddingBottom: Spacing.two },
+  restoreText: { fontSize: FontSize.sm, color: Palette.muted2 },
+  restoreLink: { color: Palette.accent, fontWeight: Weight.semibold },
   pressed: { opacity: 0.7 },
   tools: { gap: 6, paddingBottom: Spacing.two },
   search: { height: 34, paddingHorizontal: 10, borderRadius: Radius.control, backgroundColor: Palette.panel, color: Palette.ink, fontSize: FontSize.label },

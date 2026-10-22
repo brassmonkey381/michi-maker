@@ -14,6 +14,13 @@
  * placed and stops fetching the rest; the binder keeps its reserved gaps, which Slice Studio can
  * fill by hand.
  *
+ * TWO WAYS TO BUILD (2026-10-21). "Themed spreads" is the original: one two-page spread per theme,
+ * the strongest cards seated nearest the art. "Curated pages" is the owner's later method, rated
+ * one of the best for binder building: each page seeded with one tight identity (an evolution
+ * family, one hand, one palette, a clique of lookalikes), filled only while a candidate keeps that
+ * identity, trimmed to a template size and seated by the arranger (data/storyPages). Curated pages
+ * take longer to plan (likeness is read from the data server per page) and skip the dressed cover.
+ *
  * The gate is `limits.multiPageCompose` (VIP, the same flag as "pages around this card"): this is
  * an experiment the owner wants to play with before deciding how it is sold, so nothing on any
  * marketing surface mentions it. The entry point is one small button on My binders that only a
@@ -22,23 +29,33 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { findSimilarToMany, loadColorIndex } from 'tcgscan-browse';
+
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
-import { uuidv4 } from '@/data/binderTypes';
+import { uuidv4, type DemoBinder, type DemoPage } from '@/data/binderTypes';
 import { WIZARD_SHAPES } from '@/data/binderWizard';
-import { planStoryBinder, themeCandidates, type PageShape, type RarityMode, type StoryPlan, type ThemeScore } from '@/data/storyBinder';
+import { planStoryBinder, themeCandidates, type ArtJob, type PageShape, type RarityMode, type StoryPlan, type ThemeScore } from '@/data/storyBinder';
+import { planPages, type PagesProviders, type PoolCard } from '@/data/storyPages';
 import { applyCoverArt, dropCoverArt, planStoryCover } from '@/data/storyCover';
 import { STORY_TEMPLATES, type StoryTemplate } from '@/data/storyThemes';
 import { hasBinderCovers } from '@/data/tiers';
+import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { track } from '@/lib/analytics';
+import { depthOfCards } from '@/lib/depth';
+import { similarityAmong } from '@/lib/similarity';
 import { fetchStockArtForAspect, fetchStockArtForPanel } from '@/lib/stockArt';
 import { scoreThemes } from '@/lib/themeScores';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
 type Source = 'catalog' | 'collection';
+type BuildMode = 'spreads' | 'pages';
+/** How strict the curated fill is: the likeness floor a fill card must clear (data/storyPages). */
+const FILL_FLOORS = { strict: 0.68, fuller: 0.62 } as const;
+type FillStrictness = keyof typeof FILL_FLOORS;
 
 interface Progress {
   done: number;
@@ -81,6 +98,11 @@ export function StoryBinderSheet({
   const [rarity, setRarity] = useState<RarityMode>('illustration');
   const [withArt, setWithArt] = useState(true);
   const [withCover, setWithCover] = useState(true);
+  const [mode, setMode] = useState<BuildMode>('spreads');
+  const [perTheme, setPerTheme] = useState(3);
+  const [strictness, setStrictness] = useState<FillStrictness>('strict');
+  // Curated pages read card facts (line, hand, class, type) off the catalogue; spreads do not need it.
+  const { catalog } = useCatalog(visible && mode === 'pages');
   const [progress, setProgress] = useState<Progress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cancelled = useRef(false);
@@ -129,7 +151,126 @@ export function StoryBinderSheet({
 
   const building = progress !== null;
 
+  /** Dress every reserved panel from stock art, one at a time, with the progress line. */
+  const placeArt = async (binder: DemoBinder, jobs: ArtJob[], usedHits: Set<string>): Promise<{ placed: number; failed: number }> => {
+    let placed = 0;
+    let failed = 0;
+    for (const [i, job] of jobs.entries()) {
+      if (cancelled.current) break;
+      setProgress({ done: i, total: jobs.length, label: job.label, failed });
+      const page = binder.pages[job.pageIndex];
+      const art = page ? await fetchStockArtForPanel(job.queries, job.rowSpan, job.colSpan, job.kind, usedHits) : null;
+      if (cancelled.current) break;
+      if (art && page) {
+        storeRef.current.placeArtPanels(binder.id, page.id, job.row, job.col, [
+          { r: 0, c: 0, rs: job.rowSpan, cs: job.colSpan, imageUrl: art.imageUrl, crop: art.crop, attribution: art.attribution },
+        ]);
+        placed += 1;
+      } else {
+        failed += 1;
+        console.warn('[story] no art for panel', job.label, job.queries);
+      }
+    }
+    return { placed, failed };
+  };
+
+  /**
+   * CURATED PAGES. Per theme: the scored pool as the arranger's cards, then data/storyPages finds
+   * the identities, seeds, fills while coherent and arranges. Likeness comes from the data server
+   * (Find Similar to many for the fill, Find Similar per card for the page), palettes from the
+   * on-device colour index, depth words from the depth RPC. No cover page: the binder opens on its
+   * first identity.
+   */
+  const buildPages = async () => {
+    if (!lists || building || !catalog) return;
+    setError(null);
+    cancelled.current = false;
+    const themes = template.spreads;
+    setProgress({ done: 0, total: themes.length, label: `Planning ${themes[0]?.title ?? ''}`, failed: 0 });
+    const index = await loadColorIndex();
+    const providers: PagesProviders = {
+      likenessToCentre: async (seedIds, poolIds) => {
+        const want = new Set(poolIds);
+        const hits = await findSimilarToMany([...seedIds], 400);
+        const out = new Map<string, number>();
+        for (const h of hits) if (want.has(h.id)) out.set(h.id, Math.max(0, Math.min(1, h.similarity)));
+        return out;
+      },
+      pairwise: (ids) => similarityAmong(ids),
+      depthWords: (ids) => depthOfCards(ids),
+    };
+    const pages: DemoPage[] = [];
+    const artJobs: ArtJob[] = [];
+    const used = new Set<string>();
+    let identities = 0;
+    for (const [i, theme] of themes.entries()) {
+      if (cancelled.current) return;
+      setProgress({ done: i, total: themes.length, label: `Planning ${theme.title}`, failed: 0 });
+      const scored = themeCandidates(lists[i] ?? [], { pool, rarity }).filter((s) => s.qualifies && !used.has(s.card.id));
+      const poolCards: PoolCard[] = [];
+      for (const sc of scored.slice(0, 300)) {
+        const c = catalog.getCard(sc.card.id);
+        if (!c || c.kind !== 'standard') continue;
+        poolCards.push({
+          id: c.id,
+          name: c.name,
+          evolutionLine: c.evolutionLine,
+          evolutionStage: c.evolutionStage,
+          illustrator: c.illustrator || undefined,
+          setId: c.setId,
+          number: c.number,
+          fullArtKind: c.fullArtKind || undefined,
+          fullArt: c.fullArt,
+          rarity: c.rarity,
+          types: c.types,
+          palette: index?.has(c.id) ? index.colors(c.id, 'art') : undefined,
+          strength: sc.score,
+          trainer: c.types.length === 0,
+        });
+      }
+      try {
+        const plan = await planPages(poolCards, providers, {
+          shape,
+          maxPages: perTheme,
+          fillFloor: FILL_FLOORS[strictness],
+          mkId: uuidv4,
+          art: { queries: theme.art, kind: theme.artKind ?? 'any', label: theme.title },
+          fromCollection: !!pool,
+        });
+        const offset = pages.length;
+        for (const p of plan.pages) {
+          p.cards.forEach((c) => used.add(c.id));
+          pages.push(p.page);
+        }
+        for (const j of plan.artJobs) artJobs.push({ ...j, pageIndex: j.pageIndex + offset });
+        identities += plan.pages.length;
+      } catch (e) {
+        console.warn('[story] curated pages failed for', theme.title, e);
+      }
+    }
+    if (cancelled.current) return;
+    if (!pages.length) {
+      setProgress(null);
+      setError('No page held together at this strictness. Try "Fuller pages", or another story.');
+      return;
+    }
+    const themeList = themes.map((t) => t.title.toLowerCase()).join(', ');
+    const binder = store.createBinder({ title: template.title, description: `${identities} pages, each one idea: ${themeList}.`, pages });
+    if (!binder) {
+      setProgress(null);
+      onCap();
+      return;
+    }
+    track('story.build', { template: template.id, pages: pages.length, art: withArt ? artJobs.length : 0, source, rarity, mode: 'pages', strictness });
+    const { placed, failed } = await placeArt(binder, withArt ? artJobs : [], new Set<string>());
+    if (cancelled.current) return;
+    setProgress(null);
+    onBuilt(binder.id, pages.length, placed, failed);
+    onClose();
+  };
+
   const build = async () => {
+    if (mode === 'pages') return buildPages();
     if (!lists || building) return;
     setError(null);
     cancelled.current = false;
@@ -154,24 +295,9 @@ export function StoryBinderSheet({
     const jobs = withArt ? plan.artJobs : [];
     setProgress({ done: 0, total: jobs.length, label: jobs[0]?.label ?? '', failed: 0 });
     const usedHits = new Set<string>();
-    let placed = 0;
-    let failed = 0;
-    for (const [i, job] of jobs.entries()) {
-      if (cancelled.current) break;
-      setProgress({ done: i, total: jobs.length, label: job.label, failed });
-      const page = binder.pages[job.pageIndex];
-      const art = page ? await fetchStockArtForPanel(job.queries, job.rowSpan, job.colSpan, job.kind, usedHits) : null;
-      if (cancelled.current) break;
-      if (art && page) {
-        storeRef.current.placeArtPanels(binder.id, page.id, job.row, job.col, [
-          { r: 0, c: 0, rs: job.rowSpan, cs: job.colSpan, imageUrl: art.imageUrl, crop: art.crop, attribution: art.attribution },
-        ]);
-        placed += 1;
-      } else {
-        failed += 1;
-        console.warn('[story] no art for panel', job.label, job.queries);
-      }
-    }
+    const dressed = await placeArt(binder, jobs, usedHits);
+    let placed = dressed.placed;
+    let failed = dressed.failed;
     if (cancelled.current) return;
 
     // ── The cover: a preview of the story on the four surfaces, its pictures fetched like the
@@ -216,8 +342,9 @@ export function StoryBinderSheet({
     onClose();
   };
 
-  const ready = !!lists;
+  const ready = !!lists && (mode === 'spreads' || !!catalog);
   const thin = counts.filter((c) => c < 6).length;
+  const curated = mode === 'pages';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
@@ -238,8 +365,9 @@ export function StoryBinderSheet({
               </Pressable>
             </View>
             <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-              A whole binder that tells a story: a cover, then one two-page spread per theme. Every art panel
-              is dressed automatically from Pexels and Pixabay.
+              {curated
+                ? 'A whole binder, one idea per page: a family, a hand, a palette, or pictures that read alike, each page filled only with cards that keep the idea, then arranged. Every art panel is dressed automatically.'
+                : 'A whole binder that tells a story: a cover, then one two-page spread per theme. Every art panel is dressed automatically from Pexels and Pixabay.'}
             </ThemedText>
 
             {!ready ? (
@@ -251,6 +379,39 @@ export function StoryBinderSheet({
               </View>
             ) : (
               <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+                <Label>Build</Label>
+                <View style={styles.chips}>
+                  <Chip on={mode === 'spreads'} onPress={() => setMode('spreads')} disabled={building}>
+                    Themed spreads
+                  </Chip>
+                  <Chip on={mode === 'pages'} onPress={() => setMode('pages')} disabled={building}>
+                    Curated pages
+                  </Chip>
+                </View>
+                {curated ? (
+                  <>
+                    <Label>Pages per theme</Label>
+                    <View style={styles.chips}>
+                      {[2, 3, 4, 6].map((k) => (
+                        <Chip key={k} on={perTheme === k} onPress={() => setPerTheme(k)} disabled={building}>
+                          {`Up to ${k}`}
+                        </Chip>
+                      ))}
+                    </View>
+                    <Label>Fill</Label>
+                    <View style={styles.chips}>
+                      <Chip on={strictness === 'strict'} onPress={() => setStrictness('strict')} disabled={building}>
+                        One idea, strictly
+                      </Chip>
+                      <Chip on={strictness === 'fuller'} onPress={() => setStrictness('fuller')} disabled={building}>
+                        Fuller pages
+                      </Chip>
+                    </View>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.blurb}>
+                      Strict pages stop when the next card would weaken the idea, and take an art panel instead. Fuller pages let a near match in.
+                    </ThemedText>
+                  </>
+                ) : null}
                 <Label>Story</Label>
                 <View style={styles.chips}>
                   {STORY_TEMPLATES.map((t) => (
@@ -272,7 +433,7 @@ export function StoryBinderSheet({
                     </View>
                   ))}
                 </View>
-                {thin > 0 ? (
+                {thin > 0 && !curated ? (
                   <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
                     {thin === 1 ? 'One theme' : `${thin} themes`} {thin === 1 ? 'has' : 'have'} fewer than six cards here; those spreads
                     will have empty pockets.
@@ -322,7 +483,7 @@ export function StoryBinderSheet({
                   </Chip>
                 </View>
 
-                {coversAllowed ? (
+                {coversAllowed && !curated ? (
                   <>
                     <Label>Binder cover</Label>
                     <View style={styles.chips}>
@@ -353,7 +514,7 @@ export function StoryBinderSheet({
                 <ActivityIndicator />
                 <View style={styles.progressText}>
                   <ThemedText type="smallBold">
-                    Dressing the pages · {Math.min(progress.done + 1, progress.total)} of {progress.total}
+                    {progress.label.startsWith('Planning ') ? 'Planning the pages' : 'Dressing the pages'} · {Math.min(progress.done + 1, progress.total)} of {progress.total}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
                     {progress.label}
@@ -368,7 +529,9 @@ export function StoryBinderSheet({
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.primary, !ready && styles.primaryOff, pressed && styles.pressed]}>
                 <Text style={styles.primaryText}>
-                  Build {template.title.toLowerCase()} · {1 + template.spreads.length * 2} pages{withCover && coversAllowed ? ' + cover' : ''}
+                  {curated
+                    ? `Build ${template.title.toLowerCase()} · up to ${template.spreads.length * perTheme} pages`
+                    : `Build ${template.title.toLowerCase()} · ${1 + template.spreads.length * 2} pages${withCover && coversAllowed ? ' + cover' : ''}`}
                 </Text>
               </Pressable>
             )}

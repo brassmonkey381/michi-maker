@@ -66,6 +66,38 @@ that produced those numbers was a scratch script over `cards_en?select=…&scene
 6. **Art jobs**: every reserved panel becomes a job carrying the theme's searches and art kind.
    Nothing is capped — a six-theme template makes 13 pages and 15 jobs.
 
+## Curated pages (2026-10-21)
+
+The second way to build, beside the themed spreads: a "Build" chip at the top of the sheet. The
+owner built three theme binders with the arranger to inspect; dealing a theme's cards onto pages
+read as "the cards on a page did not belong together", and the method below was "one of the best so
+far for binder building", so it became this mode. Per theme of the story:
+
+1. **Pool**: the theme's scored cards (the same `scoreThemes` call), as the arranger sees them
+   (line, hand, class, type, the colour index's palette), Pokémon only for every identity but the
+   illustrator's.
+2. **Identity**: tight groups in the pool, each one page's reason: an evolution family (two or more
+   species present), one illustrator (four or more cards), one palette family (a 30-degree hue bin
+   of the dominant colour, or the darks, or the pales; six or more), or a clique whose art reads
+   alike (Find Similar cosine 0.74 among the forty strongest). Three to six seeds go down first.
+   Kinds round-robin (alike, lines, palette, artist) so a binder is not six palettes.
+3. **Fill while coherent**: candidates by the identity's own method (same family or hand first,
+   then likeness to the seeds' centre via Find Similar to many, or palette distance to the seeds);
+   a card that reads less like the seeds than the seeds do to each other, or under the floor
+   (0.68 "One idea, strictly", 0.62 "Fuller pages"), is not placed. One art class per page.
+4. **Trim** to a template size, then the shipped arranger (`data/arranger`) seats the page with
+   exact-fit templates only: no hole, nothing to the tray. Page title is the identity ("The Eevee
+   family", "By Mitsuhiro Arita", "Sea blues", "Alike: Lunala"); the description says what the
+   page is, never how it was chosen.
+5. **Order** pages by mean hue. No cover page and no dressed cover in this mode; the art panels
+   are dressed from the theme's stock-art searches like the spreads'.
+
+Files: `src/data/storyPages.ts` (pure apart from injected likeness and depth providers),
+`src/data/storyPages.test.ts`, the sheet's `buildPages`. The same planner drives
+`scripts/arranged-binders.mjs`, which builds private inspection binders on fakemichi from the
+command line with SQL-backed providers. Settings in the sheet: pages per theme (2, 3, 4, 6) and
+the fill strictness. The method's history is in `docs/ARRANGE.md`, "Binder building".
+
 ## How art is placed
 
 `StoryBinderSheet.build` creates the binder first (`store.createBinder` with the planned pages, so

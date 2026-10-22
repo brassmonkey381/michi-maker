@@ -344,9 +344,11 @@ far**, and named as a possible feature (a story-binder type, with more pages and
    seeds, fill method, where the fill stopped and the arranger's reason.
 
 At the strict floor (0.68 cosine) most pages come out as six cards and a poster panel; the
-twelve-card pages are the palette ones. The dial is the fill floor. Builder:
+twelve-card pages are the palette ones. The dial is the fill floor. The three inspection binders
+were deleted on request, and the method shipped the same day as the Story binder's "Curated pages"
+mode: `src/data/storyPages.ts` (docs/STORY-BINDERS.md, "Curated pages"), which also drives
 `scripts/arranged-binders.mjs` (dry run prints every page; `--apply` writes private binders on
-fakemichi, replacing same-titled ones). The three inspection binders were deleted on request.
+fakemichi, replacing same-titled ones).
 
 ## Open for the owner
 

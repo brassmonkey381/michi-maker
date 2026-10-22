@@ -19,6 +19,7 @@ import {
 import { ContestEntrySection } from '@/components/contest/ContestEntrySection';
 import { QuickPreviewButton, ShareBackdropField } from '@/components/binder/SharePreview';
 import { ThemedText } from '@/components/themed-text';
+import { track } from '@/lib/analytics';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { privateArtInBinder, type PrivateArtRef } from '@/data/artAttributionCheck';
@@ -262,6 +263,7 @@ export function ShareSheet({
     setHires('busy');
     try {
       await downloadBinderHiresImage(binder.id, binder.updatedAt);
+      track('share.hires', { surface: 'share_sheet', binder_id: binder.id });
       setHires('idle');
     } catch {
       setHires('failed');
@@ -326,10 +328,12 @@ export function ShareSheet({
     try {
       if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(url);
+        track('share.link', { how: 'copy', binder_id: binder.id });
         setCopied(true);
         setTimeout(() => setCopied(false), 1600);
       } else {
         await Share.share({ message: url, url });
+        track('share.link', { how: 'native', binder_id: binder.id });
       }
     } catch {
       // user cancelled the share sheet, or clipboard denied — no-op

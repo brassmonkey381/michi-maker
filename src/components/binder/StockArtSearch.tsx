@@ -16,6 +16,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { FontSize, Palette, Radius, Weight } from '@/constants/theme';
 import { flatChip } from '@/constants/ui';
+import { track } from '@/lib/analytics';
 import { searchStockArt, type StockHit, type StockKind, type StockOrientation } from '@/lib/stockArt';
 
 export function StockArtSearch({
@@ -48,6 +49,8 @@ export function StockArtSearch({
     try {
       const res = await searchStockArt(q, { orientation, kind: k, per: 18 });
       setHits(res.hits);
+      // The phrase itself is never sent: a count and the kind say whether the tool is finding things.
+      track('art.search', { kind: k, orientation, hits: res.hits.length });
       if (res.hits.length === 0) {
         const off = Object.entries(res.providers).filter(([, s]) => s === 'no-key' || s === 'error');
         setNote(off.length ? 'Nothing came back. The search service may be unavailable right now.' : 'Nothing for that phrase. Try fewer, plainer words.');

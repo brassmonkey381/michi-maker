@@ -201,7 +201,10 @@ export default function MyBindersScreen() {
     setMenuId(null);
   };
   const saveRename = () => {
-    if (renameId) store.updateBinder(renameId, { title: renameText.trim() || fillerName() });
+    if (renameId) {
+      track('binder.rename');
+      store.updateBinder(renameId, { title: renameText.trim() || fillerName() });
+    }
     setRenameId(null);
   };
   const duplicateFromMenu = () => {

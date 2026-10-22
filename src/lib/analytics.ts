@@ -530,6 +530,35 @@ export function track(name: string, props?: Record<string, unknown>): void {
  * emitters stay the near-identical mirrors AGENTS.md requires. Values shared with TrialCta's
  * `surface` ('plans', 'print_gate') must keep spelling exactly, or the funnel stops joining.
  */
+/**
+ * HOW A CARD GOT INTO A POCKET, on card.add (owner, 2026-10-22: "how is @cardorg making binders?"
+ * could only be answered from the slots table, because every path said source:'manual'). A FIXED
+ * enum, never free text. The browse_* values are read from the kit's browseState at pick time,
+ * since CatalogBrowser has no onSearch/onSetChange callbacks: a non-empty query is a search, a set
+ * or series without a query is set browsing, a similar seed or a theme frame are their own paths.
+ *   pocket         placed into a pocket by a path that did not say (the old behaviour)
+ *   browse_*       the pocket picker: all (no filter), set, search, similar, theme
+ *   multi          the picker's multi-select, or Add to another binder from the selection bar
+ *   collection     a batch add from the user's own collection
+ *   add_to_binder  "Add to binder" from outside the editor (home, browse, a card page)
+ *   fill           Auto fill or Complete page
+ *   vunion         a V-UNION placed as four pieces
+ *   duplicate      Duplicate pocket(s)
+ */
+export type CardAddVia =
+  | 'pocket'
+  | 'browse_all'
+  | 'browse_set'
+  | 'browse_search'
+  | 'browse_similar'
+  | 'browse_theme'
+  | 'multi'
+  | 'collection'
+  | 'add_to_binder'
+  | 'fill'
+  | 'vunion'
+  | 'duplicate';
+
 export type CapSurface =
   | 'home'
   | 'browse'

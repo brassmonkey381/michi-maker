@@ -262,6 +262,7 @@ export function PrintPlaceholdersSheet({
     setConfirming(null);
     setBusy(true);
     setError(null);
+    track('print.download', { credit: !!opts.credit, spend: !!opts.spend, pockets: counts.total });
     try {
       // A plain-paper placeholders PDF and a matte-cardstock art PDF (either omitted if the binder
       // has none of that kind), plus the instructions as their own PDF, last in the list.
@@ -336,6 +337,7 @@ export function PrintPlaceholdersSheet({
     if (archBusyPath) return;
     setArchBusyPath(version.pdfPath ?? 'pending');
     setError(null);
+    track('print.download', { archived: true });
     try {
       const stamp = new Date(version.spentAt).toISOString().slice(0, 10);
       const stem = `${fileStem(binder.title)} (purchased ${stamp})`;

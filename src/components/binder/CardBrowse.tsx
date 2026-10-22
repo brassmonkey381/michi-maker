@@ -17,6 +17,7 @@ import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from
 import { browseState, CatalogBrowser, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { Breakpoints } from '@/constants/theme';
+import { track } from '@/lib/analytics';
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { promoteArtCards } from '@/data/artRank';
 import { nextDemoTheme } from '@/data/demoThemes';
@@ -555,7 +556,12 @@ export function CardBrowse({
         // nudge off the right edge. "Color" says the same thing beside a button that is visibly a
         // button; "Search" was doing no work the row's position did not already do.
         colorSearchLabel={phone ? 'Color' : 'Color Search'}
-        onColorSearch={() => (isPaid ? setColorOpen(true) : setEnergyOpen(true))}
+        onColorSearch={() => {
+          // Theme presses are already demo.theme_search (data/themeDemo); this is the other button.
+          track('card.search', { kind: 'color', paid: isPaid, surface: onPickCard ? 'binder_editor' : 'home' });
+          if (isPaid) setColorOpen(true);
+          else setEnergyOpen(true);
+        }}
         footer={null}
         cardTileWidth={CARD_BROWSE_TILE_WIDTH}
         taxTileHeight={CARD_BROWSE_TAX_TILE_HEIGHT}

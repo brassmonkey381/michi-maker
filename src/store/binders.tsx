@@ -63,7 +63,7 @@ import {
 import { mergeSlices, splitSlice, type MergeResult } from '@/data/sliceMerge';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
 import { loadOwnedEntriesShared } from '@/data/collectionRepo';
-import { track } from '@/lib/analytics';
+import { track, type CardAddVia } from '@/lib/analytics';
 import { LIMITS_ENFORCED, type Tier, type TierLimits } from '@/data/tiers';
 import { useEditLock, type EditLockStatus } from '@/hooks/use-edit-lock';
 import { useTier } from '@/hooks/use-tier';
@@ -274,7 +274,8 @@ interface BinderStore {
   /** Remove every blank page (no slots, no title/description) the parity pass doesn't still
    *  need as a spacer. Returns how many were removed and how many blanks remain. */
   compactBlankPages: (binderId: string) => { removed: number; kept: number } | null;
-  upsertSlot: (binderId: string, pageId: string, slot: SlotInput) => void;
+  /** `via` says how the card got here, for card.add; omitted means 'pocket'. */
+  upsertSlot: (binderId: string, pageId: string, slot: SlotInput, via?: CardAddVia) => void;
   /**
    * Save OUR OWN copies of a binder's unhosted (hotlink) art: fetch each off-site image, upload
    * it to the user's bucket, and point the slot at the copy, keeping the credit (the old URL
@@ -761,6 +762,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     setHistory((h) => {
       if (h.past.length === 0) return h;
       const previous = h.past[h.past.length - 1];
+      track('editor.undo', { redo: false });
       syncChanged(h.present, previous);
       return { past: h.past.slice(0, -1), present: previous, future: [h.present, ...h.future] };
     });
@@ -771,6 +773,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     setHistory((h) => {
       if (h.future.length === 0) return h;
       const [next, ...rest] = h.future;
+      track('editor.undo', { redo: true });
       syncChanged(h.present, next);
       return { past: [...h.past, h.present], present: next, future: rest };
     });
@@ -965,6 +968,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // public binder" path should route through markCopiedArtBorrowed too.)
       const copy = source.isExample || source.isDemo ? markCopiedArtBorrowed(clone) : clone;
       pristineDupSigs.current.set(copy.id, binderSignature(copy));
+      track('binder.duplicate');
       commit((prev) => [...prev, copy]);
       // Provenance ledger: record source → copy (best-effort; no-ops until the migration is applied).
       persist(() => repo.insertBinder(copy).then(() => repo.recordReshare(copy.id, source)));
@@ -1008,6 +1012,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const updateBinder = useCallback(
     (id: string, patch: Partial<DemoBinder>) => {
       const target = binders.find((binder) => binder.id === id);
+      if ('isPublic' in patch) track('binder.public', { public: !!patch.isPublic });
+      if ('cover' in patch) track('binder.cover');
+      if ('sharePageIds' in patch) track('share.pages_featured', { count: patch.sharePageIds?.length ?? 0 });
       commit((prev) => prev.map((binder) => (binder.id === id ? { ...binder, ...patch } : binder)));
       if (target && !target.isExample) persist(() => repo.updateBinder(id, patch));
     },
@@ -1018,6 +1025,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       const target = binders.find((binder) => binder.id === id);
       pristineDupSigs.current.delete(id);
+      track('binder.delete');
       commit((prev) => prev.filter((binder) => binder.id !== id));
       if (target && !target.isExample) persist(() => repo.deleteBinder(id));
     },
@@ -1034,6 +1042,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // Real binders use ONE pocket layout throughout — new pages inherit the binder's size.
       const last = target.pages[target.pages.length - 1];
       const page = emptyPage(last?.rows ?? 3, last?.cols ?? 3, `Page ${target.pages.length + 1}`);
+      track('page.add', { pages: target.pages.length + 1 });
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId ? { ...binder, pages: [...binder.pages, page] } : binder,
@@ -1210,6 +1219,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         copy,
         ...target.pages.slice(srcIndex + 1),
       ]);
+      track('page.duplicate');
       commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
       // Inserting mid-list shifts page positions, so persist the whole binder (replaceBinder
       // rewrites pages + slots with correct positions — avoids the unique(position) dance).
@@ -1264,6 +1274,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         ? withParitySpacers(source.pages.filter((p) => p.id !== pageId))
         : { pages: source.pages, blanksInserted: 0 };
 
+      track('page.send', { move: !!opts?.move });
       commit((prev) =>
         prev.map((b) =>
           b.id === toBinderId
@@ -1343,6 +1354,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         };
       }
       const pages = result.pages;
+      track('binder.grid', { rows, cols });
       commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
       if (!target.isExample) {
         // A reflow moves pockets BETWEEN pages and can add pages, which no per-page update covers;
@@ -1370,6 +1382,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (!target) return;
       // Normalised on the way in, so the column only ever holds a usable style or null.
       const pageStyle = withPageStyle(target.pageStyle, patch) ?? null;
+      track('binder.style', { what: Object.keys(patch).sort().join(',') });
       commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pageStyle } : binder)));
       if (!target.isExample) persist(() => repo.updateBinder(binderId, { pageStyle }));
     },
@@ -1383,6 +1396,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const slot = page?.slots.find((sl) => sl.id === slotId);
       if (!target || !page || !slot) return;
       const next: DemoSlot = { ...slot, ...patch };
+      track('pocket.style', { what: Object.keys(patch).sort().join(',') });
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
@@ -1399,6 +1413,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     (binderId: string, backgroundColor?: string) => {
       const target = binders.find((binder) => binder.id === binderId);
       if (!target) return;
+      track('binder.background', { cleared: !backgroundColor });
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
@@ -1422,6 +1437,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const { pages, blanksInserted } = withParitySpacers(
         target.pages.filter((page) => page.id !== pageId),
       );
+      track('page.remove');
       commit((prev) =>
         prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)),
       );
@@ -1492,6 +1508,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // A move flips the side of the moved page (when from/to parity differ) and of every page
       // in between — re-space so all folded art keeps its pocket-pair alignment.
       const { pages, blanksInserted } = withParitySpacers(arr);
+      track('page.reorder');
       commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
       if (!target.isExample) {
         persist(() =>
@@ -1517,6 +1534,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       arr[bIndex] = moved;
       // A swap across parity flips both pages' sides; the same re-spacing reorderPages does.
       const { pages, blanksInserted } = withParitySpacers(arr);
+      track('page.swap');
       commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
       if (!target.isExample) {
         persist(() => (blanksInserted ? repo.replaceBinder({ ...target, pages }) : repo.reorderPages(binderId, pages.map((p) => p.id))));
@@ -1537,6 +1555,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const removed = target.pages.length - pages.length;
       const spacersKept = pages.filter(isBlankPage).length;
       if (removed <= 0) return { removed: 0, kept: spacersKept };
+      track('page.compact', { removed });
       commit((prev) =>
         prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)),
       );
@@ -1547,7 +1566,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   const upsertSlot = useCallback(
-    (binderId: string, pageId: string, input: SlotInput) => {
+    (binderId: string, pageId: string, input: SlotInput, via?: CardAddVia) => {
       // A claim another pocket already holds is dropped, not honoured: the pocket keeps its card
       // and shows the catalogue image, which is what "someone else has that one" looks like.
       const claimable = (id: string | null | undefined, exceptSlotId?: string) =>
@@ -1653,7 +1672,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       }
       // Count only a NEW card landing in a pocket (not span/edit tweaks of an existing slot).
       if (!existing && slot.type === 'card' && slot.cardId) {
-        track('card.add', { source: 'manual', count: 1 });
+        track('card.add', { source: 'manual', count: 1, via: via ?? 'pocket' });
       }
     },
     [binders, commit, persist, claimIsFree],
@@ -1820,7 +1839,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         if (appendedPage) persist(() => repo.insertPage(binderId, landedPage, pageIndex));
         persist(() => repo.upsertSlot(landedPage.id, newSlot));
       }
-      track('card.add', { source: 'manual', count: 1 });
+      track('card.add', { source: 'manual', count: 1, via: 'add_to_binder' });
       return { pageIndex };
     },
     [binders, limits.pagesPerBinder, commit, persist],
@@ -1989,6 +2008,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         source: opts?.fromCollection ? 'collection' : 'manual',
         count: placed.length,
         owned: claimed,
+        via: opts?.fromCollection ? 'collection' : 'multi',
       });
       return { added: placed.length, unplaced, blanksInserted: spaced.blanksInserted, claimed, droppedClaims };
     },
@@ -2069,6 +2089,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       }
       if (newSlots.length === 0) return { placed: 0, droppedClaims, placedUnclaimed: 0 };
 
+      if (newSlots.some((s) => !!s.cardId)) track('card.add', { source: 'manual', count: newSlots.filter((s) => !!s.cardId).length, via: 'fill' });
       commit((prev) =>
         prev.map((b) =>
           b.id === binderId
@@ -2121,6 +2142,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       }));
       const removed = page.slots.filter((s) => slotCells(s).some((cell) => coverCells.has(cell)));
 
+      track('card.add', { source: 'manual', count: pieces.length, via: 'vunion' });
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
@@ -2190,6 +2212,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       }
       const removed = page.slots.filter((s) => slotCells(s).some((cell) => coverCells.has(cell)));
 
+      track('pocket.art', { kind: 'slice' });
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
@@ -2262,6 +2285,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (newSlots.length === 0) return;
       const removed = page.slots.filter((s) => slotCells(s).some((cell) => coverCells.has(cell)));
 
+      track('pocket.art', { kind: 'panels', count: rawPanels.length });
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
@@ -2310,6 +2334,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (!canPlaceSlot(page, candidate, slot.id)) return; // overlaps, caller handles it
 
       const moved: DemoSlot = { ...slot, row, col };
+      track('pocket.move', { how: 'move' });
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
@@ -2344,6 +2369,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
 
       const movedA: DemoSlot = { ...a, row: b.row, col: b.col };
       const movedB: DemoSlot = { ...b, row: a.row, col: a.col };
+      track('pocket.move', { how: 'swap' });
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
@@ -2450,6 +2476,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (!target || !fromPage || !slot || slot.type !== 'card' || slot.rowSpan !== 1 || slot.colSpan !== 1) return false;
       const col = nextTrayCol(target.tray);
       const trayed: DemoSlot = { ...slot, row: 0, col };
+      track('pocket.tray', { dir: 'to' });
       commit((prev) =>
         prev.map((b) =>
           b.id === binderId
@@ -2485,6 +2512,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (occupant) {
         if (occupant.rowSpan !== 1 || occupant.colSpan !== 1) return null;
         const trayed: DemoSlot = { ...occupant, row: 0, col: slot.col };
+        track('pocket.tray', { dir: 'from' });
         commit((prev) =>
           prev.map((b) =>
             b.id === binderId
@@ -2530,6 +2558,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     (binderId: string, slotId: string) => {
       const target = binders.find((b) => b.id === binderId);
       if (!target?.tray?.some((s) => s.id === slotId)) return;
+      track('pocket.clear', { count: 1, from: 'tray' });
       commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, tray: (b.tray ?? []).filter((s) => s.id !== slotId) } : b)));
       if (!target.isExample) persist(() => repo.deleteSlot(slotId), binderId);
     },
@@ -2591,6 +2620,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const pages = target.pages.map((p) =>
         p.id === fromPageId ? { ...p, slots: fromSlots } : p.id === toPageId ? { ...p, slots: toSlots } : p,
       );
+      track('pocket.move', { how: 'cross_page' });
       commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, pages } : b)));
       if (!target.isExample) persist(save, binderId);
     },
@@ -2610,6 +2640,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const page = target?.pages.find((p) => p.id === pageId);
       const slot = page?.slots.find((sl) => sl.id === slotId);
       if (!slot) return;
+      track('pocket.finish', { finish: finish ?? 'none' });
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
@@ -2676,6 +2707,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const result = mergeSlices(a, b);
       if (!('merged' in result)) return result;
       const { merged, removedId } = result;
+      track('pocket.merge');
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
@@ -2712,6 +2744,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (!target || !page || !slot) return 0;
       const pieces = splitSlice(slot, uuidv4);
       if (!pieces) return 0;
+      track('pocket.split');
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId

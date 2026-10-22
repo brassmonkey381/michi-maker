@@ -14,6 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import { track } from '@/lib/analytics';
 import { resolveCatalogCardWith } from '@/data/cardResolver';
 import { type PageSubject, artSearchLinks, pageSubject } from '@/data/pageArtSubject';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -39,6 +40,7 @@ export function usePageArtSubject(cardIds: readonly string[], title: string | nu
 }
 
 export function openArtSearch(url: string) {
+  track('art.link');
   if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank', 'noopener');
   else void Linking.openURL(url).catch(() => {});
 }

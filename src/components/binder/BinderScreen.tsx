@@ -15,7 +15,7 @@ import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanima
 import { Image } from 'expo-image';
 
 import { cardThumbUrl } from '@/lib/catalogConfig';
-import { similarAvailable } from 'tcgscan-browse';
+import { browseState, similarAvailable } from 'tcgscan-browse';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
@@ -108,7 +108,7 @@ import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { downloadBinderHiresImage } from '@/lib/appUrl';
-import { track } from '@/lib/analytics';
+import { track, type CardAddVia } from '@/lib/analytics';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
@@ -1241,6 +1241,17 @@ export function BinderScreen({
   // card along; for guests (no catalog → resolveCard misses) that carried kind is what keeps a
   // jumbo landing as 2×2 instead of collapsing to 1×1.
   /** Place the card, then keep the picker moving. Both answers to "which copy?" land here. */
+  // Which path of the picker produced this pick, read from the kit's browse state at the moment of
+  // placing (the kit has no onSearch / onSetChange callbacks). Fixed enum: see CardAddVia.
+  const pickVia = (): CardAddVia => {
+    const s = browseState;
+    if (s.similarTo?.ids?.length) return 'browse_similar';
+    if (s.themeFrame || (s.themeTypes?.length ?? 0) > 0) return 'browse_theme';
+    if (s.cardQuery?.trim()) return 'browse_search';
+    if (s.setId || s.seriesId) return 'browse_set';
+    return 'browse_all';
+  };
+
   const placeCardInPocket = (
     cardId: string,
     row: number,
@@ -1249,15 +1260,20 @@ export function BinderScreen({
     cols: number,
     sourceEntryId: string | undefined,
   ) => {
-    store.upsertSlot(binder.id, page.id, {
-      row,
-      col,
-      cardId,
-      type: 'card',
-      rowSpan: rows,
-      colSpan: cols,
-      sourceEntryId,
-    });
+    store.upsertSlot(
+      binder.id,
+      page.id,
+      {
+        row,
+        col,
+        cardId,
+        type: 'card',
+        rowSpan: rows,
+        colSpan: cols,
+        sourceEntryId,
+      },
+      pickVia(),
+    );
     // On to the next empty pocket that fits. When the page has none left the browser stays open
     // on the pocket just filled: there is nowhere to advance to, and closing it here would be the
     // same unasked-for disappearance the old toggle's off state caused.
@@ -1470,7 +1486,7 @@ export function BinderScreen({
       cardId: selectedSlot.cardId,
       insertColor: selectedSlot.insertColor,
       imageUrl: selectedSlot.imageUrl,
-    });
+    }, 'duplicate');
     showToast('Duplicated');
   };
 
@@ -1490,6 +1506,7 @@ export function BinderScreen({
   const removeSelected = () => {
     if (!selectedSlot) return;
     store.removeSlot(binder.id, page.id, selectedSlot.id);
+    track('pocket.clear', { count: 1 });
     setSelectedSlotId(null);
     showToast('Pocket cleared', true);
   };
@@ -1570,6 +1587,7 @@ export function BinderScreen({
   const removeMany = () => {
     const ids = [...multiIds];
     for (const id of ids) store.removeSlot(binder.id, page.id, id);
+    if (ids.length) track('pocket.clear', { count: ids.length });
     closeMultiActions();
     if (ids.length) showToast(`Cleared ${ids.length} pocket${ids.length === 1 ? '' : 's'}`, true);
   };
@@ -1597,7 +1615,7 @@ export function BinderScreen({
         cardId: slot.cardId,
         insertColor: slot.insertColor,
         imageUrl: slot.imageUrl,
-      });
+      }, 'duplicate');
     }
     closeMultiActions();
     const n = dests.length;
@@ -1747,6 +1765,7 @@ export function BinderScreen({
       capGate.hit(similarityWall(store.tier, 'binder_editor'));
       return;
     }
+    track('card.search', { kind: 'similar', count: 1, surface: 'binder_editor' });
     setSimilarSeed([cardId]);
     const cell = firstFreePlacement(page, 1, 1) ?? { row: selectedSlot.row, col: selectedSlot.col };
     setSelectedSlotId(null);
@@ -1759,6 +1778,7 @@ export function BinderScreen({
   const findColorsOfSelected = () => {
     const cardId = selectedSlot?.cardId;
     if (!cardId || !selectedSlot) return;
+    track('card.search', { kind: 'color', surface: 'binder_editor' });
     setPaletteSeed({ cardId });
     const cell = firstFreePlacement(page, 1, 1) ?? { row: selectedSlot.row, col: selectedSlot.col };
     setSelectedSlotId(null);
@@ -1779,6 +1799,7 @@ export function BinderScreen({
     // Hand the seed to the picker as an explicit prop, then open it: the picker's CatalogBrowser
     // runs the multi-similar search on mount. A fresh array each call re-triggers it (kit
     // initialSimilar is ref-guarded). Not the command bus — the home browser would intercept that.
+    track('card.search', { kind: 'similar', count: cardIds.length, surface: 'binder_editor' });
     setSimilarSeed(cardIds);
     const cell = firstFreePlacement(page, 1, 1) ?? (chosen0 ? { row: chosen0.row, col: chosen0.col } : null);
     setMultiActionsOpen(false);
@@ -1888,7 +1909,10 @@ export function BinderScreen({
   };
 
   const handleClear = () => {
-    if (pickerCell && slotAtCell) store.removeSlot(binder.id, page.id, slotAtCell.id);
+    if (pickerCell && slotAtCell) {
+      store.removeSlot(binder.id, page.id, slotAtCell.id);
+      track('pocket.clear', { count: 1, from: 'picker' });
+    }
     closePicker();
   };
 

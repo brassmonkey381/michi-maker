@@ -40,7 +40,8 @@ import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { PocketRing, type PocketRect } from '@/components/binder/PocketRing';
-import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
+import { AddArtSheet } from '@/components/binder/AddArtSheet';
+import { SliceStudio, type SliceStudioHandle, type StudioPiece } from '@/components/binder/SliceStudio';
 import { Tipped, ToolTip } from '@/components/binder/ToolTip';
 import { WalkthroughBanner } from '@/components/binder/WalkthroughBanner';
 import { ShortcutsCard } from '@/components/binder/ShortcutsCard';
@@ -95,12 +96,14 @@ import {
   occupiedCells,
   pagesForCards,
   slotCells,
+  uid,
   uuidv4,
   type DemoPage,
   type DemoSlot,
 } from '@/data/binderTypes';
 import { fetchLikeCount } from '@/data/binderRepo';
 import { isPrivateArt } from '@/data/artAttributionCheck';
+import { domainOf, type ArtAttribution } from '@/data/artworkLibrary';
 import { ArtworkDock } from '@/components/binder/ArtworkDock';
 import { pageSide } from '@/data/binderPhysics';
 import { DOCK_PCT_MAX, LEGACY_MIN_WIDTH, MIN_PAGE_WIDTH, PANEL_GAP, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PEEK_MIN_WIDTH, panelLayout, PHONE_MAX_WIDTH } from '@/data/binderLayout';
@@ -347,6 +350,9 @@ export function BinderScreen({
   }, []);
   // Held so a dismiss can commit unsaved framing before the studio unmounts.
   const studioRef = useRef<SliceStudioHandle>(null);
+  // ADD ART (owner, 2026-10-22): the short way in. A picture chosen here lands on the page as one
+  // pocket; the studio is behind its Advanced editing link.
+  const [addArtOpen, setAddArtOpen] = useState(false);
   const [studio, setStudio] = useState<
     { rows: number; cols: number; row: number; col: number; imageUrl?: string } | null
   >(null);
@@ -999,9 +1005,77 @@ export function BinderScreen({
     });
   };
 
-  // Open the studio to cut a fresh set of slices — page-sized, not tied to a pocket.
-  const openStudioForPage = () =>
-    setStudio({ rows: page.rows, cols: page.cols, row: 0, col: 0, imageUrl: undefined });
+  /** The studio's Place on page. True when the studio can close: the art is on the page or in the tray. */
+  const placeStudioPieces = (pieces: StudioPiece[]): boolean => {
+    if (artCapBlocks(pieces.length)) return false;
+    const first = pieces[0]?.slice;
+    if (!first) return false;
+    if (binder.isPublic && isPrivateArt(first.attribution, first.imageUrl)) {
+      showToast('This is a shared binder, private art (added from a link) can’t go in it. Upload your own art instead.', true);
+      return false;
+    }
+    const spanR = Math.max(...pieces.map((p) => p.r + p.slice.rs));
+    const spanC = Math.max(...pieces.map((p) => p.c + p.slice.cs));
+    const occupied = new Set(page.slots.flatMap((s) => slotCells(s)));
+    const free = (row: number, col: number) => {
+      if (row + spanR > page.rows || col + spanC > page.cols) return false;
+      for (const p of pieces)
+        for (let i = 0; i < p.slice.rs; i += 1)
+          for (let j = 0; j < p.slice.cs; j += 1)
+            if (occupied.has(`${row + p.r + i},${col + p.c + j}`)) return false;
+      return true;
+    };
+    const wanted = pickerCell ?? { row: 0, col: 0 };
+    const at = free(wanted.row, wanted.col) ? wanted : firstFreePlacement(page, spanR, spanC);
+    if (!at || !free(at.row, at.col)) {
+      addSavedSlices(pieces.map((p) => p.slice));
+      showToast(`No room on this page for ${pieces.length === 1 ? 'that piece' : 'that cut'}. Saved to your tray instead.`);
+      setStudio(null);
+      return true;
+    }
+    store.placeArtPanels(
+      binder.id,
+      page.id,
+      at.row,
+      at.col,
+      pieces.map((p) => ({
+        r: p.r,
+        c: p.c,
+        rs: p.slice.rs,
+        cs: p.slice.cs,
+        imageUrl: p.slice.imageUrl,
+        crop: p.slice.crop ?? { x: 0, y: 0, w: 1, h: 1 },
+        fit: p.slice.fit ?? 'cover',
+        transform: p.slice.transform,
+        attribution: p.slice.attribution,
+      })),
+    );
+    // The tray mirrors every placed piece (savedSlices sync imports it), so keep it in step now.
+    addSavedSlices(pieces.map((p) => p.slice));
+    setStudio(null);
+    showToast(pieces.length === 1 ? 'Art placed. Drag its corner to make it bigger.' : `${pieces.length} pieces placed.`, true);
+    return true;
+  };
+
+  // Open the studio (Advanced editing), with a picture when one was already chosen.
+  const openStudioForPage = (imageUrl?: string) =>
+    setStudio({ rows: page.rows, cols: page.cols, row: 0, col: 0, imageUrl });
+  const openAddArt = () => setAddArtOpen(true);
+  /** The Add art sheet chose a picture: one whole piece, seated where the studio would seat it. */
+  const placeQuickArt = (imageUrl: string, attribution: ArtAttribution) => {
+    const slice: SavedSlice = {
+      id: uuidv4(),
+      imageUrl,
+      crop: null,
+      fit: 'cover',
+      rs: 1,
+      cs: 1,
+      groupId: uid('slicegrp'),
+      label: domainOf(imageUrl),
+      attribution,
+    };
+    if (placeStudioPieces([{ r: 0, c: 0, slice }])) setAddArtOpen(false);
+  };
   // What the studio's Find art sheet reads: the page's cards, by id.
   const pageCardIds = page.slots.flatMap((s) => (s.cardId ? [s.cardId] : []));
 
@@ -2850,7 +2924,7 @@ export function BinderScreen({
           onDragStart={handleSliceDragStart}
           onDrop={handleSliceDrop}
           onRemove={handleRemoveSlice}
-          onNewSlice={openStudioForPage}
+          onNewSlice={openAddArt}
           usedSignatures={usedSignatures}
           onToast={(m) => showToast(m)}
           // Inserts moved to this side with the artwork: both are "not a card", and the card
@@ -2905,7 +2979,7 @@ export function BinderScreen({
           onSliceDragStart={handleSliceDragStart}
           onSliceDrop={handleSliceDrop}
           onRemoveSlice={handleRemoveSlice}
-          onOpenStudio={openStudioForPage}
+          onOpenStudio={openAddArt}
           ghostOn={ghostOn}
           ghostX={ghostX}
           ghostY={ghostY}
@@ -3069,6 +3143,19 @@ export function BinderScreen({
           </Modal>
         ) : null}
 
+        {addArtOpen ? (
+          <AddArtSheet
+            cardIds={pageCardIds}
+            pageTitle={page.title}
+            onPick={placeQuickArt}
+            onAdvanced={() => {
+              setAddArtOpen(false);
+              openStudioForPage();
+            }}
+            onClose={() => setAddArtOpen(false)}
+          />
+        ) : null}
+
         {studio && (
           <SliceStudio
             ref={studioRef}
@@ -3082,8 +3169,12 @@ export function BinderScreen({
               if (artCapBlocks(slices.length)) return;
               addSavedSlices(slices);
               setStudio(null);
-              showToast(`Saved ${slices.length} slice${slices.length === 1 ? '' : 's'} to your tray`);
+              showToast(`Saved ${slices.length} piece${slices.length === 1 ? '' : 's'} to your tray`);
             }}
+            // PLACE ON PAGE (owner, 2026-10-22): the cut lands on this page, in the pocket the
+            // studio was opened from when that run is free, else the first free run of its size.
+            // No room: the pieces go to the tray instead, and the toast says so.
+            onPlace={(pieces) => placeStudioPieces(pieces)}
             // DISMISSING SAVES. The studio is the only place this work exists until it reaches the
             // tray, and Close used to throw it away — the same defect the picker's backdrop had,
             // which now matters more because this is the ONLY way the studio opens. commit() is a

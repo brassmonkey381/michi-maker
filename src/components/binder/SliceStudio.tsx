@@ -86,7 +86,6 @@ interface StudioSnap {
 
 /** Rough illustration window of a standard (non-full-art) Pokémon card, as fractions of the full
  *  card image — the starting crop for "Just the art". Pan/zoom to fine-tune per card. */
-const ART_WINDOW: Win = { x: 0.06, y: 0.11, w: 0.88, h: 0.42 };
 /** How far the crop window may travel past the image edge, as a fraction of the window. Lets you
  *  pan art partly out of frame — and pan at all when not zoomed in — while keeping ≥15% overlapping. */
 const OVER = 0.85;
@@ -124,7 +123,8 @@ const GUIDE: { keys: string; action: string }[] = [
   { keys: 'Del  ·  Remove', action: 'Drop selected pieces (they won’t go to the tray)' },
   { keys: 'Esc', action: 'Clear selection' },
   { keys: 'Whole / Sliced', action: 'Preview the frame whole, or cut into pieces' },
-  { keys: 'Save slices', action: 'Send the pieces to your slice tray' },
+  { keys: 'Place on page', action: 'Seat the piece (or the whole cut) on the page you came from' },
+  { keys: 'Save to tray', action: 'Keep the pieces in the Artwork panel for later' },
 ];
 
 function makeGrid(rows: number, cols: number): Panel[] {
@@ -195,8 +195,13 @@ interface SliceStudioProps {
   rows: number;
   cols: number;
   imageUrl?: string;
-  /** Save the studio's pieces to the slice tray (instead of placing them straight into the binder). */
+  /** Save the studio's pieces to the slice tray. */
   onSaveSlices: (slices: SavedSlice[]) => void;
+  /**
+   * Seat the whole cut on the page the studio was opened from. Returns true when it landed (the
+   * host then closes the studio) and false when it could not, with its own toast saying why.
+   */
+  onPlace?: (pieces: StudioPiece[]) => boolean;
   onClose: () => void;
   /** Live tray size + the account's artwork cap (Infinity = uncapped) — gates Save slices. */
   trayCount?: number;
@@ -208,6 +213,13 @@ interface SliceStudioProps {
   embedded?: boolean;
   /** The page the studio was opened from, so Art sources can lead with searches for its subject. */
   pageArt?: { cardIds: readonly string[]; title?: string | null };
+}
+
+/** One piece of a cut: the slice, and where it sits in the cut (row and column offsets). */
+export interface StudioPiece {
+  r: number;
+  c: number;
+  slice: SavedSlice;
 }
 
 export interface SliceStudioHandle {
@@ -223,6 +235,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     cols: pageCols,
     imageUrl: initUrl,
     onSaveSlices,
+    onPlace,
     onClose,
     trayCount = 0,
     trayLimit = Infinity,
@@ -243,8 +256,16 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
    * bigger page, a single full-bleed pocket. The tray holds loose pieces and you drag them where you
    * like, so the cut has never had to match the page — only the default did.
    */
-  const [grid, setGrid] = useState({ rows: pageRows, cols: pageCols });
+  /**
+   * ONE PIECE BY DEFAULT (owner, 2026-10-22). A placed artwork pocket keeps its crop window and
+   * cover fit, and the page's resize handle lets it grow to any span, so one whole-image piece
+   * dragged out to 3x4 shows what a twelve-piece cut would, with one drag instead of twelve. The
+   * cut stays, for the look of seams across a picture, behind a "Cut into pieces" link.
+   */
+  const [grid, setGrid] = useState({ rows: 1, cols: 1 });
   const { rows, cols } = grid;
+  /** Whether the cut picker is open at all (it opens itself once a cut is chosen). */
+  const [cutOpen, setCutOpen] = useState(false);
   /** Whether the cut picker is showing everything or just the handful people reach for. */
   const [moreShapes, setMoreShapes] = useState(false);
   /** Whether the source + credit block is expanded on a stacked layout — see its call site. */
@@ -257,7 +278,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   const [fit, setFit] = useState<'cover' | 'contain'>('cover');
   const [panels, setPanels] = useState<Panel[]>(() => makeGrid(rows, cols));
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [sliced, setSliced] = useState(true);
+  const [sliced, setSliced] = useState(false);
   const [failed, setFailed] = useState(false);
   // Signature of the framing at the last Save — lets "Done" save only genuinely unsaved work
   // (see currentSig + the imperative commit), so it never re-sends unchanged slices to the tray.
@@ -801,24 +822,11 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
       setGrid({ rows: r, cols: c });
       setPanels(makeGrid(r, c));
       setSelected(new Set());
+      // Seams only when there is more than one piece; a whole piece previews whole.
+      setSliced(r * c > 1);
     },
     [rows, cols, remember],
   );
-
-  // Quick-crop to a card's illustration: fill mode + the standard art window, then pan/zoom to taste.
-  const justTheArt = useCallback(() => {
-    remember();
-    if (fit !== 'cover') skipSnap.current = true; // the mode-change snap would clobber this frame
-    setFit('cover');
-    setSliced(true);
-    if (ratio) {
-      // Keep the art window's width and centre; correct its height to true aspect.
-      const h = ART_WINDOW.w * ratio;
-      setWin({ x: ART_WINDOW.x, w: ART_WINDOW.w, h, y: ART_WINDOW.y + ART_WINDOW.h / 2 - h / 2 });
-    } else {
-      setWin(ART_WINDOW);
-    }
-  }, [fit, ratio, remember]);
 
   const loadUrl = useCallback(() => {
     const u = urlInput.trim();
@@ -838,11 +846,11 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     [imageUrl, rot, flipH, flipV, win, panels],
   );
 
-  // Save the studio's pieces to the tray. Each grid piece (1×1, or a merged folded 1×2) becomes a
-  // SavedSlice carrying its window of the image — the source is never re-encoded. Where each slice
-  // legally fits is decided later, when it's dragged/tapped into a pocket.
-  const saveSlices = useCallback(() => {
-    if (!imageUrl || !panels.length) return;
+  // The studio's pieces. Each grid piece (1×1, or a merged folded 1×2) becomes a SavedSlice
+  // carrying its window of the image — the source is never re-encoded — with the piece's place in
+  // the cut, so a host can seat the whole cut on a page at once.
+  const buildPieces = useCallback((): StudioPiece[] | null => {
+    if (!imageUrl || !panels.length) return null;
     const transform: ImageTransform | undefined =
       rot !== 0 || flipH || flipV
         ? { rot, ...(flipH ? { flipH: true } : {}), ...(flipV ? { flipV: true } : {}) }
@@ -866,23 +874,44 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
             ...(origin ? { origin } : {}),
           }
         : undefined;
-    const slices: SavedSlice[] = panels.map((p) => ({
-      // A real UUID — saved_slices.id is a Postgres uuid column, so a `slice-…` string id makes
-      // every insert fail (silently: the tray is optimistic) and nothing ever persists.
-      id: uuidv4(),
-      imageUrl,
-      crop: panelCrop(p, rows, cols, win),
-      fit: 'cover',
-      transform,
-      rs: p.rs,
-      cs: p.cs,
-      groupId,
-      label,
-      attribution,
+    return panels.map((p) => ({
+      r: p.r,
+      c: p.c,
+      slice: {
+        // A real UUID — saved_slices.id is a Postgres uuid column, so a `slice-…` string id makes
+        // every insert fail (silently: the tray is optimistic) and nothing ever persists.
+        id: uuidv4(),
+        imageUrl,
+        crop: panelCrop(p, rows, cols, win),
+        fit: 'cover',
+        transform,
+        rs: p.rs,
+        cs: p.cs,
+        groupId,
+        label,
+        attribution,
+      },
     }));
-    onSaveSlices(slices);
+  }, [imageUrl, rot, flipH, flipV, panels, rows, cols, win, artist, sourceUrl, srcName, origin]);
+
+  /** Save to the tray. Where each piece fits is decided later, when it is dragged into a pocket. */
+  const saveSlices = useCallback(() => {
+    const pieces = buildPieces();
+    if (!pieces) return;
+    onSaveSlices(pieces.map((p) => p.slice));
     setSavedSig(currentSig); // this framing is now on the tray — "Done" won't re-save it
-  }, [imageUrl, rot, flipH, flipV, panels, rows, cols, win, onSaveSlices, artist, sourceUrl, srcName, origin, currentSig]);
+  }, [buildPieces, onSaveSlices, currentSig]);
+
+  /**
+   * PLACE ON PAGE (owner, 2026-10-22): the whole cut lands on the page the studio was opened from,
+   * skipping the tray and the drag. The host decides where (the pocket it came from, else the first
+   * free run) and says whether it managed; when it did not, nothing is lost and the studio stays.
+   */
+  const placePieces = useCallback(() => {
+    const pieces = buildPieces();
+    if (!pieces || !onPlace) return;
+    if (onPlace(pieces)) setSavedSig(currentSig);
+  }, [buildPieces, onPlace, currentSig]);
 
   // Web: keyboard shortcuts + tracking Shift/Ctrl for multi-select.
   useEffect(() => {
@@ -1077,7 +1106,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   // they replace a whole header row and free the vertical space for the canvas.
   const titleEl = (
     <ThemedText type="subtitle" numberOfLines={1} style={styles.headerTitle}>
-      Slice studio
+      Advanced editing
     </ThemedText>
   );
   const helpBtn = (
@@ -1089,11 +1118,28 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
       <Text style={styles.helpBtnText}>?</Text>
     </Pressable>
   );
-  const saveBtn = (
-    <Pressable onPress={saveSlices} hitSlop={10} disabled={!hasImage || !panels.length || wouldExceedTray}>
-      <View style={[styles.placeBtn, (!hasImage || !panels.length || wouldExceedTray) && styles.disabled]}>
+  const actionOff = !hasImage || !panels.length || wouldExceedTray;
+  const pieceWord = panels.length === 1 ? 'piece' : 'pieces';
+  const saveBtn = onPlace ? (
+    <View style={styles.actionPair}>
+      <Pressable onPress={saveSlices} hitSlop={10} disabled={actionOff}>
+        <View style={[styles.trayBtn, actionOff && styles.disabled]}>
+          <Text style={styles.trayBtnText}>Save to tray</Text>
+        </View>
+      </Pressable>
+      <Pressable onPress={placePieces} hitSlop={10} disabled={actionOff} testID="studio-place">
+        <View style={[styles.placeBtn, actionOff && styles.disabled]}>
+          <Text style={styles.placeBtnText}>
+            {hasImage && panels.length > 1 ? `Place ${panels.length} ${pieceWord}` : 'Place on page'}
+          </Text>
+        </View>
+      </Pressable>
+    </View>
+  ) : (
+    <Pressable onPress={saveSlices} hitSlop={10} disabled={actionOff}>
+      <View style={[styles.placeBtn, actionOff && styles.disabled]}>
         <Text style={styles.placeBtnText}>
-          Save slices{hasImage && panels.length ? ` (${panels.length})` : ''}
+          Save to tray{hasImage && panels.length ? ` (${panels.length})` : ''}
         </Text>
       </View>
     </Pressable>
@@ -1178,14 +1224,21 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           ) : null}
           {showSource ? (
             <>
-          {/* Source — one calm row. Everything here is about GETTING an image in. */}
+          {/* WHERE THE PICTURE COMES FROM: three choices, each saying what it is (owner,
+              2026-10-22: "less clicks, more clarity, less buttons"). Card art, a picture of your
+              own, or go looking. The paste-a-URL row stays under them for the drag-friendly sites. */}
+          <View style={styles.sourceTiles}>
+            <Tile title="Card art" sub="A card from the catalog" onPress={() => setCardPickOpen(true)} primary testID="studio-src-card" />
+            <View style={styles.tileUpload}>
+              <ArtUploadButton
+                onUploaded={(url) => loadImage(url, { sourceName: 'your upload', origin: 'upload' })}
+                onError={setImportError}
+              />
+              <Text style={styles.tileSubOut}>A picture of your own</Text>
+            </View>
+            <Tile title={stockOpen ? 'Find art ▴' : 'Find art'} sub="Free photos, and where to look" onPress={() => setStockOpen((v) => !v)} testID="studio-src-find" />
+          </View>
           <View style={styles.sourceBar}>
-            <Btn label="Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
-            <Btn label="Find art ↗" onPress={() => setSourcesOpen(true)} />
-            <ArtUploadButton
-              onUploaded={(url) => loadImage(url, { sourceName: 'your upload', origin: 'upload' })}
-              onError={setImportError}
-            />
             <View style={styles.urlWrap}>
               <TextInput
                 value={urlInput}
@@ -1200,31 +1253,17 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
             </View>
           </View>
 
-          {/* THE PHOTO LIBRARY, ITS OWN AREA. It was a plain button in the row above, between
-              Upload and the paste-a-URL box, and it read as one more way to bring in a file you
-              already had: nobody could tell there was a searchable library of free photography in
-              here at all (owner decision 2026-09-10). It is a band of its own now, under the
-              things you bring, because it is a different act: not fetching a picture you have,
-              but going looking for one. */}
-          <View style={styles.stockBand}>
-            <Pressable
-              onPress={() => setStockOpen((v) => !v)}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: stockOpen }}
-              style={({ pressed }) => [styles.stockHead, pressed && styles.pressed]}>
-              <Text style={styles.stockGlyph}>{'⌕'}</Text>
-              <View style={styles.stockHeadText}>
-                <Text style={styles.stockTitle}>Search free photos</Text>
-                <Text style={styles.stockSub}>
-                  Millions of free-to-use pictures, searchable from here. Try a mood, a place or a colour.
-                </Text>
-              </View>
-              <Text style={styles.stockChevron}>{stockOpen ? '▴' : '▾'}</Text>
-            </Pressable>
-          </View>
-
+          {/* FIND ART: the free-photo library, open on what the page is about, with the tuned
+              searches of other sites one link away (FindArtSheet). One place to go looking,
+              instead of a band and a button that said two different things. */}
           {stockOpen ? (
             <View style={styles.stockWrap}>
+              <View style={styles.stockHeadRow}>
+                <Text style={styles.stockTitle}>Free photos</Text>
+                <Pressable onPress={() => setSourcesOpen(true)} hitSlop={6} testID="studio-other-sites">
+                  <Text style={styles.stockLink}>Other sites ↗</Text>
+                </Pressable>
+              </View>
               <StockArtSearch
                 initialQuery={artLead.query}
                 onPick={(hit: StockHit) => {
@@ -1245,11 +1284,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
             </View>
           ) : null}
 
-          {/* Attribution hint — remind the user to credit the source; art is hosted, never hotlinked. */}
-          <Text style={styles.attribHint}>
-            Tip: add the artist and source below so your art stays credited. Art you bring is saved
-            to your own account; we host your copy, we don’t hotlink other sites.
-          </Text>
+          {/* One line on rights: the credit fields below carry the rest once a picture is in. */}
+          <Text style={styles.attribHint}>Only art you have the right to use. We keep a copy with your binder, credited.</Text>
 
           {importing ? (
             <View style={styles.importRow}>
@@ -1312,10 +1348,16 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
               quiet. Grouped, hairline-separated clusters replace the old five stacked toolbars. */}
           {hasImage ? (
             <View style={styles.controlBar}>
-              {/* WHAT TO CUT, before how to frame it. Wraps rather than scrolls: there are ten of
-                  these and a hidden one is a feature nobody finds. */}
+              {/* WHAT TO CUT, before how to frame it. Closed by default (one piece is the common
+                  case now); once open it wraps rather than scrolls, a hidden shape is one nobody
+                  finds. */}
+              {!cutOpen && rows * cols === 1 ? (
+                <Pressable onPress={() => setCutOpen(true)} hitSlop={6} style={styles.cutLink} testID="studio-cut-open">
+                  <Text style={styles.cutLinkText}>Cut into pieces ▸</Text>
+                </Pressable>
+              ) : (
               <View style={styles.shapeGroup}>
-                <Text style={styles.groupLabel}>Slice into</Text>
+                <Text style={styles.groupLabel}>Cut into</Text>
                 <View style={styles.shapeRow}>
                   {visibleSliceShapes(grid, { rows: pageRows, cols: pageCols }, moreShapes).map((sh) => (
                     <Seg
@@ -1336,6 +1378,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
                   ) : null}
                 </View>
               </View>
+              )}
 
               <View style={styles.divider} />
 
@@ -1344,7 +1387,6 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
                   <Seg label="Scale to fit" active={fit === 'cover'} onPress={() => setFit('cover')} />
                   <Seg label="Original" active={fit === 'contain'} onPress={() => setFit('contain')} />
                 </View>
-                <IconBtn label="Just the art" onPress={justTheArt} />
               </View>
 
               <View style={styles.divider} />
@@ -1380,13 +1422,6 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
                   active={snap}
                   disabled={fit === 'contain'}
                 />
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.segGroup}>
-                <Seg label="Whole" active={!sliced} onPress={() => setSliced(false)} />
-                <Seg label="Sliced" active={sliced} onPress={() => setSliced(true)} />
               </View>
 
               <View style={styles.grow} />
@@ -1642,6 +1677,20 @@ function Btn({
   );
 }
 
+/** A source choice: what it is, in two lines, big enough to be the first thing pressed. */
+function Tile({ title, sub, onPress, primary = false, testID }: { title: string; sub: string; onPress: () => void; primary?: boolean; testID?: string }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      testID={testID}
+      style={({ pressed }) => [styles.tile, primary && styles.tilePrimary, pressed && styles.pressed]}>
+      <Text style={[styles.tileTitle, primary && styles.tileTitlePrimary]}>{title}</Text>
+      <Text style={[styles.tileSub, primary && styles.tileSubPrimary]}>{sub}</Text>
+    </Pressable>
+  );
+}
+
 /** A quiet text-only action (Reset / Save / Clear). */
 function Ghost({ label, onPress }: { label: string; onPress: () => void }) {
   return (
@@ -1734,6 +1783,22 @@ const styles = StyleSheet.create({
 
   // Source row
   sourceBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  sourceTiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  tile: { flexGrow: 1, flexBasis: 110, paddingVertical: 10, paddingHorizontal: 12, borderRadius: Radius.control, backgroundColor: Palette.panel, gap: 2 },
+  tilePrimary: { backgroundColor: Palette.accent },
+  tileTitle: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink },
+  tileTitlePrimary: { color: Palette.accentText },
+  tileSub: { fontSize: FontSize.xs, lineHeight: 15, color: Palette.ink3 },
+  tileSubPrimary: { color: Palette.accentText, opacity: 0.85 },
+  tileUpload: { flexGrow: 1, flexBasis: 110, gap: 2, justifyContent: 'center' },
+  tileSubOut: { fontSize: FontSize.xs, lineHeight: 15, color: Palette.ink3, paddingHorizontal: 2 },
+  stockHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  stockLink: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.accent },
+  cutLink: { paddingVertical: 4 },
+  cutLinkText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.accent },
+  actionPair: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  trayBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: Radius.control, backgroundColor: Palette.panel },
+  trayBtnText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.ink2 },
   creditBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   creditInput: { flexBasis: 200 },
   attribHint: { marginTop: 8, fontSize: FontSize.sm, lineHeight: 17, color: Palette.muted2 },

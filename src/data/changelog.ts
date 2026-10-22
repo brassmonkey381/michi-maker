@@ -135,6 +135,19 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Add art in two moves: pick a picture, and it is on the page',
+        kind: 'better',
+        area: 'binders',
+        big: true,
+        body:
+          'Add art asks one thing: Card art, Upload, or Find art (free photos, and where else to '
+          + 'look). The picture lands on the page as one pocket. Drag it where you like and drag its '
+          + 'corner to make it as big as you like. Zoom, rotate, flip and cutting into pieces are '
+          + 'behind Advanced editing, which now opens on one whole piece with a Place on page button. '
+          + 'Just the art is retired.',
+      },
+      {
+        products: ['michi'],
         head: 'Tidy up the Artwork panel',
         kind: 'new',
         area: 'binders',

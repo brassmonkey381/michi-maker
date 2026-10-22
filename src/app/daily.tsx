@@ -27,6 +27,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Confetti, makeConfetti, type ConfettiPiece } from '@/components/Confetti';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -74,6 +75,8 @@ export default function DailyScreen() {
   const [busy, setBusy] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [zoom, setZoom] = useState<string | null>(null);
+  /** A burst for every right word, a bigger one for the last (owner, 2026-10-22). */
+  const [confetti, setConfetti] = useState<ConfettiPiece[] | null>(null);
 
   /**
    * THE COUNTDOWN. Held as state and re-armed by a timeout after each render rather than driven by
@@ -178,6 +181,7 @@ export default function DailyScreen() {
       if (r.hit && r.matchedWord) {
         const hitWord = r.matchedWord;
         setFound((f) => (f.includes(hitWord) ? f : [...f, hitWord]));
+        setConfetti(makeConfetti(r.solved ? 90 : 36));
       }
       trackPuzzleGuess(puzzle.id, attempt, r);
       if (r.solved) {
@@ -227,6 +231,9 @@ export default function DailyScreen() {
     (Math.min(width, MaxContentWidthDoc) - gutter - Spacing.two * (cols - 1)) / cols,
   );
   const remaining = puzzle ? puzzle.themeCount - found.length : 0;
+  // RED OR GREEN (owner, 2026-10-22): the last verdict colours the box and the line under it, so
+  // a right word reads as right without reading. The tint lifts as soon as they type again.
+  const verdict = last && !typed ? (last.result.hit ? 'yes' : 'no') : null;
   // AS LITTLE UNDER THE CARDS AS POSSIBLE (owner, 2026-10-16). The cards keep their size and the
   // guess box stays under them (a side panel was tried and turned down), so everything else is
   // compact: the lead and the countdown share a row, the found chips sit in the guess row, and
@@ -356,7 +363,7 @@ export default function DailyScreen() {
                       onSubmitEditing={submit}
                       placeholder="One word at a time"
                       placeholderTextColor={Palette.muted}
-                      style={styles.input}
+                      style={[styles.input, verdict === 'yes' && styles.inputYes, verdict === 'no' && styles.inputNo]}
                       autoCapitalize="none"
                       autoCorrect={false}
                       returnKeyType="send"
@@ -375,15 +382,17 @@ export default function DailyScreen() {
 
                   <View style={styles.noteRow}>
                     {last ? (
-                      <ThemedText
-                        type="smallBold"
-                        style={[styles.note, last.result.hit ? styles.yes : styles.no]}
-                        testID="daily-verdict"
-                      >
-                        {last.result.hit
-                          ? `Yes, "${last.word}" is one of them.`
-                          : `"${last.word}" is not one of them.`}
-                      </ThemedText>
+                      <View style={[styles.verdict, last.result.hit ? styles.verdictYes : styles.verdictNo]}>
+                        <ThemedText
+                          type="smallBold"
+                          style={[styles.note, last.result.hit ? styles.yes : styles.no]}
+                          testID="daily-verdict"
+                        >
+                          {last.result.hit
+                            ? `Yes, "${last.word}" is one of them.`
+                            : `No, "${last.word}" is not one of them.`}
+                        </ThemedText>
+                      </View>
                     ) : (
                       <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
                         Close spellings, plurals, and synonyms count.
@@ -442,6 +451,7 @@ export default function DailyScreen() {
           </Pressable>
         </Modal>
       </SafeAreaView>
+      <Confetti pieces={confetti} />
     </ThemedView>
   );
 }
@@ -540,8 +550,13 @@ const styles = StyleSheet.create({
   },
   goOff: { opacity: 0.45 },
   goText: { color: Palette.accentText },
-  yes: { color: Palette.accent },
-  no: { color: Palette.muted },
+  inputYes: { borderColor: Palette.success, borderWidth: 2, backgroundColor: `${Palette.success}1F` },
+  inputNo: { borderColor: Palette.danger, borderWidth: 2, backgroundColor: Palette.dangerBg },
+  verdict: { borderRadius: Radius.pill, paddingVertical: 4, paddingHorizontal: Spacing.three, flexShrink: 1 },
+  verdictYes: { backgroundColor: `${Palette.success}1F` },
+  verdictNo: { backgroundColor: Palette.dangerBg },
+  yes: { color: Palette.success },
+  no: { color: Palette.danger },
   link: { color: Palette.accent },
   zoomBack: {
     flex: 1,

@@ -130,6 +130,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-22',
+    title: 'The daily puzzle celebrates a right word',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Confetti for a right word, and red or green on every guess',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'A right word throws confetti, and the last word turns the whole thing loose. The guess '
+          + 'box and the line under it go green for a hit and red for a miss, so the verdict reads '
+          + 'at a glance. Devices set to reduce motion get the colours and skip the confetti.',
+      },
+    ],
+  },
+  {
     date: '2026-10-20',
     title: 'Arrange a page, and a tray for cards between pages',
     items: [

@@ -15,7 +15,7 @@ import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanima
 import { Image } from 'expo-image';
 
 import { cardThumbUrl } from '@/lib/catalogConfig';
-import { browseState, similarAvailable } from 'tcgscan-browse';
+import { browseState, loadColorIndex, similarAvailable } from 'tcgscan-browse';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
@@ -334,6 +334,12 @@ export function BinderScreen({
   const [similarSeed, setSimilarSeed] = useState<string[] | null>(null);
   // A pocket's Colors button: the card whose palette the picker's colour sheet should open on.
   const [paletteSeed, setPaletteSeed] = useState<{ cardId: string } | null>(null);
+  // WARM THE COLOUR DATA with the editor (owner, 2026-10-22): a pocket's Colors button reads the
+  // card's palette from the on-device blob, and the first press used to be what started that
+  // download, so the sheet opened on the old mix. Load-once in the kit, about 900 KB, cached after.
+  useEffect(() => {
+    void loadColorIndex();
+  }, []);
   // Held so a dismiss can commit unsaved framing before the studio unmounts.
   const studioRef = useRef<SliceStudioHandle>(null);
   const [studio, setStudio] = useState<

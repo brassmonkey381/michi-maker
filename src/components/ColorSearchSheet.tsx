@@ -10,7 +10,7 @@
 import { Image } from 'expo-image';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { findSimilarByColor, searchByColors, srgbToLab, useColorIndex, type ColorRegion, type Lab } from 'tcgscan-browse';
+import { findSimilarByColor, loadColorIndex, searchByColors, srgbToLab, useColorIndex, type ColorRegion, type Lab } from 'tcgscan-browse';
 
 import { GradientMixBar, HsvColorPicker, stopWeights, type Stop } from '@/components/color/ColorPicker';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -102,9 +102,39 @@ export function ColorSearchSheet({
       setActive(0); // a two-colour card would leave the HSV editor pointing past the end
       setNote('');
     } else {
-      setNote('That card has no colour data yet.');
+      setNote('That card has no colour data yet. Take from another card, or mix by hand.');
     }
   }
+  /**
+   * WHILE THE COLOUR DATA IS STILL ON ITS WAY (owner, 2026-10-22: "Colors should auto take the
+   * colors of that card"). It did, but only once the on-device blob had loaded, and the first press
+   * of a session is what starts that load: for a second or more the sheet sat on the previous mix
+   * with nothing said, which reads as the button not working. Now the mix is dimmed and labelled
+   * until the card's palette lands, and a failed load says so instead of waiting forever.
+   */
+  const reading = Boolean(paletteCardId) && paletteCardId !== dropped;
+  const [loadFailed, setLoadFailed] = useState(false);
+  useEffect(() => {
+    if (!reading || colorIndex) return;
+    let live = true;
+    loadColorIndex().then((idx) => {
+      if (live && !idx) setLoadFailed(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [reading, colorIndex]);
+
+  /** Switching Full art / Art panel re-reads the card that is on the bar, as the toggle promises. */
+  const pickRegion = (r: ColorRegion) => {
+    setRegion(r);
+    if (!dropped || !colorIndex) return;
+    const picked = stopsForCard(colorIndex, dropped, r);
+    if (picked.length) {
+      setStops(picked);
+      setActive(0);
+    }
+  };
 
   // Remember the mix + region + active stop across opens (session-sticky).
   useEffect(() => {
@@ -156,7 +186,7 @@ export function ColorSearchSheet({
             {REGIONS.map((r) => {
               const on = r.value === region;
               return (
-                <Pressable key={r.value} onPress={() => setRegion(r.value)} style={[styles.regionBtn, on && styles.regionBtnOn]}>
+                <Pressable key={r.value} onPress={() => pickRegion(r.value)} style={[styles.regionBtn, on && styles.regionBtnOn]}>
                   <Text style={[styles.regionTxt, on && styles.regionTxtOn]}>{r.label}</Text>
                 </Pressable>
               );
@@ -212,12 +242,20 @@ export function ColorSearchSheet({
                   <Text style={styles.cardBtnHelp}>Then tap any card on screen: in your binder, the dock or the results.</Text>
                 </View>
               ) : null}
-              <Text style={styles.hint}>Or mix by hand: drag a stop to reweight, pick its colour below</Text>
-              <GradientMixBar stops={stops} active={active} onChange={setStops} onActive={setActive} />
-              <HsvColorPicker
-                rgb={stops[active].rgb}
-                onChange={(rgb) => setStops((prev) => prev.map((s, i) => (i === active ? { ...s, rgb } : s)))}
-              />
+              <Text style={styles.hint}>
+                {reading
+                  ? loadFailed
+                    ? 'The colour data did not load. Check the connection and press Colors again.'
+                    : 'Reading this card’s colours…'
+                  : 'Or mix by hand: drag a stop to reweight, pick its colour below'}
+              </Text>
+              <View style={reading && !loadFailed ? styles.waiting : undefined} pointerEvents={reading && !loadFailed ? 'none' : 'auto'}>
+                <GradientMixBar stops={stops} active={active} onChange={setStops} onActive={setActive} />
+                <HsvColorPicker
+                  rgb={stops[active].rgb}
+                  onChange={(rgb) => setStops((prev) => prev.map((s, i) => (i === active ? { ...s, rgb } : s)))}
+                />
+              </View>
             </View>
           ) : (
             <Text style={styles.msg}>Find cards whose palette is closest to this card.</Text>
@@ -299,6 +337,7 @@ const styles = StyleSheet.create({
   helpDesc: { fontSize: FontSize.control, lineHeight: 19, color: Palette.ink2 },
   picker: { gap: Spacing.two },
   hint: { fontSize: FontSize.xs, color: Palette.muted },
+  waiting: { opacity: 0.35 },
   msg: { fontSize: FontSize.control, color: Palette.muted },
   note: { fontSize: FontSize.control, color: Palette.muted, textAlign: 'center' },
   searchBtn: { paddingVertical: Spacing.two, borderRadius: Radius.pill, backgroundColor: Palette.accent, alignItems: 'center' },

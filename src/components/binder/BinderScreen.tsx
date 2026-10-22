@@ -349,8 +349,12 @@ export function BinderScreen({
   const [autoFillOpen, setAutoFillOpen] = useState(false);
   // Complete page: the empty pockets filled from what the page already holds (owner, 2026-10-22).
   const [completeOpen, setCompleteOpen] = useState(false);
-  // Arrange sheet: several finished seatings of the cards this page (or spread) already has.
+  // Arrange: several finished seatings of the cards this page already has, stepped through ON
+  // THE PAGE ITSELF (owner, 2026-10-22: "see them instantly in the binder page and iterate through
+  // them, because full size is better to see"). While the bar is open the current page renders
+  // the candidate being looked at, read-only; Keep commits it, Cancel or Esc puts the page back.
   const [arrangeOpen, setArrangeOpen] = useState(false);
+  const [arrangePreview, setArrangePreview] = useState<DemoPage | null>(null);
   // "Find art" sheet: searches tuned to what the open page is about (owner, 2026-10-13).
   const [findArtOpen, setFindArtOpen] = useState(false);
   // Ctrl/Cmd multi-select (web): a set of pocket ids highlighted together; releasing the modifier
@@ -2079,11 +2083,11 @@ export function BinderScreen({
         // The active-page grid in both the spread ('current') and the narrow single view — curRef
         // must point to it either way so a tray slice can hit-test its drop cell.
         ref={curRef}
-        page={p}
+        page={arrangePreview && p.id === page.id ? arrangePreview : p}
         width={width}
         pageStyle={binder.pageStyle} cutLines={view.cutLines}
         outerEdge={outerEdgeOf(p)}
-        editable
+        editable={!arrangePreview}
         captionFields={captionFields}
         ownedIds={ownedIds} scanUrlOf={scanUrlOf}
         variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
@@ -2208,20 +2212,20 @@ export function BinderScreen({
           testID="tool-add-page"
           onPress={handleAddPage}
         />
-        <IconBtn glyph="⧉" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
         {/* Arrange: the cards this page has, seated several ways (docs/ARRANGE.md). Carries its
             word like "+ Page" does: a bare glyph for a feature nobody has seen yet is a riddle. */}
         <IconBtn glyph="☷" word="Arrange" label="Arrange the cards on this page (G)" onPress={() => setArrangeOpen(true)} testID="tool-arrange" />
-        {/* Complete: fill the empty pockets from what the page holds. Also offered where the owner
-            asked for it, on the Cards side when an empty pocket is aimed at. */}
+        {/* Complete: fill the empty pockets from what the page holds. C on a keyboard. */}
         <IconBtn
           glyph="✦"
           word="Complete"
-          label="Complete this page: fill the empty pockets from the cards already here"
+          label="Complete this page: fill the empty pockets from the cards already here (C)"
           onPress={() => setCompleteOpen(true)}
           disabled={!page.slots.some((s) => s.cardId) || page.slots.length >= page.rows * page.cols}
           testID="tool-complete"
         />
+        {/* Duplicate sits after the two page-filling tools (owner, 2026-10-22). */}
+        <IconBtn glyph="⧉" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
         {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
         {store.userBinders.some((b) => b.id !== binder.id) ? (
           <IconBtn
@@ -2874,14 +2878,6 @@ export function BinderScreen({
           collapsed={!cardsWantsPanel}
           onToggleCollapsed={() => setCardsCollapsed((v) => !v)}
           collapsedLabel="Cards"
-          aimedAction={
-            editing && page.slots.some((s) => s.cardId) ? (
-              <Pressable onPress={() => setCompleteOpen(true)} style={styles.completePill} accessibilityRole="button" accessibilityLabel="Complete this page">
-                <Text style={styles.completePillText}>✦ Complete page</Text>
-                <Text style={styles.completePillHint}>fill the empty pockets from the cards already here</Text>
-              </Pressable>
-            ) : undefined
-          }
           trayHead={
             editing ? (
               <CardTray
@@ -2910,16 +2906,23 @@ export function BinderScreen({
           dockWidth={pickerWidth}
         />
 
-        <ArrangeSheet
-          visible={arrangeOpen}
-          page={page}
-          onClose={() => setArrangeOpen(false)}
-          onApply={(what, moves, art) => {
-            const moved = store.arrangeSlots(binder.id, moves, art);
-            setSelectedSlotId(null);
-            showToast(moved || art.length ? `${what} · ${moved} pocket${moved === 1 ? '' : 's'} moved` : 'Already seated that way', moved > 0 || art.length > 0);
-          }}
-        />
+        {/* The Arrange bar floats over the page it previews; the sheet renders nothing when closed. */}
+        <View style={styles.arrangeFloat}>
+          <ArrangeSheet
+            visible={arrangeOpen}
+            page={page}
+            onPreview={setArrangePreview}
+            onClose={() => {
+              setArrangeOpen(false);
+              setArrangePreview(null);
+            }}
+            onApply={(what, moves, art) => {
+              const moved = store.arrangeSlots(binder.id, moves, art);
+              setSelectedSlotId(null);
+              showToast(moved || art.length ? `${what} · ${moved} pocket${moved === 1 ? '' : 's'} moved` : 'Already seated that way', moved > 0 || art.length > 0);
+            }}
+          />
+        </View>
 
         <CompletePageSheet
           visible={completeOpen}
@@ -3083,8 +3086,9 @@ export function BinderScreen({
           onUndo={store.undo}
           onRedo={store.redo}
           onDelete={deleteSelection}
-          onPrevPage={() => changePage(idx - 1)}
-          onNextPage={() => changePage(idx + 1)}
+          // While the Arrange bar is open the arrows step its takes (it listens itself), not the pages.
+          onPrevPage={arrangeOpen ? () => {} : () => changePage(idx - 1)}
+          onNextPage={arrangeOpen ? () => {} : () => changePage(idx + 1)}
           onToggleEdit={toggleEditing}
           onToggleArt={phone ? undefined : () => setArtworkOpen((v) => !v)}
           onToggleCards={phone ? undefined : () => setCardsCollapsed((v) => !v)}
@@ -3119,10 +3123,14 @@ export function BinderScreen({
           onMovePage={() => setMovePageOpen((v) => !v)}
           onNewPage={editing ? handleAddPage : undefined}
           onArrange={editing ? () => setArrangeOpen(true) : undefined}
+          onComplete={editing && page.slots.some((s) => s.cardId) && page.slots.length < page.rows * page.cols ? () => setCompleteOpen(true) : undefined}
           onGoToPage={(n) => changePage(n - 1)}
           onEscape={() => {
             // The topmost thing first, one per press: a preview, a sheet, a selection, select mode.
-            if (moving) setMoving(null);
+            if (arrangeOpen) {
+              setArrangeOpen(false);
+              setArrangePreview(null);
+            } else if (moving) setMoving(null);
             else if (quickOpen) setQuickOpen(false);
             else if (movePageOpen) setMovePageOpen(false);
             else if (settingsOpen) setSettingsOpen(false);
@@ -3365,6 +3373,7 @@ function EditorKeyboardShortcuts({
   onMovePage,
   onNewPage,
   onArrange,
+  onComplete,
   onGoToPage,
   onEscape,
 }: {
@@ -3400,6 +3409,8 @@ function EditorKeyboardShortcuts({
   onNewPage?: () => void;
   /** G: Arrange this page (owner, 2026-10-22: "feature worthy ... needs a shortcut key"). Editing only. */
   onArrange?: () => void;
+  /** C: Complete this page (owner, 2026-10-22; C left the Cards dock for it). Editing only. */
+  onComplete?: () => void;
   /** Digits: a page number, 1-based, acted on after a short pause; the caller clamps it. */
   onGoToPage?: (n: number) => void;
   /** Escape: close the topmost thing. */
@@ -3474,6 +3485,9 @@ function EditorKeyboardShortcuts({
       } else if (!meta && !e.altKey && key === PLAIN_KEYS.arrange && onArrange) {
         e.preventDefault();
         onArrange();
+      } else if (!meta && !e.altKey && key === PLAIN_KEYS.complete && onComplete) {
+        e.preventDefault();
+        onComplete();
       } else if (!meta && !e.altKey && key === PLAIN_KEYS.artDock && onToggleArt) {
         e.preventDefault();
         onToggleArt();
@@ -3502,7 +3516,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onPrint, onDownloadFullImage, onMovePage, onNewPage, onArrange, onGoToPage, onEscape]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onPrint, onDownloadFullImage, onMovePage, onNewPage, onArrange, onComplete, onGoToPage, onEscape]);
   return null;
 }
 
@@ -3869,19 +3883,8 @@ const styles = StyleSheet.create({
   // not the whole row width (an easy place to fat-finger a destructive action).
   // Floating drag preview that follows the finger while a slice is dragged from the tray.
   dragGhostCard: { width: 56, height: 78 },
-  completePill: {
-    marginHorizontal: Spacing.three,
-    marginTop: Spacing.two,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.panel,
-    borderWidth: 1,
-    borderColor: Palette.controlBorder,
-    backgroundColor: Palette.panelAlt,
-    gap: 2,
-  },
-  completePillText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
-  completePillHint: { fontSize: FontSize.sm, color: Palette.muted3 },
+  // The Arrange bar: bottom centre, over the page being previewed, under the docks.
+  arrangeFloat: { position: 'absolute', bottom: 20, left: 0, right: 0, alignItems: 'center', zIndex: 71, pointerEvents: 'box-none' },
   dragGhost: {
     position: 'absolute',
     top: 0,

@@ -38,7 +38,8 @@ export function shortcutList(mod: 'Ctrl' | '⌘'): Shortcut[] {
     { keys: 'N', does: 'New page', group: 'Editing' },
     { keys: 'G', does: 'Arrange page', group: 'Editing' },
     { keys: 'W', does: 'Move page', group: 'Editing' },
-    { keys: 'C or D', does: 'Cards dock', group: 'Editing' },
+    { keys: 'C', does: 'Complete page', group: 'Editing' },
+    { keys: 'D', does: 'Cards dock', group: 'Editing' },
     { keys: 'A', does: 'Art dock', group: 'Editing' },
     { keys: 'Q', does: 'Share image preview', group: 'Share' },
     { keys: 'R', does: 'Share panel', group: 'Share' },
@@ -54,7 +55,8 @@ export function shortcutGroups(mod: 'Ctrl' | '⌘'): { title: ShortcutGroup; ite
 }
 
 /** The plain keys (no modifier) the editor listens for, so a handler and the card agree. */
-export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['c', 'd'], settings: 's', quickPreview: 'q', share: 'r', print: 'p', fullImage: 'f', movePage: 'w', newPage: 'n', arrange: 'g' } as const;
+// C moved from the Cards dock to Complete page (owner, 2026-10-22); D alone opens the dock.
+export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['d'], settings: 's', quickPreview: 'q', share: 'r', print: 'p', fullImage: 'f', movePage: 'w', newPage: 'n', arrange: 'g', complete: 'c' } as const;
 /** How long after the last digit a typed page number is acted on. Long enough for a two-digit number, short enough to feel like a jump. */
 export const PAGE_NUMBER_DEBOUNCE_MS = 650;
 

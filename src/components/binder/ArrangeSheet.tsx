@@ -1,15 +1,18 @@
 /**
  * ARRANGE SHEET: several finished layouts for the cards a page already has (docs/ARRANGE.md).
  *
- * One button on a page opens this. SINGLE PAGES ONLY. A page is read as full art or windowed by its
+ * One button (or G) opens this. SINGLE PAGES ONLY. A page is read as full art or windowed by its
  * majority (the owner's pages are one or the other; the catalogue's kinds miss some full arts, and
  * refusing a mixed page blocked the owner on an all-full-art page on 2026-10-22, so it is read, not
- * refused). It shows the page as it is now first, so looking costs nothing, then THE ARRANGER'S
- * answer (data/arranger: one score the lab tunes to the owner's eye, over every template the
- * shape allows) and two other takes, as thumbnails of the actual cards in the actual pockets, each
- * with a one-line reason the user can check against the picture. Tapping one reseats the page in ONE store commit (one Undo) and one server
- * transaction (reseat_slots). Hand placements made afterwards are never overridden: Arrange runs
- * again by choice.
+ * refused). THE ARRANGER'S answer (data/arranger: one score the lab tunes to the owner's eye, over
+ * every template the shape allows) and its other takes are shown ON THE PAGE ITSELF, full size,
+ * one at a time (owner, 2026-10-22: "see them instantly in the binder page and iterate through
+ * them, because full size is better to see"): this component is a bar under the page with the
+ * take's name and reason, arrows to step (the keyboard's too), Keep and Cancel. The screen renders
+ * whatever `onPreview` hands it in place of the page, read-only, and puts the page back on close.
+ * The first take is the page as it is now, so a step back always shows the before. Keep reseats
+ * the page in ONE store commit (one Undo) and one server transaction (reseat_slots). Hand
+ * placements made afterwards are never overridden: Arrange runs again by choice.
  *
  * WHAT IT READS. The seating itself is `data/arranger` (pure). This sheet only gathers the facts:
  * the catalog record for each pocket (line, stage, illustrator, set, number, rarity, full-art
@@ -29,13 +32,12 @@
  * later from what the owner actually chooses.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Image } from 'expo-image';
-import { cardThumbUrl, getColorIndex, loadColorIndex } from 'tcgscan-browse';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { getColorIndex, loadColorIndex } from 'tcgscan-browse';
 
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
-import { DialogCard } from '@/components/ui/DialogCard';
+import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import {
   type ArrangeCard,
@@ -69,11 +71,14 @@ export type ArrangeMove = { slotId: string; fromPageId: string; toPageId: string
 export function ArrangeSheet({
   visible,
   page,
+  onPreview,
   onClose,
   onApply,
 }: {
   visible: boolean;
   page: DemoPage;
+  /** The take being looked at, as the page would be; null for the page as it is (or on close). */
+  onPreview: (preview: DemoPage | null) => void;
   onClose: () => void;
   /** The store write: the moves and any template art gaps, applied as one commit by the screen. */
   onApply: (what: string, moves: ArrangeMove[], art: { pageId: string; slot: DemoSlot }[]) => void;
@@ -193,8 +198,34 @@ export function ArrangeSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, catalog, depth, similarity, pockets, reserved, hasArt, rows, cols, spread, paletteTick, mix]);
 
-  const cardIdOf = useMemo(() => new Map(pockets.map((p) => [p.slot.id, p.slot.cardId!])), [pockets]);
   const pageOf = (leaf: Leaf): DemoPage => (leaf === 'right' ? pages[1] : pages[0]);
+
+  // WHICH TAKE IS ON THE PAGE. Keyed by the candidate run, so a fresh run opens on the arranger's
+  // answer (index 1; 0 is the page as it is) without a synchronous reset in an effect.
+  const candKey = candidates ? candidates.map((c) => c.id).join('|') : '';
+  const [sel, setSel] = useState<{ key: string; i: number } | null>(null);
+  const index = candidates ? (sel && sel.key === candKey ? sel.i : Math.min(1, candidates.length - 1)) : 0;
+  const cand = candidates ? candidates[index] : null;
+  const step = (d: number) => {
+    if (!candidates) return;
+    setSel({ key: candKey, i: (index + d + candidates.length) % candidates.length });
+  };
+
+  // The take as a page: the untouched slots, the pockets re-seated, the template's art panels,
+  // the held cards gone (to the tray on Keep). Ids are the real pockets' ids, so the grid draws it
+  // exactly as it will be. Minted once per take so the preview is stable while it is looked at.
+  const preview = useMemo<DemoPage | null>(() => {
+    if (!visible || !cand || cand.mode === 'current') return null;
+    const pocketIds = new Set(pockets.map((p) => p.slot.id));
+    const byId = new Map(pockets.map((p) => [p.slot.id, p.slot]));
+    const kept = page.slots.filter((s) => !pocketIds.has(s.id));
+    const seated: DemoSlot[] = cand.placements.map((pl) => ({ ...byId.get(pl.cardId)!, row: pl.cell.row, col: pl.cell.col }));
+    const art = cand.template ? templateArtSlots(cand.template, uuidv4) : [];
+    return { ...page, slots: [...kept, ...seated, ...art] };
+  }, [visible, cand, pockets, page]);
+  useEffect(() => {
+    onPreview(preview);
+  }, [preview, onPreview]);
 
   const [applying, setApplying] = useState(false);
   const apply = (cand: Candidate, rank: number) => {
@@ -231,50 +262,93 @@ export function ArrangeSheet({
     setApplying(false);
   };
 
+  // ← → step the takes and Enter keeps while the bar is open; the screen stops turning pages.
+  useEffect(() => {
+    if (!visible || Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = (e.target as HTMLElement | null)?.tagName;
+      if (el === 'INPUT' || el === 'TEXTAREA') return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        step(-1);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        step(1);
+      } else if (e.key === 'Enter' && cand && cand.mode !== 'current') {
+        e.preventDefault();
+        apply(cand, index);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  if (!visible) return null;
+
+  const mixNote = mix?.mixed
+    ? `Read as a ${mix.dominant === 'full' ? 'full-art' : 'windowed'} page: ${mix.dominant === 'full' ? mix.windowed : mix.full} card${(mix.dominant === 'full' ? mix.windowed : mix.full) === 1 ? ' looks' : 's look'} ${mix.dominant === 'full' ? 'windowed' : 'full art'} to the catalogue.`
+    : '';
+  const isNow = !cand || cand.mode === 'current';
   return (
-    <DialogCard visible={visible} title={spread ? 'Arrange this spread' : 'Arrange this page'} onClose={onClose} maxWidth={640} scroll={false}>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-        The same cards, seated so the page reads, and two other takes. Tap one to use it; Undo brings the old order back.
-        {mix?.mixed ? ` Read as a ${mix.dominant === 'full' ? 'full-art' : 'windowed'} page: ${mix.dominant === 'full' ? mix.windowed : mix.full} card${(mix.dominant === 'full' ? mix.windowed : mix.full) === 1 ? ' looks' : 's look'} ${mix.dominant === 'full' ? 'windowed' : 'full art'} to the catalogue.` : ''}
-      </ThemedText>
+    <ThemedView type="backgroundElement" style={styles.bar} accessibilityRole="toolbar" accessibilityLabel="Arrange this page">
       {pockets.length < 2 ? (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-          Arrange needs at least two cards on the page.
-        </ThemedText>
-      ) : !candidates ? (
-        <View style={styles.loading}>
+        <>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+            Arrange needs at least two cards on the page.
+          </ThemedText>
+          <Btn text="Close" onPress={onClose} />
+        </>
+      ) : !candidates || !cand ? (
+        <>
           <LogoLoader />
-          <ThemedText type="small" themeColor="textSecondary">
+          <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
             Reading the cards…
           </ThemedText>
-        </View>
+          <Btn text="Cancel" onPress={onClose} />
+        </>
       ) : (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.grid}>
-          {candidates.map((cand, i) => (
-            <Pressable
-              key={cand.id}
-              onPress={() => (cand.mode === 'current' ? onClose() : apply(cand, i))}
-              accessibilityRole="button"
-              accessibilityLabel={`${cand.name}. ${cand.reason}`}
-              style={({ pressed }) => [styles.card, cand.mode === 'current' && styles.cardCurrent, pressed && styles.pressed]}>
-              <Preview cand={cand} rows={rows} cols={cols} spread={spread} cardIdOf={cardIdOf} reserved={reserved} />
-              <ThemedText type="smallBold" numberOfLines={1} style={styles.cardTitle}>
-                {cand.name}
+        <>
+          <Btn text="‹" label="Previous take" onPress={() => step(-1)} />
+          <View style={styles.middle}>
+            <View style={styles.titleRow}>
+              <ThemedText type="smallBold" numberOfLines={1} style={styles.title}>
+                {isNow ? 'As it is now' : cand.name}
               </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary" numberOfLines={3} style={styles.cardDesc}>
-                {cand.reason}
-              </ThemedText>
+              <Text style={styles.count}>{`${index + 1} of ${candidates.length}`}</Text>
+            </View>
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={2} style={styles.reason}>
+              {isNow ? `Step through the takes with the arrows; the page shows each one full size.${mixNote ? ` ${mixNote}` : ''}` : cand.reason}
+            </ThemedText>
+            {!isNow && (cand.artCells > reserved.size || cand.held.length || cand.open.length || cand.ask) ? (
               <View style={styles.chips}>
                 {cand.artCells > reserved.size ? <Chip text={`${cand.artCells - reserved.size} more for art`} /> : null}
                 {cand.held.length ? <Chip text={`${cand.held.length} to the tray`} /> : null}
                 {cand.open.length ? <Chip text={`${cand.open.length} open`} /> : null}
                 {cand.ask ? <Chip accent text={askText(cand)} /> : null}
               </View>
-            </Pressable>
-          ))}
-        </ScrollView>
+            ) : null}
+          </View>
+          <Btn text="›" label="Next take" onPress={() => step(1)} />
+          <Btn text="Keep" primary disabled={isNow} label="Keep this arrangement (Enter)" onPress={() => apply(cand, index)} />
+          <Btn text="Cancel" label="Cancel, put the page back (Esc)" onPress={onClose} />
+        </>
       )}
-    </DialogCard>
+    </ThemedView>
+  );
+}
+
+function Btn({ text, label, onPress, primary, disabled }: { text: string; label?: string; onPress: () => void; primary?: boolean; disabled?: boolean }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label ?? text}
+      accessibilityState={{ disabled }}
+      hitSlop={6}
+      style={({ pressed }) => [styles.btn, primary && styles.btnPrimary, disabled && styles.btnOff, pressed && styles.pressed]}>
+      <Text style={[styles.btnText, primary && styles.btnTextPrimary]}>{text}</Text>
+    </Pressable>
   );
 }
 
@@ -296,85 +370,36 @@ function Chip({ text, accent }: { text: string; accent?: boolean }) {
   );
 }
 
-/** The candidate as a tiny page or spread: real thumbnails in the pockets, hatching where art goes. */
-function Preview({
-  cand,
-  rows,
-  cols,
-  spread,
-  cardIdOf,
-  reserved,
-}: {
-  cand: Candidate;
-  rows: number;
-  cols: number;
-  spread: boolean;
-  cardIdOf: ReadonlyMap<string, string>;
-  reserved: ReadonlySet<string>;
-}) {
-  const at = new Map(cand.placements.map((p) => [cellKey(p.cell), p.cardId]));
-  const art = cand.template ? new Set<string>() : reserved;
-  if (cand.template) {
-    for (const p of cand.template.panels) {
-      const leaf: Leaf = spread ? (p.page ?? 'left') : 'single';
-      for (let r = p.row; r < p.row + p.rowSpan; r += 1) for (let c = p.col; c < p.col + p.colSpan; c += 1) (art as Set<string>).add(cellKey({ leaf, row: r, col: c }));
-    }
-  }
-  const leaves: Leaf[] = spread ? ['left', 'right'] : ['single'];
-  return (
-    <View style={styles.previewRow}>
-      {leaves.map((leaf) => (
-        <View key={leaf} style={[styles.leaf, { aspectRatio: (cols * 2.5) / (rows * 3.5) }]}>
-          {Array.from({ length: rows * cols }, (_, i) => {
-            const cell: Cell = { leaf, row: Math.floor(i / cols), col: i % cols };
-            const k = cellKey(cell);
-            const slotId = at.get(k);
-            const cardId = slotId ? cardIdOf.get(slotId) : undefined;
-            return (
-              <View key={k} style={[styles.cell, { width: `${100 / cols}%` }]}>
-                {cardId ? (
-                  <Image source={{ uri: cardThumbUrl(cardId, 245) }} style={styles.cellImg} contentFit="cover" transition={0} />
-                ) : art.has(k) ? (
-                  <View style={styles.cellArt} />
-                ) : (
-                  <View style={styles.cellOpen} />
-                )}
-              </View>
-            );
-          })}
-        </View>
-      ))}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  lede: { marginBottom: Spacing.three, lineHeight: 18 },
-  empty: { paddingVertical: Spacing.four },
-  loading: { paddingVertical: Spacing.five, alignItems: 'center', gap: Spacing.two },
-  scroll: { maxHeight: 520 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, paddingBottom: Spacing.two },
-  card: {
-    flexGrow: 1,
-    flexBasis: 270,
-    maxWidth: 300,
-    padding: Spacing.two,
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
     borderRadius: Radius.panel,
     borderWidth: 1,
     borderColor: Palette.controlBorder,
-    backgroundColor: Palette.panelAlt,
-    gap: Spacing.one,
+    maxWidth: 720,
+    width: '96%',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
-  cardCurrent: { borderStyle: 'dashed' },
-  pressed: { opacity: 0.85 },
-  previewRow: { flexDirection: 'row', gap: 3 },
-  leaf: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', borderRadius: Radius.sm, overflow: 'hidden', backgroundColor: Palette.hairline },
-  cell: { aspectRatio: 2.5 / 3.5, padding: 1 },
-  cellImg: { width: '100%', height: '100%', borderRadius: 2 },
-  cellArt: { width: '100%', height: '100%', borderRadius: 2, backgroundColor: Palette.accentSoft, opacity: 0.8 },
-  cellOpen: { width: '100%', height: '100%', borderRadius: 2, borderWidth: 1, borderStyle: 'dashed', borderColor: Palette.controlBorder },
-  cardTitle: { marginTop: Spacing.one },
-  cardDesc: { lineHeight: 15 },
+  middle: { flex: 1, minWidth: 0, gap: 2 },
+  titleRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two },
+  title: { flexShrink: 1 },
+  count: { fontSize: FontSize.tag, color: Palette.muted3, fontVariant: ['tabular-nums'] },
+  reason: { lineHeight: 15 },
+  note: { flex: 1 },
+  btn: { paddingVertical: 6, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairlineStrong },
+  btnPrimary: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  btnOff: { opacity: 0.45 },
+  btnText: { color: Palette.ink2, fontWeight: Weight.semibold, fontSize: FontSize.label },
+  btnTextPrimary: { color: Palette.accentText },
+  pressed: { opacity: 0.75 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 },
   chip: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.tag, backgroundColor: Palette.hairline },
   chipAccent: { backgroundColor: Palette.accent },

@@ -145,8 +145,9 @@ export const CHANGELOG: ChangelogEntry[] = [
           'In the page tools, Arrange reads the cards on a page and proposes one seating, with two '
           + 'other takes: rows by depth (sky, ground, underground), evolution lines in order, frame '
           + 'colours grouped on windowed cards, lookalikes side by side, connected art joined. It '
-          + 'offers the art layouts that fit, and one Undo brings the old order back. Press G in the '
-          + 'editor. Single pages only, and a page that mixes full arts with windowed cards is left as it is.',
+          + 'offers the art layouts that fit. Each take shows on the page itself, full size: step '
+          + 'through them with the arrows, Keep the one that reads, and one Undo brings the old order '
+          + 'back. Press G in the editor; C completes a page (the Cards dock moved to D). Single pages only.',
       },
       {
         products: ['michi'],

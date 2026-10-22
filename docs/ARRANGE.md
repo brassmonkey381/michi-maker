@@ -172,7 +172,13 @@ Rails with Lines on a single page.
 
 ## The candidate sheet
 
-One button on a page or spread. It opens a sheet of **four to six** candidates as thumbnails of
+**Shown on the page itself since 2026-10-22** (owner: "see them instantly in the binder page and
+iterate through them, because full size is better to see"): Arrange is a bar under the page with
+the take's name and reason, arrows (and ← →) to step through the takes, Keep (Enter) and Cancel
+(Esc). The current page renders the take being looked at, read-only, and goes back on Cancel. The
+first take is the page as it is now. The thumbnail sheet described below is how it began.
+
+One button on a page or spread. It opened a sheet of **four to six** candidates as thumbnails of
 the actual cards in the actual pockets, each named by its pairing with a one-line reason the user
 can check against the picture:
 

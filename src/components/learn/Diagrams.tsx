@@ -253,7 +253,7 @@ export function EditorMapDiagram({ highlight }: { highlight: 'pocket' | 'slice-n
             <View style={[styles.dockPiece, { backgroundColor: INK.art }]} />
           </View>
           <View style={[styles.sliceNew, H('slice-new')]}>
-            <Text style={styles.sliceNewText}>+ Slice new art</Text>
+            <Text style={styles.sliceNewText}>+ Add art</Text>
           </View>
         </View>
         <View style={styles.editorPage}>

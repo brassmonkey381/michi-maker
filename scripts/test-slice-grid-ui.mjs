@@ -88,7 +88,7 @@ const artUrl = await p.evaluate(() => {
   const img = [...document.querySelectorAll('img')].find((el) => (el.getAttribute('src') || '').includes('http'));
   return img ? img.getAttribute('src') : null;
 });
-await p.getByText('Slice new art', { exact: false }).first().click({ timeout: 10000 });
+await p.getByText('Add art', { exact: false }).first().click({ timeout: 10000 });
 for (let i = 0; i < 25 && !(await p.getByText('Slice studio', { exact: true }).count()); i++) await settle(1000);
 await settle(2000);
 await p.getByPlaceholder(/paste an image URL/i).fill(artUrl);

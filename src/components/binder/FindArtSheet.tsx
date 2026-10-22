@@ -9,14 +9,16 @@
  */
 import { useMemo, useState } from 'react';
 import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { browseState } from 'tcgscan-browse';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
 import { track } from '@/lib/analytics';
+import { lastCardAdded, themeWordsOf } from '@/data/artLead';
 import { resolveCatalogCardWith } from '@/data/cardResolver';
-import { type PageSubject, artSearchLinks, pageSubject } from '@/data/pageArtSubject';
+import { ART_BROWSE_SOURCES, type PageSubject, artSearchLinks, pageSubject, speciesOf } from '@/data/pageArtSubject';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -39,6 +41,34 @@ export function usePageArtSubject(cardIds: readonly string[], title: string | nu
   return { subject, loading: enabled && !catalog && loading };
 }
 
+/**
+ * WHAT TO LOOK FOR, in the order the person most likely means it (owner, 2026-10-22): the search
+ * they last ran in the card browser (its theme: or art: words), else the card they last placed,
+ * else what the page's cards share, else the page title. Page titles are rarely edited by
+ * players, so they come last; the curation tools that do edit them still get them.
+ */
+export type ArtLeadBasis = PageSubject['basis'] | 'search' | 'added';
+
+export function useArtLead(cardIds: readonly string[], title: string | null | undefined, enabled: boolean): {
+  query: string;
+  label: string;
+  basis: ArtLeadBasis;
+  loading: boolean;
+} {
+  const { catalog, loading } = useCatalog(enabled);
+  const page = usePageArtSubject(cardIds, title, enabled);
+  const searched = themeWordsOf(browseState.cardQuery);
+  const addedId = lastCardAdded();
+  return useMemo(() => {
+    if (searched) return { query: searched, label: searched, basis: 'search' as const, loading: false };
+    const added = addedId ? resolveCatalogCardWith(catalog, addedId) : null;
+    const species = added ? speciesOf(added.name)[0] : '';
+    if (species) return { query: species, label: added!.name, basis: 'added' as const, loading: false };
+    if (addedId && !catalog && loading) return { query: '', label: '', basis: 'none' as const, loading: true };
+    return { query: page.subject.query, label: page.subject.label, basis: page.subject.basis, loading: page.loading };
+  }, [searched, addedId, catalog, loading, page]);
+}
+
 export function openArtSearch(url: string) {
   track('art.link');
   if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank', 'noopener');
@@ -55,22 +85,27 @@ export function FindArtSheet({
   onClose: () => void;
 }) {
   const theme = useTheme();
-  const { subject, loading } = usePageArtSubject(cardIds, pageTitle, true);
-  // Null until the person types, so the box follows the parser's answer, which lands once the
-  // catalog has loaded, and then stops following it.
+  const subject = useArtLead(cardIds, pageTitle, true);
+  const loading = subject.loading;
+  // Null until the person types, so the box follows the lead, which can land once the catalog
+  // has loaded, and then stops following it.
   const [typed, setTyped] = useState<string | null>(null);
   const query = (typed ?? subject.query).trim();
   const links = query ? artSearchLinks(query) : [];
   const basis =
-    subject.basis === 'species'
-      ? `Most of the cards on this page are ${subject.label}.`
-      : subject.basis === 'pair'
-        ? `This page is mostly ${subject.label}.`
-        : subject.basis === 'title'
-          ? 'The cards share no one Pokémon, so this is the page title.'
-          : loading
-            ? 'Reading the cards on this page…'
-            : 'No pattern in these cards. Type what you are looking for.';
+    subject.basis === 'search'
+      ? `Your last search was "${subject.label}".`
+      : subject.basis === 'added'
+        ? `The last card you added was ${subject.label}.`
+        : subject.basis === 'species'
+          ? `Most of the cards on this page are ${subject.label}.`
+          : subject.basis === 'pair'
+            ? `This page is mostly ${subject.label}.`
+            : subject.basis === 'title'
+              ? 'The cards share no one Pokémon, so this is the page title.'
+              : loading
+                ? 'Reading the cards on this page…'
+                : 'Type what you are looking for, or browse the sources below.';
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -78,7 +113,7 @@ export function FindArtSheet({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
         <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.card]} testID="find-art-sheet">
           <View style={styles.head}>
-            <ThemedText type="subtitle">Find art for this page</ThemedText>
+            <ThemedText type="subtitle">Find art</ThemedText>
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={styles.close}>Close</Text>
             </Pressable>
@@ -116,12 +151,26 @@ export function FindArtSheet({
                 <Text style={styles.blurb}>{l.blurb}</Text>
               </Pressable>
             ))}
-            {links.length ? (
-              <Text style={styles.note}>
-                Open a search in its own tab. Drag a picture straight onto the Slice Studio, or save
-                it and Upload it there. What you bring is stored with your binder, as your own art.
-              </Text>
-            ) : null}
+            <Text style={styles.group}>{links.length ? 'Or browse' : 'Browse'}</Text>
+            {ART_BROWSE_SOURCES.map((l) => (
+              <Pressable
+                key={`browse-${l.title}`}
+                onPress={() => openArtSearch(l.url)}
+                accessibilityRole="link"
+                style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+                <View style={styles.rowHead}>
+                  <Text style={styles.rowTitle}>{l.title} ↗</Text>
+                  <Text style={[styles.tag, l.dragFriendly ? styles.tagGood : styles.tagWarn]}>
+                    {l.dragFriendly ? 'drag-drop OK' : 'save, then Upload'}
+                  </Text>
+                </View>
+                <Text style={styles.blurb}>{l.blurb}</Text>
+              </Pressable>
+            ))}
+            <Text style={styles.note}>
+              Open a source in its own tab. Drag a picture straight onto the Slice Studio, or save
+              it and Upload it there. What you bring is stored with your binder, as your own art.
+            </Text>
           </ScrollView>
         </ThemedView>
       </View>
@@ -137,6 +186,7 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: Radius.control, paddingHorizontal: 10, paddingVertical: 8, fontSize: FontSize.control },
   list: { gap: 10, paddingBottom: 12 },
   responsibility: { fontSize: FontSize.sm, color: Palette.ink4, lineHeight: 17 },
+  group: { fontSize: FontSize.xs, fontWeight: Weight.semibold, textTransform: 'uppercase', letterSpacing: 0.6, color: Palette.muted, marginTop: 4 },
   row: { gap: 2, padding: 10, borderRadius: Radius.control, backgroundColor: Palette.panel },
   pressed: { opacity: 0.7 },
   rowHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

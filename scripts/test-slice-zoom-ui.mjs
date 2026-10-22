@@ -103,9 +103,9 @@ const artUrl = await p.evaluate(() => {
 if (!artUrl) await fail('no card image on the page to borrow a URL from');
 console.log('art url     :', artUrl.slice(-46));
 
-// Into the studio by its own front door — the slice tray's "Slice new art". Independent of
+// Into the studio by its own front door — the slice tray's "Add art". Independent of
 // whether the page happens to have an empty pocket, which the pocket route is not.
-await p.getByText('Slice new art', { exact: false }).first().click({ timeout: 10000 });
+await p.getByText('Add art', { exact: false }).first().click({ timeout: 10000 });
 for (let i = 0; i < 25 && !(await p.getByText('Slice studio', { exact: true }).count()); i++) await settle(1000);
 await settle(2000);
 

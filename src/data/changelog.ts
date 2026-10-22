@@ -135,6 +135,17 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'One Add art button, and art searches that start where you left off',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Find art and Slice new art were two doors to the same room. The Artwork panel now has one, '
+          + 'Add art, which opens the Slice Studio; Find art lives inside it, beside Card art and Upload. '
+          + 'The free-photo search and the Find art searches start from your last search in the card '
+          + 'browser, or the last card you placed, before falling back to what the page is about.',
+      },
+      {
+        products: ['michi'],
         head: 'Confetti for a right word, and red or green on every guess',
         kind: 'better',
         area: 'browse',

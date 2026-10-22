@@ -40,7 +40,6 @@ import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { PocketRing, type PocketRect } from '@/components/binder/PocketRing';
-import { FindArtSheet } from '@/components/binder/FindArtSheet';
 import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
 import { Tipped, ToolTip } from '@/components/binder/ToolTip';
 import { WalkthroughBanner } from '@/components/binder/WalkthroughBanner';
@@ -363,8 +362,6 @@ export function BinderScreen({
   // the candidate being looked at, read-only; Keep commits it, Cancel or Esc puts the page back.
   const [arrangeOpen, setArrangeOpen] = useState(false);
   const [arrangePreview, setArrangePreview] = useState<DemoPage | null>(null);
-  // "Find art" sheet: searches tuned to what the open page is about (owner, 2026-10-13).
-  const [findArtOpen, setFindArtOpen] = useState(false);
   // Ctrl/Cmd multi-select (web): a set of pocket ids highlighted together; releasing the modifier
   // opens the bulk-action modal. `modifierHeld` is read at click time; `multiIdsRef` lets the
   // key-up handler read the latest selection without re-subscribing.
@@ -1001,7 +998,7 @@ export function BinderScreen({
   // Open the studio to cut a fresh set of slices — page-sized, not tied to a pocket.
   const openStudioForPage = () =>
     setStudio({ rows: page.rows, cols: page.cols, row: 0, col: 0, imageUrl: undefined });
-  // What the Find art sheet and the studio's Art sources read: the page's cards, by id.
+  // What the studio's Find art sheet reads: the page's cards, by id.
   const pageCardIds = page.slots.flatMap((s) => (s.cardId ? [s.cardId] : []));
 
   // Example binders are read-only: they can't be edited in place, only duplicated into the
@@ -2850,7 +2847,6 @@ export function BinderScreen({
           onDrop={handleSliceDrop}
           onRemove={handleRemoveSlice}
           onNewSlice={openStudioForPage}
-          onFindArt={editing ? () => setFindArtOpen(true) : undefined}
           // Inserts moved to this side with the artwork: both are "not a card", and the card
           // browser has to stay alone on its own side anyway.
           onPickInsert={handlePickInsert}
@@ -3065,10 +3061,6 @@ export function BinderScreen({
               </ThemedView>
             </View>
           </Modal>
-        ) : null}
-
-        {findArtOpen ? (
-          <FindArtSheet cardIds={pageCardIds} pageTitle={page.title} onClose={() => setFindArtOpen(false)} />
         ) : null}
 
         {studio && (

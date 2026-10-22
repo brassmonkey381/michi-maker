@@ -4,7 +4,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import {
   ActivityIndicator,
   Image as RNImage,
-  Linking,
+ 
   Modal,
   Platform,
   Pressable,
@@ -27,8 +27,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
-import { usePageArtSubject } from '@/components/binder/FindArtSheet';
-import { artSearchLinks } from '@/data/pageArtSubject';
+import { FindArtSheet, useArtLead } from '@/components/binder/FindArtSheet';
 import { StockArtSearch } from '@/components/binder/StockArtSearch';
 import { importRemoteArtToBucket } from '@/lib/importArt';
 import { stockAttribution, type StockHit } from '@/lib/stockArt';
@@ -100,38 +99,6 @@ const clampAxis = (v: number, size: number) => clamp(v, -OVER * size, 1 - size +
  */
 const NO_CARDS: readonly string[] = [];
 
-const ART_SOURCES: { title: string; blurb: string; url: string; dragFriendly: boolean }[] = [
-  {
-    title: 'Art of Pokémon',
-    url: 'https://www.artofpkm.com/artwork/all',
-    blurb: 'Curated official artwork, browsable by artist and era.',
-    dragFriendly: true,
-  },
-  {
-    title: 'Bulbagarden Archives',
-    url: 'https://archives.bulbagarden.net/wiki/Main_Page',
-    blurb: 'The Bulbapedia media library: official art, set logos, and scans for every Pokémon.',
-    dragFriendly: true,
-  },
-  {
-    title: 'Pokémon Center card sleeves',
-    url: 'https://www.pokemoncenter.com/category/card-sleeves',
-    blurb: 'Official sleeve art: ready-made card-shaped designs.',
-    dragFriendly: true,
-  },
-  {
-    title: 'Pinterest',
-    url: 'https://www.pinterest.com/ideas/pokemon-pictures/931192954917/',
-    blurb: 'Broad fan-curated feed. Open a pin full-size before dragging it over.',
-    dragFriendly: false,
-  },
-  {
-    title: 'DeviantArt',
-    url: 'https://www.deviantart.com/search?q=pokemon',
-    blurb: 'Fan art in every style. May block direct loading. Save it, then Upload.',
-    dragFriendly: false,
-  },
-];
 
 // Whether Shift/Ctrl is held (web), for multi-select. A plain module flag (not a React ref)
 // so the gesture/tap callbacks can read it without tripping the no-refs-in-render rule.
@@ -393,14 +360,9 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     [loadImage],
   );
 
-  const openGallery = useCallback((url: string) => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank', 'noopener');
-    else void Linking.openURL(url);
-  }, []);
-  // FOR THIS PAGE (owner, 2026-10-13): the sources modal leads with one search per site for what
-  // the page is about. The catalog loads only once the modal is open and there is a page to read.
-  const pageSubject = usePageArtSubject(pageArt?.cardIds ?? NO_CARDS, pageArt?.title, sourcesOpen && !!pageArt);
-  const pageLinks = pageSubject.subject.query ? artSearchLinks(pageSubject.subject.query) : [];
+  // WHAT THIS PAGE WANTS ART OF (owner, 2026-10-22): the last search, the last card placed, or
+  // the page's cards. It starts the free-photo search and leads the Art sources sheet.
+  const artLead = useArtLead(pageArt?.cardIds ?? NO_CARDS, pageArt?.title, !!pageArt);
 
   // Resolve the image's natural size — re-runs per source. getSize failing (odd host / blob
   // quirk) just leaves `natural` null and the studio behaves like before this feature.
@@ -1219,7 +1181,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           {/* Source — one calm row. Everything here is about GETTING an image in. */}
           <View style={styles.sourceBar}>
             <Btn label="Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
-            <Btn label="Art sources ↗" onPress={() => setSourcesOpen(true)} />
+            <Btn label="Find art ↗" onPress={() => setSourcesOpen(true)} />
             <ArtUploadButton
               onUploaded={(url) => loadImage(url, { sourceName: 'your upload', origin: 'upload' })}
               onError={setImportError}
@@ -1264,6 +1226,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           {stockOpen ? (
             <View style={styles.stockWrap}>
               <StockArtSearch
+                initialQuery={artLead.query}
                 onPick={(hit: StockHit) => {
                   if (stockBusy) return;
                   setStockBusy(`${hit.provider}:${hit.id}`);
@@ -1603,63 +1566,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
         ) : null}
 
         {sourcesOpen ? (
-          <Modal visible transparent animationType="fade" onRequestClose={() => setSourcesOpen(false)}>
-            <View style={sheet.dialogBackdrop}>
-              <Pressable style={StyleSheet.absoluteFill} onPress={() => setSourcesOpen(false)} />
-              <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.sourcesCard]}>
-                <View style={styles.cardPickHeader}>
-                  <ThemedText type="subtitle">Art sources</ThemedText>
-                  <Pressable onPress={() => setSourcesOpen(false)} hitSlop={10}>
-                    <Text style={[styles.headerAction, styles.primary]}>Close</Text>
-                  </Pressable>
-                </View>
-                <ScrollView contentContainerStyle={styles.sourcesList}>
-                  <Text style={styles.sourcesResponsibility}>
-                    michi-maker is a layout tool for art you supply. These are places to find art
-                    for your own personal binders, only use images you have the right to use, and
-                    credit the artist and source. You are responsible for the art you add.
-                  </Text>
-                  {pageLinks.length ? (
-                    <>
-                      <Text style={styles.sourcesGroup}>For this page: {pageSubject.subject.label}</Text>
-                      {pageLinks.map((s) => (
-                        <Pressable key={`page-${s.title}`} style={styles.sourceRow} onPress={() => openGallery(s.url)}>
-                          <View style={styles.sourceRowHead}>
-                            <Text style={styles.sourceTitle}>{s.title} ↗</Text>
-                            <Text style={[styles.sourceTag, s.dragFriendly ? styles.sourceTagGood : styles.sourceTagWarn]}>
-                              {s.dragFriendly ? 'drag-drop OK' : 'may block hotlinks'}
-                            </Text>
-                          </View>
-                          <Text style={styles.sourceBlurb}>{s.blurb}</Text>
-                        </Pressable>
-                      ))}
-                      <Text style={styles.sourcesGroup}>Browse</Text>
-                    </>
-                  ) : null}
-                  {ART_SOURCES.map((s) => (
-                    <Pressable key={s.title} style={styles.sourceRow} onPress={() => openGallery(s.url)}>
-                      <View style={styles.sourceRowHead}>
-                        <Text style={styles.sourceTitle}>{s.title} ↗</Text>
-                        <Text
-                          style={[
-                            styles.sourceTag,
-                            s.dragFriendly ? styles.sourceTagGood : styles.sourceTagWarn,
-                          ]}>
-                          {s.dragFriendly ? 'drag-drop OK' : 'may block hotlinks'}
-                        </Text>
-                      </View>
-                      <Text style={styles.sourceBlurb}>{s.blurb}</Text>
-                    </Pressable>
-                  ))}
-                  <Text style={styles.guideNote}>
-                    Open a source in its own tab, then drag any image straight onto the studio to
-                    load it. If a host blocks direct loading, save the image and Upload it
-                    instead. Uploads are stored with your binder, so they never break.
-                  </Text>
-                </ScrollView>
-              </ThemedView>
-            </View>
-          </Modal>
+          <FindArtSheet cardIds={pageArt?.cardIds ?? NO_CARDS} pageTitle={pageArt?.title} onClose={() => setSourcesOpen(false)} />
         ) : null}
 
         {cardPickOpen ? (
@@ -1970,30 +1877,6 @@ const styles = StyleSheet.create({
   cardPickSheet: { height: '82%' },
   cardPickHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   sourcesCard: { width: '100%', maxWidth: 520, maxHeight: '80%' },
-  sourcesList: { gap: 10, paddingBottom: 12 },
-  sourcesGroup: { fontSize: FontSize.xs, fontWeight: Weight.semibold, textTransform: 'uppercase', letterSpacing: 0.6, color: Palette.muted, marginTop: 4 },
-  sourcesResponsibility: {
-    fontSize: FontSize.sm,
-    color: Palette.ink4,
-    lineHeight: 17,
-    paddingBottom: 4,
-    marginBottom: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: Palette.hairline,
-  },
-  sourceRow: {
-    borderWidth: 1,
-    borderColor: Palette.controlBorder,
-    borderRadius: Radius.control,
-    padding: 12,
-    gap: 4,
-  },
-  sourceRowHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  sourceTitle: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },
-  sourceTag: { fontSize: FontSize.xs, fontWeight: Weight.semibold },
-  sourceTagGood: { color: Palette.accent },
-  sourceTagWarn: { color: Palette.muted2 },
-  sourceBlurb: { fontSize: FontSize.sm, color: Palette.ink4, lineHeight: 17 },
   dragHint: { fontSize: FontSize.sm, color: Palette.muted3, lineHeight: 16 },
   dropOverlay: {
     position: 'absolute',

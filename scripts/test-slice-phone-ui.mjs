@@ -103,7 +103,7 @@ const artUrl = await p.evaluate(() => {
 if (!artUrl) await fail('no card image on the page to borrow a URL from');
 
 // The tray's own entry point — the standalone studio, which is the one with the header row.
-await p.getByText('Slice new art', { exact: false }).first().click({ timeout: 12000 });
+await p.getByText('Add art', { exact: false }).first().click({ timeout: 12000 });
 for (let i = 0; i < 25 && !(await p.getByText('Slice studio', { exact: true }).count()); i++) await settle(1000);
 await settle(2000);
 

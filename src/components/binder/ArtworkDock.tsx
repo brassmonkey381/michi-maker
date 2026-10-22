@@ -62,8 +62,6 @@ export interface ArtworkDockProps {
   onDrop: (slice: SavedSlice, windowX: number, windowY: number) => void;
   onRemove: (slice: SavedSlice) => void;
   onNewSlice: () => void;
-  /** The Find art sheet, for the panel's header button. */
-  onFindArt?: () => void;
   /** Inserts live on this side too — see the tab note below. */
   onPickInsert?: (color: string, rowSpan: number, colSpan: number) => void;
   onClear?: () => void;

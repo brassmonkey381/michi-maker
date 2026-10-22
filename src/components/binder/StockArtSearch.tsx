@@ -25,6 +25,7 @@ export function StockArtSearch({
   disabled = false,
   busyId = null,
   testID = 'stock-art',
+  initialQuery = '',
 }: {
   /** The user chose a picture. The caller imports it and reports progress via `busyId`. */
   onPick: (hit: StockHit) => void;
@@ -34,8 +35,18 @@ export function StockArtSearch({
   /** `${provider}:${id}` of the hit being imported, to spin its tile. */
   busyId?: string | null;
   testID?: string;
+  /** A phrase to start from (the page's subject). Followed until the person types their own. */
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
+  const [touched, setTouched] = useState(false);
+  // The lead can land after mount (it waits on the catalog); adopt it during render, React's own
+  // idiom for folding a prop into state, until the person has typed something themselves.
+  const [seenLead, setSeenLead] = useState(initialQuery);
+  if (initialQuery !== seenLead) {
+    setSeenLead(initialQuery);
+    if (!touched) setQuery(initialQuery);
+  }
   const [kind, setKind] = useState<StockKind>('any');
   const [hits, setHits] = useState<StockHit[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -73,7 +84,10 @@ export function StockArtSearch({
       <View style={styles.row}>
         <TextInput
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(t) => {
+            setTouched(true);
+            setQuery(t);
+          }}
           onSubmitEditing={() => void run()}
           placeholder="Search photos: snowy forest, sunset over water…"
           placeholderTextColor={Palette.muted}

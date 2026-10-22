@@ -125,7 +125,7 @@ if (looksLikeStudio) { console.log('FAIL — the studio is still embedded in the
 
 // 3. THE STUDIO IS STILL REACHABLE, as a button on the tray.
 // Scoped to the artwork dock, which is where the tray and its studio button live.
-const newBtn = p.locator('[data-testid="artwork-dock"]').getByText(/Slice new art/).first();
+const newBtn = p.locator('[data-testid="artwork-dock"]').getByText(/Add art/).first();
 if ((await newBtn.count()) === 0) {
   console.log('FAIL — no way to open the Slice Studio from the Artwork tab');
   ok = false;

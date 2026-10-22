@@ -130,7 +130,7 @@ export const GUIDE_LIST: Guide[] = [
     steps: [
       {
         title: 'Open the studio',
-        body: 'In the Artwork dock on the left, press Slice new art. Or tap any pocket and choose Artwork.',
+        body: 'In the Artwork dock on the left, press Add art. Or tap any pocket and choose Artwork.',
         figure: diagram('editor-pocket'),
       },
       {

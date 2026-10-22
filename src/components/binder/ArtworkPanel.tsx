@@ -63,7 +63,6 @@ export function ArtworkPanel({
   onDrop,
   onRemove,
   onNewSlice,
-  onFindArt,
   ghostOn,
   ghostX,
   ghostY,
@@ -73,10 +72,9 @@ export function ArtworkPanel({
   onDragStart: (slice: SavedSlice) => void;
   onDrop: (slice: SavedSlice, windowX: number, windowY: number) => void;
   onRemove: (slice: SavedSlice) => void;
-  /** Opens the Slice Studio — full screen, because that is the room it needs. */
+  /** ADD ART opens the Slice Studio, full screen, because that is the room it needs. Finding art
+   *  (tuned searches, free photos) lives inside it: one door, not two (owner, 2026-10-22). */
   onNewSlice: () => void;
-  /** Opens the Find art sheet: tuned searches for what this page is about (owner, 2026-10-13). */
-  onFindArt?: () => void;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
   ghostY: SharedValue<number>;
@@ -162,20 +160,12 @@ export function ArtworkPanel({
           Artwork{slices.length ? ` · ${slices.length}` : ''}
         </ThemedText>
         <View style={styles.headBtns}>
-          {onFindArt ? (
-            <Pressable
-              onPress={onFindArt}
-              accessibilityRole="button"
-              testID="art-find"
-              style={({ pressed }) => [styles.newBtn, styles.findBtn, pressed && styles.pressed]}>
-              <Text style={[styles.newBtnText, styles.findBtnText]}>Find art ↗</Text>
-            </Pressable>
-          ) : null}
           <Pressable
             onPress={onNewSlice}
             accessibilityRole="button"
+            testID="art-add"
             style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
-            <Text style={styles.newBtnText}>＋ Slice new art</Text>
+            <Text style={styles.newBtnText}>＋ Add art</Text>
           </Pressable>
         </View>
       </View>
@@ -261,8 +251,6 @@ const styles = StyleSheet.create({
   },
   newBtnText: { color: Palette.white, fontSize: FontSize.label, fontWeight: Weight.semibold },
   headBtns: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  findBtn: { backgroundColor: Palette.panel },
-  findBtnText: { color: Palette.ink2 },
   pressed: { opacity: 0.7 },
   tools: { gap: 6, paddingBottom: Spacing.two },
   search: { height: 34, paddingHorizontal: 10, borderRadius: Radius.control, backgroundColor: Palette.panel, color: Palette.ink, fontSize: FontSize.label },

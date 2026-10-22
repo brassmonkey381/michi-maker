@@ -85,6 +85,40 @@ export function pageSubject(cards: readonly SubjectCard[], title?: string | null
   return { label: '', query: '', basis: 'none' };
 }
 
+/** Places to browse with no subject in mind. The tuned searches above are built per subject. */
+export const ART_BROWSE_SOURCES: { title: string; blurb: string; url: string; dragFriendly: boolean }[] = [
+  {
+    title: 'Art of Pokémon',
+    url: 'https://www.artofpkm.com/artwork/all',
+    blurb: 'Curated official artwork, browsable by artist and era.',
+    dragFriendly: true,
+  },
+  {
+    title: 'Bulbagarden Archives',
+    url: 'https://archives.bulbagarden.net/wiki/Main_Page',
+    blurb: 'The Bulbapedia media library: official art, set logos, and scans for every Pokémon.',
+    dragFriendly: true,
+  },
+  {
+    title: 'Pokémon Center card sleeves',
+    url: 'https://www.pokemoncenter.com/category/card-sleeves',
+    blurb: 'Official sleeve art: ready-made card-shaped designs.',
+    dragFriendly: true,
+  },
+  {
+    title: 'Pinterest',
+    url: 'https://www.pinterest.com/ideas/pokemon-pictures/931192954917/',
+    blurb: 'Broad fan-curated feed. Open a pin full-size before dragging it over.',
+    dragFriendly: false,
+  },
+  {
+    title: 'DeviantArt',
+    url: 'https://www.deviantart.com/search?q=pokemon',
+    blurb: 'Fan art in every style. May block direct loading. Save it, then Upload.',
+    dragFriendly: false,
+  },
+];
+
 export interface ArtSearchLink {
   title: string;
   url: string;

@@ -27,6 +27,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { rememberCardAdded } from '@/data/artLead';
 import { isCustomArtwork, isPrivateArt, markCopiedArtBorrowed } from '@/data/artAttributionCheck';
 import { deriveAttribution } from '@/data/artworkLibrary';
 import { activePin, withPinnedFeatured } from '@/data/featuredPin';
@@ -1672,6 +1673,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       }
       // Count only a NEW card landing in a pocket (not span/edit tweaks of an existing slot).
       if (!existing && slot.type === 'card' && slot.cardId) {
+        rememberCardAdded(slot.cardId);
         track('card.add', { source: 'manual', count: 1, via: via ?? 'pocket' });
       }
     },
@@ -1839,6 +1841,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         if (appendedPage) persist(() => repo.insertPage(binderId, landedPage, pageIndex));
         persist(() => repo.upsertSlot(landedPage.id, newSlot));
       }
+      rememberCardAdded(newSlot.cardId);
       track('card.add', { source: 'manual', count: 1, via: 'add_to_binder' });
       return { pageIndex };
     },
@@ -2004,6 +2007,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // How many of these pockets claimed one of the user's actual cards. The rest are
       // aspirational, and the ratio is the only way to see that distinction in the stream.
       const claimed = placed.filter((p) => p.slot.sourceEntryId).length;
+      rememberCardAdded(placed[placed.length - 1]?.slot.cardId);
       track('card.add', {
         source: opts?.fromCollection ? 'collection' : 'manual',
         count: placed.length,

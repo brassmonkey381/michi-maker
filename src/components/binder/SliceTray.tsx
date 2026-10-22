@@ -103,7 +103,7 @@ export function SliceTray({
         </Text>
         <View style={styles.headerRight}>
           <Pressable onPress={onNew} hitSlop={8} style={styles.newBtn}>
-            <Text style={styles.newBtnText}>+ Slice new art</Text>
+            <Text style={styles.newBtnText}>+ Add art</Text>
           </Pressable>
           <Text style={styles.chevron}>{open ? '▾' : '▸'}</Text>
         </View>

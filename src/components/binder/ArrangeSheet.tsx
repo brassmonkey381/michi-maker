@@ -390,9 +390,11 @@ const styles = StyleSheet.create({
   },
   middle: { flex: 1, minWidth: 0, gap: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two },
-  title: { flexShrink: 1 },
-  count: { fontSize: FontSize.tag, color: Palette.muted3, fontVariant: ['tabular-nums'] },
-  reason: { lineHeight: 15 },
+  // READABLE AT A GLANCE (owner, 2026-10-22: "some of the text is too small"): the bar sits over
+  // the page and is read while comparing takes, so nothing on it goes below the label size.
+  title: { flexShrink: 1, fontSize: FontSize.md },
+  count: { fontSize: FontSize.label, color: Palette.muted3, fontVariant: ['tabular-nums'] },
+  reason: { fontSize: FontSize.label, lineHeight: 18 },
   note: { flex: 1 },
   btn: { paddingVertical: 6, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairlineStrong },
   btnPrimary: { backgroundColor: Palette.accent, borderColor: Palette.accent },
@@ -400,9 +402,9 @@ const styles = StyleSheet.create({
   btnText: { color: Palette.ink2, fontWeight: Weight.semibold, fontSize: FontSize.label },
   btnTextPrimary: { color: Palette.accentText },
   pressed: { opacity: 0.75 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 },
-  chip: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.tag, backgroundColor: Palette.hairline },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  chip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.tag, backgroundColor: Palette.hairline },
   chipAccent: { backgroundColor: Palette.accent },
-  chipText: { fontSize: FontSize.tag, fontWeight: Weight.medium },
+  chipText: { fontSize: FontSize.base, fontWeight: Weight.medium },
   chipTextAccent: { color: Palette.accentText },
 });

@@ -15,6 +15,7 @@
  *   node scripts/tcg-top-nine-art.mjs            dry run: arrangements and the chosen photos
  *   node scripts/tcg-top-nine-art.mjs --apply    rewrites the pages' slots in place
  */
+import { Buffer } from 'node:buffer';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';

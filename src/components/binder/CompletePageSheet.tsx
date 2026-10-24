@@ -12,6 +12,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { cardThumbUrl, findSimilarToMany, loadColorIndex } from 'tcgscan-browse';
 
+import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
@@ -42,7 +43,7 @@ export function CompletePageSheet({
   /** A free or guest user tapped the similarity fill: the same wall Find Similar shows. */
   onSimilarLocked?: () => void;
 }) {
-  const { catalog } = useCatalog(visible);
+  const { catalog, guestGated } = useCatalog(visible);
   const { hasFindSimilar } = useTier();
   const [languages] = useLanguagePref();
   const methods = useMemo(() => (catalog ? completeMethodsFor(page, catalog) : []), [catalog, page]);
@@ -98,7 +99,11 @@ export function CompletePageSheet({
       <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
         The cards already here say what the empty pockets should hold. Tap a fill to place it; the placed cards stay where they are, and Undo takes the new ones out.
       </ThemedText>
-      {!catalog ? (
+      {guestGated ? (
+        // Every fill reads the full card catalog, a signed-in perk: say so instead of a spinner
+        // that never resolves for a guest (the catalog is never requested for one).
+        <SignInPerk message="Complete page fills from the full card catalog. Sign in (free) to use it." />
+      ) : !catalog ? (
         <View style={styles.loading}>
           <LogoLoader />
         </View>

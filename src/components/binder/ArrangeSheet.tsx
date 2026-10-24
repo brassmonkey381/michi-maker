@@ -35,6 +35,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { getColorIndex, loadColorIndex } from 'tcgscan-browse';
 
+import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -83,7 +84,7 @@ export function ArrangeSheet({
   /** The store write: the moves and any template art gaps, applied as one commit by the screen. */
   onApply: (what: string, moves: ArrangeMove[], art: { pageId: string; slot: DemoSlot }[]) => void;
 }) {
-  const { catalog } = useCatalog(visible);
+  const { catalog, guestGated } = useCatalog(visible);
   // The module can seat a facing spread as one canvas; the product does not offer it.
   const spread = false;
   const pages = useMemo(() => [page], [page]);
@@ -296,6 +297,13 @@ export function ArrangeSheet({
           <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
             Arrange needs at least two cards on the page.
           </ThemedText>
+          <Btn text="Close" onPress={onClose} />
+        </>
+      ) : guestGated ? (
+        // Arrange reads the cards from the full catalog, a signed-in perk; without this a guest
+        // waits on "Reading the cards…" forever.
+        <>
+          <SignInPerk message="Arrange reads the cards from the full card catalog. Sign in (free) to use it." />
           <Btn text="Close" onPress={onClose} />
         </>
       ) : !candidates || !cand ? (

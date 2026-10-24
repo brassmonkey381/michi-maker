@@ -6,15 +6,31 @@
  * say otherwise on top (see PocketSection). The composition notes at the end say why the page
  * looks the way it does: what the open pockets mean and what each reserved art panel is for.
  */
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { PageComposition } from '@/components/binder/PageComposition';
-import { LabeledInput, WearRow, styles } from '@/components/binder/inspector/controls';
+import { LabeledInput, Row, Seg, WearRow, styles } from '@/components/binder/inspector/controls';
+import { ART_VIEWS } from '@/data/artView';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 import { useBinders } from '@/store/binders';
 
-export function PageFields({ binder, page }: { binder: DemoBinder; page: DemoPage }) {
+export function PageFields({
+  binder,
+  page,
+  artViewsLocked = false,
+  onArtViewsLocked,
+}: {
+  binder: DemoBinder;
+  page: DemoPage;
+  /**
+   * ART VIEWS ARE PRO (owner, 2026-10-24). Locked, the picker still shows every view, dimmed, and
+   * a tap says why instead of switching: a view already on the page stays as it is for everyone.
+   */
+  artViewsLocked?: boolean;
+  onArtViewsLocked?: () => void;
+}) {
   const store = useBinders();
+  const artView = page.artView ?? 'card';
   return (
     <View style={styles.section}>
       <LabeledInput
@@ -49,7 +65,29 @@ export function PageFields({ binder, page }: { binder: DemoBinder; page: DemoPag
         onChange={(artBacking) => store.updatePage(binder.id, page.id, { artBacking })}
         testID="page-backing"
       />
+      {/* HOW THE CARDS SHOW (artView.ts): the full card, the art window on a stock card, or the
+          windows edge to edge. A page setting, not a binder one: the same binder can hold a
+          connected-art page beside a plain one. */}
+      <Row label={artViewsLocked ? 'Art view · PRO' : 'Art view'} testID="page-art-view">
+        <View style={artViewsLocked ? local.locked : undefined}>
+          <Seg
+            options={ART_VIEWS}
+            value={artView}
+            onChange={(id) => {
+              if (artViewsLocked) {
+                onArtViewsLocked?.();
+                return;
+              }
+              store.updatePage(binder.id, page.id, { artView: id === 'card' ? null : id });
+            }}
+          />
+        </View>
+      </Row>
       <PageComposition page={page} />
     </View>
   );
 }
+
+const local = StyleSheet.create({
+  locked: { opacity: 0.45 },
+});

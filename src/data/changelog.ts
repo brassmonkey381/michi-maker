@@ -130,6 +130,44 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-24',
+    title: 'Art views: a page that shows its cards as their artwork',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Art window: each card on the page becomes its illustration on a plain black stock card',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'A page setting, in the page fields. The picture is cut from the card and set at full '
+          + 'width with its name, set, number and illustrator under it, so a page of cards from '
+          + 'different eras reads as one set of pictures instead of five frame designs. Full-art '
+          + 'cards stay as they are. Needs PRO to switch on; a page already set stays visible to '
+          + 'everyone.',
+      },
+      {
+        products: ['michi'],
+        head: 'Connected art: the illustrations edge to edge, for cards that share one picture',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'The same page setting. Every card is cut to its art window and the windows sit with no '
+          + 'pockets and no gaps between them, so a run of connecting artwork reads as the picture '
+          + 'it was drawn as. Pokémon only for now, and the cut is the same window on every card.',
+      },
+      {
+        products: ['michi'],
+        head: 'Arrange has four more layouts for nine-card pages',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Marquee, Edge Rail, Post and Rest and Waistband join Nameplate and Placeholder, so a '
+          + 'binder of nine-card pages stops wearing the same layout on every page.',
+      },
+    ],
+  },
+  {
     date: '2026-10-23',
     title: 'Print preview works for binders with other games in them',
     items: [

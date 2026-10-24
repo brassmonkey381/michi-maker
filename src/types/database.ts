@@ -172,6 +172,7 @@ export type Database = {
           background_color: string | null
           sleeve: string | null
           art_backing: string | null
+          art_view: string | null
           binder_id: string
           cols: number
           created_at: string
@@ -188,6 +189,7 @@ export type Database = {
           background_color?: string | null
           sleeve?: string | null
           art_backing?: string | null
+          art_view?: string | null
           binder_id: string
           cols?: number
           created_at?: string
@@ -204,6 +206,7 @@ export type Database = {
           background_color?: string | null
           sleeve?: string | null
           art_backing?: string | null
+          art_view?: string | null
           binder_id?: string
           cols?: number
           created_at?: string

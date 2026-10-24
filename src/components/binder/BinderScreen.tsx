@@ -70,7 +70,7 @@ import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
 import { themeSearchWall } from '@/data/themeGate';
-import { hasBinderCovers, hasBinderTracks, hasFindSimilar } from '@/data/tiers';
+import { hasArtViews, hasBinderCovers, hasBinderTracks, hasFindSimilar } from '@/data/tiers';
 import { TrackPill } from '@/components/binder/TrackPill';
 import { setTrack, stopPlayer } from '@/lib/binderAudio';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
@@ -638,6 +638,9 @@ export function BinderScreen({
   const tracksLocked = !hasBinderTracks(store.tier);
   const onTracksLocked = () =>
     showLimitToast('Binder soundtracks are a PRO feature: your own track on a binder or a page, played on open and on every turn.');
+  const artViewsLocked = !hasArtViews(store.tier);
+  const onArtViewsLocked = () =>
+    showLimitToast('Art views are a PRO feature: a page that shows its cards as their artwork, on a stock card or edge to edge.');
   // One wall, one report: a dialog on its first hit today, the toast after that.
   const capGate = useCapGate(showLimitToast);
 
@@ -3180,7 +3183,7 @@ export function BinderScreen({
                 </View>
                 {/* Scrolls: the composition notes below can run past a short phone. */}
                 <ScrollView contentContainerStyle={styles.binderFields} keyboardShouldPersistTaps="handled">
-                  <PageFields binder={binder} page={page} />
+                  <PageFields binder={binder} page={page} artViewsLocked={artViewsLocked} onArtViewsLocked={onArtViewsLocked} />
                 </ScrollView>
               </ThemedView>
             </View>

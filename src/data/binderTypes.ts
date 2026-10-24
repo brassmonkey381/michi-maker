@@ -10,6 +10,7 @@
 import type { ArtAttribution } from '@/data/artworkLibrary';
 import type { PageStyle } from '@/data/pageStyle';
 import type { CoverSurfaceId } from '@/data/binderModels';
+import type { ArtView } from '@/data/artView';
 import type { BinderSlotType, CardOrientation, MichiLayoutStyle } from '@/types/domain';
 
 export type { BinderSlotType, CardOrientation, MichiLayoutStyle };
@@ -314,6 +315,11 @@ export interface DemoPage {
    */
   sleeve?: string | null;
   artBacking?: string | null;
+  /**
+   * How this page shows its cards: the art window on a stock card, or the windows edge to edge.
+   * Absent or null is the full card. See src/data/artView.ts.
+   */
+  artView?: ArtView | null;
   /**
    * Whether the page is visible to public viewers of a public binder. Absent ⇒ public (the DB
    * default). A private page is hidden from everyone but the owner even inside a public binder.

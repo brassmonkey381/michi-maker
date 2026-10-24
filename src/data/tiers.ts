@@ -155,6 +155,12 @@ export interface TierLimits {
   /** BINDER SOUNDTRACKS (VIP): an uploaded track on a binder or a page, played on open and turn. */
   binderTracks: boolean;
   /**
+   * ART VIEWS (PRO and VIP, owner decision 2026-10-24): a page that shows its cards as their
+   * artwork, on a stock card or edge to edge (src/data/artView.ts). Like covers, a view already
+   * on a page stays visible to everyone; the tier gates setting one.
+   */
+  artViews: boolean;
+  /**
    * "Pages around this card" (VIP) — the composer runs EVERY method a seed supports at once,
    * previews each as a finished page, and appends the ones you keep as new pages.
    *
@@ -199,6 +205,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     themeSearch: false,
     binderCovers: false,
     binderTracks: false,
+    artViews: false,
     multiPageCompose: false,
     includedPrintsPerMonth: 0,
   },
@@ -218,6 +225,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     themeSearch: false,
     binderCovers: false,
     binderTracks: false,
+    artViews: false,
     multiPageCompose: false,
     includedPrintsPerMonth: 0,
   },
@@ -237,6 +245,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     themeSearch: true,
     binderCovers: true,
     binderTracks: true,
+    artViews: true,
     multiPageCompose: true,
     includedPrintsPerMonth: 0,
   },
@@ -256,6 +265,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     themeSearch: true,
     binderCovers: true,
     binderTracks: true,
+    artViews: true,
     multiPageCompose: true,
     includedPrintsPerMonth: 0,
   },
@@ -288,6 +298,7 @@ const UNLIMITED: TierLimits = {
   themeSearch: false, // likewise — the unmetered artwork search, not something LIMITS_ENFORCED=0 grants
   binderCovers: false, // likewise — PRO's covers, not something LIMITS_ENFORCED=0 grants
   binderTracks: false, // likewise — VIP's soundtracks
+  artViews: false, // likewise — PRO's art views
   multiPageCompose: false, // likewise — VIP's upgraded composer, not something LIMITS_ENFORCED=0 grants
   includedPrintsPerMonth: Infinity,
 };
@@ -477,6 +488,11 @@ export function searchesArtworkUnmetered(tier: Tier, holdsTcgscanTier: boolean):
 /** Can this tier put a cover on a binder and decorate it? (PRO and VIP — see TierLimits.binderCovers.) */
 export function hasBinderCovers(tier: Tier): boolean {
   return TIER_LIMITS[tier].binderCovers;
+}
+
+/** Can this tier show a page's cards as their artwork? (PRO and VIP — see TierLimits.artViews.) */
+export function hasArtViews(tier: Tier): boolean {
+  return TIER_LIMITS[tier].artViews;
 }
 
 /** Can this tier put a soundtrack on a binder or a page? (VIP — see TierLimits.binderTracks.) */

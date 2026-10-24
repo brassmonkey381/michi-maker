@@ -334,6 +334,65 @@ export const ART_TEMPLATES: ArtTemplate[] = [
       { row: 0, col: 3, rowSpan: 1, colSpan: 1, role: 'accent' },
     ],
   },
+  /*
+   * FOUR MORE NINE-CARD PAGES (2026-10-24). Nine cards on a 3x4 used to have exactly one
+   * composition, so a binder of nine-card pages wore the same layout on every page, which is the
+   * repetition `pickTemplate` exists to avoid. Each of these spends the same three pockets on art
+   * in a different place, so rotation has somewhere to go.
+   */
+  {
+    id: '3x4-marquee',
+    name: 'Marquee',
+    rows: 3,
+    cols: 4,
+    spread: false,
+    cardPockets: 9,
+    when: 'Nine cards where one is the headliner: it takes the top-right corner alone, beside the band that announces the page.',
+    why: 'A band that stops one pocket short of the edge is a title with a card already standing under it, so the page opens on art and lands on its best card in the same glance.',
+    panels: [
+      { row: 0, col: 0, rowSpan: 1, colSpan: 3, role: 'band' },
+    ],
+  },
+  {
+    id: '3x4-edge-rail',
+    name: 'Edge Rail',
+    rows: 3,
+    cols: 4,
+    spread: false,
+    cardPockets: 9,
+    when: 'Nine cards that read as one square block: a 3x3 grid that wants a margin, not a frame.',
+    why: 'A full-height rail down the spine side turns a 3x4 page into a 3x3 page with a gutter, and the cards sit as a single block instead of three loose rows.',
+    panels: [
+      { row: 0, col: 0, rowSpan: 3, colSpan: 1, role: 'rail' },
+    ],
+  },
+  {
+    id: '3x4-post-and-rest',
+    name: 'Post and Rest',
+    rows: 3,
+    cols: 4,
+    spread: false,
+    cardPockets: 9,
+    when: 'Nine cards with a clear first and last: the run starts top-left and ends bottom-right.',
+    why: 'An upright post on the outer edge stops the eye leaving the page at the top right; the single pocket held back at the bottom left is where the run begins its last row, so the read starts and ends on art.',
+    panels: [
+      { row: 0, col: 3, rowSpan: 2, colSpan: 1, role: 'post' },
+      { row: 2, col: 0, rowSpan: 1, colSpan: 1, role: 'accent' },
+    ],
+  },
+  {
+    id: '3x4-waistband',
+    name: 'Waistband',
+    rows: 3,
+    cols: 4,
+    spread: false,
+    cardPockets: 9,
+    when: 'Nine cards in two groups, four above and five below, that want a line drawn between them.',
+    why: 'A band through the middle row splits the page into an upper and a lower shelf; the one card left on that row holds the two shelves together so the band reads as a bridge, not a cut.',
+    panels: [
+      { row: 1, col: 1, rowSpan: 1, colSpan: 3, role: 'band' },
+    ],
+  },
   {
     id: '3x4-opposite-corners',
     name: 'Opposite Corners',

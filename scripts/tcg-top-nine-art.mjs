@@ -178,7 +178,9 @@ function pickStockHit(hits, aspect, used) {
   let bestHit = null;
   let bestCost = Infinity;
   for (const [i, h] of hits.entries()) {
-    if (used.has(`${h.provider}:${h.id}`) || !h.width || !h.height || Math.min(h.width, h.height) < 700) continue;
+    // A hand-picked piece was looked at; a stock hit was not, so stock keeps the higher floor.
+    const floor = h.provider === 'deviantart' ? 600 : 700;
+    if (used.has(`${h.provider}:${h.id}`) || !h.width || !h.height || Math.min(h.width, h.height) < floor) continue;
     const cost = Math.abs(Math.log(h.width / h.height / aspect)) + i * 0.03;
     if (cost < bestCost) { bestCost = cost; bestHit = h; }
   }
@@ -207,7 +209,8 @@ console.log(`  ${binder.title}: ${pages.length} pages, owner ${binder.owner_id.s
 
 step(2, 'arranging each page from the cards on it');
 const plans = [];
-let previousTemplate = null;
+// Variety: a template is not worn again until every other one that seats the cards has had a page.
+const usedTemplates = new Map();
 for (const p of pages) {
   const game = GAME_OF_TITLE[p.title];
   if (!game) fail(`page "${p.title}" is not one of the eight games`);
@@ -216,17 +219,26 @@ for (const p of pages) {
   if (cards.length !== ids.length) fail(`${p.title}: ${ids.length - cards.length} cards missing from the catalog`);
   // Only templates that seat every card: this is a most-expensive binder, and the arranger would
   // otherwise hold a card to buy itself a bigger art panel.
-  const templates = ART_TEMPLATES.filter((t) => t.rows === p.rows && t.cols === p.cols && !t.spread && t.cardPockets >= cards.length);
+  const seats = ART_TEMPLATES.filter((t) => t.rows === p.rows && t.cols === p.cols && !t.spread && t.cardPockets >= cards.length);
+  // Variety: the arranger only returns three takes, so it is handed just the templates no earlier
+  // page has worn (all of them again once every one has had a page).
+  const unworn = seats.filter((t) => !usedTemplates.has(t.id));
+  // A picks file may pin a game to one template ("__templates": {game: id}) so the pieces chosen
+  // for it are the shape its pockets want.
+  const pinned = PICKS?.__templates?.[game];
+  if (pinned && !seats.some((t) => t.id === pinned)) fail(`${p.title}: pinned template ${pinned} does not seat ${cards.length} cards on a ${p.rows}x${p.cols}`);
+  const templates = pinned ? seats.filter((t) => t.id === pinned) : unworn.length ? unworn : seats;
   const answer = arrangePage({ rows: p.rows, cols: p.cols, spread: false, cards, templates, similarity });
   if (!answer) fail(`${p.title}: the arranger had no answer`);
   const takes = [answer.best, ...answer.alternates].filter((a) => a.held.length === 0);
   if (!takes.length) fail(`${p.title}: no take seats all ${cards.length} cards`);
   // A take with art pockets when one seats every card (a 3x4 page of ten has none: the only
-  // template past nine is the full dozen, which has no art). Variety: skip a template that repeats
-  // the previous page's when another take with art does not.
+  // template past nine is the full dozen, which has no art). Variety: the least-used template so
+  // far wins, ties going to the arranger's own ranking, so nine-card pages cycle the catalogue.
   const withArt = takes.filter((a) => a.template && a.template.panels.length);
-  const chosen = withArt.find((a) => a.template.id !== previousTemplate) ?? withArt[0] ?? takes[0];
-  previousTemplate = chosen.template?.id ?? null;
+  const timesUsed = (a) => usedTemplates.get(a.template.id) ?? 0;
+  const chosen = withArt.length ? withArt.reduce((best, a) => (timesUsed(a) < timesUsed(best) ? a : best), withArt[0]) : takes[0];
+  if (chosen.template) usedTemplates.set(chosen.template.id, timesUsed(chosen) + 1);
   const artSlots = chosen.template ? templateArtSlots(chosen.template, randomUUID) : [];
   const which = chosen === answer.best ? 'best' : chosen.name.toLowerCase();
   console.log(`  ${p.title} (${cards.length} cards): ${chosen.template?.id ?? 'plain page'}, ${artSlots.length} art pocket${artSlots.length === 1 ? '' : 's'} [${which}]`);
@@ -250,7 +262,7 @@ for (const plan of plans) {
   for (const s of plan.artSlots) {
     const aspect = panelAspect(s.rowSpan, s.colSpan);
     if (PICKS) {
-      const hits = (PICKS[plan.game] ?? []).map((x, i) => ({ provider: 'deviantart', id: `${plan.game}-${i}`, url: x.url, width: x.width, height: x.height, author: x.author, pageUrl: x.link, title: x.title }));
+      const hits = (Array.isArray(PICKS[plan.game]) ? PICKS[plan.game] : []).map((x, i) => ({ provider: 'deviantart', id: `${plan.game}-${i}`, url: x.url, width: x.width, height: x.height, author: x.author, pageUrl: x.link, title: x.title }));
       const hit = pickStockHit(hits, aspect, used);
       if (!hit) fail(`${plan.page.title}: no pick left for a ${s.colSpan}x${s.rowSpan} pocket`);
       used.add(`${hit.provider}:${hit.id}`);

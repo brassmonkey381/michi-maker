@@ -130,6 +130,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-23',
+    title: 'Print preview works for binders with other games in them',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Print preview no longer spins forever on a binder with One Piece, Lorcana or another game in it',
+        kind: 'fix',
+        area: 'binders',
+        body:
+          'Opening the preview on a binder that held cards from more than one game loaded each '
+          + 'game in turn, and every arrival threw away the sheets being drawn. The preview now '
+          + 'builds once and shows up. Pokémon-only binders were never affected.',
+      },
+    ],
+  },
+  {
     date: '2026-10-22',
     title: 'The daily puzzle celebrates a right word',
     items: [

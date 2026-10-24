@@ -12,11 +12,21 @@
  * re-hosted into the owner's binder-art folder and credited to the photographer, origin
  * 'external', exactly as the Add art sheet would stamp it.
  *
- *   node scripts/tcg-top-nine-art.mjs            dry run: arrangements and the chosen photos
- *   node scripts/tcg-top-nine-art.mjs --apply    rewrites the pages' slots in place
+ * SECOND PASS (owner, 2026-10-24: "it looks bad. can you please use a different art source?
+ * (not pexels or pixabay)"): with --picks <file>, the pockets take hand-picked DeviantArt pieces
+ * instead (the app's other listed art source), chosen from the search feeds by eye, one landscape
+ * and one portrait per game, matched to pockets by shape. The file maps game -> [{title, link,
+ * author, url, width, height}]; scripts/tcg-top-nine-picks.json is the set used for this binder.
+ * Each piece is re-encoded as JPEG and hosted the same way, credited to the artist with a link to
+ * the deviation.
+ *
+ *   node scripts/tcg-top-nine-art.mjs                       dry run: arrangements and stock photos
+ *   node scripts/tcg-top-nine-art.mjs --picks f.json        dry run with the hand-picked pieces
+ *   node scripts/tcg-top-nine-art.mjs --picks f.json --apply   rewrites the pages' slots in place
  */
 import { Buffer } from 'node:buffer';
 import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -28,6 +38,8 @@ const { arrangePage } = await import(src('data/arranger.ts'));
 const { ART_TEMPLATES, templateArtSlots } = await import(src('data/artTemplates.ts'));
 
 const APPLY = process.argv.includes('--apply');
+const PICKS_FILE = process.argv[process.argv.indexOf('--picks') + 1];
+const PICKS = process.argv.includes('--picks') ? JSON.parse(readFileSync(PICKS_FILE, 'utf8')) : null;
 const BINDER_ID = process.argv.find((a) => /^[0-9a-f-]{36}$/.test(a)) ?? 'eda55ff7-7614-457c-8980-ff44594f0e27';
 const BROWSE = 'https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/browse';
 const APP = 'https://piikwvntldytjejxmcla.supabase.co';
@@ -35,7 +47,7 @@ const DEPTH_TAGS = new Set(A.depthTagQuery());
 
 const env = readVars(join(ROOT, '.env'), ['EXPO_PUBLIC_PEXELS_KEY', 'EXPO_PUBLIC_PIXABAY_KEY']);
 const secrets = readVars('C:/Users/Brian/source/repos/tcgscan/tcgscan.secrets', ['APP_SECRET_KEY']);
-if (!env.EXPO_PUBLIC_PEXELS_KEY && !env.EXPO_PUBLIC_PIXABAY_KEY) fail('no stock art keys in .env');
+if (!PICKS && !env.EXPO_PUBLIC_PEXELS_KEY && !env.EXPO_PUBLIC_PIXABAY_KEY) fail('no stock art keys in .env');
 if (APPLY && !secrets.APP_SECRET_KEY) fail('APP_SECRET_KEY not in the secrets file (needed to host pictures in the owner folder)');
 
 /** One query per game: the world the game lives in, not its cards. */
@@ -230,13 +242,22 @@ for (const p of pages) {
   plans.push({ page: p, game, chosen, artSlots });
 }
 
-step(3, 'choosing photos from Pexels and Pixabay');
+step(3, PICKS ? `the hand-picked pieces from ${PICKS_FILE}` : 'choosing photos from Pexels and Pixabay');
 const used = new Set();
 for (const plan of plans) {
   const theme = THEMES[plan.game];
   plan.art = [];
   for (const s of plan.artSlots) {
     const aspect = panelAspect(s.rowSpan, s.colSpan);
+    if (PICKS) {
+      const hits = (PICKS[plan.game] ?? []).map((x, i) => ({ provider: 'deviantart', id: `${plan.game}-${i}`, url: x.url, width: x.width, height: x.height, author: x.author, pageUrl: x.link, title: x.title }));
+      const hit = pickStockHit(hits, aspect, used);
+      if (!hit) fail(`${plan.page.title}: no pick left for a ${s.colSpan}x${s.rowSpan} pocket`);
+      used.add(`${hit.provider}:${hit.id}`);
+      plan.art.push({ slot: s, hit });
+      console.log(`  ${plan.page.title}: ${s.colSpan}x${s.rowSpan} ← "${hit.title}" by ${hit.author} (${hit.width}x${hit.height}) ${hit.pageUrl}`);
+      continue;
+    }
     const hits = await search(theme, orientationFor(aspect));
     const hit = pickStockHit(hits, aspect, used) ?? pickStockHit(await search(theme, undefined), aspect, used);
     if (!hit) fail(`${plan.page.title}: no photo for "${theme.q}" (${s.colSpan}x${s.rowSpan})`);
@@ -257,11 +278,16 @@ for (const plan of plans) {
   for (const a of plan.art) {
     const res = await fetch(a.hit.url);
     if (!res.ok) fail(`${a.hit.provider} ${a.hit.id}: download ${res.status}`);
-    const bytes = Buffer.from(await res.arrayBuffer());
-    const type = res.headers.get('content-type')?.split(';')[0] || 'image/jpeg';
+    let bytes = Buffer.from(await res.arrayBuffer());
+    let type = res.headers.get('content-type')?.split(';')[0] || 'image/jpeg';
+    if (PICKS) {
+      const sharp = (await import('sharp')).default;
+      bytes = await sharp(bytes).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+      type = 'image/jpeg';
+    }
     const ext = type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
     const h = createHash('sha256').update(bytes).digest('hex').slice(0, 12);
-    const path = `${binder.owner_id}/stock-${a.hit.provider}-${a.hit.id}-${h}.${ext}`;
+    const path = `${binder.owner_id}/${PICKS ? 'fanart' : 'stock'}-${a.hit.provider}-${a.hit.id}-${h}.${ext}`;
     const up = await fetch(`${APP}/storage/v1/object/binder-art/${path}`, { method: 'POST', headers: { ...headers, 'Content-Type': type, 'x-upsert': 'true' }, body: bytes });
     const text = await up.text();
     if (!up.ok && !/already exists|Duplicate/i.test(text)) fail(`${path}: ${up.status} ${text.slice(0, 200)}`);
@@ -275,7 +301,8 @@ const rows = [];
 for (const plan of plans) {
   for (const x of plan.chosen.placements) rows.push(`(${q(randomUUID())}, ${q(plan.page.id)}, ${x.cell.row}, ${x.cell.col}, 1, 1, 'card', ${q(x.cardId)}, null, null, null, null)`);
   for (const a of plan.art) {
-    const attribution = JSON.stringify({ artist: a.hit.author, sourceName: a.hit.provider === 'pexels' ? 'Pexels' : 'Pixabay', sourceUrl: a.hit.pageUrl, origin: 'external' });
+    const sourceName = a.hit.provider === 'deviantart' ? 'DeviantArt' : a.hit.provider === 'pexels' ? 'Pexels' : 'Pixabay';
+    const attribution = JSON.stringify({ artist: a.hit.author, sourceName, sourceUrl: a.hit.pageUrl, origin: 'external' });
     rows.push(`(${q(randomUUID())}, ${q(plan.page.id)}, ${a.slot.row}, ${a.slot.col}, ${a.slot.rowSpan}, ${a.slot.colSpan}, 'artwork', null, ${q(a.hosted)}, null, 'cover', ${q(attribution)}::jsonb)`);
   }
 }

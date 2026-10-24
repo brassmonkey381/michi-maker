@@ -34,12 +34,18 @@ const DAY = argv.find((a) => /^\d{4}-\d{2}-\d{2}$/.test(a)) ?? new Date().toISOS
 const OUT = `${ROOT}/state/out`;
 mkdirSync(OUT, { recursive: true });
 
-/** Art window as [x0, y0, x1, y1] fractions of the card, by series. */
-function windowFor(card) {
-  const s = card.series ?? '';
-  if (/Sword & Shield|Scarlet & Violet|Mega Evolution/.test(s)) return [0.064, 0.118, 0.936, 0.468];
-  if (/Promos/.test(s)) return [0.07, 0.108, 0.93, 0.462];
-  return [0.07, 0.125, 0.93, 0.49]; // Sun & Moon, XY, BW, HGSS, Platinum, DP, EX
+/**
+ * Art window as [x0, y0, x1, y1] fractions of the card.
+ *
+ * ONE WINDOW FOR EVERY ERA (2026-10-24). Measured on thirteen scans from EX-era promos to Mega
+ * Evolution: the inner edge of the art sits at x 6.9–8.6% and 91.7–93.3%, y 8.9–10.3% and
+ * 46.2–50%, so the intersection of all of them is a safe crop on every card. It trims up to two
+ * percent of art from the widest windows and never shows frame. A per-series table could claw
+ * that back, but a uniform window is what makes the connected sheet line up.
+ */
+const UNIFORM_WINDOW = [0.086, 0.103, 0.917, 0.462];
+function windowFor() {
+  return UNIFORM_WINDOW;
 }
 
 const PW = 300, PH = 419, GAP = 14, PAD = 28, R = 10;

@@ -11,7 +11,11 @@
  * card (liked, but this one was preferred), and the bare window scaled into a pocket.
  *
  * Usage: node scripts/lab/windowed-stock-card.mjs [puzzle date YYYY-MM-DD]
- *   Renders today's (or the given day's) daily puzzle as one 3x3 page to state/out/windowed-<date>.jpg.
+ *        node scripts/lab/windowed-stock-card.mjs --binder <id> [--page <n, from 1>]
+ *   Renders the day's daily puzzle, or one binder page, to state/out/windowed-<source>.jpg, and
+ *   beside it windowed-<source>-connected.jpg: the bare windows at their natural size, butted
+ *   edge to edge at their grid positions with no pockets and no rescaling (owner, 2026-10-24:
+ *   "just adjacent and connected"), for pages whose cards share one continuing illustration.
  *
  * THE OPEN PROBLEM is the window geometry: `windowFor` is a hand-set table by series, as
  * fractions of the card. Good enough for a mock; a feature needs a per-set table or an edge
@@ -19,17 +23,21 @@
  */
 import { Buffer } from 'node:buffer';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { appSql, dataSql, q, step, fail, ROOT } from '../lib/michi.mjs';
+import { appSql, dataSql, q, step, fail, ROOT, imageManifest, cardImageUrl } from '../lib/michi.mjs';
 
 const sharp = (await import('sharp')).default;
-const DAY = process.argv[2] ?? new Date().toISOString().slice(0, 10);
+const argv = process.argv.slice(2);
+const flag = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
+const BINDER = flag('--binder');
+const PAGE_NO = Number(flag('--page') ?? 1);
+const DAY = argv.find((a) => /^\d{4}-\d{2}-\d{2}$/.test(a)) ?? new Date().toISOString().slice(0, 10);
 const OUT = `${ROOT}/state/out`;
 mkdirSync(OUT, { recursive: true });
 
 /** Art window as [x0, y0, x1, y1] fractions of the card, by series. */
 function windowFor(card) {
   const s = card.series ?? '';
-  if (/Sword & Shield|Scarlet & Violet/.test(s)) return [0.064, 0.118, 0.936, 0.468];
+  if (/Sword & Shield|Scarlet & Violet|Mega Evolution/.test(s)) return [0.064, 0.118, 0.936, 0.468];
   if (/Promos/.test(s)) return [0.07, 0.108, 0.93, 0.462];
   return [0.07, 0.125, 0.93, 0.49]; // Sun & Moon, XY, BW, HGSS, Platinum, DP, EX
 }
@@ -46,11 +54,16 @@ const row = (y, label, value, wx, ww) => `
   <text x="${wx}" y="${y}" font-family="${SANS}" font-size="9" letter-spacing="1.6" fill="#7d7868">${esc(label)}</text>
   <text x="${wx + ww}" y="${y}" text-anchor="end" font-family="${SANS}" font-size="12.5" fill="#e4dfd0">${esc(value)}</text>`;
 
-/** The stock card for one windowed card: window at natural size, text block beneath. */
-async function stockCard(bytes, card) {
+/** The art window cropped out of the scan, at the scan's own size. */
+async function artWindow(bytes, card) {
   const img = sharp(bytes); const m = await img.metadata();
   const [x0, y0, x1, y1] = windowFor(card);
-  const art = await img.extract({ left: Math.round(x0 * m.width), top: Math.round(y0 * m.height), width: Math.round((x1 - x0) * m.width), height: Math.round((y1 - y0) * m.height) }).toBuffer();
+  return img.extract({ left: Math.round(x0 * m.width), top: Math.round(y0 * m.height), width: Math.round((x1 - x0) * m.width), height: Math.round((y1 - y0) * m.height) }).toBuffer();
+}
+
+/** The stock card for one windowed card: window at natural size, text block beneath. */
+async function stockCard(bytes, card) {
+  const art = await artWindow(bytes, card);
   const wx = Math.round(0.07 * PW), ww = Math.round(0.86 * PW), wy = 20;
   const fitted = await sharp(art).resize(ww).toBuffer(); const fm = await sharp(fitted).metadata();
   const by = wy + fm.height;
@@ -71,30 +84,56 @@ async function stockCard(bytes, card) {
   return sharp(svg).composite([{ input: fitted, left: wx, top: wy }]).png().toBuffer();
 }
 
-step(1, `the daily puzzle for ${DAY}`);
-const [puzzle] = await appSql(`select card_ids, card_image_urls, rows, cols from public.daily_puzzles where publish_on = ${q(DAY)};`);
-if (!puzzle) fail(`no puzzle on ${DAY}`);
-const ids = puzzle.card_ids;
-const list = ids.map((x) => q(x)).join(',');
-const cards = await dataSql(`select id, name, series, set_name, number, illustrator, dex, types, stage, release_date, full_art, full_art_kind, image_url from public.cards_en where id in (${list});`);
+/** Where each card sits: {id, row, col} plus the grid, from the puzzle or the binder page. */
+async function source() {
+  if (BINDER) {
+    const [page] = await appSql(`select id, title, rows, cols from public.binder_pages where binder_id = ${q(BINDER)} order by position offset ${PAGE_NO - 1} limit 1;`);
+    if (!page) fail(`binder ${BINDER} has no page ${PAGE_NO}`);
+    const slots = await appSql(`select row_index, col_index, card_id from public.binder_slots where page_id = ${q(page.id)} and slot_type = 'card' and card_id is not null order by row_index, col_index;`);
+    return { label: `${BINDER.slice(0, 8)}-p${PAGE_NO}`, title: page.title, rows: page.rows, cols: page.cols, seats: slots.map((s) => ({ id: s.card_id, row: s.row_index, col: s.col_index })) };
+  }
+  const [puzzle] = await appSql(`select card_ids, rows, cols from public.daily_puzzles where publish_on = ${q(DAY)};`);
+  if (!puzzle) fail(`no puzzle on ${DAY}`);
+  return { label: DAY, title: `daily puzzle ${DAY}`, rows: puzzle.rows, cols: puzzle.cols, seats: puzzle.card_ids.map((id, i) => ({ id, row: Math.floor(i / puzzle.cols), col: i % puzzle.cols })) };
+}
+
+step(1, 'the cards');
+const src = await source();
+const list = src.seats.map((s) => q(s.id)).join(',');
+// `cards`, not `cards_en`: a Japanese print is in the former only.
+const cards = await dataSql(`select id, name, series, set_name, number, illustrator, dex, types, stage, release_date, full_art, full_art_kind, image_url from public.cards where id in (${list});`);
 const byId = new Map(cards.map((c) => [c.id, c]));
-console.log(`  ${ids.length} cards, ${puzzle.rows}x${puzzle.cols}`);
+const manifest = await imageManifest();
+console.log(`  ${src.title}: ${src.seats.length} cards on a ${src.rows}x${src.cols}`);
 
 step(2, 'rendering');
-const cols = puzzle.cols, rowsN = puzzle.rows;
-const tiles = [];
-for (const [i, id] of ids.entries()) {
-  const card = byId.get(id); if (!card) fail(`${id} is not in the catalog`);
-  const url = puzzle.card_image_urls?.[i] ?? card.image_url;
-  const res = await fetch(url); if (!res.ok) fail(`${id}: image ${res.status}`);
+const { rows: rowsN, cols } = src;
+const tiles = [], windows = [];
+for (const seat of src.seats) {
+  const card = byId.get(seat.id); if (!card) fail(`${seat.id} is not in the catalog`);
+  const url = cardImageUrl(manifest, seat.id) ?? card.image_url;
+  const res = await fetch(url); if (!res.ok) fail(`${seat.id}: image ${res.status}`);
   const bytes = Buffer.from(await res.arrayBuffer());
   const fullArt = card.full_art === true || /special_illustration_rare|illustration_rare|named_full_art|measured|double_rare/.test(card.full_art_kind ?? '');
   const tile = fullArt ? await plainCard(bytes) : await stockCard(bytes, card);
-  tiles.push({ input: tile, left: PAD + (i % cols) * (PW + GAP), top: PAD + Math.floor(i / cols) * (PH + GAP) });
+  tiles.push({ input: tile, left: PAD + seat.col * (PW + GAP), top: PAD + seat.row * (PH + GAP) });
+  if (!fullArt) windows.push({ input: await artWindow(bytes, card), row: seat.row, col: seat.col });
   console.log(`  ${card.name}: ${fullArt ? 'full art, untouched' : 'windowed, stock card'}`);
 }
 const W = PAD * 2 + PW * cols + GAP * (cols - 1), H = PAD * 2 + PH * rowsN + GAP * (rowsN - 1);
-const file = `${OUT}/windowed-${DAY}.jpg`;
-const page = await sharp({ create: { width: W, height: H, channels: 3, background: '#1c1c20' } }).composite(tiles).jpeg({ quality: 90 }).toBuffer();
-writeFileSync(file, page);
-console.log(`\nOK  ${file}`);
+const file = `${OUT}/windowed-${src.label}.jpg`;
+writeFileSync(file, await sharp({ create: { width: W, height: H, channels: 3, background: '#1c1c20' } }).composite(tiles).jpeg({ quality: 90 }).toBuffer());
+console.log(`
+OK  ${file}`);
+
+// The connected sheet: every window at the size it was cropped, no gaps. Windows differ by a
+// pixel or two between scans, so each cell is the largest window and smaller ones sit top-left.
+if (windows.length) {
+  const metas = await Promise.all(windows.map((w) => sharp(w.input).metadata()));
+  const cw = Math.max(...metas.map((m) => m.width)), ch = Math.max(...metas.map((m) => m.height));
+  const sheet = await sharp({ create: { width: cw * cols, height: ch * rowsN, channels: 3, background: '#000' } })
+    .composite(windows.map((w) => ({ input: w.input, left: w.col * cw, top: w.row * ch }))).jpeg({ quality: 92 }).toBuffer();
+  const connected = `${OUT}/windowed-${src.label}-connected.jpg`;
+  writeFileSync(connected, sheet);
+  console.log(`OK  ${connected}`);
+}

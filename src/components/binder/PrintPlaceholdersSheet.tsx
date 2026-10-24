@@ -479,32 +479,48 @@ export function PrintPlaceholdersSheet({
     track('print.preview', { surface: 'print_gate', binder_id: binder.id });
     setPreviewFiles(null);
     setPreviewError(null);
+    setPreviewRun((n) => n + 1);
     setPreviewOpen(true);
   };
-  const previewRunning = useRef(false);
+  /**
+   * ONE BUILD PER OPEN (2026-10-23). The build used to be an effect on `cardMeta` and
+   * `effectiveOwned`, and the first thing it does, `ensureOtherGames`, loads every other game's
+   * catalog, bumping `cardMeta` once per game. Each bump re-ran the effect: the cleanup marked the
+   * running build dead, the re-run bailed on the running flag, and the finished files were thrown
+   * away with nothing left to start again. An eight-game binder spun forever. Now the open is the
+   * only trigger (plus the catalog arriving), and the build reads the lookup, the owned set and the
+   * binder through refs at the moment it needs them.
+   */
+  const previewInputs = useRef({ binder, cardMeta, effectiveOwned, ensureOtherGames });
   useEffect(() => {
-    if (!previewOpen || previewFiles || previewError || !cardMeta || previewRunning.current) return;
-    previewRunning.current = true;
+    previewInputs.current = { binder, cardMeta, effectiveOwned, ensureOtherGames };
+  }, [binder, cardMeta, effectiveOwned, ensureOtherGames]);
+  const [previewRun, setPreviewRun] = useState(0);
+  const catalogReady = !!cardMeta;
+  useEffect(() => {
+    if (!previewOpen || !catalogReady) return;
     let live = true;
     (async () => {
       try {
-        await ensureOtherGames(binder);
-        const files = await buildFillSheetPdfs(binder, cardMeta, {
-          ownedIds: effectiveOwned,
+        const { binder: source, ensureOtherGames: ensure } = previewInputs.current;
+        await ensure(source);
+        // Read again AFTER the other games landed: `cardMeta` is a new lookup by then.
+        const { cardMeta: meta, effectiveOwned: owned } = previewInputs.current;
+        if (!meta) throw new Error('The card catalog is not loaded yet. Try again in a moment.');
+        const files = await buildFillSheetPdfs(source, meta, {
+          ownedIds: owned,
           loadImage: createWebArtLoader({ preview: true }),
           preview: true,
         });
         if (live) setPreviewFiles(files);
       } catch (e) {
         if (live) setPreviewError((e as Error).message);
-      } finally {
-        previewRunning.current = false;
       }
     })();
     return () => {
       live = false;
     };
-  }, [previewOpen, previewFiles, previewError, cardMeta, binder, effectiveOwned, ensureOtherGames]);
+  }, [previewOpen, previewRun, catalogReady]);
 
   // PRO-trial offer attribution for this surface. The offer (TrialCta) only renders for eligible
   // users; mark when it was actually shown, and when a start was initiated, so dismissing the sheet

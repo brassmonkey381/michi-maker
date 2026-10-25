@@ -16,15 +16,16 @@ import { Image } from 'expo-image';
 import { useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions, type View as ViewType } from 'react-native';
 
-import { ColorBox, PillButton, Row, WearRow } from '@/components/binder/inspector/controls';
+import { ColorBox, PillButton, Row, Seg, WearRow } from '@/components/binder/inspector/controls';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BinderSurface, FontSize, Palette, Radius, Shadows, Weight } from '@/constants/theme';
+import { ART_VIEWS } from '@/data/artView';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 import { isImageRef, resolveWear } from '@/data/pageStyle';
 import { useBinders } from '@/store/binders';
 
-type Kind = 'background' | 'sleeve' | 'artBacking';
+type Kind = 'background' | 'sleeve' | 'artBacking' | 'artView';
 
 /** Wide enough for Colour, the swatch, Picture and None on one line; narrower only on a phone. */
 const CARD_W = 460;
@@ -41,14 +42,23 @@ export interface PageSelect {
   onActions: () => void;
 }
 
+export interface PageArtViews {
+  /** ART VIEWS ARE PRO (owner, 2026-10-24): the picker shows, dimmed, and a tap says why. */
+  locked: boolean;
+  onLocked: () => void;
+}
+
 export function PageWearBar({
   binder,
   page,
   select,
+  artViews,
   hint = false,
 }: {
   binder: DemoBinder;
   page: DemoPage;
+  /** The Art view chip (owner, 2026-10-24): how this page shows its cards, on the page's own bar. */
+  artViews?: PageArtViews;
   /** A one-time hint is pointing at this bar (data/editorHints): ring it. */
   hint?: boolean;
   /** The multi-select chip, when this page can be selected on. */
@@ -61,6 +71,9 @@ export function PageWearBar({
   // guess put it over the chips (the first draw sat 150px up and covered the row it came from).
   const [cardH, setCardH] = useState(CARD_H_GUESS);
   const refs = { background: useRef<ViewType>(null), sleeve: useRef<ViewType>(null), artBacking: useRef<ViewType>(null) };
+  const artViewRef = useRef<ViewType>(null);
+  const artView = page.artView ?? 'card';
+  const artViewLabel = ART_VIEWS.find((v) => v.id === artView)?.label ?? 'Full card';
 
   const background = page.backgroundColor ?? BinderSurface.mat;
   const bgPictured = isImageRef(background);
@@ -68,12 +81,12 @@ export function PageWearBar({
   const backing = resolveWear(page.artBacking, binder.pageStyle?.artBacking);
 
   const show = (kind: Kind) => {
-    const node = refs[kind].current;
+    const node = kind === 'artView' ? artViewRef.current : refs[kind].current;
     if (!node) return;
     node.measureInWindow((x, y, w, h) => setOpen({ kind, x: x + w / 2, top: y, bottom: y + h }));
   };
 
-  const chip = (kind: Kind, label: string, colour: string | undefined) => (
+  const chip = (kind: Exclude<Kind, 'artView'>, label: string, colour: string | undefined) => (
     <Pressable
       ref={refs[kind]}
       onPress={() => show(kind)}
@@ -105,6 +118,19 @@ export function PageWearBar({
         {chip('background', 'Background', background)}
         {chip('sleeve', 'Sleeves', sleeve)}
         {chip('artBacking', 'Art backing', backing)}
+        {artViews ? (
+          <Pressable
+            ref={artViewRef}
+            onPress={() => show('artView')}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`Art view on this page: ${artViewLabel}. Change`}
+            testID="page-bar-artView"
+            style={({ pressed }) => [styles.chip, artView !== 'card' && styles.chipOn, pressed && styles.pressed]}>
+            <Text style={[styles.chipGlyph, artView !== 'card' && styles.chipTextOn]}>{'◫'}</Text>
+            <Text style={[styles.chipText, artView !== 'card' && styles.chipTextOn]}>Art view</Text>
+          </Pressable>
+        ) : null}
         {select ? (
           <Pressable
             // ONE CHIP, TWO JOBS (owner, 2026-09-15): off, it starts selecting; on with pockets
@@ -142,7 +168,15 @@ export function PageWearBar({
             testID="page-bar-card"
             style={[styles.card, { top: cardTop, left: cardLeft, width: cardW }]}>
             <ThemedText type="smallBold" style={styles.cardTitle}>
-              {open.kind === 'background' ? 'Background of this page' : open.kind === 'sleeve' ? 'Sleeves on this page' : 'Art backing on this page'}
+              {open.kind === 'background'
+                ? 'Background of this page'
+                : open.kind === 'sleeve'
+                  ? 'Sleeves on this page'
+                  : open.kind === 'artBacking'
+                    ? 'Art backing on this page'
+                    : artViews?.locked
+                      ? 'How this page shows its cards · PRO'
+                      : 'How this page shows its cards'}
             </ThemedText>
             {open.kind === 'background' ? (
               // THIS PAGE'S OWN COLOUR (owner, 2026-09-15). The binder's Background in Settings
@@ -167,6 +201,26 @@ export function PageWearBar({
                 onChange={(sleeve) => store.updatePage(binder.id, page.id, { sleeve })}
                 testID="page-sleeve"
               />
+            ) : open.kind === 'artView' ? (
+              // THE ART VIEW (data/artView.ts): the full card, the art window on a stock card, or
+              // the art edge to edge. The same picker as the page fields, where it also lives.
+              <View style={artViews?.locked ? styles.locked : undefined}>
+                <Seg
+                  options={ART_VIEWS}
+                  value={artView}
+                  onChange={(id) => {
+                    if (artViews?.locked) {
+                      artViews.onLocked();
+                      return;
+                    }
+                    store.updatePage(binder.id, page.id, { artView: id === 'card' ? null : id });
+                    setOpen(null);
+                  }}
+                />
+                <ThemedText type="small" themeColor="textSecondary" style={styles.blurb}>
+                  {ART_VIEWS.find((v) => v.id === artView)?.blurb}
+                </ThemedText>
+              </View>
             ) : (
               <WearRow
                 label="Colour"
@@ -242,5 +296,7 @@ const styles = StyleSheet.create({
     ...Shadows.page,
   },
   cardTitle: { marginBottom: 2 },
+  locked: { opacity: 0.45 },
+  blurb: { marginTop: 8 },
   pressed: { opacity: 0.7 },
 });

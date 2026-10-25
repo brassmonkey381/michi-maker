@@ -2278,6 +2278,7 @@ export function BinderScreen({
         <PageWearBar
           binder={binder}
           page={p}
+          artViews={{ locked: artViewsLocked, onLocked: onArtViewsLocked }}
           hint={!pocketHint.copy && !!pageHint.copy}
           // SELECT SEVERAL POCKETS acts on a SELECTION on this page. Gone while the picker is
           // aimed at a pocket (the two modes are mutually exclusive in code) and on an empty

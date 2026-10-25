@@ -12,8 +12,11 @@
  *              illustrator and year. A full-art card has no window to cut, so it stays as it is.
  *   connected  The bare windows, edge to edge, no pockets and no gaps, so a page whose cards share
  *              one continuing illustration (Saboteri's city, a Pokémon Center skyline) reads as
- *              that illustration. Every card is cut to the same window here, full art included,
- *              because the sheet needs cells of one size.
+ *              that illustration. The sheet needs cells of one shape, so the PAGE picks the cut
+ *              (connectedCut): a page whose cards are all full art is cut to the ART INSIDE THE
+ *              BORDER, whole, so the picture that runs off one full-art card meets the next
+ *              (owner, 2026-10-24, the Saboteri promos); any other page cuts every card to the
+ *              window, full art included.
  *
  * ONE WINDOW FOR EVERY ERA. The crop is a single rectangle in fractions of the card, measured on
  * thirteen scans from EX-era promos to Mega Evolution: the inner edge of the art sits at x 6.9–8.6%
@@ -60,6 +63,43 @@ export function windowPlacement(boxW: number): { width: number; height: number; 
   const width = boxW / (ART_WINDOW.x1 - ART_WINDOW.x0);
   const height = width * CARD_H_OVER_W;
   return { width, height, left: -ART_WINDOW.x0 * width, top: -ART_WINDOW.y0 * height };
+}
+
+/**
+ * THE BORDER OF A FULL-ART CARD, as fractions of the card: the silver band and the rounded corners,
+ * measured on the Saboteri promos (26 of 640px across, 25 of 891px down). The art inside it meets
+ * the next card's art when the band is cut away. The same cut on every full-art card, as with the
+ * window: a card with a wider band shows a sliver of it rather than losing art.
+ */
+export const ART_FULL_TRIM = { x: 0.04, y: 0.028 } as const;
+
+/** The trimmed full-art card's height over its width. */
+export const ART_FULL_H_OVER_W = ((1 - 2 * ART_FULL_TRIM.y) * CARD_H_OVER_W) / (1 - 2 * ART_FULL_TRIM.x);
+
+/** As windowPlacement, for the art inside a full-art card's border. */
+export function fullArtPlacement(boxW: number): { width: number; height: number; left: number; top: number } {
+  const width = boxW / (1 - 2 * ART_FULL_TRIM.x);
+  const height = width * CARD_H_OVER_W;
+  return { width, height, left: -ART_FULL_TRIM.x * width, top: -ART_FULL_TRIM.y * height };
+}
+
+/** How a connected sheet cuts its cards: the art window, or the whole art of a full-art card. */
+export type ConnectedCut = 'window' | 'full';
+
+/**
+ * The cut a connected page uses, from the cards on it: 'full' when every card the catalogue knows
+ * is full art, otherwise the window. A page the catalogue has not resolved yet (or an empty page)
+ * is the window, so the sheet never jumps from full to window as the catalogue loads a page of
+ * windowed cards; it jumps the other way at most once.
+ */
+export function connectedCut(cards: (Pick<CatalogCard, 'fullArt' | 'fullArtKind'> | undefined)[]): ConnectedCut {
+  const known = cards.filter((c): c is NonNullable<typeof c> => !!c);
+  return known.length > 0 && known.every(isFullArtCard) ? 'full' : 'window';
+}
+
+/** The cell's height over its width for a cut. */
+export function connectedCellAspect(cut: ConnectedCut): number {
+  return cut === 'full' ? ART_FULL_H_OVER_W : ART_WINDOW_H_OVER_W;
 }
 
 /**

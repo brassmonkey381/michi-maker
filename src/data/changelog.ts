@@ -140,7 +140,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'binders',
         big: true,
         body:
-          'A page setting, in the page fields. The picture is cut from the card and set at full '
+          'A page setting: the Art view chip on the page bar, or the page fields. The picture is cut from the card and set at full '
           + 'width with its name, set, number and illustrator under it, so a page of cards from '
           + 'different eras reads as one set of pictures instead of five frame designs. Full-art '
           + 'cards stay as they are. Needs PRO to switch on; a page already set stays visible to '
@@ -154,7 +154,15 @@ export const CHANGELOG: ChangelogEntry[] = [
         body:
           'The same page setting. Every card is cut to its art window and the windows sit with no '
           + 'pockets and no gaps between them, so a run of connecting artwork reads as the picture '
-          + 'it was drawn as. Pokémon only for now, and the cut is the same window on every card.',
+          + 'it was drawn as. A page of full-art cards is cut inside the border instead, whole, so '
+          + 'connecting full arts meet too. Pokémon only for now.',
+      },
+      {
+        products: ['michi'],
+        head: 'The daily puzzle shows its cards as full cards, art windows or connected art',
+        kind: 'new',
+        area: 'binders',
+        body: 'A three-way switch over the cards. Try today's puzzle with the art edge to edge.',
       },
       {
         products: ['michi'],

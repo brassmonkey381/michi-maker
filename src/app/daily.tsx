@@ -27,6 +27,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ArtWindow, StockCard } from '@/components/binder/ArtViewCard';
+import { Seg } from '@/components/binder/inspector/controls';
 import { Confetti, makeConfetti, type ConfettiPiece } from '@/components/Confetti';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -38,6 +40,9 @@ import {
   PUZZLE_BACKDROP_FALLBACK, canReveal, revealCountdownText, revealPuzzleAnswer, revealedAnswer, todaysPuzzle,
   type DailyPuzzle, type GuessResult,
 } from '@/data/dailyPuzzle';
+import { ART_VIEWS, connectedCellAspect, connectedCut, isFullArtCard, type ArtView } from '@/data/artView';
+import { resolveCatalogCardWith } from '@/data/cardResolver';
+import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import {
   trackPuzzleGuess, trackPuzzleGuessFailed, trackPuzzleOpened, trackPuzzleRevealed, trackPuzzleSolved,
@@ -75,6 +80,11 @@ export default function DailyScreen() {
   const [busy, setBusy] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [zoom, setZoom] = useState<string | null>(null);
+  // HOW THE CARDS SHOW (owner, 2026-10-24): the full card, the art window on a stock card, or the
+  // art edge to edge, the binder's art views (data/artView.ts) on today's page. The two art views
+  // read card metadata, so choosing one is what loads the catalogue.
+  const [artView, setArtView] = useState<ArtView | 'card'>('card');
+  const { catalog } = useCatalog(artView !== 'card');
   /** A burst for every right word, a bigger one for the last (owner, 2026-10-22). */
   const [confetti, setConfetti] = useState<ConfettiPiece[] | null>(null);
 
@@ -231,6 +241,9 @@ export default function DailyScreen() {
     (Math.min(width, MaxContentWidthDoc) - gutter - Spacing.two * (cols - 1)) / cols,
   );
   const remaining = puzzle ? puzzle.themeCount - found.length : 0;
+  const puzzleCards = puzzle ? puzzle.cardIds.map((id) => resolveCatalogCardWith(catalog, id)) : [];
+  const cut = connectedCut(puzzleCards);
+  const connected = artView === 'connected';
   // RED OR GREEN (owner, 2026-10-22): the last verdict colours the box and the line under it, so
   // a right word reads as right without reading. The tint lifts as soon as they type again.
   const verdict = last && !typed ? (last.result.hit ? 'yes' : 'no') : null;
@@ -298,21 +311,39 @@ export default function DailyScreen() {
             </View>
           ) : (
             <View style={styles.stacked}>
-              <View style={[styles.grid, { maxWidth: (cell + Spacing.two) * cols }]}>
-                {puzzle.cardIds.map((id, i) => (
-                  <Pressable
-                    key={`${id}-${i}`}
-                    onPress={() => setZoom(id)}
-                    accessibilityLabel="Look closer at this card"
-                  >
-                    <Image
-                      source={{ uri: puzzle.cardImageUrls?.[i] || cardThumbUrl(id, 640) }}
-                      style={[styles.card, { width: cell, height: cell * 1.396 }]}
-                      contentFit="contain"
-                      transition={140}
-                    />
-                  </Pressable>
-                ))}
+              <View style={styles.viewRow} testID="daily-art-view">
+                <Seg options={ART_VIEWS} value={artView} onChange={setArtView} />
+              </View>
+              <View style={[styles.grid, connected && styles.gridConnected, { maxWidth: (cell + (connected ? 0 : Spacing.two)) * cols }]}>
+                {puzzle.cardIds.map((id, i) => {
+                  const uri = puzzle.cardImageUrls?.[i] || cardThumbUrl(id, 640);
+                  const card = puzzleCards[i];
+                  const renderImage = () => <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={140} />;
+                  return (
+                    <Pressable
+                      key={`${id}-${i}`}
+                      onPress={() => setZoom(id)}
+                      accessibilityLabel="Look closer at this card"
+                    >
+                      {connected ? (
+                        <View style={{ width: cell, height: cell * connectedCellAspect(cut) }}>
+                          <ArtWindow cut={cut} renderImage={renderImage} />
+                        </View>
+                      ) : artView === 'window' && !isFullArtCard(card) ? (
+                        <View style={[styles.card, { width: cell, height: cell * 1.396 }]}>
+                          <StockCard card={card} radius={Radius.control} small={cell < 170} renderImage={renderImage} />
+                        </View>
+                      ) : (
+                        <Image
+                          source={{ uri }}
+                          style={[styles.card, { width: cell, height: cell * 1.396 }]}
+                          contentFit="contain"
+                          transition={140}
+                        />
+                      )}
+                    </Pressable>
+                  );
+                })}
               </View>
 
               <View style={styles.side}>
@@ -501,6 +532,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     justifyContent: 'center',
   },
+  /** The art edge to edge: no gap, no rounding, the cells a sheet. */
+  gridConnected: { gap: 0, backgroundColor: '#000' },
+  viewRow: { alignSelf: 'center', marginBottom: Spacing.two },
   card: { borderRadius: Radius.control, backgroundColor: Palette.panel },
   panel: {
     borderWidth: 1,

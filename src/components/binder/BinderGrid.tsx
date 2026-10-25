@@ -17,7 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
-import { BinderSurface, Fonts, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
+import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
 import { BINDER_STITCH_OPACITY, STITCH, STITCH_TINY, isImageRef, luminance, resolveWear, seamLines, stitchStops, threadInk, weaveStops, binderZip, type PageStyle } from '@/data/pageStyle';
 import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
@@ -32,8 +32,9 @@ import {
   type ArtRole,
 } from '@/data/artTemplates';
 import { AboutHoverCard } from '@/components/binder/AboutPopup';
+import { ArtWindow, StockCard } from '@/components/binder/ArtViewCard';
 import { cellWidthFor, gapFor } from '@/data/binderLayout';
-import { ART_WINDOW_H_OVER_W, isFullArtCard, stockCardText, windowPlacement, type ArtView } from '@/data/artView';
+import { connectedCellAspect, connectedCut, isFullArtCard, type ArtView, type ConnectedCut } from '@/data/artView';
 import { insideEdgePairStarts } from '@/data/binderPhysics';
 import { cutBoundaries } from '@/data/printFit';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -393,7 +394,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   );
   const onLabel: LabelPress | undefined = editable ? undefined : openLabel;
   const finishOn = captionFields.includes('finish');
-  const { catalog } = useCatalog(captionOn);
+  // An art view reads card metadata too: which cards are full art, and the stock card's text.
+  const { catalog } = useCatalog(captionOn || !!page.artView);
   // The price caption reads from a separate per-card summary (~2.7MB) — load it only when the
   // Price label is actually turned on, so a plain binder view never pulls it.
   const priceOn = captionFields.includes('price');
@@ -438,6 +440,10 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
    * is centred on the page (sheetTop below) and the page keeps its height.
    */
   const connected = page.artView === 'connected';
+  // The sheet's cut (artView.ts connectedCut): the art inside the border when every card is full art.
+  const cut: ConnectedCut = connected
+    ? connectedCut(page.slots.map((s) => (s.type === 'card' ? resolveCatalogCardWith(catalog, s.cardId) : undefined)))
+    : 'window';
   const captionH = captionOn && !connected ? (small ? 30 : 34) : 0;
 
   const innerW = width - pad * 2 - frame * 2;
@@ -445,7 +451,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // cut the pieces with, so a picture across several pockets meets itself at every gap.
   const cellW = cellWidthFor(innerW, page.cols);
   const gap = connected ? 0 : gapFor(cellW);
-  const cellH = cellW * (connected ? ART_WINDOW_H_OVER_W : CARD_ASPECT);
+  const cellH = cellW * (connected ? connectedCellAspect(cut) : CARD_ASPECT);
   // How much the emphasised labels (price / owned / finish) grow at this pocket size.
   const chipScale = emphasisScale(cellW);
   const label = labelColors(theme);
@@ -778,6 +784,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               ringPad={ringPad}
               label={label}
               artView={page.artView ?? undefined}
+              cut={cut}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             chipScale={chipScale}
             onLabel={onLabel}
@@ -960,6 +967,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               ringPad={ringPad}
               label={label}
               artView={page.artView ?? undefined}
+              cut={cut}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
             chipScale={chipScale}
             />
@@ -1614,9 +1622,12 @@ function SlotContent({
   label,
   onLabel,
   artView,
+  cut = 'window',
 }: {
   /** The page shows its cards as their artwork (artView.ts): a stock card, or windows edge to edge. */
   artView?: ArtView;
+  /** On a connected page, how the sheet cuts its cards (artView.ts connectedCut). */
+  cut?: ConnectedCut;
   /** The colour of the band round a card: the page's background, or the sleeve. See ringPad. */
   ring?: string;
   /** How wide that band is: 4% of the pocket. */
@@ -1768,13 +1779,23 @@ function SlotContent({
   // illustration on a stock card; a full-art card has no window to cut and falls through to the
   // framed card below.
   if (artView === 'connected') {
-    return <ArtWindow id={id} scanUri={scanUri} instant={instantImages} />;
+    return (
+      <ArtWindow
+        cut={cut}
+        renderImage={() => <CardImage key={id} id={id} radius={0} small={false} contentFit="cover" scanUri={scanUri} instant={instantImages} />}
+      />
+    );
   }
   const catalogCard = artView === 'window' ? resolveCatalogCardWith(catalog, id) : undefined;
   if (artView === 'window' && !isFullArtCard(catalogCard)) {
     return (
       <View style={[styles.fill, { borderRadius: radius, padding: ringPad, backgroundColor: sleeveColor ?? ring ?? 'transparent' }]}>
-        <StockCard id={id} card={catalogCard} radius={Math.max(0, radius - ringPad)} small={small} scanUri={scanUri} instant={instantImages} />
+        <StockCard
+          card={catalogCard}
+          radius={Math.max(0, radius - ringPad)}
+          small={small}
+          renderImage={() => <CardImage key={id} id={id} radius={0} small={false} contentFit="cover" scanUri={scanUri} instant={instantImages} />}
+        />
         <OwnedBadge owned={owned} small={small} scale={chipScale} />
       </View>
     );
@@ -2177,77 +2198,6 @@ function ArtCaption({
  * and 640px for the larger binder-page view, falling back to the full jpg if a webp tier 404s.
  * A shimmering skeleton shows until the image loads, so a pocket never reads as blank/broken.
  */
-/**
- * A card's ART WINDOW filling its box: the whole scan is drawn larger than the box and offset so
- * the window lands exactly on it, and the box clips the rest (windowPlacement). The scan keeps
- * its own proportions, so nothing is rescaled in one direction only. Measured from the box, so
- * it follows the pocket.
- */
-function ArtWindow({ id, scanUri, instant, radius = 0 }: { id: string; scanUri?: string; instant?: boolean; radius?: number }) {
-  const [boxW, setBoxW] = useState(0);
-  const place = boxW > 0 ? windowPlacement(boxW) : null;
-  return (
-    <View onLayout={(e) => setBoxW(e.nativeEvent.layout.width)} style={[styles.fill, { overflow: 'hidden', borderRadius: radius, backgroundColor: '#000' }]}>
-      {place ? (
-        <View style={{ position: 'absolute', left: place.left, top: place.top, width: place.width, height: place.height }}>
-          <CardImage key={id} id={id} radius={0} small={false} contentFit="cover" scanUri={scanUri} instant={instant} />
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-/**
- * THE STOCK CARD (owner, 2026-10-24): the art window at the full width of a plain black card, no
- * rescaling, and under it the name, a type and stage line, and the card's references in a ruled
- * table. The window keeps its measured height, so the text block takes what is left; on a small
- * pocket only the name fits, and the rest is left off rather than shrunk to dust.
- */
-function StockCard({ id, card, radius, small, scanUri, instant }: { id: string; card: CatalogCard | undefined; radius: number; small: boolean; scanUri?: string; instant?: boolean }) {
-  const [box, setBox] = useState({ w: 0, h: 0 });
-  const text = stockCardText(card, '');
-  // The card's own margins: 7% of its width each side, as the mock-up had them.
-  const margin = Math.round(box.w * 0.07);
-  const windowW = Math.max(0, box.w - margin * 2);
-  const windowH = windowW * ART_WINDOW_H_OVER_W;
-  // Type follows the pocket: at a 300px card the name is 27px and a table row is 12.5px.
-  const unit = box.w / 300;
-  const nameSize = Math.max(8, 27 * unit);
-  const rowSize = Math.max(6, 12.5 * unit);
-  const labelSize = Math.max(5, 9 * unit);
-  const rowH = 24 * unit;
-  // What fits under the window: the name always, then the rows while there is room for them.
-  const nameBlock = (38 + 18 + 14) * unit;
-  const spare = box.h - margin - windowH - nameBlock - 24 * unit;
-  const rows = small ? [] : text.rows.slice(0, Math.max(0, Math.floor(spare / rowH)));
-  return (
-    <View
-      onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-      style={[styles.fill, styles.stockCard, { borderRadius: radius }]}>
-      {box.w > 0 ? (
-        <>
-          <View style={{ position: 'absolute', left: margin, top: margin, width: windowW, height: windowH }}>
-            <ArtWindow id={id} scanUri={scanUri} instant={instant} />
-          </View>
-          <View style={{ position: 'absolute', left: margin, right: margin, top: margin + windowH + 10 * unit }}>
-            <Text numberOfLines={1} style={[styles.stockName, { fontSize: nameSize, lineHeight: nameSize * 1.15 }]}>{text.name}</Text>
-            {!small && text.sub ? (
-              <Text numberOfLines={1} style={[styles.stockSub, { fontSize: labelSize * 1.15, letterSpacing: 1.6 * unit, marginTop: 4 * unit }]}>{text.sub.toUpperCase()}</Text>
-            ) : null}
-            {rows.length ? <View style={[styles.stockRule, { marginTop: 10 * unit }]} /> : null}
-            {rows.map((r) => (
-              <View key={r.label} style={[styles.stockRow, { height: rowH }]}>
-                <Text numberOfLines={1} style={[styles.stockLabel, { fontSize: labelSize, letterSpacing: 1.4 * unit }]}>{r.label.toUpperCase()}</Text>
-                <Text numberOfLines={1} style={[styles.stockValue, { fontSize: rowSize }]}>{r.value}</Text>
-              </View>
-            ))}
-          </View>
-        </>
-      ) : null}
-    </View>
-  );
-}
-
 function CardImage({
   id,
   radius,
@@ -2766,14 +2716,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BinderSurface.cardFrameBorder,
   },
-  /** The art view's stock card: near-black, a hairline inside its edge, the window and text laid absolutely. */
-  stockCard: { backgroundColor: '#111114', borderWidth: 1, borderColor: '#2a2a30', overflow: 'hidden' },
-  stockName: { fontFamily: Fonts.serif, fontWeight: Weight.bold, color: '#f2efe6' },
-  stockSub: { color: '#a39e8e' },
-  stockRule: { height: 1, backgroundColor: '#34343c' },
-  stockRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#1f1f25' },
-  stockLabel: { color: '#7d7868' },
-  stockValue: { color: '#e4dfd0', marginLeft: 6, flexShrink: 1, textAlign: 'right' },
   /** A pictured sleeve clips its picture to the frame; the hairline goes so the picture reads to the edge. */
   cardFrameImage: { overflow: 'hidden', borderColor: 'transparent' },
   insert: {

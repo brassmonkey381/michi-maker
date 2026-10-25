@@ -162,7 +162,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         head: 'The daily puzzle shows its cards as full cards, art windows or connected art',
         kind: 'new',
         area: 'binders',
-        body: 'A three-way switch over the cards. Try today's puzzle with the art edge to edge.',
+        body: 'A three-way switch over the cards. Try the puzzle with the art edge to edge.',
       },
       {
         products: ['michi'],

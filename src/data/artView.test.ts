@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  ART_FULL_GAP_OVER_W,
   ART_FULL_H_OVER_W,
   ART_FULL_TRIM,
   ART_VIEWS,
@@ -84,6 +85,8 @@ test('the full-art cut takes the border and keeps the card proportions', () => {
   assert.ok(Math.abs(p.height / p.width - 88 / 63) < 1e-9);
   // Nearly the card's own shape: the band is a few percent each side.
   assert.ok(ART_FULL_H_OVER_W > 1.38 && ART_FULL_H_OVER_W < 1.48, `got ${ART_FULL_H_OVER_W}`);
+  // An art plus its gap is exactly one whole card: the sheet is the cards butted together.
+  assert.ok(Math.abs(box * (1 + ART_FULL_GAP_OVER_W) - p.width) < 1e-9);
 });
 
 test('a connected page cuts whole only when every card it knows is full art', () => {

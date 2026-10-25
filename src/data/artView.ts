@@ -14,9 +14,10 @@
  *              one continuing illustration (Saboteri's city, a Pokémon Center skyline) reads as
  *              that illustration. The sheet needs cells of one shape, so the PAGE picks the cut
  *              (connectedCut): a page whose cards are all full art is cut to the ART INSIDE THE
- *              BORDER, whole, so the picture that runs off one full-art card meets the next
- *              (owner, 2026-10-24, the Saboteri promos); any other page cuts every card to the
- *              window, full art included.
+ *              BORDER, whole, and spaced by the band it lost, so the picture that runs off one
+ *              full-art card meets the next (owner, 2026-10-24, the Saboteri promos; see
+ *              ART_FULL_GAP_OVER_W); any other page cuts every card to the window, full art
+ *              included.
  *
  * ONE WINDOW FOR EVERY ERA. The crop is a single rectangle in fractions of the card, measured on
  * thirteen scans from EX-era promos to Mega Evolution: the inner edge of the art sits at x 6.9–8.6%
@@ -74,6 +75,18 @@ export function windowPlacement(boxW: number): { width: number; height: number; 
  * full-art card, as with the window.
  */
 export const ART_FULL_TRIM = { left: 0.047, right: 0.042, top: 0.033, bottom: 0.033 } as const;
+
+/**
+ * THE ART CONTINUES ACROSS THE BANDS (owner, 2026-10-24: "maybe they are meant to connect with
+ * some space between the cards"). Saboteri drew the connecting promos to meet with the cards
+ * butted whole, silver band against silver band, so the picture jumps the two bands. Cut inside
+ * the band and butted, the arts sat a band's width too close and the roads and waves broke at
+ * every seam; spaced by exactly the band they lost, they run straight across. This is that
+ * space as a share of the ART's width, the gap a connected full-art sheet leaves between cells.
+ * Vertically the bands are a hair narrower; the same gap is used and the difference is under a
+ * pixel at any pocket size.
+ */
+export const ART_FULL_GAP_OVER_W = (ART_FULL_TRIM.left + ART_FULL_TRIM.right) / (1 - ART_FULL_TRIM.left - ART_FULL_TRIM.right);
 
 /** The trimmed full-art card's height over its width. */
 export const ART_FULL_H_OVER_W =

@@ -34,7 +34,7 @@ import {
 import { AboutHoverCard } from '@/components/binder/AboutPopup';
 import { ArtWindow, StockCard } from '@/components/binder/ArtViewCard';
 import { cellWidthFor, gapFor } from '@/data/binderLayout';
-import { connectedCellAspect, connectedCut, isFullArtCard, type ArtView, type ConnectedCut } from '@/data/artView';
+import { ART_FULL_GAP_OVER_W, connectedCellAspect, connectedCut, isFullArtCard, type ArtView, type ConnectedCut } from '@/data/artView';
 import { insideEdgePairStarts } from '@/data/binderPhysics';
 import { cutBoundaries } from '@/data/printFit';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -449,8 +449,13 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const innerW = width - pad * 2 - frame * 2;
   // THE GAP FOLLOWS THE POCKET (binderLayout POCKET_GAP_RATIO), the same share the Slice Studio
   // cut the pieces with, so a picture across several pockets meets itself at every gap.
-  const cellW = cellWidthFor(innerW, page.cols);
-  const gap = connected ? 0 : gapFor(cellW);
+  // A FULL-ART SHEET KEEPS THE BAND'S SPACE (artView.ts ART_FULL_GAP_OVER_W): the cells are the
+  // arts and the gap is the two silver bands they lost, in the page's colour, so the sheet is
+  // exactly a page of whole cards butted together, which is how the art was drawn to meet.
+  const full = connected && cut === 'full';
+  const fullW = innerW / page.cols;
+  const cellW = full ? fullW / (1 + ART_FULL_GAP_OVER_W) : cellWidthFor(innerW, page.cols);
+  const gap = full ? cellW * ART_FULL_GAP_OVER_W : connected ? 0 : gapFor(cellW);
   const cellH = cellW * (connected ? connectedCellAspect(cut) : CARD_ASPECT);
   // How much the emphasised labels (price / owned / finish) grow at this pocket size.
   const chipScale = emphasisScale(cellW);

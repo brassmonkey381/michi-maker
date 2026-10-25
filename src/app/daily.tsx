@@ -40,7 +40,7 @@ import {
   PUZZLE_BACKDROP_FALLBACK, canReveal, revealCountdownText, revealPuzzleAnswer, revealedAnswer, todaysPuzzle,
   type DailyPuzzle, type GuessResult,
 } from '@/data/dailyPuzzle';
-import { ART_VIEWS, connectedCellAspect, connectedCut, isFullArtCard, type ArtView } from '@/data/artView';
+import { ART_FULL_GAP_OVER_W, ART_VIEWS, connectedCellAspect, connectedCut, isFullArtCard, type ArtView } from '@/data/artView';
 import { resolveCatalogCardWith } from '@/data/cardResolver';
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -244,6 +244,9 @@ export default function DailyScreen() {
   const puzzleCards = puzzle ? puzzle.cardIds.map((id) => resolveCatalogCardWith(catalog, id)) : [];
   const cut = connectedCut(puzzleCards);
   const connected = artView === 'connected';
+  // Between the cards: the pocket gap, nothing on a connected sheet, or the silver bands a sheet
+  // of full arts lost (artView.ts ART_FULL_GAP_OVER_W), so the art meets as it was drawn to.
+  const sheetGap = connected ? (cut === 'full' ? cell * ART_FULL_GAP_OVER_W : 0) : Spacing.two;
   // RED OR GREEN (owner, 2026-10-22): the last verdict colours the box and the line under it, so
   // a right word reads as right without reading. The tint lifts as soon as they type again.
   const verdict = last && !typed ? (last.result.hit ? 'yes' : 'no') : null;
@@ -314,7 +317,7 @@ export default function DailyScreen() {
               <View style={styles.viewRow} testID="daily-art-view">
                 <Seg options={ART_VIEWS} value={artView} onChange={setArtView} />
               </View>
-              <View style={[styles.grid, connected && styles.gridConnected, { maxWidth: (cell + (connected ? 0 : Spacing.two)) * cols }]}>
+              <View style={[styles.grid, connected && styles.gridConnected, { gap: sheetGap, maxWidth: (cell + sheetGap) * cols }]}>
                 {puzzle.cardIds.map((id, i) => {
                   const uri = puzzle.cardImageUrls?.[i] || cardThumbUrl(id, 640);
                   const card = puzzleCards[i];
@@ -533,7 +536,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   /** The art edge to edge: no gap, no rounding, the cells a sheet. */
-  gridConnected: { gap: 0, backgroundColor: '#000' },
+  gridConnected: { backgroundColor: '#000' },
   viewRow: { alignSelf: 'center', marginBottom: Spacing.two },
   card: { borderRadius: Radius.control, backgroundColor: Palette.panel },
   panel: {

@@ -130,6 +130,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-25',
+    title: 'The card browser starts with cards',
+    items: [
+      {
+        products: ['michi'],
+        head: 'A shorter top on the card browser, so a phone shows a full row of cards',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The game is one dropdown beside Color and Theme instead of three rows of chips, the '
+          + 'search tools sit beside the search box, the series count shares a row with Collection '
+          + 'and size, and the tray explainer waits behind its header until a card lands there. '
+          + 'About 200 pixels less before the first card on a phone.',
+      },
+    ],
+  },
+  {
     date: '2026-10-24',
     title: 'Art views: a page that shows its cards as their artwork',
     items: [

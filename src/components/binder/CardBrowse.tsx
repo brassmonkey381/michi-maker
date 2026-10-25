@@ -12,7 +12,7 @@
  */
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, type View as ViewType } from 'react-native';
 
 import { browseState, CatalogBrowser, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
@@ -413,33 +413,18 @@ export function CardBrowse({
   // before the first card, and every label on it is competing for the same row.
   const phone = width < Breakpoints.phone;
 
+  // THE GAME IS ONE DROPDOWN (owner, 2026-10-25), not a row of chips: eight chips wrapped onto
+  // three lines on a phone, and with the tray, the tabs, the search and its hints, the first card
+  // sat below the fold. The dropdown rides the kit's Color / Theme row (featureRowLead), so the
+  // game costs no line at all; the notes about a game still loading keep their own line.
+  const gameMenu =
+    PICKER_GAMES.length > 1 ? <GameMenu game={game} onPick={switchGame} border={browseTheme.border ?? '#e4e4e8'} ink={browseTheme.text ?? '#222'} panel={browseTheme.panel ?? '#fff'} accent={browseTheme.accent ?? '#3B82F6'} accentText={browseTheme.accentText ?? '#fff'} /> : null;
+  const gameNotes = secondary && (!activeCatalog || (themeNote && !gameThemed));
+
   return (
     <>
-      {PICKER_GAMES.length > 1 ? (
+      {gameNotes ? (
         <View style={styles.gameRow}>
-          {PICKER_GAMES.map((g) => {
-            const on = g === game;
-            return (
-              <Pressable
-                key={g}
-                onPress={() => switchGame(g)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                style={[
-                  styles.gameChip,
-                  { borderColor: browseTheme.border ?? '#e4e4e8' },
-                  on && { backgroundColor: browseTheme.accent ?? '#3B82F6' },
-                ]}>
-                <Text
-                  style={[
-                    styles.gameChipText,
-                    { color: on ? browseTheme.accentText ?? '#fff' : browseTheme.subtext ?? '#888' },
-                  ]}>
-                  {gameLabel(g)}
-                </Text>
-              </Pressable>
-            );
-          })}
           {secondary && !activeCatalog ? (
             secondaryAbsent ? (
               <Text style={[styles.gameNote, styles.gameNoteLine, { color: browseTheme.subtext ?? '#888' }]}>
@@ -473,6 +458,7 @@ export function CardBrowse({
       <CatalogBrowser
         key={game}
         theme={browseTheme}
+        featureRowLead={gameMenu}
         catalog={activeCatalog}
         // A THEMED SECONDARY GAME searches its artwork on the data project's `theme_search`, for
         // this game only; the ids come back ranked and are mapped onto the catalog above. The
@@ -601,14 +587,84 @@ export function CardBrowse({
   );
 }
 
+/**
+ * The game dropdown: the current game's name with a chevron, and a small card of every game under
+ * it when pressed. A transparent Modal at window coordinates, as the page bar's cards are, so it is
+ * never clipped by the dock or the sheet and closes on a tap anywhere else.
+ */
+function GameMenu({
+  game,
+  onPick,
+  border,
+  ink,
+  panel,
+  accent,
+  accentText,
+}: {
+  game: GameId;
+  onPick: (game: GameId) => void;
+  border: string;
+  ink: string;
+  panel: string;
+  accent: string;
+  accentText: string;
+}) {
+  const ref = useRef<ViewType>(null);
+  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const { width: winW } = useWindowDimensions();
+  const open = () => ref.current?.measureInWindow((x, y, _w, h) => setAt({ x, y: y + h + 4 }));
+  return (
+    <>
+      <Pressable
+        ref={ref}
+        onPress={open}
+        accessibilityRole="button"
+        accessibilityLabel={`Game: ${gameLabel(game)}. Change`}
+        testID="picker-game"
+        style={[styles.gameBtn, { borderColor: border }]}>
+        <Text style={[styles.gameBtnText, { color: ink }]} numberOfLines={1}>
+          {gameLabel(game)}
+        </Text>
+        <Text style={[styles.gameChevron, { color: ink }]}>{'▾'}</Text>
+      </Pressable>
+      {at ? (
+        <Modal visible transparent animationType="none" onRequestClose={() => setAt(null)}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setAt(null)} accessibilityLabel="Close" />
+          <View style={[styles.gameCard, { top: at.y, left: Math.max(8, Math.min(at.x, winW - 228)), backgroundColor: panel, borderColor: border }]}>
+            {PICKER_GAMES.map((g) => {
+              const on = g === game;
+              return (
+                <Pressable
+                  key={g}
+                  onPress={() => {
+                    setAt(null);
+                    if (!on) onPick(g);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  style={[styles.gameItem, on && { backgroundColor: accent }]}>
+                  <Text style={[styles.gameItemText, { color: on ? accentText : ink }]}>{gameLabel(g)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Modal>
+      ) : null}
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
-  // WRAPS (2026-10-18). One unwrapped row fit four chips at 375px only just, and seven ran past the
-  // edge: on /browse the panel clips, so the chips past it could not be tapped at all. A chip never
-  // shrinks (a View's flexShrink is 0), so the row breaks between chips instead.
+  // The notes about a game still loading, on a line of their own above the browser.
   gameRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, rowGap: 6, paddingHorizontal: 8, paddingBottom: 6 },
-  gameChip: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
-  gameChipText: { fontSize: 12, fontWeight: '600' },
   gameNote: { fontSize: 11 },
   // A status note takes a line of its own under the chips, never a slot between them.
   gameNoteLine: { flexBasis: '100%' },
+  // The dropdown button: the same height as the kit's Color / Theme buttons beside it.
+  gameBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 7, paddingLeft: 10, paddingRight: 8, borderRadius: 9, borderWidth: 1, maxWidth: 170 },
+  gameBtnText: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  gameChevron: { fontSize: 12 },
+  gameCard: { position: 'absolute', width: 220, borderRadius: 12, borderWidth: 1, paddingVertical: 6, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
+  gameItem: { paddingVertical: 9, paddingHorizontal: 14, marginHorizontal: 6, borderRadius: 8 },
+  gameItemText: { fontSize: 14, fontWeight: '600' },
 });

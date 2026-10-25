@@ -52,7 +52,15 @@ export function CardTray({
   /** The strip's own view, so a card dragged off a page can be dropped onto it. */
   trayRef: RefObject<View | null>;
 }) {
-  const [open, setOpen] = useState(true);
+  // SHUT WHILE EMPTY (owner, 2026-10-25): the explainer cost two lines at the top of the picker
+  // on every pocket, on a phone most of all. The header stays, and a tap opens the explainer; the
+  // first card to land in the tray opens it on its own, so the card is never hidden.
+  const [open, setOpen] = useState(slots.length > 0);
+  const [hadCards, setHadCards] = useState(slots.length > 0);
+  if (slots.length > 0 && !hadCards) {
+    setHadCards(true);
+    setOpen(true);
+  }
   const ordered = useMemo(() => [...slots].sort((a, b) => a.col - b.col), [slots]);
   return (
     <View ref={trayRef} style={styles.tray} collapsable={false}>

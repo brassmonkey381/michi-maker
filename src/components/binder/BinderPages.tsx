@@ -666,6 +666,10 @@ export function BinderPages({
 
   /** The page the last turn was built for. State, not a ref: this is read DURING render. */
   const [turnedAt, setTurnedAt] = useState(idx);
+  /** The last page and cover turns whose sheets have landed (by the clock), so a turn in the air
+   * is one that is set and has not landed. See bookLone. */
+  const [landedTurn, setLandedTurn] = useState<object | null>(null);
+  const [landedCover, setLandedCover] = useState<object | null>(null);
 
   // MOUNTED IN THE SAME COMMIT AS THE PAGE CHANGE, not in an effect afterwards. An effect runs
   // after the browser has painted, so for one frame the reader saw the destination spread bare —
@@ -763,6 +767,12 @@ export function BinderPages({
     turnT.value = withTiming(1, { duration: TURN_MS, easing: TURN_EASING }, (done) => {
       if (done) runOnJS(setPageTurn)(null);
     });
+    // THE SHEET HAS LANDED, by the clock (see bookLone). Not the animation's own callback: a turn
+    // interrupted by the next (a deep-link riffle) reports done=false, and a stale `pageTurn` can
+    // outlive its sheet; a lone page held at half width until the next turn is a worse fault than
+    // a width that settles a frame early.
+    const t = setTimeout(() => setLandedTurn(pageTurn), TURN_MS + 60);
+    return () => clearTimeout(t);
   }, [pageTurn, turnT]);
 
   // The cover's hinge. Same shape as the page's, and reset before the paint for the same reason:
@@ -774,6 +784,8 @@ export function BinderPages({
     coverT.value = withTiming(1, { duration: TURN_MS, easing: TURN_EASING }, (done) => {
       if (done) runOnJS(setCoverTurn)(null);
     });
+    const t = setTimeout(() => setLandedCover(coverTurn), TURN_MS + 60);
+    return () => clearTimeout(t);
   }, [coverTurn, coverT]);
 
   /**
@@ -821,18 +833,23 @@ export function BinderPages({
   // The open double-sided spread around the active page: [cover] alone, then [odd, odd+1].
   const bookGap = 16;
   /**
-   * A BOOK WITH NOTHING TO FACE IS A SINGLE PAGE. The first spread is [nothing, page one], and an
-   * undressed binder has no inside front cover to put in that gap, so a one-page binder in
-   * double-sided mode drew its only page at half width with an empty half beside it. That is what
-   * a first-time user sees, and it made their first page look small in a wide window.
+   * A SPREAD WITH NOTHING TO FACE IS A SINGLE PAGE (owner, 2026-10-24). The first spread is
+   * [nothing, page one] and the last spread of an odd count is [last page, nothing]; an undressed
+   * binder has no inside cover to put in that gap, so the lone page used to sit at half width with
+   * an empty half beside it. Now it takes the room a single page would, as if double-sided were
+   * off, and the empty column collapses. A dressed binder keeps the spread: the inside cover is
+   * in view, and the book stays a book.
    *
-   * ONE PAGE AND NO COVER ONLY, deliberately. From two pages up a turn is possible, and the turn
-   * overlay draws both halves at `bookW`: a width that changed between the spread being left and
-   * the one arriving would animate a sheet that grows mid-flight. A one-page binder has nothing
-   * to turn to, so the width is constant and the overlay never runs.
+   * NOT WHILE A PAGE IS TURNING. The turn overlay draws both halves at `bookW` over the settled
+   * spread, and a width that changed between the spread being left and the one arriving would
+   * animate a sheet that grows mid-flight. So the half width holds for the length of a turn and
+   * the lone page takes its full width once the sheet has landed: one step at the start of a turn
+   * away from it, one at the end of a turn onto it, never during the flip.
    */
-  const bookSingle = doubleSided && !binder.cover && count <= 1;
-  const bookRowGap = bookSingle ? 0 : bookGap;
+  const spreadLoneIdx = idx === 0 ? -1 : idx % 2 === 1 ? idx : idx - 1;
+  const turnFlying = (pageTurn !== null && landedTurn !== pageTurn) || (coverTurn !== null && landedCover !== coverTurn);
+  const bookLone = doubleSided && !binder.cover && !turnFlying && (spreadLoneIdx === -1 || spreadLoneIdx + 1 >= count);
+  const bookRowGap = bookLone ? 0 : bookGap;
   // The book never had dimmed neighbours — both halves are live — so its only waste was the
   // ceiling, and fitting the height is the whole of its fix.
   const bookW = bookLayout({
@@ -844,7 +861,7 @@ export function BinderPages({
     gap: bookGap,
     maxWidth,
     minWidth: pageFloor,
-    halves: bookSingle ? 1 : 2,
+    halves: bookLone ? 1 : 2,
   });
   /**
    * A HALF OF THE SPREAD IS NOT ALWAYS A PAGE.
@@ -1679,7 +1696,7 @@ export function BinderPages({
           <View style={[styles.spreadRow, { gap: bookRowGap }]}>
             {/* THE SPINE (owner, 2026-09-14): the band down the middle of the open book, drawn in
                 the gap between the two pages when the binder's details ask for one. */}
-            {!bookSingle && binder.pageStyle?.details?.spine ? (
+            {!bookLone && binder.pageStyle?.details?.spine ? (
               <Spine
                 style={binder.pageStyle.details.spine}
                 width={bookGap}
@@ -1693,9 +1710,9 @@ export function BinderPages({
               page={leftPage ?? (coverOf(spreadLeftIdx, 'left') ? page : null)}
               width={bookW}
               // An empty half reserves a page's width so the facing page keeps its place on the
-              // spread. When there IS no facing page (see bookSingle) it reserves nothing, or the
+              // spread. When there IS no facing page (see bookLone) it reserves nothing, or the
               // one page would sit in the right half of a book that is not open.
-              peekWidth={bookSingle ? 0 : undefined}
+              peekWidth={bookLone ? 0 : undefined}
               label={leftPage ? columnLabel(leftPage, `Page ${spreadLeftIdx + 1}`) : coverOf(spreadLeftIdx, 'left') ? 'Inside front' : ''}
               onFocus={
                 leftPage && spreadLeftIdx !== idx ? () => onPageChange(spreadLeftIdx) : undefined
@@ -1723,7 +1740,7 @@ export function BinderPages({
             <SpreadColumn
               page={rightPage ?? (coverOf(spreadRightIdx, 'right') ? page : null)}
               width={bookW}
-              peekWidth={bookSingle ? 0 : undefined}
+              peekWidth={bookLone ? 0 : undefined}
               label={rightPage ? columnLabel(rightPage, `Page ${spreadRightIdx + 1}`) : coverOf(spreadRightIdx, 'right') ? 'Inside back' : ''}
               onFocus={
                 rightPage && spreadRightIdx !== idx ? () => onPageChange(spreadRightIdx) : undefined

@@ -166,6 +166,15 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
+        head: 'Double-sided: a page with nothing facing it shows at full size',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The first page, and the last page of an odd count, used to sit at half width beside an '
+          + 'empty half. In a binder with no cover they now take the room a single page would.',
+      },
+      {
+        products: ['michi'],
         head: 'Arrange has four more layouts for nine-card pages',
         kind: 'better',
         area: 'binders',

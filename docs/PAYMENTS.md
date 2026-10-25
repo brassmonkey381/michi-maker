@@ -171,6 +171,14 @@ delete from public.entitlements where user_id = '<auth user id>' and product = '
 delete from public.print_pool_unlocks where user_id = '<auth user id>';
 ```
 
+**Free prints for one account (2026-10-25).** Prints are in no plan, so even VIP pays $1.99 per
+binder. The owner's account prints free through a 100% off Stripe promotion code (`MICHIOWNER`,
+coupon "Owner binder PDF", applies only to the binder PDF product, restricted to the owner's Stripe
+customer), entered at checkout. The $0 session completes and the webhook grants `pdf_binder:<id>`
+as for a paid one (it does not check the amount). `scripts/stripe-owner-print-code.mjs` creates
+such a code for any account; `scripts/grant-staff-prints.mjs` puts an account on `staff_accounts`,
+which only lifts the included-print cap and matters again only if prints return to a plan.
+
 The client re-checks per identity/mount (and `useTier().refresh()` re-polls), so a fresh grant
 shows up next time the user opens the gated surface — no deploy needed.
 

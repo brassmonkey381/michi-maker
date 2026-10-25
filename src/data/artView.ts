@@ -66,21 +66,24 @@ export function windowPlacement(boxW: number): { width: number; height: number; 
 }
 
 /**
- * THE BORDER OF A FULL-ART CARD, as fractions of the card: the silver band and the rounded corners,
- * measured on the Saboteri promos (26 of 640px across, 25 of 891px down). The art inside it meets
- * the next card's art when the band is cut away. The same cut on every full-art card, as with the
- * window: a card with a wider band shows a sliver of it rather than losing art.
+ * THE BORDER OF A FULL-ART CARD, as fractions of the card: the silver band and the rounded corners.
+ * Measured on all 34 Saboteri promo scans: the band's median is 4.1% on the left, 3.6% on the
+ * right (the scans sit a little to one side) and 2.7% top and bottom, and the cut is half a
+ * percent inside that, because the scans vary by a pixel or two and a hairline of band at a seam
+ * reads as a crack through the picture (owner, 2026-10-24: "slightly off"). The same cut on every
+ * full-art card, as with the window.
  */
-export const ART_FULL_TRIM = { x: 0.04, y: 0.028 } as const;
+export const ART_FULL_TRIM = { left: 0.047, right: 0.042, top: 0.033, bottom: 0.033 } as const;
 
 /** The trimmed full-art card's height over its width. */
-export const ART_FULL_H_OVER_W = ((1 - 2 * ART_FULL_TRIM.y) * CARD_H_OVER_W) / (1 - 2 * ART_FULL_TRIM.x);
+export const ART_FULL_H_OVER_W =
+  ((1 - ART_FULL_TRIM.top - ART_FULL_TRIM.bottom) * CARD_H_OVER_W) / (1 - ART_FULL_TRIM.left - ART_FULL_TRIM.right);
 
 /** As windowPlacement, for the art inside a full-art card's border. */
 export function fullArtPlacement(boxW: number): { width: number; height: number; left: number; top: number } {
-  const width = boxW / (1 - 2 * ART_FULL_TRIM.x);
+  const width = boxW / (1 - ART_FULL_TRIM.left - ART_FULL_TRIM.right);
   const height = width * CARD_H_OVER_W;
-  return { width, height, left: -ART_FULL_TRIM.x * width, top: -ART_FULL_TRIM.y * height };
+  return { width, height, left: -ART_FULL_TRIM.left * width, top: -ART_FULL_TRIM.top * height };
 }
 
 /** How a connected sheet cuts its cards: the art window, or the whole art of a full-art card. */

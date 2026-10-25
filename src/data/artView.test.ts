@@ -77,10 +77,10 @@ test('the stock card text leaves out what the catalogue does not know', () => {
 test('the full-art cut takes the border and keeps the card proportions', () => {
   const box = 200;
   const p = fullArtPlacement(box);
-  assert.ok(Math.abs(p.left + ART_FULL_TRIM.x * p.width) < 1e-9);
-  assert.ok(Math.abs(p.left + (1 - ART_FULL_TRIM.x) * p.width - box) < 1e-9);
-  assert.ok(Math.abs(p.top + ART_FULL_TRIM.y * p.height) < 1e-9);
-  assert.ok(Math.abs(p.top + (1 - ART_FULL_TRIM.y) * p.height - box * ART_FULL_H_OVER_W) < 1e-9);
+  assert.ok(Math.abs(p.left + ART_FULL_TRIM.left * p.width) < 1e-9);
+  assert.ok(Math.abs(p.left + (1 - ART_FULL_TRIM.right) * p.width - box) < 1e-9);
+  assert.ok(Math.abs(p.top + ART_FULL_TRIM.top * p.height) < 1e-9);
+  assert.ok(Math.abs(p.top + (1 - ART_FULL_TRIM.bottom) * p.height - box * ART_FULL_H_OVER_W) < 1e-9);
   assert.ok(Math.abs(p.height / p.width - 88 / 63) < 1e-9);
   // Nearly the card's own shape: the band is a few percent each side.
   assert.ok(ART_FULL_H_OVER_W > 1.38 && ART_FULL_H_OVER_W < 1.48, `got ${ART_FULL_H_OVER_W}`);

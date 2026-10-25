@@ -380,7 +380,9 @@ export function CardPicker({
           insertion and it can never be covered by the panel it belongs to. */}
       {banner}
       <View style={styles.header}>
-        <ThemedText type="subtitle" style={styles.headerTitle}>
+        {/* A TITLE, NOT A HEADLINE (owner, 2026-10-25): at the subtitle size this row alone was
+            56px of a panel whose job is to show cards. The same words at a title weight. */}
+        <ThemedText type="default" style={styles.headerTitle}>
           {title}
         </ThemedText>
         {/* A REAL BUTTON THAT SAYS WHAT IT CLOSES. As the word "Done" in accent text it read as
@@ -603,8 +605,8 @@ const styles = StyleSheet.create({
   // A definite height (not just maxHeight) so the browse FlatList gets a bounded viewport. Overrides
   // the shared bottomSheet's 85% maxHeight to give the Slice Studio canvas more vertical room.
   sheetTall: { height: '94%', maxHeight: '94%' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  headerTitle: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
+  headerTitle: { flex: 1, fontSize: 20, lineHeight: 26, fontWeight: Weight.semibold },
   /** The app's primary chip, the same one "Done Editing" wears: this ends a mode, like that does. */
   closeBtn: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: Radius.pill, backgroundColor: Palette.accent },
   closeBtnPressed: { opacity: 0.7 },

@@ -41,18 +41,31 @@ export interface CollectorCard {
   /** Printing language; absent means English. */
   language?: 'en' | 'ja';
   illustrator?: string;
+  /** The species this card evolves from, as the card prints it ("Charmeleon"). */
+  evolvesFrom?: string;
 }
 
-/** How a species or line result is ordered. Sets and the dex keep their own order. */
-export type CollectorSort = 'release' | 'newest' | 'rarity' | 'artist' | 'name';
+/**
+ * How a species or line result is ordered. Sets and the dex keep their own order. A key and a
+ * direction: tapping the active chip flips the direction (owner, 2026-10-26).
+ */
+export type CollectorSortKey = 'release' | 'rarity' | 'value' | 'artist' | 'name';
+export type SortDir = 'asc' | 'desc';
+export interface CollectorSort {
+  key: CollectorSortKey;
+  dir: SortDir;
+}
 
-export const COLLECTOR_SORTS: readonly { id: CollectorSort; label: string; blurb: string }[] = [
-  { id: 'release', label: 'Oldest first', blurb: 'By release date, oldest first.' },
-  { id: 'newest', label: 'Newest first', blurb: 'By release date, newest first.' },
-  { id: 'rarity', label: 'Rarest first', blurb: 'By rarity, the rarest first.' },
-  { id: 'artist', label: 'By artist', blurb: 'Illustrators A to Z, then release.' },
-  { id: 'name', label: 'By name', blurb: 'Card names A to Z, then release.' },
+export const COLLECTOR_SORT_KEYS: readonly { id: CollectorSortKey; label: string; blurb: string }[] = [
+  { id: 'release', label: 'Release', blurb: 'By release date.' },
+  { id: 'rarity', label: 'Rarity', blurb: 'By rarity.' },
+  { id: 'value', label: 'Value', blurb: 'By market value.' },
+  { id: 'artist', label: 'Artist', blurb: 'By illustrator, A to Z.' },
+  { id: 'name', label: 'Name', blurb: 'By card name, A to Z.' },
 ];
+
+/** The direction a key reads best in first: newest, rarest and priciest first; names A to Z. */
+export const DEFAULT_DIR: Record<CollectorSortKey, SortDir> = { release: 'desc', rarity: 'desc', value: 'desc', artist: 'asc', name: 'asc' };
 
 /**
  * Rarity names from the catalogue, plainest to rarest. A name not listed sorts with the plain
@@ -175,21 +188,39 @@ const byNumber = (a: CollectorCard, b: CollectorCard) => numberKey(a.number) - n
 const byRelease = (a: CollectorCard, b: CollectorCard) =>
   (a.releaseDate || '9999').localeCompare(b.releaseDate || '9999') || a.setId.localeCompare(b.setId) || byNumber(a, b);
 
-const byRarity = (a: CollectorCard, b: CollectorCard) => rarityRank(b.rarity) - rarityRank(a.rarity) || -byRelease(a, b);
-const byArtist = (a: CollectorCard, b: CollectorCard) =>
-  (a.illustrator || '\uffff').localeCompare(b.illustrator || '\uffff') || byRelease(a, b);
-const byName = (a: CollectorCard, b: CollectorCard) => a.name.localeCompare(b.name) || byRelease(a, b);
-
 /**
  * Re-order a result's pockets by the chosen sort. `cardOf` finds the card behind a pocket; a
  * pocket whose card is unknown keeps its place at the end. Finishes and cameo marks ride along.
+ * Ties break on release, oldest first, then set and number, so the order is total and stable.
+ * `valueOf` is the card's headline market value (the price summary's `cur`); unpriced cards
+ * count as 0.
  */
-export function sortPockets(result: CollectorResult, cardOf: (id: string) => CollectorCard | undefined, sort: CollectorSort): CollectorResult {
-  if (sort === 'release') return result;
-  const cmp = sort === 'newest' ? (a: CollectorCard, b: CollectorCard) => -byRelease(a, b) : sort === 'rarity' ? byRarity : sort === 'artist' ? byArtist : byName;
+export function sortPockets(
+  result: CollectorResult,
+  cardOf: (id: string) => CollectorCard | undefined,
+  sort: CollectorSort,
+  valueOf: (id: string) => number = () => 0,
+): CollectorResult {
+  const sign = sort.dir === 'asc' ? 1 : -1;
+  const key = (p: CollectorPocket, c: CollectorCard): number | string => {
+    switch (sort.key) {
+      case 'release': return c.releaseDate || '9999';
+      case 'rarity': return rarityRank(c.rarity);
+      case 'value': return valueOf(p.cardId);
+      case 'artist': return (c.illustrator || '\uffff').toLowerCase();
+      default: return c.name.toLowerCase();
+    }
+  };
   const known = result.pockets.filter((p) => cardOf(p.cardId));
   const unknown = result.pockets.filter((p) => !cardOf(p.cardId));
-  known.sort((a, b) => cmp(cardOf(a.cardId)!, cardOf(b.cardId)!));
+  known.sort((a, b) => {
+    const ca = cardOf(a.cardId)!;
+    const cb = cardOf(b.cardId)!;
+    const ka = key(a, ca);
+    const kb = key(b, cb);
+    const d = typeof ka === 'number' && typeof kb === 'number' ? ka - kb : String(ka).localeCompare(String(kb));
+    return sign * d || byRelease(ca, cb);
+  });
   return { ...result, pockets: [...known, ...unknown] };
 }
 
@@ -270,12 +301,44 @@ export function evolutionLineSet(cards: Iterable<CollectorCard>, species: string
   for (const c of all) {
     if (speciesKey(speciesOf(c.name)) === want && c.evolutionLine.length > line.length) line = c.evolutionLine;
   }
-  const family = (line.length ? line : [species]).map(speciesKey);
+  const family = (line.length ? line.map(speciesKey) : familyFromEvolvesFrom(all, want));
   const stageOf = (c: CollectorCard) => family.indexOf(speciesKey(speciesOf(c.name)));
   const hits = all.filter((c) => standard(c) && stageOf(c) >= 0);
   hits.sort((a, b) =>
     (a.releaseDate || '9999').localeCompare(b.releaseDate || '9999') || a.setId.localeCompare(b.setId) || stageOf(a) - stageOf(b) || byNumber(a, b));
   return { pockets: hits.map((c) => ({ cardId: c.id })), missing: [] };
+}
+
+/**
+ * The family from the cards' own "evolves from" lines, for a catalogue that carries no
+ * `evolution_line` (the gated catalogue the live app downloads has none; found 2026-10-26 when a
+ * Charmander line came back as 74 Charmanders). Walk up through ancestors to the root, then down
+ * through every descendant, breadth first, so Charmander reads Charmander, Charmeleon, Charizard
+ * and Eevee reads Eevee then its evolutions. A species no card links is a family of one.
+ */
+export function familyFromEvolvesFrom(cards: readonly CollectorCard[], speciesKeyWanted: string): string[] {
+  const parentOf = new Map<string, string>();
+  const childrenOf = new Map<string, Set<string>>();
+  for (const c of cards) {
+    if (!c.evolvesFrom) continue;
+    const child = speciesKey(speciesOf(c.name));
+    const parent = speciesKey(speciesOf(c.evolvesFrom));
+    if (!child || !parent || child === parent) continue;
+    parentOf.set(child, parent);
+    if (!childrenOf.has(parent)) childrenOf.set(parent, new Set());
+    childrenOf.get(parent)!.add(child);
+  }
+  let root = speciesKeyWanted;
+  for (let i = 0; i < 6 && parentOf.has(root); i += 1) root = parentOf.get(root)!;
+  const family: string[] = [];
+  const queue = [root];
+  while (queue.length) {
+    const k = queue.shift()!;
+    if (family.includes(k)) continue;
+    family.push(k);
+    for (const child of childrenOf.get(k) ?? []) queue.push(child);
+  }
+  return family;
 }
 
 /**

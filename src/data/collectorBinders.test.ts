@@ -3,7 +3,8 @@ import { test } from 'node:test';
 
 import {
   type CollectorCard, completeSet, dexNumber, evolutionLineSet, inLanguage, isSecretRare, livingDex, masterSet, MICHI_PAGE_TEMPLATES,
-  michiPages, numberKey, pagesNeeded, POKEDEX, rarityRank, searchSpecies, sortPockets, speciesCounts, speciesOf, speciesSet, withCameos,
+  familyFromEvolvesFrom, michiPages, numberKey, pagesNeeded, POKEDEX, rarityRank, searchSpecies, sortPockets, speciesCounts, speciesOf, speciesSet,
+  withCameos,
 } from './collectorBinders.ts';
 
 const card = (id: string, name: string, number: string, extra: Partial<CollectorCard> = {}): CollectorCard => ({
@@ -73,6 +74,21 @@ test('an evolution line keeps each era together, stages in family order', () => 
   ];
   assert.deepEqual(evolutionLineSet(cards, 'Pikachu').pockets.map((p) => p.cardId), ['p0', 'r0', 'pi', 'p', 'r']);
   assert.deepEqual(evolutionLineSet(cards, 'Charmander').pockets, []);
+  // No evolution_line anywhere (the gated catalogue): the family comes from "evolves from".
+  const bare = [
+    card('z', 'Charizard ex', '6/165', { evolvesFrom: 'Charmeleon' }),
+    card('m', 'Charmeleon', '5/165', { evolvesFrom: 'Charmander' }),
+    card('c', 'Charmander', '4/165'),
+    card('mega', 'Mega Charizard X ex', '200/165', { evolvesFrom: 'Charizard ex' }),
+    card('e', 'Eevee', '133/165'),
+    card('v', 'Vaporeon', '134/165', { evolvesFrom: 'Eevee' }),
+    card('j', 'Jolteon', '135/165', { evolvesFrom: 'Eevee' }),
+  ];
+  assert.deepEqual(familyFromEvolvesFrom(bare, 'charmander'), ['charmander', 'charmeleon', 'charizard']);
+  assert.deepEqual(familyFromEvolvesFrom(bare, 'charizard'), ['charmander', 'charmeleon', 'charizard']);
+  assert.deepEqual(familyFromEvolvesFrom(bare, 'eevee'), ['eevee', 'vaporeon', 'jolteon']);
+  assert.deepEqual(evolutionLineSet(bare, 'Charmeleon').pockets.map((p) => p.cardId), ['c', 'm', 'z', 'mega']);
+  assert.deepEqual(evolutionLineSet(bare, 'Vaporeon').pockets.map((p) => p.cardId), ['e', 'v', 'j']);
   // A species no card places in a line is a line of one.
   assert.deepEqual(evolutionLineSet(cards, 'Eevee').pockets.map((p) => p.cardId), ['x']);
 });
@@ -166,10 +182,17 @@ test('sorting a species result: rarest, artist, name, newest; counts per species
   ];
   const cardOf = (id: string) => cards.find((c) => c.id === id);
   const base = { pockets: cards.map((c) => ({ cardId: c.id })), missing: [] };
-  assert.deepEqual(sortPockets(base, cardOf, 'rarity').pockets.map((p) => p.cardId), ['s', 'z', 'a', 'c']);
-  assert.deepEqual(sortPockets(base, cardOf, 'artist').pockets.map((p) => p.cardId), ['a', 'z', 'c', 's']);
-  assert.deepEqual(sortPockets(base, cardOf, 'name').pockets.map((p) => p.cardId), ['z', 's', 'c', 'a']);
-  assert.equal(sortPockets(base, cardOf, 'newest').pockets[0].cardId, 's');
+  const by = (key: 'release' | 'rarity' | 'value' | 'artist' | 'name', dir: 'asc' | 'desc', valueOf?: (id: string) => number) =>
+    sortPockets(base, cardOf, { key, dir }, valueOf).pockets.map((p) => p.cardId);
+  assert.deepEqual(by('rarity', 'desc'), ['s', 'z', 'a', 'c']);
+  assert.deepEqual(by('rarity', 'asc'), ['c', 'a', 'z', 's']);
+  assert.deepEqual(by('artist', 'asc'), ['a', 'z', 'c', 's']);
+  assert.deepEqual(by('name', 'asc'), ['z', 's', 'c', 'a']);
+  assert.deepEqual(by('name', 'desc'), ['a', 'c', 's', 'z']);
+  assert.equal(by('release', 'desc')[0], 's');
+  assert.equal(by('release', 'asc')[3], 's');
+  const value: Record<string, number> = { s: 120, z: 400, a: 1 };
+  assert.deepEqual(by('value', 'desc', (id) => value[id] ?? 0), ['z', 's', 'a', 'c']);
   assert.ok(rarityRank('Hyper Rare') > rarityRank('Illustration Rare') && rarityRank('Illustration Rare') > rarityRank('Common'));
   assert.equal(rarityRank('Something New'), rarityRank('Rare'));
   assert.deepEqual(speciesCounts(base, cardOf), [{ species: 'Charmander', count: 1 }, { species: 'Charizard', count: 2 }, { species: 'Charmeleon', count: 1 }]);

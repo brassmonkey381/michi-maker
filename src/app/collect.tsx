@@ -23,9 +23,9 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/binderTypes';
 import {
-  COLLECTOR_KINDS, COLLECTOR_SORTS, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult, type CollectorSort,
-  completeSet, evolutionLineSet, inLanguage, livingDex, masterSet, michiPages, pagesNeeded, searchSpecies, sortPockets, speciesCounts, speciesSet,
-  withCameos,
+  COLLECTOR_KINDS, COLLECTOR_SORT_KEYS, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult, type CollectorSort,
+  type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionLineSet, inLanguage, livingDex, masterSet, michiPages, pagesNeeded, searchSpecies,
+  sortPockets, speciesCounts, speciesSet, withCameos,
 } from '@/data/collectorBinders';
 import { saveFillSheetFiles, fileStem } from '@/data/fillSheetSave';
 import { buildFillSheetPdfs } from '@/data/placeholderPdf';
@@ -102,7 +102,7 @@ export default function CollectScreen() {
   const { limits, tier } = useTier();
   const ownedIds = useOwnedCards();
   useImageManifest();
-  const { catalog, loading } = useCatalog(true);
+  const { catalog, loading, guestGated } = useCatalog(true);
 
   const [kind, setKind] = useState<CollectorKind>('complete');
   const [query, setQuery] = useState('');
@@ -114,7 +114,9 @@ export default function CollectScreen() {
   const [secrets, setSecrets] = useState(true);
   const [reverse, setReverse] = useState<'after' | 'beside'>('after');
   const [cameos, setCameos] = useState(false);
-  const [sort, setSort] = useState<CollectorSort>('release');
+  const [sort, setSort] = useState<CollectorSort>({ key: 'release', dir: 'desc' });
+  const pickSort = (key: CollectorSortKey) =>
+    setSort((cur) => (cur.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: DEFAULT_DIR[key] }));
   const [showAll, setShowAll] = useState(false);
   const [building, setBuilding] = useState(false);
   const [printing, setPrinting] = useState(false);
@@ -137,8 +139,9 @@ export default function CollectScreen() {
   // when first asked for, into state from the promise's callback; everything else is the
   // catalogue alone and is derived below.
   const [priced, setPriced] = useState<PriceSummary | null>(null);
+  const wantPrices = kind === 'master' || (needs === 'pokemon' && sort.key === 'value');
   useEffect(() => {
-    if (kind !== 'master' || priced) return;
+    if (!wantPrices || priced) return;
     let live = true;
     getPriceSummary()
       .then((p) => {
@@ -150,7 +153,7 @@ export default function CollectScreen() {
     return () => {
       live = false;
     };
-  }, [kind, priced]);
+  }, [wantPrices, priced]);
 
   // CAMEOS come from the data server's cameo tags through the kit's own search (`cameo:<species>`),
   // the same metered path the browser takes: a free plan gets the top few, PRO and VIP get them
@@ -185,7 +188,7 @@ export default function CollectScreen() {
     else if (kind === 'line' && species) r = evolutionLineSet(allCards, species);
     else if (kind === 'dex') r = livingDex(allCards, dexPick);
     if (r && wantCameos && cameoReady && cameoHits) r = withCameos(r, cameoHits.cards);
-    if (r && (kind === 'species' || kind === 'line')) r = sortPockets(r, (id) => catalog.getCard(id), sort);
+    if (r && (kind === 'species' || kind === 'line')) r = sortPockets(r, (id) => catalog.getCard(id), sort, (id) => priced?.[id]?.cur ?? 0);
     return r;
   }, [catalog, allCards, kind, set, species, dexPick, priced, secrets, reverse, wantCameos, cameoReady, cameoHits, sort]);
   const perSpecies = useMemo(() => (result && catalog && kind === 'line' ? speciesCounts(result, (id) => catalog.getCard(id)) : []), [result, catalog, kind]);
@@ -230,7 +233,7 @@ export default function CollectScreen() {
   const makeBinder = () => {
     if (!result || building) return;
     if (!isSignedIn) {
-      setNote('Sign in to keep a binder. Printing the placeholders needs no account.');
+      setNote('Sign in to keep a binder.');
       return;
     }
     if (overPageCap) {
@@ -258,7 +261,7 @@ export default function CollectScreen() {
             <ThemedText type="small" style={styles.eyebrow}>COLLECTOR BINDERS</ThemedText>
             <ThemedText type="subtitle" style={styles.h1}>Ask for a set, get the binder</ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
-              Print the placeholders free, or make it your binder.
+              Print the placeholders free, or make it your binder. Sign in first.
             </ThemedText>
           </View>
 
@@ -287,11 +290,26 @@ export default function CollectScreen() {
               <Check on={secrets} onPress={() => setSecrets((v) => !v)} testID="collect-secrets">Include secret rares, numbered past the set total.</Check>
             ) : null}
             {kind === 'master' ? <Seg options={REVERSE} value={reverse} onChange={setReverse} /> : null}
-            {needs === 'pokemon' ? <Seg options={COLLECTOR_SORTS} value={sort} onChange={setSort} /> : null}
+            {needs === 'pokemon' ? (
+              <View style={styles.sortRow} testID="collect-sort">
+                <ThemedText type="small" themeColor="textSecondary">Sort</ThemedText>
+                {COLLECTOR_SORT_KEYS.map((k) => {
+                  const on = sort.key === k.id;
+                  return (
+                    <Pressable key={k.id} onPress={() => pickSort(k.id)} style={[styles.sortChip, on && styles.sortChipOn]} accessibilityRole="button" accessibilityLabel={`${k.label}: ${k.blurb} Tap again to flip.`} testID={`collect-sort-${k.id}`}>
+                      <ThemedText type="small" style={[styles.sortText, on && styles.sortTextOn]}>{on ? `${k.label} ${sort.dir === 'asc' ? '\u25B2' : '\u25BC'}` : k.label}</ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
             {needs === 'pokemon' ? (
               <Check on={cameos} onPress={() => setCameos((v) => !v)} testID="collect-cameos">Add cameo cards: this Pokémon inside other cards.</Check>
             ) : null}
-            {(loading && !catalog) || (kind === 'master' && set && !priced) || (wantCameos && !cameoReady) ? <ActivityIndicator style={styles.loading} /> : null}
+            {guestGated ? (
+              <ThemedText type="small" style={styles.note}>Sign in free to build. Guests see nothing here.</ThemedText>
+            ) : null}
+            {(loading && !catalog) || (wantPrices && !priced) || (wantCameos && !cameoReady) ? <ActivityIndicator style={styles.loading} /> : null}
             {setHits.length && !set ? (
               <View style={styles.hits}>
                 {setHits.map((s) => (
@@ -404,6 +422,11 @@ const styles = StyleSheet.create({
   reverse: { position: 'absolute', right: 3, top: 3, backgroundColor: '#1f1f24', borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1 },
   reverseText: { color: '#fff', fontWeight: Weight.bold, fontSize: 10, lineHeight: 12 },
   ownedDot: { position: 'absolute', left: 3, top: 3, width: 10, height: 10, borderRadius: 5, backgroundColor: '#2e9e5b', borderWidth: 1, borderColor: '#fff' },
+  sortRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.one },
+  sortChip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: Radius.pill, backgroundColor: Palette.panel },
+  sortChipOn: { backgroundColor: Palette.accent },
+  sortText: { color: Palette.muted },
+  sortTextOn: { color: Palette.accentText, fontWeight: Weight.semibold },
   more: { marginLeft: Spacing.one, paddingVertical: Spacing.one, paddingHorizontal: Spacing.two, borderRadius: Radius.control, borderWidth: 1, borderColor: Palette.hairlineStrong },
   moreText: { color: Palette.accent },
   toggleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },

@@ -23,9 +23,9 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/binderTypes';
 import {
-  COLLECTOR_KINDS, COLLECTOR_SORT_KEYS, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult, type CollectorSort,
-  type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionLineSet, inLanguage, livingDex, masterSet, michiPages, pagesNeeded, searchSpecies,
-  sortPockets, speciesCounts, speciesSet, withCameos,
+  COLLECTOR_KINDS, COLLECTOR_SORT_KEYS, type CollectorFilters, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult,
+  type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets, inLanguage,
+  livingDex, masterSet, michiPages, NO_FILTERS, pagesNeeded, searchSpecies, sortPockets, speciesCounts, speciesSet, withCameos,
 } from '@/data/collectorBinders';
 import { saveFillSheetFiles, fileStem } from '@/data/fillSheetSave';
 import { buildFillSheetPdfs } from '@/data/placeholderPdf';
@@ -115,6 +115,11 @@ export default function CollectScreen() {
   const [reverse, setReverse] = useState<'after' | 'beside'>('after');
   const [cameos, setCameos] = useState(false);
   const [sort, setSort] = useState<CollectorSort>({ key: 'release', dir: 'desc' });
+  const [filters, setFilters] = useState<CollectorFilters>(NO_FILTERS);
+  const [openFacet, setOpenFacet] = useState<FacetKey | null>(null);
+  const toggleFacet = (facet: FacetKey, id: string) =>
+    setFilters((f) => ({ ...f, [facet]: f[facet].includes(id) ? f[facet].filter((x) => x !== id) : [...f[facet], id] }));
+  const activeFilters = FACETS.filter((f) => filters[f.id].length).length + (filters.fullArt ? 1 : 0) + (filters.pokemonOnly ? 1 : 0) + (filters.owned !== 'all' ? 1 : 0);
   const pickSort = (key: CollectorSortKey) =>
     setSort((cur) => (cur.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: DEFAULT_DIR[key] }));
   const [showAll, setShowAll] = useState(false);
@@ -178,7 +183,8 @@ export default function CollectScreen() {
   }, [wantCameos, species, lang, cameoHits]);
   const cameoReady = !wantCameos || (cameoHits?.species === species && cameoHits.lang === lang);
 
-  const result = useMemo<CollectorResult | null>(() => {
+  // The result before filters, so the facet chips can name every value the binder has.
+  const unfiltered = useMemo<CollectorResult | null>(() => {
     if (!catalog) return null;
     const setOpts = { secrets, reverse };
     let r: CollectorResult | null = null;
@@ -188,9 +194,21 @@ export default function CollectScreen() {
     else if (kind === 'line' && species) r = evolutionLineSet(allCards, species);
     else if (kind === 'dex') r = livingDex(allCards, dexPick);
     if (r && wantCameos && cameoReady && cameoHits) r = withCameos(r, cameoHits.cards);
-    if (r && (kind === 'species' || kind === 'line')) r = sortPockets(r, (id) => catalog.getCard(id), sort, (id) => priced?.[id]?.cur ?? 0);
     return r;
-  }, [catalog, allCards, kind, set, species, dexPick, priced, secrets, reverse, wantCameos, cameoReady, cameoHits, sort]);
+  }, [catalog, allCards, kind, set, species, dexPick, priced, secrets, reverse, wantCameos, cameoReady, cameoHits]);
+  const filterCtx = useMemo(() => ({
+    seriesOf: (setId: string) => catalog?.getSet(setId)?.seriesId ?? '',
+    ownedIds,
+    labelOf: (facet: FacetKey, id: string) =>
+      facet === 'series' ? catalog?.getSeries(id)?.name ?? id : facet === 'sets' ? catalog?.getSet(id)?.name ?? id : id || 'Unknown',
+  }), [catalog, ownedIds]);
+  const facets = useMemo(() => (unfiltered && catalog ? facetOptions(unfiltered, (id) => catalog.getCard(id), filterCtx) : null), [unfiltered, catalog, filterCtx]);
+  const result = useMemo<CollectorResult | null>(() => {
+    if (!unfiltered || !catalog) return null;
+    let r = filterPockets(unfiltered, (id) => catalog.getCard(id), filters, filterCtx);
+    if (kind === 'species' || kind === 'line') r = sortPockets(r, (id) => catalog.getCard(id), sort, (id) => priced?.[id]?.cur ?? 0);
+    return r;
+  }, [unfiltered, catalog, filters, filterCtx, kind, sort, priced]);
   const perSpecies = useMemo(() => (result && catalog && kind === 'line' ? speciesCounts(result, (id) => catalog.getCard(id)) : []), [result, catalog, kind]);
 
   const title = kind === 'dex'
@@ -266,7 +284,7 @@ export default function CollectScreen() {
           </View>
 
           <View style={styles.panel}>
-            <Seg options={KIND_OPTIONS} value={kind} onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); }} />
+            <Seg options={KIND_OPTIONS} value={kind} onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); setFilters(NO_FILTERS); setOpenFacet(null); }} />
             <ThemedText type="small" themeColor="textSecondary">{KIND_OPTIONS.find((k) => k.id === kind)?.blurb}</ThemedText>
             <Seg options={LANGS} value={lang} onChange={(l) => { setLang(l); setSet(null); if (needs === 'set') setQuery(''); }} />
 
@@ -306,6 +324,52 @@ export default function CollectScreen() {
             {needs === 'pokemon' ? (
               <Check on={cameos} onPress={() => setCameos((v) => !v)} testID="collect-cameos">Add cameo cards: this Pokémon inside other cards.</Check>
             ) : null}
+            {unfiltered && facets ? (
+              <>
+                <View style={styles.sortRow} testID="collect-filters">
+                  <ThemedText type="small" themeColor="textSecondary">Filter</ThemedText>
+                  {FACETS.filter((f) => (needs === 'set' ? f.id !== 'series' && f.id !== 'sets' : true)).map((f) => {
+                    const n = filters[f.id].length;
+                    const open = openFacet === f.id;
+                    return (
+                      <Pressable key={f.id} onPress={() => setOpenFacet(open ? null : f.id)} style={[styles.sortChip, (n > 0 || open) && styles.sortChipOn]} accessibilityRole="button" accessibilityState={{ expanded: open }} testID={`collect-facet-${f.id}`}>
+                        <ThemedText type="small" style={[styles.sortText, (n > 0 || open) && styles.sortTextOn]}>{n ? `${f.label} · ${n}` : f.label}</ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                  <Pressable onPress={() => setFilters((v) => ({ ...v, fullArt: !v.fullArt }))} style={[styles.sortChip, filters.fullArt && styles.sortChipOn]} accessibilityRole="switch" accessibilityState={{ checked: filters.fullArt }} testID="collect-full-art">
+                    <ThemedText type="small" style={[styles.sortText, filters.fullArt && styles.sortTextOn]}>Full art</ThemedText>
+                  </Pressable>
+                  <Pressable onPress={() => setFilters((v) => ({ ...v, pokemonOnly: !v.pokemonOnly }))} style={[styles.sortChip, filters.pokemonOnly && styles.sortChipOn]} accessibilityRole="switch" accessibilityState={{ checked: filters.pokemonOnly }} testID="collect-pokemon-only">
+                    <ThemedText type="small" style={[styles.sortText, filters.pokemonOnly && styles.sortTextOn]}>Pokémon only</ThemedText>
+                  </Pressable>
+                  {ownedIds ? (
+                    <Pressable onPress={() => setFilters((v) => ({ ...v, owned: v.owned === 'all' ? 'owned' : v.owned === 'owned' ? 'missing' : 'all' }))} style={[styles.sortChip, filters.owned !== 'all' && styles.sortChipOn]} accessibilityRole="button" testID="collect-owned-filter">
+                      <ThemedText type="small" style={[styles.sortText, filters.owned !== 'all' && styles.sortTextOn]}>{filters.owned === 'all' ? 'Owned: all' : filters.owned === 'owned' ? 'Owned only' : 'Missing only'}</ThemedText>
+                    </Pressable>
+                  ) : null}
+                  {activeFilters ? (
+                    <Pressable onPress={() => { setFilters(NO_FILTERS); setOpenFacet(null); }} style={styles.sortChip} accessibilityRole="button" testID="collect-clear-filters">
+                      <ThemedText type="small" style={styles.sortText}>Clear</ThemedText>
+                    </Pressable>
+                  ) : null}
+                </View>
+                {openFacet ? (
+                  <View style={styles.facetBox} testID={`collect-facet-options-${openFacet}`}>
+                    {facets[openFacet].length === 0 ? <ThemedText type="small" themeColor="textSecondary">Nothing to pick here.</ThemedText> : null}
+                    {facets[openFacet].slice(0, 60).map((o) => {
+                      const on = filters[openFacet].includes(o.id);
+                      return (
+                        <Pressable key={o.id} onPress={() => toggleFacet(openFacet, o.id)} style={[styles.sortChip, on && styles.sortChipOn]} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                          <ThemedText type="small" style={[styles.sortText, on && styles.sortTextOn]}>{`${o.label} ${o.count}`}</ThemedText>
+                        </Pressable>
+                      );
+                    })}
+                    {facets[openFacet].length > 60 ? <ThemedText type="small" themeColor="textSecondary">{`${facets[openFacet].length - 60} more not shown.`}</ThemedText> : null}
+                  </View>
+                ) : null}
+              </>
+            ) : null}
             {guestGated ? (
               <ThemedText type="small" style={styles.note}>Sign in free to build. Guests see nothing here.</ThemedText>
             ) : null}
@@ -336,6 +400,7 @@ export default function CollectScreen() {
               <ThemedText type="subtitle">{title}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
                 {`${result.pockets.length} pockets · ${pages} ${pages === 1 ? 'page' : 'pages'}`}
+                {activeFilters && unfiltered ? ` · of ${unfiltered.pockets.length}` : ''}
                 {owned != null ? ` · you own ${owned}` : ''}
                 {cameoCount ? ` · ${cameoCount} cameos` : ''}
                 {result.missing.length ? ` · ${result.missing.length} Pokémon have no card` : ''}
@@ -423,6 +488,7 @@ const styles = StyleSheet.create({
   reverseText: { color: '#fff', fontWeight: Weight.bold, fontSize: 10, lineHeight: 12 },
   ownedDot: { position: 'absolute', left: 3, top: 3, width: 10, height: 10, borderRadius: 5, backgroundColor: '#2e9e5b', borderWidth: 1, borderColor: '#fff' },
   sortRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.one },
+  facetBox: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, padding: Spacing.two, borderRadius: Radius.control, backgroundColor: Palette.panel },
   sortChip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: Radius.pill, backgroundColor: Palette.panel },
   sortChipOn: { backgroundColor: Palette.accent },
   sortText: { color: Palette.muted },

@@ -43,6 +43,126 @@ export interface CollectorCard {
   illustrator?: string;
   /** The species this card evolves from, as the card prints it ("Charmeleon"). */
   evolvesFrom?: string;
+  /** Energy types ("Fire"), the card's class ("Pokémon", "Trainer", "Energy"), art class. */
+  types?: string[];
+  cardType?: string[];
+  fullArt?: boolean;
+  fullArtKind?: string;
+}
+
+/**
+ * FILTERS (owner, 2026-10-26): what collectors narrow a binder to. Multi-select facets (an empty
+ * list means "all"), two toggles, and the owned view. The research behind the list: rarity-tier
+ * binders (illustration rares, full arts), artist binders, type binders (all Fire), era binders
+ * (one series), and "what I still need" for a set.
+ */
+export interface CollectorFilters {
+  rarities: readonly string[];
+  series: readonly string[];
+  sets: readonly string[];
+  artists: readonly string[];
+  types: readonly string[];
+  /** Full-art cards only: the kit's own flag, else the art kinds the Arrange module calls full. */
+  fullArt: boolean;
+  /** Pokémon only: no trainers, no energies. */
+  pokemonOnly: boolean;
+  owned: 'all' | 'owned' | 'missing';
+}
+
+export const NO_FILTERS: CollectorFilters = { rarities: [], series: [], sets: [], artists: [], types: [], fullArt: false, pokemonOnly: false, owned: 'all' };
+
+export type FacetKey = 'rarities' | 'series' | 'sets' | 'artists' | 'types';
+export const FACETS: readonly { id: FacetKey; label: string }[] = [
+  { id: 'rarities', label: 'Rarity' },
+  { id: 'series', label: 'Series' },
+  { id: 'sets', label: 'Set' },
+  { id: 'artists', label: 'Artist' },
+  { id: 'types', label: 'Type' },
+];
+
+const FULL_ART_KINDS = new Set(['special_illustration_rare', 'illustration_rare', 'named_full_art', 'measured', 'double_rare']);
+
+/** Is this a full-art card? The kit's flag wins; the art kind answers for cards without it. */
+export function isFullArt(c: CollectorCard): boolean {
+  if (typeof c.fullArt === 'boolean') return c.fullArt;
+  return FULL_ART_KINDS.has(c.fullArtKind ?? '');
+}
+
+/** Is this a Pokémon card (not a trainer or energy)? The card class wins; else the species rule. */
+export function isPokemonCard(c: CollectorCard): boolean {
+  if (c.cardType && c.cardType.length) return c.cardType.some((t) => /pok/i.test(t));
+  return speciesOf(c.name) !== '';
+}
+
+/** Energy types only ("Fire"), never the card class, for the Type facet. */
+const energyTypes = (c: CollectorCard) => (c.types ?? []).filter((t) => !/pok|trainer|energy/i.test(t));
+
+export interface FilterContext {
+  /** The series a set belongs to, by set id. */
+  seriesOf: (setId: string) => string;
+  ownedIds?: ReadonlySet<string> | null;
+}
+
+/** The pockets that pass every filter. A pocket whose card is unknown passes the card facets. */
+export function filterPockets(result: CollectorResult, cardOf: (id: string) => CollectorCard | undefined, f: CollectorFilters, ctx: FilterContext): CollectorResult {
+  const inList = (list: readonly string[], v: string) => list.length === 0 || list.includes(v);
+  const pockets = result.pockets.filter((p) => {
+    if (f.owned !== 'all' && ctx.ownedIds) {
+      const has = ctx.ownedIds.has(p.cardId);
+      if (f.owned === 'owned' ? !has : has) return false;
+    }
+    const c = cardOf(p.cardId);
+    if (!c) return true;
+    if (!inList(f.rarities, c.rarity)) return false;
+    if (!inList(f.series, ctx.seriesOf(c.setId))) return false;
+    if (!inList(f.sets, c.setId)) return false;
+    if (!inList(f.artists, c.illustrator ?? '')) return false;
+    if (f.types.length && !energyTypes(c).some((t) => f.types.includes(t))) return false;
+    if (f.fullArt && !isFullArt(c)) return false;
+    if (f.pokemonOnly && !isPokemonCard(c)) return false;
+    return true;
+  });
+  return { ...result, pockets };
+}
+
+export interface FacetOption {
+  id: string;
+  label: string;
+  count: number;
+}
+
+/**
+ * The choices each facet offers for a result, with how many pockets carry each, so the chips
+ * only ever name values the binder actually has. Rarities read rarest first; series and sets
+ * newest first; artists and types by count.
+ */
+export function facetOptions(result: CollectorResult, cardOf: (id: string) => CollectorCard | undefined, ctx: FilterContext & { labelOf: (facet: FacetKey, id: string) => string }): Record<FacetKey, FacetOption[]> {
+  const tally: Record<FacetKey, Map<string, number>> = { rarities: new Map(), series: new Map(), sets: new Map(), artists: new Map(), types: new Map() };
+  const firstSeen: Record<string, string> = {};
+  const bump = (facet: FacetKey, id: string, date: string) => {
+    if (!id) return;
+    tally[facet].set(id, (tally[facet].get(id) ?? 0) + 1);
+    const k = `${facet}:${id}`;
+    if (!firstSeen[k] || date > firstSeen[k]) firstSeen[k] = date;
+  };
+  for (const p of result.pockets) {
+    const c = cardOf(p.cardId);
+    if (!c) continue;
+    bump('rarities', c.rarity, c.releaseDate);
+    bump('series', ctx.seriesOf(c.setId), c.releaseDate);
+    bump('sets', c.setId, c.releaseDate);
+    bump('artists', c.illustrator ?? '', c.releaseDate);
+    for (const t of energyTypes(c)) bump('types', t, c.releaseDate);
+  }
+  const out = {} as Record<FacetKey, FacetOption[]>;
+  for (const facet of Object.keys(tally) as FacetKey[]) {
+    const opts = [...tally[facet].entries()].map(([id, count]) => ({ id, label: ctx.labelOf(facet, id), count }));
+    if (facet === 'rarities') opts.sort((a, b) => rarityRank(b.id) - rarityRank(a.id) || a.label.localeCompare(b.label));
+    else if (facet === 'series' || facet === 'sets') opts.sort((a, b) => (firstSeen[`${facet}:${b.id}`] ?? '').localeCompare(firstSeen[`${facet}:${a.id}`] ?? '') || a.label.localeCompare(b.label));
+    else opts.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+    out[facet] = opts;
+  }
+  return out;
 }
 
 /**

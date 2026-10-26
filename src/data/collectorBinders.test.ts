@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import {
   type CollectorCard, completeSet, dexNumber, evolutionLineSet, inLanguage, isSecretRare, livingDex, masterSet, MICHI_PAGE_TEMPLATES,
-  familyFromEvolvesFrom, michiPages, numberKey, pagesNeeded, POKEDEX, rarityRank, searchSpecies, sortPockets, speciesCounts, speciesOf, speciesSet,
+  facetOptions, familyFromEvolvesFrom, filterPockets, isFullArt, isPokemonCard, michiPages, NO_FILTERS, numberKey, pagesNeeded, POKEDEX, rarityRank, searchSpecies, sortPockets, speciesCounts, speciesOf, speciesSet,
   withCameos,
 } from './collectorBinders.ts';
 
@@ -196,4 +196,37 @@ test('sorting a species result: rarest, artist, name, newest; counts per species
   assert.ok(rarityRank('Hyper Rare') > rarityRank('Illustration Rare') && rarityRank('Illustration Rare') > rarityRank('Common'));
   assert.equal(rarityRank('Something New'), rarityRank('Rare'));
   assert.deepEqual(speciesCounts(base, cardOf), [{ species: 'Charmander', count: 1 }, { species: 'Charizard', count: 2 }, { species: 'Charmeleon', count: 1 }]);
+});
+
+test('filters narrow a result by facet, full art, Pokémon only and owned', () => {
+  const cards = [
+    card('c', 'Charmander', '4/102', { setId: 'base1', releaseDate: '1999-01-09', rarity: 'Common', illustrator: 'Mitsuhiro Arita', types: ['Fire'], cardType: ['Pokémon'] }),
+    card('t', 'Professor Oak', '88/102', { setId: 'base1', releaseDate: '1999-01-09', rarity: 'Uncommon', illustrator: 'Ken Sugimori', types: [], cardType: ['Trainer'] }),
+    card('s', 'Charizard ex', '223/197', { releaseDate: '2023-11-03', rarity: 'Special Illustration Rare', illustrator: 'Nurikabe', types: ['Fire'], fullArt: true }),
+    card('w', 'Squirtle', '7/165', { releaseDate: '2023-09-22', rarity: 'Common', illustrator: 'Nurikabe', types: ['Water'], fullArtKind: 'windowed' }),
+  ];
+  const cardOf = (id: string) => cards.find((c) => c.id === id);
+  const base = { pockets: cards.map((c) => ({ cardId: c.id })), missing: [] };
+  const ctx = { seriesOf: (setId: string) => (setId === 'base1' ? 'wotc' : 'sv'), ownedIds: new Set(['c', 's']), labelOf: (_f: string, id: string) => id.toUpperCase() };
+  const ids = (f: Partial<typeof NO_FILTERS>) => filterPockets(base, cardOf, { ...NO_FILTERS, ...f }, ctx).pockets.map((p) => p.cardId);
+  assert.deepEqual(ids({}), ['c', 't', 's', 'w']);
+  assert.deepEqual(ids({ rarities: ['Common'] }), ['c', 'w']);
+  assert.deepEqual(ids({ series: ['wotc'] }), ['c', 't']);
+  assert.deepEqual(ids({ sets: ['sv3pt5'] }), ['s', 'w']);
+  assert.deepEqual(ids({ artists: ['Nurikabe'] }), ['s', 'w']);
+  assert.deepEqual(ids({ types: ['Water', 'Grass'] }), ['w']);
+  assert.deepEqual(ids({ fullArt: true }), ['s']);
+  assert.deepEqual(ids({ pokemonOnly: true }), ['c', 's', 'w']);
+  assert.deepEqual(ids({ owned: 'owned' }), ['c', 's']);
+  assert.deepEqual(ids({ owned: 'missing' }), ['t', 'w']);
+  assert.deepEqual(ids({ rarities: ['Common'], owned: 'missing' }), ['w']);
+  assert.equal(isFullArt(cards[2]), true);
+  assert.equal(isFullArt(cards[3]), false);
+  assert.equal(isPokemonCard(cards[1]), false);
+  assert.equal(isPokemonCard(card('x', 'Pikachu', '1/1')), true);
+  const opts = facetOptions(base, cardOf, ctx);
+  assert.deepEqual(opts.rarities.map((o) => `${o.label} ${o.count}`), ['SPECIAL ILLUSTRATION RARE 1', 'UNCOMMON 1', 'COMMON 2']);
+  assert.deepEqual(opts.series.map((o) => o.id), ['sv', 'wotc']);
+  assert.deepEqual(opts.artists.map((o) => o.id), ['Nurikabe', 'Ken Sugimori', 'Mitsuhiro Arita']);
+  assert.deepEqual(opts.types.map((o) => o.id), ['Fire', 'Water']);
 });

@@ -23,8 +23,9 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/binderTypes';
 import {
-  COLLECTOR_KINDS, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult, completeSet,
-  evolutionLineSet, inLanguage, livingDex, masterSet, michiPages, pagesNeeded, searchSpecies, speciesSet, withCameos,
+  COLLECTOR_KINDS, COLLECTOR_SORTS, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult, type CollectorSort,
+  completeSet, evolutionLineSet, inLanguage, livingDex, masterSet, michiPages, pagesNeeded, searchSpecies, sortPockets, speciesCounts, speciesSet,
+  withCameos,
 } from '@/data/collectorBinders';
 import { saveFillSheetFiles, fileStem } from '@/data/fillSheetSave';
 import { buildFillSheetPdfs } from '@/data/placeholderPdf';
@@ -52,6 +53,9 @@ const REVERSE = [
   { id: 'after', label: 'Reverse holos after', blurb: 'The run first, then every reverse holo.' },
   { id: 'beside', label: 'Reverse holos beside', blurb: 'Each reverse holo next to its card.' },
 ] as const;
+
+/** Thumbnails shown before "Show all". Two rows of nine on a wide screen. */
+const PREVIEW = 18;
 
 /** The language the browser is set to, as this page's starting bound. */
 function startLanguage(): CollectorLanguage {
@@ -110,6 +114,8 @@ export default function CollectScreen() {
   const [secrets, setSecrets] = useState(true);
   const [reverse, setReverse] = useState<'after' | 'beside'>('after');
   const [cameos, setCameos] = useState(false);
+  const [sort, setSort] = useState<CollectorSort>('release');
+  const [showAll, setShowAll] = useState(false);
   const [building, setBuilding] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -179,8 +185,10 @@ export default function CollectScreen() {
     else if (kind === 'line' && species) r = evolutionLineSet(allCards, species);
     else if (kind === 'dex') r = livingDex(allCards, dexPick);
     if (r && wantCameos && cameoReady && cameoHits) r = withCameos(r, cameoHits.cards);
+    if (r && (kind === 'species' || kind === 'line')) r = sortPockets(r, (id) => catalog.getCard(id), sort);
     return r;
-  }, [catalog, allCards, kind, set, species, dexPick, priced, secrets, reverse, wantCameos, cameoReady, cameoHits]);
+  }, [catalog, allCards, kind, set, species, dexPick, priced, secrets, reverse, wantCameos, cameoReady, cameoHits, sort]);
+  const perSpecies = useMemo(() => (result && catalog && kind === 'line' ? speciesCounts(result, (id) => catalog.getCard(id)) : []), [result, catalog, kind]);
 
   const title = kind === 'dex'
     ? 'Living Pokédex'
@@ -279,6 +287,7 @@ export default function CollectScreen() {
               <Check on={secrets} onPress={() => setSecrets((v) => !v)} testID="collect-secrets">Include secret rares, numbered past the set total.</Check>
             ) : null}
             {kind === 'master' ? <Seg options={REVERSE} value={reverse} onChange={setReverse} /> : null}
+            {needs === 'pokemon' ? <Seg options={COLLECTOR_SORTS} value={sort} onChange={setSort} /> : null}
             {needs === 'pokemon' ? (
               <Check on={cameos} onPress={() => setCameos((v) => !v)} testID="collect-cameos">Add cameo cards: this Pokémon inside other cards.</Check>
             ) : null}
@@ -313,6 +322,9 @@ export default function CollectScreen() {
                 {cameoCount ? ` · ${cameoCount} cameos` : ''}
                 {result.missing.length ? ` · ${result.missing.length} Pokémon have no card` : ''}
               </ThemedText>
+              {perSpecies.length > 1 ? (
+                <ThemedText type="small" themeColor="textSecondary">{perSpecies.map((s) => `${s.count} ${s.species}`).join(' · ')}</ThemedText>
+              ) : null}
               {wantCameos && cameoHits?.clamped ? (
                 <ThemedText type="small" themeColor="textSecondary">Free plans get the top cameos only. PRO gets all.</ThemedText>
               ) : null}
@@ -320,7 +332,7 @@ export default function CollectScreen() {
                 <ThemedText type="small" themeColor="textSecondary">Nothing matched. Try another name.</ThemedText>
               ) : (
                 <View style={styles.preview}>
-                  {result.pockets.slice(0, 9).map((p, i) => (
+                  {(showAll ? result.pockets : result.pockets.slice(0, PREVIEW)).map((p, i) => (
                     <View key={`${p.cardId}-${i}`} style={[styles.previewCell, { width: cell, height: Math.round(cell * 1.396) }]}>
                       <Image source={{ uri: cardThumbUrl(p.cardId, 245) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
                       {p.finish || p.cameo ? (
@@ -329,8 +341,10 @@ export default function CollectScreen() {
                       {ownedIds?.has(p.cardId) ? <View style={styles.ownedDot} /> : null}
                     </View>
                   ))}
-                  {result.pockets.length > 9 ? (
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.more}>{`and ${result.pockets.length - 9} more`}</ThemedText>
+                  {result.pockets.length > PREVIEW ? (
+                    <Pressable onPress={() => setShowAll((v) => !v)} accessibilityRole="button" style={styles.more} testID="collect-show-all">
+                      <ThemedText type="smallBold" style={styles.moreText}>{showAll ? 'Show fewer' : `Show all ${result.pockets.length}`}</ThemedText>
+                    </Pressable>
                   ) : null}
                 </View>
               )}
@@ -390,7 +404,8 @@ const styles = StyleSheet.create({
   reverse: { position: 'absolute', right: 3, top: 3, backgroundColor: '#1f1f24', borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1 },
   reverseText: { color: '#fff', fontWeight: Weight.bold, fontSize: 10, lineHeight: 12 },
   ownedDot: { position: 'absolute', left: 3, top: 3, width: 10, height: 10, borderRadius: 5, backgroundColor: '#2e9e5b', borderWidth: 1, borderColor: '#fff' },
-  more: { marginLeft: Spacing.one },
+  more: { marginLeft: Spacing.one, paddingVertical: Spacing.one, paddingHorizontal: Spacing.two, borderRadius: Radius.control, borderWidth: 1, borderColor: Palette.hairlineStrong },
+  moreText: { color: Palette.accent },
   toggleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   box: { width: 18, height: 18, borderRadius: 4, borderWidth: 1, borderColor: Palette.hairlineStrong, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   boxOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },

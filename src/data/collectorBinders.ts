@@ -40,6 +40,35 @@ export interface CollectorCard {
   kind?: string;
   /** Printing language; absent means English. */
   language?: 'en' | 'ja';
+  illustrator?: string;
+}
+
+/** How a species or line result is ordered. Sets and the dex keep their own order. */
+export type CollectorSort = 'release' | 'newest' | 'rarity' | 'artist' | 'name';
+
+export const COLLECTOR_SORTS: readonly { id: CollectorSort; label: string; blurb: string }[] = [
+  { id: 'release', label: 'Oldest first', blurb: 'By release date, oldest first.' },
+  { id: 'newest', label: 'Newest first', blurb: 'By release date, newest first.' },
+  { id: 'rarity', label: 'Rarest first', blurb: 'By rarity, the rarest first.' },
+  { id: 'artist', label: 'By artist', blurb: 'Illustrators A to Z, then release.' },
+  { id: 'name', label: 'By name', blurb: 'Card names A to Z, then release.' },
+];
+
+/**
+ * Rarity names from the catalogue, plainest to rarest. A name not listed sorts with the plain
+ * rares. Secret-tier names (Hyper, Rainbow, Special Illustration) lead the rarest end.
+ */
+export const RARITY_RANK: readonly string[] = [
+  'None', 'Unconfirmed', 'Common', 'Uncommon', 'Promo', 'Classic Collection', 'Rare', 'Holo Rare', 'Rare Ace', 'Rare BREAK',
+  'Prism Rare', 'Radiant Rare', 'Amazing Rare', 'Double Rare', 'Shiny Rare', 'Shiny Holo Rare', 'ACE SPEC Rare', 'Ultra Rare',
+  'Shiny Ultra Rare', 'Illustration Rare', 'Mega Attack Rare', 'Black White Rare', 'Futuristic Rare', 'Secret Rare',
+  'Special Illustration Rare', 'Rainbow Rare', 'Hyper Rare', 'Mega Hyper Rare',
+];
+const RARITY_INDEX: ReadonlyMap<string, number> = new Map(RARITY_RANK.map((r, i) => [r.toLowerCase(), i]));
+
+/** Position on the rarity ladder; unknown names sit with the plain rares. */
+export function rarityRank(rarity: string): number {
+  return RARITY_INDEX.get((rarity || '').toLowerCase()) ?? RARITY_INDEX.get('rare')!;
 }
 
 /** One pocket of the result: the card, and the finish the pocket shows when it is not Normal. */
@@ -146,6 +175,35 @@ const byNumber = (a: CollectorCard, b: CollectorCard) => numberKey(a.number) - n
 const byRelease = (a: CollectorCard, b: CollectorCard) =>
   (a.releaseDate || '9999').localeCompare(b.releaseDate || '9999') || a.setId.localeCompare(b.setId) || byNumber(a, b);
 
+const byRarity = (a: CollectorCard, b: CollectorCard) => rarityRank(b.rarity) - rarityRank(a.rarity) || -byRelease(a, b);
+const byArtist = (a: CollectorCard, b: CollectorCard) =>
+  (a.illustrator || '\uffff').localeCompare(b.illustrator || '\uffff') || byRelease(a, b);
+const byName = (a: CollectorCard, b: CollectorCard) => a.name.localeCompare(b.name) || byRelease(a, b);
+
+/**
+ * Re-order a result's pockets by the chosen sort. `cardOf` finds the card behind a pocket; a
+ * pocket whose card is unknown keeps its place at the end. Finishes and cameo marks ride along.
+ */
+export function sortPockets(result: CollectorResult, cardOf: (id: string) => CollectorCard | undefined, sort: CollectorSort): CollectorResult {
+  if (sort === 'release') return result;
+  const cmp = sort === 'newest' ? (a: CollectorCard, b: CollectorCard) => -byRelease(a, b) : sort === 'rarity' ? byRarity : sort === 'artist' ? byArtist : byName;
+  const known = result.pockets.filter((p) => cardOf(p.cardId));
+  const unknown = result.pockets.filter((p) => !cardOf(p.cardId));
+  known.sort((a, b) => cmp(cardOf(a.cardId)!, cardOf(b.cardId)!));
+  return { ...result, pockets: [...known, ...unknown] };
+}
+
+/** How many pockets each species takes in a result, in first-seen order ("62 Charmander"). */
+export function speciesCounts(result: CollectorResult, cardOf: (id: string) => CollectorCard | undefined): { species: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const p of result.pockets) {
+    const c = cardOf(p.cardId);
+    const sp = c ? speciesOf(c.name) || 'Other' : 'Other';
+    counts.set(sp, (counts.get(sp) ?? 0) + 1);
+  }
+  return [...counts.entries()].map(([species, count]) => ({ species, count }));
+}
+
 /** Standard-footprint cards only: a jumbo or a V-UNION piece has no pocket in a 3x3 binder. */
 const standard = (c: CollectorCard) => !c.kind || c.kind === 'standard';
 
@@ -198,9 +256,12 @@ export function speciesSet(cards: Iterable<CollectorCard>, species: string): Col
 }
 
 /**
- * The evolution line: every card of each species in the family, family order (Pichu, Pikachu,
- * Raichu), each species oldest print first. The family comes from any card of the species that
- * knows its line; a species no card places in a line is a line of one.
+ * The evolution line: every card of each species in the family (Charmander, Charmeleon,
+ * Charizard), kept TOGETHER BY ERA: release date first, then the family's own order inside a set,
+ * then number. A Base Set page shows the three stages side by side; the next era follows. The
+ * family comes from any card of the species that knows its line; a species no card places in a
+ * line is a line of one. (The first version listed every Charmander before the first Charmeleon,
+ * which read as "nothing was added"; owner, 2026-10-26.)
  */
 export function evolutionLineSet(cards: Iterable<CollectorCard>, species: string): CollectorResult {
   const all = Array.from(cards);
@@ -209,10 +270,12 @@ export function evolutionLineSet(cards: Iterable<CollectorCard>, species: string
   for (const c of all) {
     if (speciesKey(speciesOf(c.name)) === want && c.evolutionLine.length > line.length) line = c.evolutionLine;
   }
-  const family = line.length ? line : [species];
-  const pockets: CollectorPocket[] = [];
-  for (const member of family) pockets.push(...speciesSet(all, member).pockets);
-  return { pockets, missing: [] };
+  const family = (line.length ? line : [species]).map(speciesKey);
+  const stageOf = (c: CollectorCard) => family.indexOf(speciesKey(speciesOf(c.name)));
+  const hits = all.filter((c) => standard(c) && stageOf(c) >= 0);
+  hits.sort((a, b) =>
+    (a.releaseDate || '9999').localeCompare(b.releaseDate || '9999') || a.setId.localeCompare(b.setId) || stageOf(a) - stageOf(b) || byNumber(a, b));
+  return { pockets: hits.map((c) => ({ cardId: c.id })), missing: [] };
 }
 
 /**

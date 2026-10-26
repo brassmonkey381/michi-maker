@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import {
   type CollectorCard, completeSet, dexNumber, evolutionLineSet, inLanguage, isSecretRare, livingDex, masterSet, MICHI_PAGE_TEMPLATES,
-  michiPages, numberKey, pagesNeeded, POKEDEX, searchSpecies, speciesOf, speciesSet, withCameos,
+  michiPages, numberKey, pagesNeeded, POKEDEX, rarityRank, searchSpecies, sortPockets, speciesCounts, speciesOf, speciesSet, withCameos,
 } from './collectorBinders.ts';
 
 const card = (id: string, name: string, number: string, extra: Partial<CollectorCard> = {}): CollectorCard => ({
@@ -61,15 +61,18 @@ test('one Pokémon: every card of the species, oldest first, owners and forms in
   assert.deepEqual(speciesSet(cards, 'Pikachu').pockets.map((p) => p.cardId), ['old', 'owner', 'new']);
 });
 
-test('an evolution line walks the family in order', () => {
+test('an evolution line keeps each era together, stages in family order', () => {
   const line = ['pichu', 'pikachu', 'raichu'];
   const cards = [
     card('r', 'Raichu', '14/102', { evolutionLine: line }),
     card('p', 'Pikachu', '58/102', { evolutionLine: line }),
     card('pi', 'Pichu', '12/111', { evolutionLine: line }),
     card('x', 'Eevee', '51/64'),
+    card('p0', 'Pikachu', '58/102', { setId: 'base1', releaseDate: '1999-01-09', evolutionLine: line }),
+    card('r0', 'Raichu', '14/102', { setId: 'base1', releaseDate: '1999-01-09', evolutionLine: line }),
   ];
-  assert.deepEqual(evolutionLineSet(cards, 'Pikachu').pockets.map((p) => p.cardId), ['pi', 'p', 'r']);
+  assert.deepEqual(evolutionLineSet(cards, 'Pikachu').pockets.map((p) => p.cardId), ['p0', 'r0', 'pi', 'p', 'r']);
+  assert.deepEqual(evolutionLineSet(cards, 'Charmander').pockets, []);
   // A species no card places in a line is a line of one.
   assert.deepEqual(evolutionLineSet(cards, 'Eevee').pockets.map((p) => p.cardId), ['x']);
 });
@@ -152,4 +155,22 @@ test('michi pages draw a layout per page, seat every card in order around the ar
   const layouts = (ps: ReturnType<typeof michiPages>) => ps.map((pg) => pg.slots.find((s) => s.type === 'artwork')?.artTemplateId);
   assert.deepEqual(layouts(michiPages(pockets, mk, 'test')), layouts(pages));
   assert.notDeepEqual(layouts(michiPages(pockets, mk, 'other')), layouts(pages));
+});
+
+test('sorting a species result: rarest, artist, name, newest; counts per species', () => {
+  const cards = [
+    card('c', 'Charmander', '4/102', { setId: 'base1', releaseDate: '1999-01-09', rarity: 'Common', illustrator: 'Mitsuhiro Arita' }),
+    card('z', 'Charizard', '4/102', { setId: 'base1', releaseDate: '1999-01-09', rarity: 'Holo Rare', illustrator: 'Mitsuhiro Arita' }),
+    card('s', 'Charizard ex', '223/197', { releaseDate: '2023-11-03', rarity: 'Special Illustration Rare', illustrator: 'Nurikabe' }),
+    card('a', 'Charmeleon', '5/102', { setId: 'base1', releaseDate: '1999-01-09', rarity: 'Uncommon', illustrator: 'Atsuko Nishida' }),
+  ];
+  const cardOf = (id: string) => cards.find((c) => c.id === id);
+  const base = { pockets: cards.map((c) => ({ cardId: c.id })), missing: [] };
+  assert.deepEqual(sortPockets(base, cardOf, 'rarity').pockets.map((p) => p.cardId), ['s', 'z', 'a', 'c']);
+  assert.deepEqual(sortPockets(base, cardOf, 'artist').pockets.map((p) => p.cardId), ['a', 'z', 'c', 's']);
+  assert.deepEqual(sortPockets(base, cardOf, 'name').pockets.map((p) => p.cardId), ['z', 's', 'c', 'a']);
+  assert.equal(sortPockets(base, cardOf, 'newest').pockets[0].cardId, 's');
+  assert.ok(rarityRank('Hyper Rare') > rarityRank('Illustration Rare') && rarityRank('Illustration Rare') > rarityRank('Common'));
+  assert.equal(rarityRank('Something New'), rarityRank('Rare'));
+  assert.deepEqual(speciesCounts(base, cardOf), [{ species: 'Charmander', count: 1 }, { species: 'Charizard', count: 2 }, { species: 'Charmeleon', count: 1 }]);
 });

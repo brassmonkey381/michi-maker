@@ -11,7 +11,7 @@ how many the viewer owns, then prints the placeholders free or makes a binder in
 | Complete set | every standard-footprint card in the set | collector number; lettered runs (TG, GG) after the plain run, so secret rares sit at the end |
 | Master set | the complete run, then one reverse-holo pocket per card the price summary knows as `Reverse Holofoil` | run, then reverse holos (collectors keep them after the run) |
 | One Pokémon | every card whose species is the one asked for (`speciesOf`) | release date, then set, then number |
-| Evolution line | each species in the card's `evolutionLine`, family order | per species as above |
+| Evolution line | each species in the card's `evolutionLine` | by era: release date, then set, then the family's stage order, then number, so Charmander, Charmeleon and Charizard of one set sit together |
 | Living Pokédex | one card per species, #001 to #1025, newest or oldest print, plainest name on a tie | dex number; species with no card are reported as gaps |
 
 `speciesOf` strips regional and form prefixes, owner prefixes ("Lt. Surge's"), tag-team partners
@@ -46,7 +46,11 @@ Jumbo and V-UNION pieces are skipped everywhere: they have no pocket in a 3x3 pa
 | Include secret rares | complete, master | `isSecretRare`: a number past the printed total ("200/165"); lettered runs are not secrets |
 | Reverse holos after / beside | master | after the run (collectors' default) or each beside its card |
 | Add cameo cards | one Pokémon, evolution line | the kit's `cameo:<species>` search on the data server, merged by `withCameos` after the result in release order, marked `cameo`; metered like the browser (a free plan gets the top few and the page says so) |
+| Oldest / Newest / Rarest / By artist / By name | one Pokémon, evolution line | `sortPockets`; rarest uses `RARITY_RANK`, the catalogue's rarity names plainest to rarest |
 | Newest / oldest print | living dex | which print stands for the species |
+
+The result shows 18 thumbnails and a "Show all N" button; an evolution line also lists the count
+per species ("62 Charmander · 45 Charmeleon · 42 Charizard").
 
 Every control's label is ten words or fewer (owner, 2026-10-26).
 

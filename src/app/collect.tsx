@@ -4,7 +4,9 @@
  * 1 to 1025. Two ways out: print the placeholders free (no art, no customising), or make it a
  * digital binder in the account, laid into the michi layouts at random (one per page) if wanted,
  * which then prints like any other binder. Controls (owner, 2026-10-26): EN / JP / both, secret
- * rares, where the reverse holos sit, cameo cards from the data server's cameo tags.
+ * rares, where the reverse holos sit, cameo cards from the data server's cameo tags. Curated pages
+ * (owner, 2026-10-26): the Story Binder page planner over this result, one idea a page, then the
+ * cards no page took on plain or michi pages after (data/collectorCurate.ts).
  *
  * The rules are in data/collectorBinders.ts (pure, tested); this page is the asking and the
  * handing over. Research behind the shapes: the 2026-10-26 binder-types sweep (master sets, the
@@ -15,7 +17,7 @@ import { Image } from 'expo-image';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { type CatalogCard, type CatalogSet, getBrowseLanguages, parseQuery, searchCards } from 'tcgscan-browse';
+import { type CatalogCard, type CatalogSet, findSimilarToMany, getBrowseLanguages, loadColorIndex, parseQuery, searchCards } from 'tcgscan-browse';
 
 import { Seg } from '@/components/binder/inspector/controls';
 import { ThemedText } from '@/components/themed-text';
@@ -24,18 +26,22 @@ import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Rad
 import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/binderTypes';
 import {
   COLLECTOR_KINDS, COLLECTOR_SORT_KEYS, type CollectorFilters, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult,
-  type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets, inLanguage,
-  livingDex, masterSet, michiPages, NO_FILTERS, pagesNeeded, searchSpecies, sortPockets, speciesCounts, speciesSet, withCameos,
+  type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionFamilies, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets,
+  inLanguage, livingDex, masterSet, michiPages, NO_FILTERS, pagesNeeded, searchSpecies, sortPockets, speciesCounts, speciesSet, withCameos,
 } from '@/data/collectorBinders';
+import { collectorPool, curateMaxPages, leftoverPockets } from '@/data/collectorCurate';
 import { saveFillSheetFiles, fileStem } from '@/data/fillSheetSave';
 import { buildFillSheetPdfs } from '@/data/placeholderPdf';
+import { planPages, type PagesProviders } from '@/data/storyPages';
 import { LIMITS_ENFORCED } from '@/data/tiers';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useTier } from '@/hooks/use-tier';
 import { track } from '@/lib/analytics';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
+import { depthOfCards } from '@/lib/depth';
 import { getPriceSummary, type PriceSummary } from '@/lib/prices';
+import { similarityAmong } from '@/lib/similarity';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
@@ -110,6 +116,7 @@ export default function CollectScreen() {
   const [species, setSpecies] = useState<string | null>(null);
   const [dexPick, setDexPick] = useState<'newest' | 'oldest'>('newest');
   const [roomForArt, setRoomForArt] = useState(false);
+  const [curate, setCurate] = useState(false);
   const [lang, setLang] = useState<CollectorLanguage>(startLanguage);
   const [secrets, setSecrets] = useState(true);
   const [reverse, setReverse] = useState<'after' | 'beside'>('after');
@@ -248,7 +255,36 @@ export default function CollectScreen() {
     }
   };
 
-  const makeBinder = () => {
+  /**
+   * CURATED PAGES: the result as the Story Binder planner's pool. Likeness from the data server
+   * (Find Similar to many for the fill, Find Similar per card for the page), palettes from the
+   * on-device colour index, depth words from the depth RPC. The pockets no page took follow on the
+   * plain or michi pages, so nothing is dropped.
+   */
+  const curatedPages = async (r: CollectorResult): Promise<{ pages: DemoPage[]; curated: number }> => {
+    if (!catalog) return { pages: [], curated: 0 };
+    const index = await loadColorIndex();
+    const providers: PagesProviders = {
+      likenessToCentre: async (seedIds, poolIds) => {
+        const want = new Set(poolIds);
+        const hits = await findSimilarToMany([...seedIds], 400);
+        const out = new Map<string, number>();
+        for (const h of hits) if (want.has(h.id)) out.set(h.id, Math.max(0, Math.min(1, h.similarity)));
+        return out;
+      },
+      pairwise: (ids) => similarityAmong(ids),
+      depthWords: (ids) => depthOfCards(ids),
+    };
+    const familyOf = evolutionFamilies(allCards);
+    const pool = collectorPool(r, (id) => catalog.getCard(id), { familyOf, paletteOf: (id) => (index?.has(id) ? index.colors(id, 'art') : undefined) });
+    const plan = await planPages(pool, providers, { shape: { rows: 3, cols: 3 }, maxPages: curateMaxPages(pool.length), minPage: 5, mkId: uuidv4 });
+    const placed = new Set(plan.pages.flatMap((p) => p.cards.map((c) => c.id)));
+    const rest = leftoverPockets(r, placed);
+    const tail = roomForArt ? michiPages(rest, uuidv4, seed) : pagesForPockets(rest);
+    return { pages: [...plan.pages.map((p) => p.page), ...tail], curated: plan.pages.length };
+  };
+
+  const makeBinder = async () => {
     if (!result || building) return;
     if (!isSignedIn) {
       setNote('Sign in to keep a binder.');
@@ -259,13 +295,34 @@ export default function CollectScreen() {
       return;
     }
     setBuilding(true);
-    const created = store.createBinder({ title, pages: roomForArt ? michiPages(result.pockets, uuidv4, seed) : pagesForPockets(result.pockets) });
+    setNote(null);
+    let built: DemoPage[];
+    let curated = 0;
+    try {
+      if (curate) {
+        const planned = await curatedPages(result);
+        built = planned.pages;
+        curated = planned.curated;
+      } else {
+        built = roomForArt ? michiPages(result.pockets, uuidv4, seed) : pagesForPockets(result.pockets);
+      }
+    } catch (e) {
+      setBuilding(false);
+      setNote(e instanceof Error ? e.message : 'The pages did not plan. Try again.');
+      return;
+    }
+    if (LIMITS_ENFORCED && built.length > limits.pagesPerBinder) {
+      setBuilding(false);
+      setNote(`${built.length} pages; your plan allows ${limits.pagesPerBinder}. PRO has no page limit.`);
+      return;
+    }
+    const created = store.createBinder({ title, pages: built, ...(curated ? { description: `${curated} pages each one idea, then the rest in order.` } : {}) });
     setBuilding(false);
     if (!created) {
       setNote(tier === 'guest' || tier === 'free' ? `Your plan's ${limits.binders} binders are used. PRO has no limit.` : 'That did not save. Try again.');
       return;
     }
-    track('collector.binder', { kind, pockets: result.pockets.length, roomForArt, lang, cameos: cameoCount });
+    track('collector.binder', { kind, pockets: result.pockets.length, roomForArt, curate, curated, lang, cameos: cameoCount });
     router.push(`/binder/${created.id}?edit=1` as Href);
   };
 
@@ -435,13 +492,18 @@ export default function CollectScreen() {
               {result.pockets.length > 0 ? (
                 <>
                   <Check on={roomForArt} onPress={() => setRoomForArt((v) => !v)} testID="collect-room-for-art">Michi layouts: random art panels on every page.</Check>
+                  <Check on={curate} onPress={() => setCurate((v) => !v)} testID="collect-curate">Curate pages: one idea each, the rest after.</Check>
+                  {curate ? (
+                    <ThemedText type="small" themeColor="textSecondary">Curating reads likeness from the server. Allow a minute.</ThemedText>
+                  ) : null}
                   <View style={styles.actions}>
                     <Pressable onPress={() => void printFree()} disabled={printing} style={[styles.btn, styles.btnOutline, printing && styles.dim]} accessibilityRole="button" testID="collect-print">
                       {printing ? <ActivityIndicator size="small" color={Palette.accent} /> : null}
                       <ThemedText type="smallBold" style={styles.btnOutlineText}>{printing ? 'Building the PDF…' : 'Print placeholders, free'}</ThemedText>
                     </Pressable>
-                    <Pressable onPress={makeBinder} disabled={building} style={[styles.btn, styles.btnPrimary, building && styles.dim]} accessibilityRole="button" testID="collect-make">
-                      <ThemedText type="smallBold" style={styles.btnPrimaryText}>Make it a binder</ThemedText>
+                    <Pressable onPress={() => void makeBinder()} disabled={building} style={[styles.btn, styles.btnPrimary, building && styles.dim]} accessibilityRole="button" testID="collect-make">
+                      {building ? <ActivityIndicator size="small" color={Palette.accentText} /> : null}
+                      <ThemedText type="smallBold" style={styles.btnPrimaryText}>{building ? (curate ? 'Curating the pages…' : 'Building…') : 'Make it a binder'}</ThemedText>
                     </Pressable>
                   </View>
                   <ThemedText type="small" themeColor="textSecondary">

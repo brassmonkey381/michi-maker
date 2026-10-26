@@ -146,8 +146,9 @@ export const CHANGELOG: ChangelogEntry[] = [
           + 'the secret rares, put the reverse holos after the run or beside each card, and add the '
           + 'cameo cards of a Pokémon. Print the placeholders free with no account, or make it a '
           + 'binder of your own: the michi layouts option draws a different composition for every '
-          + 'page, with art panels ready for your pictures. With the Owned view it says how many you '
-          + 'already have.',
+          + 'page, with art panels ready for your pictures. Curate pages builds the binder the way '
+          + 'a story binder is built, one idea a page, with the rest following in order. With the '
+          + 'Owned view it says how many you already have.',
       },
       {
         products: ['michi'],

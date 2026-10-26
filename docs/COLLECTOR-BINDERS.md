@@ -37,6 +37,18 @@ Jumbo and V-UNION pieces are skipped everywhere: they have no pocket in a 3x3 pa
   respected: over the plan's page cap or binder cap the page says so and points at PRO, and the
   free print is offered instead. The binder then prints like any other ($1.99 unlock or a plan's
   included prints).
+- **Curate pages** (owner, 2026-10-26: "a story binder from my collection, but my collection is
+  instead just this subset"). The Story Binder page planner (`src/data/storyPages.ts` →
+  `planPages`) runs over the result: it finds identities in the pool (an evolution family, one
+  illustrator, one palette, a clique whose art reads alike), seeds a page with three to six of
+  them, fills only while the page stays one idea, trims to an exact-fit 3x3 layout and arranges it.
+  `src/data/collectorCurate.ts` turns the result into the planner's pool (one candidate per card,
+  strength from the rarity ladder plus a full-art bonus, the evolution family from `evolvesFrom`
+  via `evolutionFamilies` when the catalogue carries no lines) and takes the leftovers back: the
+  pockets no curated page seated follow, in the result's order, on plain or michi pages. Nothing
+  is dropped, so a set stays complete. Likeness is read from the data server per page, so the
+  build takes up to a minute; the page count is known only after the plan, and the page cap is
+  checked then. The binder description says how many pages are curated.
 
 ## Controls (owner, 2026-10-26)
 
@@ -50,6 +62,7 @@ Jumbo and V-UNION pieces are skipped everywhere: they have no pocket in a 3x3 pa
 | Filter: Rarity, Series, Set, Artist, Type | all (Series and Set only for the Pokémon shapes) | multi-select facets from `facetOptions`, which names only values the result has, with counts; `filterPockets` |
 | Full art, Pokémon only, Owned all / only / missing | all | `isFullArt` (kit flag, else the Arrange module's full-art kinds), `isPokemonCard` (card class, else the species rule), the Owned data |
 | Newest / oldest print | living dex | which print stands for the species |
+| Curate pages | all | `planPages` over the result's pool, at most one page per five cards (40 at the outside); leftovers follow on plain or michi pages |
 
 The result shows 18 thumbnails and a "Show all N" button; an evolution line also lists the count
 per species ("62 Charmander · 45 Charmeleon · 42 Charizard").
@@ -59,6 +72,9 @@ Every control's label is ten words or fewer (owner, 2026-10-26).
 ## Not done yet
 
 - Spread layouts (the 18 two-page compositions): collector pages are built one page at a time.
+- Curated pages for the whole binder: today the planner curates what holds together and the rest
+  follows in set order. A chaptered pass (families, then artists, then palette, every card placed
+  under some idea) would curate the tail too.
 - Filling the art pockets automatically. Licensed sources only when it comes (presets, stock art);
   never third-party fan art (docs/roadmap/ART-RIGHTS.md).
 - Cameo coverage depends on the data project's cameo tags; the community sheet import

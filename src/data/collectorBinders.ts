@@ -437,28 +437,59 @@ export function evolutionLineSet(cards: Iterable<CollectorCard>, species: string
  * and Eevee reads Eevee then its evolutions. A species no card links is a family of one.
  */
 export function familyFromEvolvesFrom(cards: readonly CollectorCard[], speciesKeyWanted: string): string[] {
+  return familyGraph(cards).family(speciesKeyWanted);
+}
+
+/** The "evolves from" graph of a card list, keyed by species key, with the display name each key was first seen under. */
+function familyGraph(cards: readonly CollectorCard[]) {
   const parentOf = new Map<string, string>();
   const childrenOf = new Map<string, Set<string>>();
+  const nameOf = new Map<string, string>();
   for (const c of cards) {
+    const childName = speciesOf(c.name);
+    const child = speciesKey(childName);
+    if (child && !nameOf.has(child)) nameOf.set(child, childName.toLowerCase());
     if (!c.evolvesFrom) continue;
-    const child = speciesKey(speciesOf(c.name));
-    const parent = speciesKey(speciesOf(c.evolvesFrom));
+    const parentName = speciesOf(c.evolvesFrom);
+    const parent = speciesKey(parentName);
     if (!child || !parent || child === parent) continue;
+    if (!nameOf.has(parent)) nameOf.set(parent, parentName.toLowerCase());
     parentOf.set(child, parent);
     if (!childrenOf.has(parent)) childrenOf.set(parent, new Set());
     childrenOf.get(parent)!.add(child);
   }
-  let root = speciesKeyWanted;
-  for (let i = 0; i < 6 && parentOf.has(root); i += 1) root = parentOf.get(root)!;
-  const family: string[] = [];
-  const queue = [root];
-  while (queue.length) {
-    const k = queue.shift()!;
-    if (family.includes(k)) continue;
-    family.push(k);
-    for (const child of childrenOf.get(k) ?? []) queue.push(child);
-  }
-  return family;
+  const family = (key: string): string[] => {
+    let root = key;
+    for (let i = 0; i < 6 && parentOf.has(root); i += 1) root = parentOf.get(root)!;
+    const out: string[] = [];
+    const queue = [root];
+    while (queue.length) {
+      const k = queue.shift()!;
+      if (out.includes(k)) continue;
+      out.push(k);
+      for (const child of childrenOf.get(k) ?? []) queue.push(child);
+    }
+    return out;
+  };
+  return { family, nameOf };
+}
+
+/**
+ * Every card's evolution family at once, for the curated planner (collectorCurate): the graph is
+ * built once over the catalogue, then each card's family comes back as lowercase display species,
+ * root first ("charmander", "charmeleon", "charizard"). A line of one is undefined.
+ */
+export function evolutionFamilies(cards: readonly CollectorCard[]): (card: CollectorCard) => string[] | undefined {
+  const g = familyGraph(cards);
+  const memo = new Map<string, string[] | undefined>();
+  return (card) => {
+    const key = speciesKey(speciesOf(card.name));
+    if (!memo.has(key)) {
+      const fam = g.family(key).map((k) => g.nameOf.get(k) ?? k);
+      memo.set(key, fam.length >= 2 ? fam : undefined);
+    }
+    return memo.get(key);
+  };
 }
 
 /**

@@ -136,7 +136,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'The daily puzzle reacts: the cards hop, the box shakes, a stamp lands',
-        kind: 'improved',
+        kind: 'better',
         area: 'binders',
         body:
           'A right word hops the cards one after the other, pops its chip in and stamps YES over the '

@@ -37,6 +37,8 @@ export const NAV_EXPLORE: NavItem[] = [
   // No contest line (owner call, 2026-10-11): the first contest is over and /contest is its
   // record, reached from the winning binders and by URL. Re-add here when the next one opens.
   { label: 'Browse Cards', href: '/browse' as Href, match: (p) => p.startsWith('/browse') },
+  // COLLECTOR BINDERS (owner, 2026-10-26): a set or a binder type, built by rule: free placeholders or a binder.
+  { label: 'Collector Binders', href: '/collect' as Href, match: (p) => p.startsWith('/collect') },
   // SCAN CARDS (owner, 2026-10-13): tcgscan.ai in a new tab, signed in as this account by way of
   // the one-time handoff ticket (data/handoff.ts), so a member does not sign in twice. Shown in
   // every build, NOT behind SHOW_CROSS_APP: the owner asked for the link itself; the bundle,

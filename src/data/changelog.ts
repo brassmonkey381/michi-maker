@@ -131,8 +131,21 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-26',
-    title: 'Mark what you own, and a clean share picture',
+    title: 'Collector binders, the owned tick, and a clean share picture',
     items: [
+      {
+        products: ['michi'],
+        head: 'Collector binders: ask for a set and get the binder',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'A new page under Explore. A complete set in number order, a master set with a reverse '
+          + 'holo pocket for every card printed that way, every card of one Pokémon, an evolution '
+          + 'line, or the living Pokédex, 1 to 1025. Print the placeholders free with no account, '
+          + 'or make it a binder of your own, with the centre pocket of every page kept for art if '
+          + 'you like. With the Owned view it says how many you already have.',
+      },
       {
         products: ['michi'],
         head: 'Tap the owned tick to mark a card as yours',

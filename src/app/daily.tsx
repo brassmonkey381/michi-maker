@@ -30,6 +30,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArtWindow, StockCard } from '@/components/binder/ArtViewCard';
 import { Seg } from '@/components/binder/inspector/controls';
 import { Confetti, makeConfetti, type ConfettiPiece } from '@/components/Confetti';
+import { Pop, Shake, Stamp, Wave } from '@/components/PuzzleFx';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -87,6 +88,14 @@ export default function DailyScreen() {
   const { catalog } = useCatalog(artView !== 'card');
   /** A burst for every right word, a bigger one for the last (owner, 2026-10-22). */
   const [confetti, setConfetti] = useState<ConfettiPiece[] | null>(null);
+  /**
+   * THE REACTION to the last guess (owner, 2026-10-25: "more prominent and fun"): a counter the
+   * effects in PuzzleFx play once per bump, and which kind. A right word hops the cards, pops the
+   * chip and stamps YES over the grid; a wrong one shakes the box and stamps NOPE; the solve does
+   * the big version with a SOLVED stamp and a longer confetti burst. An RPC failure bumps nothing,
+   * since it is not a wrong word.
+   */
+  const [fx, setFx] = useState<{ kind: 'hit' | 'miss' | 'solved'; n: number; word: string } | null>(null);
 
   /**
    * THE COUNTDOWN. Held as state and re-armed by a timeout after each render rather than driven by
@@ -191,7 +200,10 @@ export default function DailyScreen() {
       if (r.hit && r.matchedWord) {
         const hitWord = r.matchedWord;
         setFound((f) => (f.includes(hitWord) ? f : [...f, hitWord]));
-        setConfetti(makeConfetti(r.solved ? 90 : 36));
+        setConfetti(makeConfetti(r.solved ? 160 : 50));
+        setFx((f) => ({ kind: r.solved ? 'solved' : 'hit', n: (f?.n ?? 0) + 1, word: hitWord }));
+      } else {
+        setFx((f) => ({ kind: 'miss', n: (f?.n ?? 0) + 1, word }));
       }
       trackPuzzleGuess(puzzle.id, attempt, r);
       if (r.solved) {
@@ -250,6 +262,12 @@ export default function DailyScreen() {
   // RED OR GREEN (owner, 2026-10-22): the last verdict colours the box and the line under it, so
   // a right word reads as right without reading. The tint lifts as soon as they type again.
   const verdict = last && !typed ? (last.result.hit ? 'yes' : 'no') : null;
+  // Which effects the last reaction drives: 0 leaves an effect still.
+  const hitFx = fx && fx.kind !== 'miss' ? fx.n : 0;
+  const missFx = fx?.kind === 'miss' ? fx.n : 0;
+  const solvedFx = fx?.kind === 'solved' ? fx.n : 0;
+  const stampTone = fx?.kind === 'solved' ? 'win' : fx?.kind === 'hit' ? 'yes' : 'no';
+  const stampText = fx?.kind === 'solved' ? 'SOLVED' : fx?.kind === 'hit' ? 'YES' : 'NOPE';
   // AS LITTLE UNDER THE CARDS AS POSSIBLE (owner, 2026-10-16). The cards keep their size and the
   // guess box stays under them (a side panel was tried and turned down), so everything else is
   // compact: the lead and the countdown share a row, the found chips sit in the guess row, and
@@ -317,14 +335,15 @@ export default function DailyScreen() {
               <View style={styles.viewRow} testID="daily-art-view">
                 <Seg options={ART_VIEWS} value={artView} onChange={setArtView} />
               </View>
+              <View style={styles.gridHost}>
               <View style={[styles.grid, connected && styles.gridConnected, { gap: sheetGap, maxWidth: (cell + sheetGap) * cols }]}>
                 {puzzle.cardIds.map((id, i) => {
                   const uri = puzzle.cardImageUrls?.[i] || cardThumbUrl(id, 640);
                   const card = puzzleCards[i];
                   const renderImage = () => <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={140} />;
                   return (
+                    <Wave key={`${id}-${i}`} signal={hitFx} index={i} lift={solvedFx ? 28 : 12}>
                     <Pressable
-                      key={`${id}-${i}`}
                       onPress={() => setZoom(id)}
                       accessibilityLabel="Look closer at this card"
                     >
@@ -345,8 +364,11 @@ export default function DailyScreen() {
                         />
                       )}
                     </Pressable>
+                    </Wave>
                   );
                 })}
+              </View>
+              <Stamp signal={fx?.n ?? 0} text={stampText} tone={stampTone} />
               </View>
 
               <View style={styles.side}>
@@ -364,6 +386,7 @@ export default function DailyScreen() {
                   </Pressable>
                 </View>
               ) : solved ? (
+                <Pop signal={0} onMount style={styles.popPanel}>
                 <View style={[styles.panel, styles.won]}>
                   <ThemedText type="smallBold" style={styles.wonText}>
                     {found.length === 1 ? `Got it. ${found[0]}.` : `Got them. ${found.join(' and ')}.`}
@@ -376,14 +399,17 @@ export default function DailyScreen() {
                     <ThemedText type="smallBold" style={styles.link}>See every card that matches</ThemedText>
                   </Pressable>
                 </View>
+                </Pop>
               ) : (
                 <View style={styles.panel}>
                   <View style={styles.guessRow}>
                     <View style={styles.foundRow}>
                       {found.map((w) => (
-                        <View key={w} style={styles.foundChip}>
-                          <ThemedText type="small" style={styles.foundText}>{w}</ThemedText>
-                        </View>
+                        <Pop key={w} signal={0} onMount={fx?.word === w}>
+                          <View style={styles.foundChip}>
+                            <ThemedText type="small" style={styles.foundText}>{w}</ThemedText>
+                          </View>
+                        </Pop>
                       ))}
                       {Array.from({ length: Math.max(0, remaining) }, (_, i) => (
                         <View key={`blank-${i}`} style={styles.blankChip}>
@@ -391,6 +417,7 @@ export default function DailyScreen() {
                         </View>
                       ))}
                     </View>
+                    <Shake signal={missFx} style={styles.flex}>
                     <TextInput
                       value={typed}
                       onChangeText={setTyped}
@@ -404,6 +431,7 @@ export default function DailyScreen() {
                       editable={!busy}
                       testID="daily-guess"
                     />
+                    </Shake>
                     <Pressable
                       onPress={submit}
                       disabled={!typed.trim() || busy}
@@ -416,6 +444,7 @@ export default function DailyScreen() {
 
                   <View style={styles.noteRow}>
                     {last ? (
+                      <Pop signal={fx?.n ?? 0} style={styles.popVerdict}>
                       <View style={[styles.verdict, last.result.hit ? styles.verdictYes : styles.verdictNo]}>
                         <ThemedText
                           type="smallBold"
@@ -427,6 +456,7 @@ export default function DailyScreen() {
                             : `No, "${last.word}" is not one of them.`}
                         </ThemedText>
                       </View>
+                      </Pop>
                     ) : (
                       <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
                         Close spellings, plurals, and synonyms count.
@@ -528,6 +558,10 @@ const styles = StyleSheet.create({
   },
   streakText: { color: Palette.accent },
   loading: { alignSelf: 'center', marginTop: Spacing.four },
+  /** Holds the grid and the stamp over it. */
+  gridHost: { alignSelf: 'center', width: '100%' },
+  popPanel: { width: '100%', alignItems: 'center' },
+  popVerdict: { flexShrink: 1 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

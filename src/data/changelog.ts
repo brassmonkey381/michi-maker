@@ -135,6 +135,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'The daily puzzle reacts: the cards hop, the box shakes, a stamp lands',
+        kind: 'improved',
+        area: 'binders',
+        body:
+          'A right word hops the cards one after the other, pops its chip in and stamps YES over the '
+          + 'page. A wrong one shakes the guess box and stamps NOPE. Solving it brings the big version '
+          + 'with a longer shower of confetti. Off when your device asks for reduced motion.',
+      },
+      {
+        products: ['michi'],
         head: 'A shorter top on the card browser, so a phone shows a full row of cards',
         kind: 'better',
         area: 'binders',

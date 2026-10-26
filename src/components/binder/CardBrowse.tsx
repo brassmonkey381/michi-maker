@@ -621,11 +621,13 @@ function GameMenu({
         accessibilityRole="button"
         accessibilityLabel={`Game: ${gameLabel(game)}. Change`}
         testID="picker-game"
-        style={[styles.gameBtn, { borderColor: border }]}>
-        <Text style={[styles.gameBtnText, { color: ink }]} numberOfLines={1}>
+        // Filled with the accent (owner, 2026-10-25): the game is the one control on this bar that
+        // changes what every other control means, and an outlined chip read as just another filter.
+        style={[styles.gameBtn, { borderColor: accent, backgroundColor: accent }]}>
+        <Text style={[styles.gameBtnText, { color: accentText }]} numberOfLines={1}>
           {gameLabel(game)}
         </Text>
-        <Text style={[styles.gameChevron, { color: ink }]}>{'▾'}</Text>
+        <Text style={[styles.gameChevron, { color: accentText }]}>{'▾'}</Text>
       </Pressable>
       {at ? (
         <Modal visible transparent animationType="none" onRequestClose={() => setAt(null)}>

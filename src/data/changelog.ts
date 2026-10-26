@@ -130,30 +130,76 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    date: '2026-10-25',
-    title: 'The card browser starts with cards',
+    date: '2026-10-26',
+    title: 'Mark what you own, and a clean share picture',
     items: [
       {
         products: ['michi'],
         head: 'Tap the owned tick to mark a card as yours',
         kind: 'new',
         area: 'binders',
+        big: true,
         body:
           'With the Owned view on, every card pocket carries a tick: green when you own the card, '
-          + 'a hollow ring when you do not. Tap it to flip. A marked card lands in a "Marked in '
-          + 'michi-maker" portfolio in tcgscan too, and a card you scanned or imported stays owned '
-          + 'until you remove it there.',
+          + 'a hollow ring when you do not. Tap it to flip. Signed in only. A card you scanned or '
+          + 'imported stays owned until you remove it from that portfolio, and the toast says so.',
       },
       {
         products: ['michi'],
         head: 'A clean style for the share picture',
         kind: 'new',
         area: 'sharing',
+        big: true,
         body:
           'Soft or Clean, in the Share sheet. Clean leaves your backdrop exactly as it is, no wash '
-          + 'over it, and sets the michi-maker mark centred under the page. Picks the full-size '
-          + 'download and the quick look.',
+          + 'over it, the page as large as the frame allows, and the michi-maker mark centred under '
+          + 'it. Works on a single page and on a two-page spread. Link previews stay Soft.',
       },
+      {
+        products: ['michi'],
+        head: 'Quick look and the full-size download sit together',
+        kind: 'better',
+        area: 'sharing',
+        body:
+          'The share picture is one block in the Share sheet: its style, then Quick look beside '
+          + 'Download full-size image. The quick look itself has a download button, so what you '
+          + 'are looking at is one tap from being the file.',
+      },
+      {
+        products: ['michi'],
+        head: 'The card browser keeps loading to the end of the results',
+        kind: 'fix',
+        area: 'browse',
+        body:
+          'A search that said 217 results could stop at the first page when the list was already '
+          + 'scrolled to the bottom as more arrived. It now carries on, and a Load more row at the '
+          + 'foot is there for any list that cannot tell.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'The card browser keeps loading to the end of the results',
+        kind: 'fix',
+        area: 'browse',
+        body:
+          'A long search could stop after the first page when the list was already at the bottom '
+          + 'as more arrived. It now carries on, with a Load more row at the foot as a fallback.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'Photographed binder pages read the card names too',
+        kind: 'better',
+        area: 'scanning',
+        body:
+          'On the web scanner, a photo of a binder page now goes through a name-reading pass as '
+          + 'well as the picture match, and the review shows each scan beside its match. A Sessions '
+          + 'link in the header opens your past scans.',
+      },
+    ],
+  },
+  {
+    date: '2026-10-25',
+    title: 'The card browser starts with cards',
+    items: [
       {
         products: ['michi'],
         head: 'Sleeves and art backings for several pockets at once',

@@ -1302,7 +1302,7 @@ function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
   const clean = style === 'clean';
   // The strip is just tall enough for the lockup, and the clean page keeps a slimmer margin, so
   // the page is as large as it can be (owner, 2026-10-25: 'could be a bit bigger').
-  const STRIP = clean ? 36 * S : 0;
+  const STRIP = clean ? 30 * S : 0;
   // The SAME measurement serves both faces; only the ground differs. Under bands the chrome sits
   // on 94% cream, so this reliably returns the dark ink at about 11:1 — which is the point: the
   // band face is not exempt from the guarantee, it simply always passes it.
@@ -1319,7 +1319,7 @@ function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
   // page stands the full height of the frame less a small margin, centred, and the lockup is a
   // small stamp in the bottom-right corner, over the backdrop (and over a small pill on the band
   // face). Level, not tilted: see the note on `rotate` in compose().
-  const MARGIN = clean ? 6 * S : 14 * S;
+  const MARGIN = clean ? 2 * S : 14 * S;
   // The mat's own padding and hairline, both sides of each, are not available to the cards.
   const matChrome = 36 * S + 2 * MAT_EDGE;
   const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - MARGIN * 2, SINGLE_H - STRIP - matChrome - MARGIN * 2);
@@ -1380,8 +1380,8 @@ function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
   // The stamp: mark and wordmark, small, bottom right. On the band face a pill sits under it so
   // the ink keeps its contrast whatever the backdrop's corner holds. In the clean style it is
   // larger and centred in the strip under the page.
-  const markPx = clean ? 24 * S : 16 * S;
-  const wordPx = clean ? 15 * S : 11 * S;
+  const markPx = clean ? 20 * S : 16 * S;
+  const wordPx = clean ? 13 * S : 11 * S;
   layers.push(
     h(
       'div',

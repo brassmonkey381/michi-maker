@@ -36,6 +36,19 @@
  * left, everything sharing cut lines. `FillCounts.artSheetsSpaced` keeps the old count so the app can say
  * what the tighter layout saved.
  *
+ * MATS (owner, 2026-10-26: "print the binder page exactly how it's displayed ... cut out the art
+ * window and slide the pokemon card behind the matte cardstock"). A page shown in the art view
+ * (binder_pages.art_view, data/artView.ts) can print its cards as MATS: a card-sized piece of
+ * cardstock, black or white, with the card's ART WINDOW left unprinted and outlined to cut out,
+ * and the name, type and stage, set, number, illustrator and year under it, as the stock card on
+ * screen lays them. The real card slides in behind the mat, both into the one pocket; they are the
+ * same size and sit flush, so the hole lands on the picture with no aligning. The hole is cut at the
+ * card's OWN window (ART_WINDOW, one rectangle for every era), not where the screen's stock card
+ * re-lays it. No card art touches the paper: a mat carries the facts the placeholder already
+ * prints, and a hole. Mats ride in the ART file (cardstock), packed as singles. A full-art card
+ * has no window to cut, so on a window page it gets no mat; a connected page of full-art cards
+ * gets mats cut inside the border instead (artView.ts connectedCut).
+ *
  * All geometry is in PDF points (72 pt = 1 inch), so the physical sizes are exact.
  */
 import {
@@ -57,6 +70,7 @@ import {
 } from 'pdf-lib';
 
 // Relative, not '@/': this module is exercised by node --test (fillSheetPacking.test.ts).
+import { ART_FULL_TRIM, ART_WINDOW, connectedCut, isFullArtCard, normalizeArtView, stockCardText } from './artView.ts';
 import { insideEdgePairStarts, pageSide } from './binderPhysics.ts';
 import { cutPieces } from './printFit.ts';
 import type { DemoBinder, DemoSlot, ImageTransform } from '@/data/binderTypes';
@@ -175,6 +189,11 @@ const INK = rgb(0.12, 0.12, 0.12);
 const MUTED = rgb(0.42, 0.42, 0.42);
 const GUIDE = rgb(0.7, 0.7, 0.7);
 const WHITE = rgb(1, 1, 1);
+/** The black mat and its inks: the stock card's own colours (ArtViewCard.tsx), near-black, cream, warm gray. */
+const MAT_BLACK = rgb(0.067, 0.067, 0.078);
+const MAT_INK = rgb(0.95, 0.94, 0.9);
+const MAT_MUTED = rgb(0.64, 0.62, 0.56);
+const MAT_RULE = rgb(0.2, 0.2, 0.24);
 
 // ---- tiles ------------------------------------------------------------------
 
@@ -222,13 +241,33 @@ export interface InsertTile {
   color: string;
 }
 
-export type FillTile = CardTile | ArtTile | InsertTile;
+/** The colour of a mat: black as the stock card on screen, or white, which costs no ink. */
+export type MatColor = 'black' | 'white';
+
+/** A mat (see the header): a card-sized frame with the art window to cut out and the card's facts under it. */
+export interface MatTile {
+  kind: 'mat';
+  page: number;
+  row: number;
+  col: number;
+  name: string;
+  /** Type and stage, "Water · Stage 1". */
+  sub: string;
+  rows: { label: string; value: string }[];
+  /** The hole: the art window, or the art inside a full-art card's border (artView.ts). */
+  cut: 'window' | 'full';
+  color: MatColor;
+}
+
+export type FillTile = CardTile | ArtTile | InsertTile | MatTile;
 
 export interface FillCounts {
   cards: number;
   ownedCards: number;
   art: number;
   inserts: number;
+  /** Mats for the art-view pages (cardstock, in the art file). */
+  mats: number;
   total: number;
   /** Total print sheets across BOTH files, excluding their covers (placeholders + art). */
   sheets: number;
@@ -240,10 +279,39 @@ export interface FillCounts {
   artSheetsSpaced: number;
 }
 
+/** What the builder knows about a card: the placeholder's three lines, and what a mat says and needs. */
+export interface CardMeta {
+  name: string;
+  setName: string;
+  number: string;
+  types?: string[];
+  stage?: string;
+  seriesId?: string;
+  illustrator?: string;
+  releaseDate?: string;
+  fullArt?: boolean;
+  fullArtKind?: string;
+}
+
 /** Card metadata lookup the builder needs — satisfied by the kit catalog's `getCard`. */
 export interface CardMetaSource {
-  getCard(cardId: string): { name: string; setName: string; number: string } | undefined;
+  getCard(cardId: string): CardMeta | undefined;
 }
+
+/** A mat's words, as the stock card on screen says them (artView.ts stockCardText). */
+function matText(m: CardMeta): Pick<MatTile, 'name' | 'sub' | 'rows'> {
+  return stockCardText({
+    name: m.name,
+    types: m.types ?? [],
+    stage: m.stage ?? '',
+    seriesId: m.seriesId ?? '',
+    setName: m.setName,
+    number: m.number,
+    illustrator: m.illustrator ?? '',
+    releaseDate: m.releaseDate ?? '',
+  });
+}
+const fullArtOf = (m: CardMeta | undefined) => (m ? { fullArt: m.fullArt, fullArtKind: m.fullArtKind ?? '' } : undefined);
 
 const transformKey = (t?: ImageTransform) => (t ? `${t.rot}|${t.flipH ? 1 : 0}|${t.flipV ? 1 : 0}` : '0|0|0');
 
@@ -397,6 +465,8 @@ export function collectFillTiles(
   binder: DemoBinder,
   cards: CardMetaSource,
   ownedIds?: ReadonlySet<string>,
+  /** Print the art-view pages' cards as mats of this colour (see the header). Off when absent. */
+  mats?: MatColor,
 ): { tiles: FillTile[]; counts: FillCounts } {
   const tiles: FillTile[] = [];
   binder.pages.forEach((page, pageIndex) => {
@@ -451,10 +521,28 @@ export function collectFillTiles(
         if (t) tiles.push(t);
       }
     }
+    // MATS for an art-view page, after its placeholders so the file keeps page order. One per
+    // card-sized card pocket; a jumbo has no mat. On a window page a full-art card stays whole
+    // (no window to cut); a connected page is cut as the sheet is (connectedCut).
+    const view = mats ? normalizeArtView(page.artView) : undefined;
+    if (view) {
+      const pockets = page.slots.filter((s) => s.type === 'card' && s.cardId && s.rowSpan === 1 && s.colSpan === 1);
+      const metas = pockets.map((s) => cards.getCard(s.cardId!));
+      const cut = view === 'connected' ? connectedCut(metas.map(fullArtOf)) : 'window';
+      pockets.forEach((slot, i) => {
+        const m = metas[i];
+        if (view === 'window' && isFullArtCard(fullArtOf(m))) return;
+        tiles.push({
+          kind: 'mat', page: pageIndex + 1, row: slot.row + 1, col: slot.col + 1,
+          ...(m ? matText(m) : { name: 'Unknown card', sub: '', rows: [] }),
+          cut, color: mats!,
+        });
+      });
+    }
   });
   const placeholderSheets = packSection(tiles, 'placeholders').sheetCount;
   const artSheets = packSection(tiles, 'art').sheetCount;
-  const artSingles = tiles.filter((t) => t.kind === 'art' && t.w === 1).length;
+  const artSingles = tiles.filter((t) => (t.kind === 'art' && t.w === 1) || t.kind === 'mat').length;
   const artFolds = tiles.filter((t) => t.kind === 'art' && t.w === 2).length;
   const artSheetsSpaced = Math.ceil(artSingles / SPACED_SINGLES_PER_SHEET) + Math.ceil(artFolds / SPACED_FOLDS_PER_SHEET);
   const counts: FillCounts = {
@@ -462,6 +550,7 @@ export function collectFillTiles(
     ownedCards: tiles.filter((t) => t.kind === 'card' && t.owned).length,
     art: tiles.filter((t) => t.kind === 'art').length,
     inserts: tiles.filter((t) => t.kind === 'insert').length,
+    mats: tiles.filter((t) => t.kind === 'mat').length,
     total: tiles.length,
     placeholderSheets,
     artSheets,
@@ -492,10 +581,11 @@ const gridLeft = (mixed: boolean) => (SHEET_W - (mixed ? MIXED_GRID_W : GRID_W))
  * sections become two separate PDFs — plain paper vs matte cardstock).
  *
  *  - 'placeholders': card placeholders + inserts fill the 3 × 3 grid EDGE TO EDGE in reading
- *    order — no blanks, every interior edge is one shared cut. (Art tiles are ignored here.)
+ *    order — no blanks, every interior edge is one shared cut. (Art and mat tiles are ignored here.)
  *  - 'art': rows first. Every fold takes a row with one single beside it; the singles left over
- *    fill rows of three. Rows stack three to a sheet, so a binder with folds no longer pays for
- *    separate fold sheets, and a sheet with any fold row switches to the mixed column grid.
+ *    (art singles, then the mats) fill rows of three. Rows stack three to a sheet, so a binder
+ *    with folds no longer pays for separate fold sheets, and a sheet with any fold row switches
+ *    to the mixed column grid.
  */
 function packSection(
   tiles: FillTile[],
@@ -503,7 +593,7 @@ function packSection(
 ): { placed: PlacedTile[]; sheetCount: number } {
   const L = makeLayout(false);
   if (section === 'placeholders') {
-    const plain = tiles.filter((t) => t.kind !== 'art');
+    const plain = tiles.filter((t) => t.kind !== 'art' && t.kind !== 'mat');
     const perPlain = COLS * L.rows;
     const placed: PlacedTile[] = plain.map((tile, n) => ({
       tile,
@@ -515,9 +605,12 @@ function packSection(
     }));
     return { placed, sheetCount: Math.ceil(plain.length / perPlain) };
   }
-  const singles = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 1);
+  const singles: (ArtTile | MatTile)[] = [
+    ...tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 1),
+    ...tiles.filter((t): t is MatTile => t.kind === 'mat'),
+  ];
   const folded = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 2);
-  const rows: { fold?: ArtTile; singles: ArtTile[] }[] = [];
+  const rows: { fold?: ArtTile; singles: (ArtTile | MatTile)[] }[] = [];
   for (const fold of folded) rows.push({ fold, singles: singles.splice(0, 1) });
   while (singles.length > 0) rows.push({ singles: singles.splice(0, COLS) });
   const sheetCount = Math.ceil(rows.length / L.rows);
@@ -642,12 +735,14 @@ export async function buildFillSheetPdfs(
      * it, because anything drawn in a browser can be saved by someone determined.
      */
     preview?: boolean;
+    /** Print the art-view pages' cards as mats of this colour, in the art file (see the header). */
+    mats?: MatColor;
   },
 ): Promise<FillSheetPdf[]> {
   const title = sanitize(binder.title);
-  const { tiles, counts } = collectFillTiles(binder, cards, opts?.ownedIds);
-  const plain = tiles.filter((t) => t.kind !== 'art');
-  const art = tiles.filter((t) => t.kind === 'art');
+  const { tiles, counts } = collectFillTiles(binder, cards, opts?.ownedIds, opts?.mats);
+  const plain = tiles.filter((t) => t.kind !== 'art' && t.kind !== 'mat');
+  const art = tiles.filter((t) => t.kind === 'art' || t.kind === 'mat');
   const out: FillSheetPdf[] = [];
   const sections: ('placeholders' | 'art')[] = [];
   if (plain.length > 0) {
@@ -733,6 +828,10 @@ async function buildSectionDoc(
       } else if (tile.kind === 'insert') {
         page.drawRectangle({ x, y, width: CARD_W, height: CARD_H, color: hexColor(tile.color) });
         drawTag(page, `P${tile.page} · R${tile.row}C${tile.col} · insert ${tile.color}`, x, y, regular, L);
+        edges.push({ x, y, w: CARD_W, h: CARD_H });
+      } else if (tile.kind === 'mat') {
+        drawMatTile(page, tile, x, y, bold, regular);
+        drawSideMarginTag(page, `P${tile.page} · R${tile.row}C${tile.col} · mat`, x, y, col, gridLeft(mixed), bold);
         edges.push({ x, y, w: CARD_W, h: CARD_H });
       } else {
         const pieceW = tile.w * CARD_W + (tile.w - 1) * POCKET_GAP;
@@ -943,6 +1042,67 @@ function drawCardTile(page: PDFPage, tile: CardTile, x: number, y: number, bold:
   page.drawText(label, { x: groupX + boxSize + 5, y: boxY + 1.5, size: 8, font: regular, color: tone });
 }
 
+/**
+ * A MAT (see the header). The mat's colour stops ART_INSET short of every cut line like the art
+ * does, so a wandering blade lands on white. THE HOLE sits at the card's own art window (or
+ * inside a full-art border): left unprinted, outlined in the dashed cut line, and marked "cut
+ * out". Under it the stock card's text (ArtViewCard.tsx): the name, the type and stage, a rule,
+ * then the references in a ruled table, as many rows as the room below the hole takes. A
+ * full-art cut leaves no room, and no text: that mat is a frame.
+ */
+function drawMatTile(page: PDFPage, tile: MatTile, x: number, y: number, bold: PDFFont, regular: PDFFont) {
+  const dark = tile.color === 'black';
+  if (dark) {
+    page.drawRectangle({ x: x + ART_INSET, y: y + ART_INSET, width: CARD_W - ART_INSET * 2, height: CARD_H - ART_INSET * 2, color: MAT_BLACK });
+  }
+  const t = tile.cut === 'full'
+    ? { x0: ART_FULL_TRIM.left, x1: 1 - ART_FULL_TRIM.right, y0: ART_FULL_TRIM.top, y1: 1 - ART_FULL_TRIM.bottom }
+    : ART_WINDOW;
+  const hx = x + t.x0 * CARD_W;
+  const hw = (t.x1 - t.x0) * CARD_W;
+  const hh = (t.y1 - t.y0) * CARD_H;
+  const hy = y + CARD_H - t.y0 * CARD_H - hh;
+  if (dark) page.drawRectangle({ x: hx, y: hy, width: hw, height: hh, color: WHITE });
+  page.drawRectangle({ x: hx, y: hy, width: hw, height: hh, borderColor: GUIDE, borderWidth: 0.5, borderDashArray: [3, 3] });
+  drawCentered(page, 'cut out', hy + hh / 2 - 3, regular, 7, GUIDE, hx + hw / 2);
+
+  const ink = dark ? MAT_INK : INK;
+  const muted = dark ? MAT_MUTED : MUTED;
+  const rule = dark ? MAT_RULE : GUIDE;
+  const left = hx;
+  const right = hx + hw;
+  const w = hw;
+  const bottom = y + 10;
+  let cursor = hy - 16;
+  if (cursor - 12 < bottom) return;
+  const [name] = wrap(sanitize(tile.name), bold, 12, w, 1);
+  if (name) page.drawText(name, { x: left, y: cursor, size: 12, font: bold, color: ink });
+  cursor -= 11;
+  if (tile.sub) {
+    const [sub] = wrap(sanitize(tile.sub).toUpperCase(), regular, 6, w, 1);
+    if (sub) page.drawText(sub, { x: left, y: cursor, size: 6, font: regular, color: muted });
+    cursor -= 9;
+  }
+  const rowH = 14;
+  const fit = Math.max(0, Math.floor((cursor - 4 - bottom) / rowH));
+  const rows = tile.rows.slice(0, fit);
+  if (!rows.length) return;
+  cursor -= 2;
+  page.drawLine({ start: { x: left, y: cursor }, end: { x: right, y: cursor }, thickness: 0.6, color: rule });
+  for (const r of rows) {
+    cursor -= rowH;
+    const label = sanitize(r.label).toUpperCase();
+    page.drawText(label, { x: left, y: cursor + 3, size: 5.5, font: regular, color: muted });
+    const labelW = regular.widthOfTextAtSize(label, 5.5) + 8;
+    const [value] = wrap(sanitize(r.value), regular, 7.5, w - labelW, 1);
+    if (value) {
+      const vw = regular.widthOfTextAtSize(value, 7.5);
+      page.drawText(value, { x: right - vw, y: cursor + 3, size: 7.5, font: regular, color: ink });
+    }
+    page.drawLine({ start: { x: left, y: cursor - 1 }, end: { x: right, y: cursor - 1 }, thickness: 0.4, color: rule });
+  }
+}
+
 /** Art piece whose image couldn't be fetched: a labeled gray tile instead of a hole. */
 function drawArtFallback(page: PDFPage, tile: ArtTile, x: number, y: number, bold: PDFFont, regular: PDFFont) {
   const pieceW = tile.w * CARD_W + (tile.w - 1) * POCKET_GAP;
@@ -1089,7 +1249,10 @@ function drawCover(
 
   const sectionSheets = isArt ? counts.artSheets : counts.placeholderSheets;
   const parts = isArt
-    ? [`${counts.art} art piece${counts.art === 1 ? '' : 's'}`]
+    ? [
+        counts.art ? `${counts.art} art piece${counts.art === 1 ? '' : 's'}` : '',
+        counts.mats ? `${counts.mats} mat${counts.mats === 1 ? '' : 's'}` : '',
+      ].filter(Boolean)
     : [
         `${counts.cards} card placeholder${counts.cards === 1 ? '' : 's'}`,
         counts.inserts ? `${counts.inserts} insert${counts.inserts === 1 ? '' : 's'}` : '',
@@ -1157,6 +1320,9 @@ function drawCover(
         'Pieces sit edge to edge, so one straight cut along a dashed line frees two pieces at once; nothing is printed on your artwork, which stops a hair short of every line. Each pocket location is printed in the sheet margin beside its row.',
         'Wide pieces (labelled "fold") share the sheets with the singles. Fold each down the middle of the narrow strip between its two halves, then each half slides into its pocket pair.',
         'Slide each piece into its pocket. Neighboring pieces are gap-compensated, so the picture reads continuous across the dividers.',
+        ...(counts.mats
+          ? ['Mats (labelled "mat"): cut out the dashed window with a craft knife, then slide the real card in behind the mat, both into the one pocket. The window lands on the picture by itself.']
+          : []),
       ]
     : [
         'Print at 100% scale (“Actual size”), NOT “Fit to page”. Plain paper is fine, these are backings behind your cards, not display pieces.',

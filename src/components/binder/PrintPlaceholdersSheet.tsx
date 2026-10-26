@@ -26,7 +26,8 @@ import { EXAMPLE_FILL_SHEET_BINDER, EXAMPLE_FILL_SHEET_OWNED } from '@/data/exam
 import { createWebArtLoader } from '@/data/fillSheetArt';
 import { fileStem, saveBytes, saveFillSheetFiles } from '@/data/fillSheetSave';
 import { startCheckout } from '@/data/checkout';
-import { buildFillSheetPdfs, collectFillTiles, type FillSheetPdf, CARDSTOCK_SHEET_USD } from '@/data/placeholderPdf';
+import { Seg } from '@/components/binder/inspector/controls';
+import { buildFillSheetPdfs, collectFillTiles, type FillSheetPdf, type MatColor, CARDSTOCK_SHEET_USD } from '@/data/placeholderPdf';
 import { printCutWarningText, printCutWarnings } from '@/data/printFit';
 import {
   binderFingerprint,
@@ -44,6 +45,13 @@ import { track, trackProOfferDeclined } from '@/lib/analytics';
 import { usePrintAllowance } from '@/hooks/use-print-allowance';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
+
+/** The mat choice on the print sheet. "Off" prints an art-view page as placeholders, as before. */
+const MAT_OPTIONS = [
+  { id: 'off', label: 'Off', blurb: 'Those pages print as placeholders.' },
+  { id: 'black', label: 'Black mats', blurb: 'Dark mats, as the page looks on screen.' },
+  { id: 'white', label: 'White mats', blurb: 'Mats that cost no ink.' },
+] as const;
 
 export function PrintPlaceholdersSheet({
   binder,
@@ -182,6 +190,15 @@ export function PrintPlaceholdersSheet({
 
   const effectiveOwned = colorOwned ? (ownedIds ?? undefined) : undefined;
   /**
+   * MATS (owner, 2026-10-26): the pages shown in the art view can print their cards as mats, a
+   * frame with the art window cut out that the real card slides in behind (placeholderPdf.ts
+   * header). Offered only when the binder has such a page; off by default so a print is what it
+   * was. The colour is the mat's: black as on screen, or white for no ink.
+   */
+  const hasArtView = useMemo(() => binder.pages.some((p) => p.artView === 'window' || p.artView === 'connected'), [binder.pages]);
+  const [matChoice, setMatChoice] = useState<'off' | MatColor>('off');
+  const mats: MatColor | undefined = hasArtView && matChoice !== 'off' ? matChoice : undefined;
+  /**
    * EVERY GAME'S CARDS, NOT POKÉMON'S ALONE (2026-09-20). The builder asks one lookup for a name,
    * set and number, and it was handed Pokémon's catalog, so a One Piece or Lorcana pocket printed
    * as "Unknown card" on a sheet someone paid for. This is the same lookup with the app's other
@@ -206,8 +223,8 @@ export function PrintPlaceholdersSheet({
     [catalog],
   );
   const collected = useMemo(
-    () => (cardMeta ? collectFillTiles(binder, cardMeta, effectiveOwned) : null),
-    [binder, cardMeta, effectiveOwned],
+    () => (cardMeta ? collectFillTiles(binder, cardMeta, effectiveOwned, mats) : null),
+    [binder, cardMeta, effectiveOwned, mats],
   );
   const counts = collected?.counts ?? null;
   const sheets = counts?.sheets ?? 0;
@@ -231,6 +248,7 @@ export function PrintPlaceholdersSheet({
       await ensureOtherGames(binder);
       const files = await buildFillSheetPdfs(binder, cardMeta ?? catalog, {
         ownedIds: effectiveOwned,
+        mats,
         // Art pixels: direct CORS fetch → art-proxy edge fn fallback → webp/canvas convert.
         loadImage: createWebArtLoader(),
       });
@@ -318,6 +336,7 @@ export function PrintPlaceholdersSheet({
         await ensureOtherGames(source);
         const files = await buildFillSheetPdfs(source, cardMeta ?? catalog, {
           ownedIds: effectiveOwned,
+          mats,
           loadImage: createWebArtLoader(),
         });
         if (files.length === 0) throw new Error('This purchased version has nothing to print.');
@@ -453,10 +472,10 @@ export function PrintPlaceholdersSheet({
    * only trigger (plus the catalog arriving), and the build reads the lookup, the owned set and the
    * binder through refs at the moment it needs them.
    */
-  const previewInputs = useRef({ binder, cardMeta, effectiveOwned, ensureOtherGames });
+  const previewInputs = useRef({ binder, cardMeta, effectiveOwned, mats, ensureOtherGames });
   useEffect(() => {
-    previewInputs.current = { binder, cardMeta, effectiveOwned, ensureOtherGames };
-  }, [binder, cardMeta, effectiveOwned, ensureOtherGames]);
+    previewInputs.current = { binder, cardMeta, effectiveOwned, mats, ensureOtherGames };
+  }, [binder, cardMeta, effectiveOwned, mats, ensureOtherGames]);
   const [previewRun, setPreviewRun] = useState(0);
   const catalogReady = !!cardMeta;
   useEffect(() => {
@@ -467,10 +486,11 @@ export function PrintPlaceholdersSheet({
         const { binder: source, ensureOtherGames: ensure } = previewInputs.current;
         await ensure(source);
         // Read again AFTER the other games landed: `cardMeta` is a new lookup by then.
-        const { cardMeta: meta, effectiveOwned: owned } = previewInputs.current;
+        const { cardMeta: meta, effectiveOwned: owned, mats: matsNow } = previewInputs.current;
         if (!meta) throw new Error('The card catalog is not loaded yet. Try again in a moment.');
         const files = await buildFillSheetPdfs(source, meta, {
           ownedIds: owned,
+          mats: matsNow,
           loadImage: createWebArtLoader({ preview: true }),
           preview: true,
         });
@@ -548,10 +568,17 @@ export function PrintPlaceholdersSheet({
                         {counts.inserts === 1 ? '' : 's'}
                       </>
                     ) : null}
+                    {counts.mats > 0 ? (
+                      <>
+                        {' · '}
+                        <ThemedText type="smallBold">{counts.mats}</ThemedText> mat
+                        {counts.mats === 1 ? '' : 's'}
+                      </>
+                    ) : null}
                     {' · '}
                     <ThemedText type="smallBold">{sheets}</ThemedText> sheet
                     {sheets === 1 ? '' : 's'}
-                    {counts.art > 0
+                    {counts.art + counts.mats > 0
                       ? ` (${counts.placeholderSheets} plain paper, ${counts.artSheets} matte cardstock)`
                       : ''}
                     {colorOwned && ownedCount > 0 ? (
@@ -589,6 +616,15 @@ export function PrintPlaceholdersSheet({
                         {printCutWarningText(w)}
                       </ThemedText>
                     ))}
+                  </View>
+                ) : null}
+                {hasArtView && counts && counts.total > 0 ? (
+                  <View style={styles.matsBlock} testID="print-mats">
+                    <ThemedText type="smallBold">Art-view pages as mats</ThemedText>
+                    <Seg options={MAT_OPTIONS} value={matChoice} onChange={setMatChoice} />
+                    <ThemedText type="small" themeColor="textSecondary">
+                      A mat is cardstock with the art window cut out. The card slides in behind it. No card art is printed.
+                    </ThemedText>
                   </View>
                 ) : null}
                 {ownedIds && ownedIds.size > 0 && counts && counts.total > 0 ? (
@@ -982,6 +1018,7 @@ const styles = StyleSheet.create({
   cutWarn: { gap: 4, padding: Spacing.three, borderRadius: Radius.control, backgroundColor: Palette.dangerBg },
   bad: { color: Palette.danger },
   goodBox: { marginTop: 6, padding: Spacing.three, borderRadius: Radius.control, backgroundColor: `${Palette.success}1A` },
+  matsBlock: { gap: Spacing.two },
   good: { color: Palette.success },
   sub: { lineHeight: 20 },
   legalNote: { lineHeight: 17, fontSize: FontSize.sm, fontStyle: 'italic' },

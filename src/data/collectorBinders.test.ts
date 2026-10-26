@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  type CollectorCard, completeSet, dexNumber, evolutionLineSet, livingDex, masterSet, numberKey, pagesNeeded, POKEDEX,
-  searchSpecies, speciesOf, speciesSet,
+  type CollectorCard, completeSet, dexNumber, evolutionLineSet, inLanguage, isSecretRare, livingDex, masterSet, MICHI_PAGE_TEMPLATES,
+  michiPages, numberKey, pagesNeeded, POKEDEX, searchSpecies, speciesOf, speciesSet, withCameos,
 } from './collectorBinders.ts';
 
 const card = (id: string, name: string, number: string, extra: Partial<CollectorCard> = {}): CollectorCard => ({
@@ -93,4 +93,63 @@ test('pages and species search', () => {
   assert.equal(pagesNeeded(165, 8), 21);
   assert.equal(searchSpecies('pika')[0], 'Pikachu');
   assert.ok(searchSpecies('chu').includes('Pichu'));
+});
+
+test('secret rares are the numbers past the printed total, and can be left out', () => {
+  assert.equal(isSecretRare('200/165'), true);
+  assert.equal(isSecretRare('165/165'), false);
+  assert.equal(isSecretRare('TG05/TG30'), false);
+  const cards = [card('a', 'Bulbasaur', '001/165'), card('s', 'Mew ex', '205/165', { rarity: 'Hyper Rare' })];
+  assert.deepEqual(completeSet(cards).pockets.map((p) => p.cardId), ['a', 's']);
+  assert.deepEqual(completeSet(cards, { secrets: false }).pockets.map((p) => p.cardId), ['a']);
+});
+
+test('a master set can seat each reverse holo beside its card', () => {
+  const r = masterSet([card('a', 'Bulbasaur', '001/165'), card('b', 'Ivysaur', '002/165')], () => true, { reverse: 'beside' });
+  assert.deepEqual(r.pockets.map((p) => `${p.cardId}${p.finish ? 'R' : ''}`), ['a', 'aR', 'b', 'bR']);
+});
+
+test('the language bound keeps the asked-for printing only', () => {
+  const cards = [card('en', 'Pikachu', '025/165'), card('ja', 'Pikachu', '025/165', { language: 'ja' })];
+  assert.deepEqual(inLanguage(cards, 'en').map((c) => c.id), ['en']);
+  assert.deepEqual(inLanguage(cards, 'ja').map((c) => c.id), ['ja']);
+  assert.equal(inLanguage(cards, 'both').length, 2);
+});
+
+test('cameos ride after the result, in release order, never twice', () => {
+  const base = speciesSet([card('p', 'Pikachu', '025/165')], 'Pikachu');
+  const cameos = [card('p', 'Pikachu', '025/165'), card('late', 'Rare Candy', '191/198', { releaseDate: '2024-01-01' }), card('early', 'Bill', '91/102', { setId: 'base1', releaseDate: '1999-01-09' })];
+  const r = withCameos(base, cameos);
+  assert.deepEqual(r.pockets.map((p) => p.cardId), ['p', 'early', 'late']);
+  assert.equal(r.pockets[1].cameo, true);
+  assert.equal(r.pockets[0].cameo, undefined);
+});
+
+test('michi pages draw a layout per page, seat every card in order around the art, and repeat for a seed', () => {
+  assert.ok(MICHI_PAGE_TEMPLATES.length >= 4);
+  const pockets = Array.from({ length: 40 }, (_, i) => ({ cardId: `c${i}`, ...(i % 7 === 0 ? { finish: 'Reverse Holofoil' as const } : {}) }));
+  let n = 0;
+  const mk = () => `id${(n += 1)}`;
+  const pages = michiPages(pockets, mk, 'test');
+  const seated = pages.flatMap((pg) => pg.slots.filter((s) => s.type === 'card').map((s) => s.cardId));
+  assert.deepEqual(seated, pockets.map((p) => p.cardId));
+  for (const pg of pages) {
+    assert.ok(pg.slots.some((s) => s.type === 'artwork'), 'every page has art');
+    const cells = new Set<string>();
+    for (const s of pg.slots) for (let r = s.row; r < s.row + s.rowSpan; r += 1) for (let c = s.col; c < s.col + s.colSpan; c += 1) {
+      assert.ok(!cells.has(`${r},${c}`), 'no overlap');
+      cells.add(`${r},${c}`);
+    }
+    const cards = pg.slots.filter((s) => s.type === 'card');
+    for (let i = 1; i < cards.length; i += 1) assert.ok(cards[i].row * 3 + cards[i].col > cards[i - 1].row * 3 + cards[i - 1].col, 'reading order');
+  }
+  for (let i = 1; i < pages.length - 1; i += 1) {
+    const a = pages[i - 1].slots.find((s) => s.type === 'artwork')?.artTemplateId;
+    const b = pages[i].slots.find((s) => s.type === 'artwork')?.artTemplateId;
+    assert.notEqual(a, b, 'neighbours differ');
+  }
+  assert.equal(pages.flatMap((pg) => pg.slots).find((s) => s.cardId === 'c7')?.finish, 'Reverse Holofoil');
+  const layouts = (ps: ReturnType<typeof michiPages>) => ps.map((pg) => pg.slots.find((s) => s.type === 'artwork')?.artTemplateId);
+  assert.deepEqual(layouts(michiPages(pockets, mk, 'test')), layouts(pages));
+  assert.notDeepEqual(layouts(michiPages(pockets, mk, 'other')), layouts(pages));
 });

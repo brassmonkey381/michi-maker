@@ -142,9 +142,12 @@ export const CHANGELOG: ChangelogEntry[] = [
         body:
           'A new page under Explore. A complete set in number order, a master set with a reverse '
           + 'holo pocket for every card printed that way, every card of one Pokémon, an evolution '
-          + 'line, or the living Pokédex, 1 to 1025. Print the placeholders free with no account, '
-          + 'or make it a binder of your own, with the centre pocket of every page kept for art if '
-          + 'you like. With the Owned view it says how many you already have.',
+          + 'line, or the living Pokédex, 1 to 1025. Choose English, Japanese or both, keep or drop '
+          + 'the secret rares, put the reverse holos after the run or beside each card, and add the '
+          + 'cameo cards of a Pokémon. Print the placeholders free with no account, or make it a '
+          + 'binder of your own: the michi layouts option draws a different composition for every '
+          + 'page, with art panels ready for your pictures. With the Owned view it says how many you '
+          + 'already have.',
       },
       {
         products: ['michi'],

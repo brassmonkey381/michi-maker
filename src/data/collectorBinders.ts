@@ -13,16 +13,19 @@
  * the numbered run because their numbers run past the printed total; promos are a grand master
  * set and are left out here.
  */
+import { ART_TEMPLATES, type ArtTemplate, reservedCells, templateArtSlots } from './artTemplates.ts';
+import type { DemoPage, DemoSlot } from './binderTypes.ts';
 import pokedex from './pokedex.json' with { type: 'json' };
+import { seededRandom } from './seededRandom.ts';
 
 export type CollectorKind = 'complete' | 'master' | 'species' | 'line' | 'dex';
 
 export const COLLECTOR_KINDS: readonly { id: CollectorKind; label: string; blurb: string; needs: 'set' | 'pokemon' | 'none' }[] = [
-  { id: 'complete', label: 'Complete set', blurb: 'Every numbered card in a set, in order, secret rares at the end.', needs: 'set' },
-  { id: 'master', label: 'Master set', blurb: 'The complete set, then a reverse holo pocket for every card printed that way.', needs: 'set' },
-  { id: 'species', label: 'One Pokémon', blurb: 'Every card of one Pokémon, oldest print first.', needs: 'pokemon' },
-  { id: 'line', label: 'Evolution line', blurb: 'Every card of a Pokémon and the Pokémon it evolves from and into.', needs: 'pokemon' },
-  { id: 'dex', label: 'Living Pokédex', blurb: 'One card for each of the 1025 Pokémon, in National Pokédex order.', needs: 'none' },
+  { id: 'complete', label: 'Complete set', blurb: 'Every card in a set, in number order.', needs: 'set' },
+  { id: 'master', label: 'Master set', blurb: 'The complete set plus every reverse holo.', needs: 'set' },
+  { id: 'species', label: 'One Pokémon', blurb: 'Every card of one Pokémon, oldest first.', needs: 'pokemon' },
+  { id: 'line', label: 'Evolution line', blurb: 'Every card of a Pokémon and its family.', needs: 'pokemon' },
+  { id: 'dex', label: 'Living Pokédex', blurb: 'One card for each of the 1025 Pokémon.', needs: 'none' },
 ];
 
 /** What the builders need from a card: a slice of the kit's CatalogCard. */
@@ -35,12 +38,38 @@ export interface CollectorCard {
   rarity: string;
   evolutionLine: string[];
   kind?: string;
+  /** Printing language; absent means English. */
+  language?: 'en' | 'ja';
 }
 
 /** One pocket of the result: the card, and the finish the pocket shows when it is not Normal. */
 export interface CollectorPocket {
   cardId: string;
   finish?: 'Reverse Holofoil';
+  /** The Pokémon appears in this card's art but is not the card's subject. */
+  cameo?: true;
+}
+
+/** The language bound a collector binder is built under. */
+export type CollectorLanguage = 'en' | 'ja' | 'both';
+
+/** Cards in the asked-for language; 'both' keeps every card. */
+export function inLanguage<T extends { language?: 'en' | 'ja' }>(cards: readonly T[], lang: CollectorLanguage): T[] {
+  if (lang === 'both') return cards.slice();
+  return cards.filter((c) => (c.language ?? 'en') === lang);
+}
+
+/** "200/165" is a secret rare: a number past the set's printed total. "TG05/TG30" is not. */
+export function isSecretRare(number: string): boolean {
+  const m = /^\s*(\d+)\s*\/\s*(\d+)\s*$/.exec(number);
+  return !!m && Number(m[1]) > Number(m[2]);
+}
+
+export interface SetOptions {
+  /** Keep the cards numbered past the printed total. Default true. */
+  secrets?: boolean;
+  /** Master sets: the reverse holos after the run, or each beside its card. Default 'after'. */
+  reverse?: 'after' | 'beside';
 }
 
 export interface CollectorResult {
@@ -121,20 +150,42 @@ const byRelease = (a: CollectorCard, b: CollectorCard) =>
 const standard = (c: CollectorCard) => !c.kind || c.kind === 'standard';
 
 /** The complete set: every card in the set in collector-number order. */
-export function completeSet(setCards: readonly CollectorCard[]): CollectorResult {
-  const pockets = setCards.filter(standard).slice().sort(byNumber).map((c) => ({ cardId: c.id }));
+export function completeSet(setCards: readonly CollectorCard[], opts: SetOptions = {}): CollectorResult {
+  const pockets = setRun(setCards, opts).map((c) => ({ cardId: c.id }));
   return { pockets, missing: [] };
 }
+
+const setRun = (setCards: readonly CollectorCard[], opts: SetOptions) =>
+  setCards.filter(standard).filter((c) => opts.secrets !== false || !isSecretRare(c.number)).slice().sort(byNumber);
 
 /**
  * The master set: the complete run, then a reverse holo pocket for every card `hasReverse` says
  * was printed that way (the price summary knows: a card with a 'Reverse Holofoil' variant).
  */
-export function masterSet(setCards: readonly CollectorCard[], hasReverse: (cardId: string) => boolean): CollectorResult {
-  const run = setCards.filter(standard).slice().sort(byNumber);
-  const pockets: CollectorPocket[] = run.map((c) => ({ cardId: c.id }));
+export function masterSet(setCards: readonly CollectorCard[], hasReverse: (cardId: string) => boolean, opts: SetOptions = {}): CollectorResult {
+  const run = setRun(setCards, opts);
+  const pockets: CollectorPocket[] = [];
+  if (opts.reverse === 'beside') {
+    for (const c of run) {
+      pockets.push({ cardId: c.id });
+      if (hasReverse(c.id)) pockets.push({ cardId: c.id, finish: 'Reverse Holofoil' });
+    }
+    return { pockets, missing: [] };
+  }
+  for (const c of run) pockets.push({ cardId: c.id });
   for (const c of run) if (hasReverse(c.id)) pockets.push({ cardId: c.id, finish: 'Reverse Holofoil' });
   return { pockets, missing: [] };
+}
+
+/**
+ * Cameo cards after a species or line result: cards whose art shows the Pokémon without being a
+ * card of it. The ids come from the data server's cameo tags (the `cameo:<species>` query);
+ * cards already in the result are skipped, the rest ride in release order, marked `cameo`.
+ */
+export function withCameos(result: CollectorResult, cameoCards: readonly CollectorCard[]): CollectorResult {
+  const have = new Set(result.pockets.map((p) => p.cardId));
+  const extra = cameoCards.filter((c) => standard(c) && !have.has(c.id)).sort(byRelease);
+  return { ...result, pockets: [...result.pockets, ...extra.map((c) => ({ cardId: c.id, cameo: true as const }))] };
 }
 
 /** Every card of one species, oldest print first. */
@@ -195,6 +246,53 @@ export function livingDex(cards: Iterable<CollectorCard>, pick: 'newest' | 'olde
     else missing.push(dex);
   }
   return { pockets, missing };
+}
+
+/**
+ * MICHI PAGES: the pockets laid into the single-page michi layouts, one layout drawn at random per
+ * page from `src/data/artTemplates.ts` (the 3x3 compositions that keep five to seven card pockets:
+ * Corner Post, Wall Text, Cornerstone, Diagonal Channel), so a built binder has art panels on every
+ * page without anyone arranging it by hand. The cards keep their order, reading left to right, top
+ * to bottom, around the art. The same seed draws the same layouts, so a page count shown before
+ * the build is the page count built. No two neighbouring pages share a layout while a choice
+ * exists; the last page takes the smallest layout that still seats what is left.
+ */
+export const MICHI_PAGE_TEMPLATES: readonly ArtTemplate[] = ART_TEMPLATES.filter(
+  (t) => t.rows === 3 && t.cols === 3 && !t.spread && t.cardPockets >= 5 && t.cardPockets <= 7,
+);
+
+export function michiPages(pockets: readonly CollectorPocket[], mkId: () => string, seed: string | number): DemoPage[] {
+  const rng = seededRandom(`collect:${seed}`);
+  const pages: DemoPage[] = [];
+  let i = 0;
+  let lastId: string | null = null;
+  while (i < pockets.length) {
+    const left = pockets.length - i;
+    let pool = MICHI_PAGE_TEMPLATES.filter((t) => t.id !== lastId);
+    if (!pool.length) pool = MICHI_PAGE_TEMPLATES.slice();
+    const fitting = pool.filter((t) => t.cardPockets >= left);
+    const t = fitting.length
+      ? fitting.sort((a, b) => a.cardPockets - b.cardPockets || a.id.localeCompare(b.id))[0]
+      : (rng.pick(pool) ?? pool[0]);
+    const reserved = reservedCells(t);
+    const cells: { row: number; col: number }[] = [];
+    for (let r = 0; r < t.rows; r += 1) for (let c = 0; c < t.cols; c += 1) if (!reserved.has(`${r},${c}`)) cells.push({ row: r, col: c });
+    const chunk = pockets.slice(i, i + cells.length);
+    const slots: DemoSlot[] = chunk.map((p, j) => ({
+      id: mkId(),
+      row: cells[j].row,
+      col: cells[j].col,
+      rowSpan: 1,
+      colSpan: 1,
+      type: 'card' as const,
+      cardId: p.cardId,
+      ...(p.finish ? { finish: p.finish } : {}),
+    }));
+    pages.push({ id: mkId(), rows: t.rows, cols: t.cols, slots: [...slots, ...templateArtSlots(t, mkId)] });
+    i += chunk.length;
+    lastId = t.id;
+  }
+  return pages;
 }
 
 /** Pages a result needs at `perPage` pockets (9 for a 3x3 page, 8 when one pocket is kept for art). */

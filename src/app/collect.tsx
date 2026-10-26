@@ -2,8 +2,9 @@
  * COLLECTOR BINDERS (owner, 2026-10-26): ask for a set or a binder type and get it built. A
  * complete set, a master set, every card of one Pokémon, an evolution line, or the living Pokédex,
  * 1 to 1025. Two ways out: print the placeholders free (no art, no customising), or make it a
- * digital binder in the account, with a pocket on every page kept for michi art if wanted, which
- * then prints like any other binder.
+ * digital binder in the account, laid into the michi layouts at random (one per page) if wanted,
+ * which then prints like any other binder. Controls (owner, 2026-10-26): EN / JP / both, secret
+ * rares, where the reverse holos sit, cameo cards from the data server's cameo tags.
  *
  * The rules are in data/collectorBinders.ts (pure, tested); this page is the asking and the
  * handing over. Research behind the shapes: the 2026-10-26 binder-types sweep (master sets, the
@@ -14,7 +15,7 @@ import { Image } from 'expo-image';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { CatalogSet } from 'tcgscan-browse';
+import { type CatalogCard, type CatalogSet, getBrowseLanguages, parseQuery, searchCards } from 'tcgscan-browse';
 
 import { Seg } from '@/components/binder/inspector/controls';
 import { ThemedText } from '@/components/themed-text';
@@ -22,8 +23,8 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/binderTypes';
 import {
-  COLLECTOR_KINDS, type CollectorKind, type CollectorPocket, type CollectorResult, completeSet, evolutionLineSet,
-  livingDex, masterSet, pagesNeeded, searchSpecies, speciesSet,
+  COLLECTOR_KINDS, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult, completeSet,
+  evolutionLineSet, inLanguage, livingDex, masterSet, michiPages, pagesNeeded, searchSpecies, speciesSet, withCameos,
 } from '@/data/collectorBinders';
 import { saveFillSheetFiles, fileStem } from '@/data/fillSheetSave';
 import { buildFillSheetPdfs } from '@/data/placeholderPdf';
@@ -42,17 +43,35 @@ const DEX_PICKS = [
   { id: 'newest', label: 'Newest print', blurb: 'The most recent card of each Pokémon.' },
   { id: 'oldest', label: 'Oldest print', blurb: 'The first card of each Pokémon.' },
 ] as const;
+const LANGS = [
+  { id: 'en', label: 'EN', blurb: 'English cards only.' },
+  { id: 'ja', label: 'JP', blurb: 'Japanese cards only.' },
+  { id: 'both', label: 'EN + JP', blurb: 'Both languages.' },
+] as const;
+const REVERSE = [
+  { id: 'after', label: 'Reverse holos after', blurb: 'The run first, then every reverse holo.' },
+  { id: 'beside', label: 'Reverse holos beside', blurb: 'Each reverse holo next to its card.' },
+] as const;
 
-/** The centre pocket of a 3x3 page, kept for art when asked. */
-const ART_CELL = { row: 1, col: 1 };
+/** The language the browser is set to, as this page's starting bound. */
+function startLanguage(): CollectorLanguage {
+  const langs = getBrowseLanguages();
+  return langs.length === 1 ? langs[0] : 'both';
+}
+
+/** A counter id for a dry build: pages are only being counted, not kept. */
+function countingId() {
+  let n = 0;
+  return () => `n${(n += 1)}`;
+}
 
 /**
- * Pages for the pockets, nine to a page, or eight with the centre left open for michi art. The
- * finish rides the slot so a reverse-holo pocket prints and shows as one.
+ * Pages for the pockets, nine to a page, plain. The finish rides the slot so a reverse-holo pocket
+ * prints and shows as one. The michi layouts are data/collectorBinders.ts → michiPages.
  */
-export function pagesForPockets(pockets: readonly CollectorPocket[], roomForArt: boolean): DemoPage[] {
+export function pagesForPockets(pockets: readonly CollectorPocket[]): DemoPage[] {
   const cells: { row: number; col: number }[] = [];
-  for (let r = 0; r < 3; r += 1) for (let c = 0; c < 3; c += 1) if (!roomForArt || r !== ART_CELL.row || c !== ART_CELL.col) cells.push({ row: r, col: c });
+  for (let r = 0; r < 3; r += 1) for (let c = 0; c < 3; c += 1) cells.push({ row: r, col: c });
   const pages: DemoPage[] = [];
   for (let i = 0; i < pockets.length; i += cells.length) {
     const chunk = pockets.slice(i, i + cells.length);
@@ -87,6 +106,10 @@ export default function CollectScreen() {
   const [species, setSpecies] = useState<string | null>(null);
   const [dexPick, setDexPick] = useState<'newest' | 'oldest'>('newest');
   const [roomForArt, setRoomForArt] = useState(false);
+  const [lang, setLang] = useState<CollectorLanguage>(startLanguage);
+  const [secrets, setSecrets] = useState(true);
+  const [reverse, setReverse] = useState<'after' | 'beside'>('after');
+  const [cameos, setCameos] = useState(false);
   const [building, setBuilding] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -95,13 +118,13 @@ export default function CollectScreen() {
   const wide = width >= Breakpoints.phone;
 
   // Every card once, for the species and dex shapes. The catalogue is load-once, so this is too.
-  const allCards = useMemo(() => (catalog ? catalog.allSets().flatMap((s) => catalog.listCards(s.id)) : []), [catalog]);
+  const allCards = useMemo(() => (catalog ? inLanguage(catalog.allSets().flatMap((s) => catalog.listCards(s.id)), lang) : []), [catalog, lang]);
 
   const setHits = useMemo(() => {
     if (!catalog || needs !== 'set' || query.trim().length < 2) return [];
     const q = query.trim().toLowerCase();
-    return catalog.allSets().filter((s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase() === q).slice(0, 8);
-  }, [catalog, needs, query]);
+    return inLanguage(catalog.allSets(), lang).filter((s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase() === q).slice(0, 8);
+  }, [catalog, needs, query, lang]);
   const speciesHits = useMemo(() => (needs === 'pokemon' && query.trim().length >= 2 ? searchSpecies(query) : []), [needs, query]);
 
   // THE MASTER SET reads the price summary for which cards were printed reverse holo. Loaded once
@@ -123,15 +146,41 @@ export default function CollectScreen() {
     };
   }, [kind, priced]);
 
+  // CAMEOS come from the data server's cameo tags through the kit's own search (`cameo:<species>`),
+  // the same metered path the browser takes: a free plan gets the top few, PRO and VIP get them
+  // all, and the note under the result says which happened. Fetched when asked for, into state.
+  const [cameoHits, setCameoHits] = useState<{ species: string; lang: CollectorLanguage; cards: CatalogCard[]; clamped: boolean } | null>(null);
+  const wantCameos = cameos && (kind === 'species' || kind === 'line') && !!species;
+  useEffect(() => {
+    if (!wantCameos || !species) return;
+    if (cameoHits && cameoHits.species === species && cameoHits.lang === lang) return;
+    let live = true;
+    const languages = lang === 'both' ? undefined : [lang];
+    searchCards(parseQuery(`cameo:${species}`), { limit: 200, languages })
+      .then((page) => {
+        if (live) setCameoHits({ species, lang, cards: page.cards, clamped: page.clamped });
+      })
+      .catch(() => {
+        if (live) setCameoHits({ species, lang, cards: [], clamped: false });
+      });
+    return () => {
+      live = false;
+    };
+  }, [wantCameos, species, lang, cameoHits]);
+  const cameoReady = !wantCameos || (cameoHits?.species === species && cameoHits.lang === lang);
+
   const result = useMemo<CollectorResult | null>(() => {
     if (!catalog) return null;
-    if (kind === 'complete' && set) return completeSet(catalog.listCards(set.id));
-    if (kind === 'master' && set) return priced ? masterSet(catalog.listCards(set.id), (id) => !!priced[id]?.variants?.['Reverse Holofoil']) : null;
-    if (kind === 'species' && species) return speciesSet(allCards, species);
-    if (kind === 'line' && species) return evolutionLineSet(allCards, species);
-    if (kind === 'dex') return livingDex(allCards, dexPick);
-    return null;
-  }, [catalog, allCards, kind, set, species, dexPick, priced]);
+    const setOpts = { secrets, reverse };
+    let r: CollectorResult | null = null;
+    if (kind === 'complete' && set) r = completeSet(catalog.listCards(set.id), setOpts);
+    else if (kind === 'master' && set) r = priced ? masterSet(catalog.listCards(set.id), (id) => !!priced[id]?.variants?.['Reverse Holofoil'], setOpts) : null;
+    else if (kind === 'species' && species) r = speciesSet(allCards, species);
+    else if (kind === 'line' && species) r = evolutionLineSet(allCards, species);
+    else if (kind === 'dex') r = livingDex(allCards, dexPick);
+    if (r && wantCameos && cameoReady && cameoHits) r = withCameos(r, cameoHits.cards);
+    return r;
+  }, [catalog, allCards, kind, set, species, dexPick, priced, secrets, reverse, wantCameos, cameoReady, cameoHits]);
 
   const title = kind === 'dex'
     ? 'Living Pokédex'
@@ -140,8 +189,11 @@ export default function CollectScreen() {
         : kind === 'species' && species ? `Every ${species}`
           : kind === 'line' && species ? `${species} evolution line`
             : '';
-  const perPage = roomForArt ? 8 : 9;
-  const pages = result ? pagesNeeded(result.pockets.length, perPage) : 0;
+  // The michi layouts seat five to seven cards a page, so the count comes from a dry build with
+  // the same seed the real build uses.
+  const seed = `${title}:${result?.pockets.length ?? 0}`;
+  const pages = !result ? 0 : roomForArt ? michiPages(result.pockets, countingId(), seed).length : pagesNeeded(result.pockets.length, 9);
+  const cameoCount = result ? result.pockets.filter((p) => p.cameo).length : 0;
   const owned = result && ownedIds ? result.pockets.filter((p) => ownedIds.has(p.cardId)).length : null;
   const overPageCap = LIMITS_ENFORCED && pages > limits.pagesPerBinder;
 
@@ -154,7 +206,7 @@ export default function CollectScreen() {
     setPrinting(true);
     setNote(null);
     try {
-      const binder: DemoBinder = { id: `collector-${kind}`, title, layoutStyle: 'freeform', isExample: false, pages: pagesForPockets(result.pockets, false) };
+      const binder: DemoBinder = { id: `collector-${kind}`, title, layoutStyle: 'freeform', isExample: false, pages: pagesForPockets(result.pockets) };
       const files = await buildFillSheetPdfs(binder, catalog, { ownedIds });
       if (!files.length) throw new Error('Nothing to print.');
       await saveFillSheetFiles(files, fileStem(title));
@@ -174,17 +226,17 @@ export default function CollectScreen() {
       return;
     }
     if (overPageCap) {
-      setNote(`This binder needs ${pages} pages and your plan allows ${limits.pagesPerBinder}. PRO has no page limit. The free print has no limit either.`);
+      setNote(`${pages} pages; your plan allows ${limits.pagesPerBinder}. PRO has no page limit.`);
       return;
     }
     setBuilding(true);
-    const created = store.createBinder({ title, pages: pagesForPockets(result.pockets, roomForArt) });
+    const created = store.createBinder({ title, pages: roomForArt ? michiPages(result.pockets, uuidv4, seed) : pagesForPockets(result.pockets) });
     setBuilding(false);
     if (!created) {
-      setNote(tier === 'guest' || tier === 'free' ? `You are at your plan's ${limits.binders} binder limit. PRO has no limit.` : 'That did not save. Try again in a moment.');
+      setNote(tier === 'guest' || tier === 'free' ? `Your plan's ${limits.binders} binders are used. PRO has no limit.` : 'That did not save. Try again.');
       return;
     }
-    track('collector.binder', { kind, pockets: result.pockets.length, roomForArt });
+    track('collector.binder', { kind, pockets: result.pockets.length, roomForArt, lang, cameos: cameoCount });
     router.push(`/binder/${created.id}?edit=1` as Href);
   };
 
@@ -198,13 +250,14 @@ export default function CollectScreen() {
             <ThemedText type="small" style={styles.eyebrow}>COLLECTOR BINDERS</ThemedText>
             <ThemedText type="subtitle" style={styles.h1}>Ask for a set, get the binder</ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
-              A complete set, a master set, one Pokémon, an evolution line or the whole Pokédex. Print the placeholders free, or make it a binder of your own.
+              Print the placeholders free, or make it your binder.
             </ThemedText>
           </View>
 
           <View style={styles.panel}>
             <Seg options={KIND_OPTIONS} value={kind} onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); }} />
             <ThemedText type="small" themeColor="textSecondary">{KIND_OPTIONS.find((k) => k.id === kind)?.blurb}</ThemedText>
+            <Seg options={LANGS} value={lang} onChange={(l) => { setLang(l); setSet(null); if (needs === 'set') setQuery(''); }} />
 
             {needs !== 'none' ? (
               <View style={styles.askRow}>
@@ -222,7 +275,14 @@ export default function CollectScreen() {
             ) : (
               <Seg options={DEX_PICKS} value={dexPick} onChange={setDexPick} />
             )}
-            {(loading && !catalog) || (kind === 'master' && set && !priced) ? <ActivityIndicator style={styles.loading} /> : null}
+            {needs === 'set' ? (
+              <Check on={secrets} onPress={() => setSecrets((v) => !v)} testID="collect-secrets">Include secret rares, numbered past the set total.</Check>
+            ) : null}
+            {kind === 'master' ? <Seg options={REVERSE} value={reverse} onChange={setReverse} /> : null}
+            {needs === 'pokemon' ? (
+              <Check on={cameos} onPress={() => setCameos((v) => !v)} testID="collect-cameos">Add cameo cards: this Pokémon inside other cards.</Check>
+            ) : null}
+            {(loading && !catalog) || (kind === 'master' && set && !priced) || (wantCameos && !cameoReady) ? <ActivityIndicator style={styles.loading} /> : null}
             {setHits.length && !set ? (
               <View style={styles.hits}>
                 {setHits.map((s) => (
@@ -248,10 +308,14 @@ export default function CollectScreen() {
             <View style={styles.panel} testID="collect-result">
               <ThemedText type="subtitle">{title}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {`${result.pockets.length} pockets · ${pages} ${pages === 1 ? 'page' : 'pages'} at ${perPage} a page`}
-                {owned != null ? ` · you own ${owned} of ${result.pockets.length}` : ''}
-                {result.missing.length ? ` · ${result.missing.length} Pokémon have no card yet` : ''}
+                {`${result.pockets.length} pockets · ${pages} ${pages === 1 ? 'page' : 'pages'}`}
+                {owned != null ? ` · you own ${owned}` : ''}
+                {cameoCount ? ` · ${cameoCount} cameos` : ''}
+                {result.missing.length ? ` · ${result.missing.length} Pokémon have no card` : ''}
               </ThemedText>
+              {wantCameos && cameoHits?.clamped ? (
+                <ThemedText type="small" themeColor="textSecondary">Free plans get the top cameos only. PRO gets all.</ThemedText>
+              ) : null}
               {result.pockets.length === 0 ? (
                 <ThemedText type="small" themeColor="textSecondary">Nothing matched. Try another name.</ThemedText>
               ) : (
@@ -259,8 +323,8 @@ export default function CollectScreen() {
                   {result.pockets.slice(0, 9).map((p, i) => (
                     <View key={`${p.cardId}-${i}`} style={[styles.previewCell, { width: cell, height: Math.round(cell * 1.396) }]}>
                       <Image source={{ uri: cardThumbUrl(p.cardId, 245) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
-                      {p.finish ? (
-                        <View style={styles.reverse}><ThemedText type="small" style={styles.reverseText}>R</ThemedText></View>
+                      {p.finish || p.cameo ? (
+                        <View style={styles.reverse}><ThemedText type="small" style={styles.reverseText}>{p.finish ? 'R' : 'C'}</ThemedText></View>
                       ) : null}
                       {ownedIds?.has(p.cardId) ? <View style={styles.ownedDot} /> : null}
                     </View>
@@ -273,12 +337,7 @@ export default function CollectScreen() {
 
               {result.pockets.length > 0 ? (
                 <>
-                  <Pressable onPress={() => setRoomForArt((v) => !v)} accessibilityRole="switch" accessibilityState={{ checked: roomForArt }} style={styles.toggleRow} hitSlop={4} testID="collect-room-for-art">
-                    <View style={[styles.box, roomForArt && styles.boxOn]}>{roomForArt ? <ThemedText type="small" style={styles.tick}>✓</ThemedText> : null}</View>
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.toggleText}>
-                      Keep the centre pocket of every page for michi art, 8 cards a page. Arrange each page from its Arrange button once the binder is made.
-                    </ThemedText>
-                  </Pressable>
+                  <Check on={roomForArt} onPress={() => setRoomForArt((v) => !v)} testID="collect-room-for-art">Michi layouts: random art panels on every page.</Check>
                   <View style={styles.actions}>
                     <Pressable onPress={() => void printFree()} disabled={printing} style={[styles.btn, styles.btnOutline, printing && styles.dim]} accessibilityRole="button" testID="collect-print">
                       {printing ? <ActivityIndicator size="small" color={Palette.accent} /> : null}
@@ -289,7 +348,7 @@ export default function CollectScreen() {
                     </Pressable>
                   </View>
                   <ThemedText type="small" themeColor="textSecondary">
-                    The free print is placeholders only, no art and no customising. A binder of your own takes sleeves, art and a backdrop, and prints like any other binder.
+                    Free print: placeholders only. Your binder prints like any other.
                   </ThemedText>
                 </>
               ) : null}
@@ -299,6 +358,16 @@ export default function CollectScreen() {
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
+  );
+}
+
+/** A labelled tick box. The label is the whole target. */
+function Check({ on, onPress, testID, children }: { on: boolean; onPress: () => void; testID: string; children: string }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="switch" accessibilityState={{ checked: on }} style={styles.toggleRow} hitSlop={4} testID={testID}>
+      <View style={[styles.box, on && styles.boxOn]}>{on ? <ThemedText type="small" style={styles.tick}>✓</ThemedText> : null}</View>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.toggleText}>{children}</ThemedText>
+    </Pressable>
   );
 }
 

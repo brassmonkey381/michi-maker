@@ -27,17 +27,34 @@ Jumbo and V-UNION pieces are skipped everywhere: they have no pocket in a 3x3 pa
 - **Print placeholders, free.** Builds an unsaved binder from the pockets (9 a page) and runs the
   same `buildFillSheetPdfs` the paid print uses, with the viewer's owned ids so owned pockets are
   marked. No account, no art, no customising. Web only.
-- **Make it a binder.** `store.createBinder` with `pagesForPockets`. Reverse-holo pockets carry
-  `finish: 'Reverse Holofoil'` on the slot, so the finish chip and the print agree. The "keep the
-  centre pocket for michi art" toggle lays 8 cards a page with (1,1) open; the per-page Arrange
-  button does the rest. Caps are respected: over the plan's page cap or binder cap the page says
-  so and points at PRO, and the free print is offered instead. The binder then prints like any
-  other ($1.99 unlock or a plan's included prints).
+- **Make it a binder.** `store.createBinder` with `pagesForPockets` (nine a page, plain) or, with
+  the "Michi layouts" toggle on, `michiPages`: one single-page michi layout drawn at random per page
+  from `src/data/artTemplates.ts` (the 3x3 compositions keeping five to seven card pockets: Corner
+  Post, Wall Text, Cornerstone, Diagonal Channel), cards in order around the art panels, no two
+  neighbouring pages alike, the last page the smallest layout that still fits. Seeded by title and
+  pocket count, so the page count shown is the page count built. Reverse-holo pockets carry
+  `finish: 'Reverse Holofoil'` on the slot, so the finish chip and the print agree. Caps are
+  respected: over the plan's page cap or binder cap the page says so and points at PRO, and the
+  free print is offered instead. The binder then prints like any other ($1.99 unlock or a plan's
+  included prints).
+
+## Controls (owner, 2026-10-26)
+
+| Control | Shapes | Rule |
+| --- | --- | --- |
+| EN / JP / EN + JP | all | `inLanguage`: cards (and set search) in that printing; starts from the browser's language preference |
+| Include secret rares | complete, master | `isSecretRare`: a number past the printed total ("200/165"); lettered runs are not secrets |
+| Reverse holos after / beside | master | after the run (collectors' default) or each beside its card |
+| Add cameo cards | one Pokémon, evolution line | the kit's `cameo:<species>` search on the data server, merged by `withCameos` after the result in release order, marked `cameo`; metered like the browser (a free plan gets the top few and the page says so) |
+| Newest / oldest print | living dex | which print stands for the species |
+
+Every control's label is ten words or fewer (owner, 2026-10-26).
 
 ## Not done yet
 
-- Arranging every page at once after creation (the arranger is per page; see docs/ARRANGE.md).
+- Spread layouts (the 18 two-page compositions): collector pages are built one page at a time.
 - Filling the art pockets automatically. Licensed sources only when it comes (presets, stock art);
   never third-party fan art (docs/roadmap/ART-RIGHTS.md).
-- Cameo binders: need per-set cameo tags on the data project (docs/roadmap/CAMEO-SHEET-IMPORT.md).
+- Cameo coverage depends on the data project's cameo tags; the community sheet import
+  (docs/roadmap/CAMEO-SHEET-IMPORT.md) would widen it.
 - Set progress on the Set page of the browser.

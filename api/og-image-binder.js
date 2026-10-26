@@ -1320,7 +1320,7 @@ function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
   // small stamp in the bottom-right corner, over the backdrop (and over a small pill on the band
   // face). Level, not tilted: see the note on `rotate` in compose().
   const MARGIN = clean ? 2 * S : 14 * S;
-  // Clean: a little air above the page (owner, 2026-10-26), and the lockup close under it.
+  // Clean: the room the page leaves above and below the page-and-lockup column, which is centred.
   const TOP = clean ? 10 * S : MARGIN;
   // The mat's own padding and hairline, both sides of each, are not available to the cards.
   const matChrome = 36 * S + 2 * MAT_EDGE;
@@ -1404,9 +1404,10 @@ function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
           top: 0,
           width: SINGLE_W,
           height: SINGLE_H,
-          // Clean: a column that hangs from the top margin, the page then the stamp under it.
+          // Clean: a column, the page then the stamp under it, centred between the top and
+          // bottom edges (owner, 2026-10-26).
           ...(clean
-            ? { flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', paddingTop: TOP }
+            ? { flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }
             : { alignItems: 'center', justifyContent: 'center' }),
         },
       },

@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>michi-maker presets</title>
+<!--
+  THE OWNER'S PRESET SHEET. Edits src/data/presets.json, which is what the app offers:
+    pictures  kind "texture" = sleeves and art backings; kind "theme" = the picture behind the share image
+    tracks    stock soundtracks
+    binders   named binders (cloth, zip, spine)
+  Open this file in Chrome or Edge (double-click it), press Open, pick src/data/presets.json, edit,
+  press Save. Then ship (scripts/ship-to-production.ps1). Order on the sheet is the order offered;
+  "Offered" off hides an entry without losing it. New pictures and tracks that need hosting go
+  through scripts/presets/rehost.mjs and rehost-tracks.mjs, which add their entries to the same file;
+  a pasted address from anywhere else works too, but is only as permanent as its host.
+-->
+<style>
+  :root {
+    --bg: #f6f4ef; --panel: #ffffff; --ink: #1d1a16; --muted: #6d665c; --line: #e2ddd3;
+    --accent: #2f6fed; --accent-ink: #ffffff; --danger: #b3261e; --ok: #1f7a4d; --chip: #eef2fb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17161a; --panel: #1f1e23; --ink: #efece6; --muted: #a39d93; --line: #35333a; --chip: #262a38;
+    }
+  }
+  :root[data-theme="dark"] { --bg: #17161a; --panel: #1f1e23; --ink: #efece6; --muted: #a39d93; --line: #35333a; --chip: #262a38; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  header h1 { font-size: 18px; margin: 0 8px 0 0; letter-spacing: .2px; }
+  header .status { color: var(--muted); font-size: 13px; flex: 1 1 200px; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.danger { color: var(--danger); }
+  button:disabled { opacity: .45; cursor: default; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 16px; display: grid; gap: 22px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 16px; }
+  section > h2 { margin: 0 0 2px; font-size: 17px; }
+  section > p { margin: 0 0 12px; color: var(--muted); font-size: 13px; max-width: 70ch; }
+  .rows { display: grid; gap: 8px; }
+  .row { display: grid; grid-template-columns: 28px 96px 1fr auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+  .row.off { opacity: .55; }
+  .row .grip { cursor: grab; color: var(--muted); text-align: center; user-select: none; }
+  .row img { width: 96px; height: 64px; object-fit: cover; border-radius: 6px; background: #ccc; display: block; }
+  .row .swatch { width: 96px; height: 64px; border-radius: 6px; border: 1px solid var(--line); }
+  .row .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 10px; min-width: 0; }
+  .row label { display: grid; gap: 2px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; min-width: 0; }
+  .row input, .row select { font: inherit; font-size: 14px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; min-width: 0; width: 100%; }
+  .row input[type="color"] { padding: 0; height: 32px; }
+  .row .meta { grid-column: 1 / -1; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .meta a { color: var(--accent); text-decoration: none; }
+  .row .acts { display: grid; gap: 6px; justify-items: stretch; }
+  .row .acts button { padding: 5px 10px; font-size: 13px; }
+  .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+  .add { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .add input { font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; flex: 1 1 240px; }
+  .pill { display: inline-block; background: var(--chip); border-radius: 999px; padding: 2px 9px; font-size: 12px; margin-left: 6px; }
+  audio { width: 100%; height: 30px; grid-column: 1 / -1; }
+  .warn { color: var(--danger); font-size: 12px; }
+  .ok { color: var(--ok); }
+  .hidden { display: none; }
+  @media (max-width: 640px) { .row { grid-template-columns: 24px 72px 1fr; } .row .acts { grid-column: 1 / -1; grid-auto-flow: column; } .row img, .row .swatch { width: 72px; height: 48px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>michi-maker presets</h1>
+  <span class="status" id="status">Press Open and pick <code>src/data/presets.json</code>.</span>
+  <input type="file" id="fallbackFile" accept=".json,application/json" class="hidden">
+  <button id="openBtn" class="primary">Open presets.json</button>
+  <button id="saveBtn" disabled>Save</button>
+  <button id="downloadBtn" disabled>Download a copy</button>
+</header>
+<main id="main">
+  <section id="sec-texture">
+    <h2>Sleeves and art backings <span class="pill" id="count-texture"></span></h2>
+    <p>Pictures offered as a sleeve round a card or a backing under an art piece. Drag the grip to reorder. Turn Offered off to hide one without losing it.</p>
+    <div class="rows" id="rows-texture"></div>
+    <div class="add"><input id="add-texture-url" placeholder="Picture address (https://…)"><input id="add-texture-label" placeholder="Label" style="flex:0 1 160px"><button data-add="texture">Add picture</button></div>
+  </section>
+  <section id="sec-theme">
+    <h2>Pictures behind the share image <span class="pill" id="count-theme"></span></h2>
+    <p>The themes offered in the Share sheet, drawn edge to edge behind the page in link previews and downloads.</p>
+    <div class="rows" id="rows-theme"></div>
+    <div class="add"><input id="add-theme-url" placeholder="Picture address (https://…)"><input id="add-theme-label" placeholder="Label" style="flex:0 1 160px"><button data-add="theme">Add picture</button></div>
+  </section>
+  <section id="sec-tracks">
+    <h2>Soundtracks <span class="pill" id="count-tracks"></span></h2>
+    <p>Stock tracks a binder or a page can wear. The credit on every pill is built from the author, source and licence below the list.</p>
+    <div class="rows" id="rows-tracks"></div>
+    <div class="add"><input id="add-tracks-url" placeholder="MP3 address (https://…)"><input id="add-tracks-label" placeholder="Title" style="flex:0 1 160px"><input id="add-tracks-mood" placeholder="Mood" style="flex:0 1 110px"><button data-add="tracks">Add track</button></div>
+  </section>
+  <section id="sec-binders">
+    <h2>Named binders <span class="pill" id="count-binders"></span></h2>
+    <p>A binder is its cloth, its zip and its spine. Zip colours blank means the zip is cut from the cloth.</p>
+    <div class="rows" id="rows-binders"></div>
+    <div class="add"><input id="add-binders-label" placeholder="Name" style="flex:0 1 200px"><input id="add-binders-cloth" type="color" value="#1b2a4a" title="Cloth"><button data-add="binders">Add binder</button></div>
+  </section>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const status = (text, cls) => { const el = $('status'); el.textContent = text; el.className = 'status' + (cls ? ' ' + cls : ''); };
+  let data = null;      // the parsed presets.json
+  let handle = null;    // FileSystemFileHandle when the File System Access API is available
+  let dirty = false;
+  const canFS = 'showOpenFilePicker' in window;
+
+  const markDirty = () => { dirty = true; $('saveBtn').disabled = !handle; $('downloadBtn').disabled = false; status('Unsaved changes.'); };
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'preset';
+  const uniqueId = (list, base) => { let id = base, n = 2; while (list.some((x) => x.id === id)) id = `${base}-${n++}`; return id; };
+  const ours = (url) => /piikwvntldytjejxmcla\.supabase\.co\/storage\//.test(url);
+
+  // ---- rendering --------------------------------------------------------------------------
+  const lists = () => ({
+    texture: data.pictures.filter((p) => p.kind === 'texture'),
+    theme: data.pictures.filter((p) => p.kind === 'theme'),
+    tracks: data.tracks,
+    binders: data.binders,
+  });
+  // Pictures share one array across two sections: a reorder inside a section re-sorts that kind
+  // only, keeping the other kind's order.
+  const writeBackPictures = (kind, ordered) => {
+    const others = data.pictures.filter((p) => p.kind !== kind);
+    data.pictures = kind === 'texture' ? [...ordered, ...others] : [...others, ...ordered];
+  };
+
+  const field = (labelText, input) => { const l = document.createElement('label'); l.textContent = labelText; l.appendChild(input); return l; };
+  const textInput = (value, onChange, type = 'text') => { const i = document.createElement('input'); i.type = type; i.value = value ?? ''; i.addEventListener('input', () => { onChange(i.value); markDirty(); }); return i; };
+  const offeredToggle = (item) => {
+    const w = document.createElement('label'); w.className = 'toggle';
+    const c = document.createElement('input'); c.type = 'checkbox'; c.checked = item.offered !== false;
+    c.addEventListener('change', () => { item.offered = c.checked; markDirty(); render(); });
+    w.append(c, document.createTextNode('Offered')); return w;
+  };
+
+  const rowFor = (section, item, list, index) => {
+    const row = document.createElement('div'); row.className = 'row' + (item.offered === false ? ' off' : ''); row.draggable = true; row.dataset.index = index;
+    const grip = document.createElement('div'); grip.className = 'grip'; grip.textContent = '⋮⋮'; grip.title = 'Drag to reorder';
+    row.appendChild(grip);
+    // the preview
+    if (section === 'binders') {
+      const sw = document.createElement('div'); sw.className = 'swatch'; sw.style.background = item.cloth; row.appendChild(sw);
+    } else if (section === 'tracks') {
+      const sw = document.createElement('div'); sw.className = 'swatch'; sw.style.display = 'grid'; sw.style.placeItems = 'center'; sw.textContent = '♪'; sw.style.fontSize = '26px'; row.appendChild(sw);
+    } else {
+      const img = document.createElement('img'); img.src = item.thumb || item.url; img.alt = item.label; img.loading = 'lazy'; row.appendChild(img);
+    }
+    const fields = document.createElement('div'); fields.className = 'fields';
+    fields.appendChild(field('Label', textInput(item.label, (v) => { item.label = v; })));
+    if (section === 'tracks') fields.appendChild(field('Mood', textInput(item.mood, (v) => { item.mood = v; })));
+    if (section === 'binders') {
+      fields.appendChild(field('Cloth', textInput(item.cloth, (v) => { item.cloth = v; row.querySelector('.swatch').style.background = v; }, 'color')));
+      const sp = document.createElement('select'); for (const o of ['cross', 'ribbed', 'none']) { const op = document.createElement('option'); op.value = o; op.textContent = o; sp.appendChild(op); }
+      sp.value = item.spine ?? 'none'; sp.addEventListener('change', () => { item.spine = sp.value === 'none' ? null : sp.value; markDirty(); });
+      fields.appendChild(field('Spine', sp));
+      const z = document.createElement('select'); for (const o of ['zipper', 'no zipper']) { const op = document.createElement('option'); op.value = o; op.textContent = o; z.appendChild(op); }
+      z.value = item.zipper ? 'zipper' : 'no zipper'; z.addEventListener('change', () => { item.zipper = z.value === 'zipper'; markDirty(); });
+      fields.appendChild(field('Zip', z));
+      const zc = textInput(item.zip ? item.zip.tape : '', (v) => {
+        const hex = /^#[0-9a-f]{6}$/i.test(v) ? v : null;
+        item.zip = hex ? { tape: hex, tooth: hex, lit: hex, slider: hex, sliderEdge: hex, pull: hex } : null;
+      });
+      zc.placeholder = 'blank = cut from cloth';
+      fields.appendChild(field('Zip colour (#rrggbb)', zc));
+    } else {
+      fields.appendChild(field('Address', textInput(item.url, (v) => { item.url = v; if (section !== 'tracks') { item.thumb = v; row.querySelector('img').src = v; } })));
+    }
+    const meta = document.createElement('div'); meta.className = 'meta';
+    if (section === 'tracks') {
+      meta.textContent = `${item.seconds ? Math.floor(item.seconds / 60) + ':' + String(Math.round(item.seconds) % 60).padStart(2, '0') : '?:??'} · ${item.bytes ? Math.round(item.bytes / 1024 / 1024 * 10) / 10 + ' MB' : ''} · id ${item.id}`;
+      const au = document.createElement('audio'); au.controls = true; au.preload = 'none'; au.src = item.url; fields.appendChild(meta); fields.appendChild(au);
+    } else if (section === 'binders') {
+      meta.textContent = `id ${item.id}`; fields.appendChild(meta);
+    } else {
+      meta.innerHTML = '';
+      if (item.author) { const a = document.createElement('a'); a.href = item.page || '#'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = `${item.author} on ${item.provider || 'the web'}`; meta.appendChild(a); meta.appendChild(document.createTextNode(' · ')); }
+      meta.appendChild(document.createTextNode(`${item.width ? item.width + '×' + item.height + ' · ' : ''}id ${item.id}`));
+      if (item.url && !ours(item.url)) { const w = document.createElement('span'); w.className = 'warn'; w.textContent = ' · not hosted by us: lasts as long as that server does'; meta.appendChild(w); }
+      fields.appendChild(meta);
+    }
+    row.appendChild(fields);
+    const acts = document.createElement('div'); acts.className = 'acts';
+    acts.appendChild(offeredToggle(item));
+    const del = document.createElement('button'); del.className = 'danger'; del.textContent = 'Remove'; del.addEventListener('click', () => { list.splice(index, 1); commit(section, list); markDirty(); render(); });
+    acts.appendChild(del);
+    row.appendChild(acts);
+    // drag to reorder
+    row.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', String(index)); e.dataTransfer.effectAllowed = 'move'; });
+    row.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const from = Number(e.dataTransfer.getData('text/plain')); const to = index;
+      if (Number.isNaN(from) || from === to) return;
+      const [moved] = list.splice(from, 1); list.splice(to, 0, moved);
+      commit(section, list); markDirty(); render();
+    });
+    return row;
+  };
+  const commit = (section, list) => { if (section === 'texture' || section === 'theme') writeBackPictures(section, list); else data[section] = list; };
+
+  const render = () => {
+    const L = lists();
+    for (const section of ['texture', 'theme', 'tracks', 'binders']) {
+      const host = $('rows-' + section); host.innerHTML = '';
+      const list = L[section];
+      list.forEach((item, i) => host.appendChild(rowFor(section, item, list, i)));
+      const on = list.filter((x) => x.offered !== false).length;
+      $('count-' + section).textContent = `${on} offered${on !== list.length ? ` of ${list.length}` : ''}`;
+    }
+  };
+
+  // ---- adding -----------------------------------------------------------------------------
+  document.querySelectorAll('button[data-add]').forEach((b) => b.addEventListener('click', () => {
+    const section = b.dataset.add;
+    const label = ($('add-' + section + '-label').value || '').trim();
+    if (section === 'binders') {
+      if (!label) return status('A binder needs a name.', 'warn');
+      data.binders.push({ id: uniqueId(data.binders, slug(label)), label, cloth: $('add-binders-cloth').value, zip: null, zipper: true, spine: 'cross', offered: true });
+      $('add-binders-label').value = '';
+    } else {
+      const url = ($('add-' + section + '-url').value || '').trim();
+      if (!/^https?:\/\//.test(url)) return status('Paste a full https:// address first.', 'warn');
+      const name = label || slug(url.split('/').pop().split('?')[0].replace(/\.[a-z0-9]+$/i, '')).replace(/-/g, ' ');
+      if (section === 'tracks') {
+        data.tracks.push({ id: uniqueId(data.tracks, slug(name)), label: name, mood: ($('add-tracks-mood').value || 'Calm').trim(), url, bytes: 0, seconds: 0, offered: true });
+        $('add-tracks-mood').value = '';
+      } else {
+        data.pictures.push({ id: uniqueId(data.pictures, slug(name)), kind: section, label: name, url, thumb: url, width: 0, height: 0, provider: ours(url) ? 'pixabay' : 'pixabay', author: '', page: '', offered: true });
+      }
+      $('add-' + section + '-url').value = ''; $('add-' + section + '-label').value = '';
+    }
+    markDirty(); render();
+  }));
+
+  // ---- open / save ------------------------------------------------------------------------
+  const load = (text, name) => {
+    try { data = JSON.parse(text); } catch { return status('That file is not valid JSON.', 'warn'); }
+    for (const k of ['pictures', 'tracks', 'binders']) if (!Array.isArray(data[k])) data[k] = [];
+    dirty = false; $('saveBtn').disabled = !handle; $('downloadBtn').disabled = false;
+    status(`${name} loaded.${canFS ? '' : ' This browser cannot write files: use Download a copy and replace src/data/presets.json yourself.'}`, 'ok');
+    render();
+  };
+  $('openBtn').addEventListener('click', async () => {
+    if (canFS) {
+      try {
+        [handle] = await window.showOpenFilePicker({ types: [{ description: 'presets.json', accept: { 'application/json': ['.json'] } }], multiple: false });
+        const file = await handle.getFile();
+        load(await file.text(), file.name);
+      } catch (e) { if (e && e.name !== 'AbortError') status('Could not open: ' + e.message, 'warn'); }
+    } else {
+      $('fallbackFile').click();
+    }
+  });
+  $('fallbackFile').addEventListener('change', async () => { const f = $('fallbackFile').files[0]; if (f) load(await f.text(), f.name); });
+  const serialise = () => JSON.stringify(data, null, 2) + '\n';
+  $('saveBtn').addEventListener('click', async () => {
+    if (!handle) return;
+    try {
+      const w = await handle.createWritable(); await w.write(serialise()); await w.close();
+      dirty = false; $('saveBtn').disabled = true; status('Saved. Ship to put it live: scripts/ship-to-production.ps1', 'ok');
+    } catch (e) { status('Save failed: ' + e.message, 'warn'); }
+  });
+  $('downloadBtn').addEventListener('click', () => {
+    const blob = new Blob([serialise()], { type: 'application/json' }); const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'presets.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  });
+  window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); if (!$('saveBtn').disabled) $('saveBtn').click(); } });
+})();
+</script>
+</body>
+</html>

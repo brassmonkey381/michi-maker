@@ -595,36 +595,39 @@ export function ShareSheet({
                         : 'The preview image isn’t ready. The link works, but it may post without a picture.'}
                   </ThemedText>
                 </View>
-                {/* The picture itself, at poster scale, for posts where people zoom in. */}
+                {/* THE SHARE PICTURE (owner, 2026-10-26: one place, not two). Its style, then the
+                    quick look and the full-size download side by side, then one line about them.
+                    The quick look used to sit at the foot of the sheet under the backdrop field,
+                    a screen away from the download it previews. */}
                 <View style={styles.hiresRow}>
+                  <ThemedText type="smallBold">The share picture</ThemedText>
                   <View style={styles.styleRow} testID="share-image-style">
                     <Seg options={SHARE_IMAGE_STYLES} value={imageStyle} onChange={setImageStyle} />
                     <ThemedText type="small" themeColor="textSecondary" style={styles.previewText}>
                       {SHARE_IMAGE_STYLES.find((s) => s.id === imageStyle)?.blurb}
                     </ThemedText>
                   </View>
-                  <Pressable
-                    onPress={() => void downloadHires()}
-                    disabled={hires === 'busy'}
-                    accessibilityRole="button"
-                    style={({ pressed }) => [styles.hiresBtn, { borderColor: theme.backgroundSelected }, (pressed || hires === 'busy') && styles.dim]}>
-                    {hires === 'busy' ? <ActivityIndicator size="small" color={Palette.accent} /> : null}
-                    <ThemedText type="smallBold" style={styles.hiresText}>
-                      {hires === 'busy' ? 'Rendering, about half a minute…' : 'Download full-size image'}
-                    </ThemedText>
-                  </Pressable>
+                  <View style={styles.pictureBtns}>
+                    <QuickPreviewButton binder={binder} style={imageStyle} label="Quick look" />
+                    <Pressable
+                      onPress={() => void downloadHires()}
+                      disabled={hires === 'busy'}
+                      accessibilityRole="button"
+                      style={({ pressed }) => [styles.hiresBtn, { borderColor: theme.backgroundSelected }, (pressed || hires === 'busy') && styles.dim]}>
+                      {hires === 'busy' ? <ActivityIndicator size="small" color={Palette.accent} /> : null}
+                      <ThemedText type="smallBold" style={styles.hiresText}>
+                        {hires === 'busy' ? 'Rendering, about half a minute…' : 'Download full-size image'}
+                      </ThemedText>
+                    </Pressable>
+                  </View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.previewText}>
                     {hires === 'failed'
                       ? 'That render did not finish. Try again in a moment.'
-                      : 'The share picture at poster size, for posting the image itself where people zoom in.'}
+                      : 'The quick look draws in seconds. The download is the poster-size file, for posting the picture itself.'}
                   </ThemedText>
                 </View>
-                {/* A picture of the owner's choosing behind the share image, and a quick look at
-                    the result, so a backdrop that is not what they expected costs seconds. */}
+                {/* A picture of the owner's choosing behind the share image. */}
                 <ShareBackdropField binder={binder} />
-                <View style={styles.hiresRow}>
-                  <QuickPreviewButton binder={binder} style={imageStyle} />
-                </View>
               </>
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
@@ -687,6 +690,7 @@ const styles = StyleSheet.create({
   copyText: { color: Palette.accentText },
   hiresRow: { gap: Spacing.two, marginTop: Spacing.two },
   styleRow: { gap: Spacing.one, alignItems: 'flex-start' },
+  pictureBtns: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
   hiresBtn: {
     flexDirection: 'row',
     alignItems: 'center',

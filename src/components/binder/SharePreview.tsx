@@ -19,7 +19,7 @@ import { PresetPictureGrid } from '@/components/binder/PresetPictureGrid';
 import { ThemedText } from '@/components/themed-text';
 import { Palette, Radius, Spacing } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
-import { binderQuickPreviewUrl, type ShareImageStyle } from '@/lib/appUrl';
+import { binderQuickPreviewUrl, downloadBinderHiresImage, type ShareImageStyle } from '@/lib/appUrl';
 import { useBinders } from '@/store/binders';
 
 export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
@@ -58,11 +58,11 @@ export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
   );
 }
 
-export function QuickPreviewButton({ binder, style = 'soft' }: { binder: DemoBinder; style?: ShareImageStyle }) {
+export function QuickPreviewButton({ binder, style = 'soft', label = 'Quick look at the share image' }: { binder: DemoBinder; style?: ShareImageStyle; label?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <PillButton label="Quick look at the share image" onPress={() => setOpen(true)} testID="share-quick-look" />
+      <PillButton label={label} onPress={() => setOpen(true)} testID="share-quick-look" />
       {open ? <QuickPreviewModal binder={binder} style={style} onClose={() => setOpen(false)} /> : null}
     </>
   );
@@ -72,6 +72,19 @@ export function QuickPreviewButton({ binder, style = 'soft' }: { binder: DemoBin
 export function QuickPreviewModal({ binder, style = 'soft', onClose }: { binder: DemoBinder; style?: ShareImageStyle; onClose: () => void }) {
   const [src] = useState(() => binderQuickPreviewUrl(binder.id, binder.updatedAt, style));
   const [state, setState] = useState<'loading' | 'ok' | 'failed'>('loading');
+  // THE DOWNLOAD FROM THE PREVIEW (owner, 2026-10-26): what you are looking at is what the
+  // full-size file will be, so the button to get it belongs right here, in the same style.
+  const [hires, setHires] = useState<'idle' | 'busy' | 'failed'>('idle');
+  const downloadHires = async () => {
+    if (hires === 'busy') return;
+    setHires('busy');
+    try {
+      await downloadBinderHiresImage(binder.id, binder.updatedAt, style);
+      setHires('idle');
+    } catch {
+      setHires('failed');
+    }
+  };
   const { width, height } = useWindowDimensions();
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -96,9 +109,25 @@ export function QuickPreviewModal({ binder, style = 'soft', onClose }: { binder:
             onLoad={() => setState('ok')}
             onError={() => setState('failed')}
           />
-          <ThemedText type="small" themeColor="textSecondary" style={styles.caption}>
-            A low-resolution look. Links and the download use the full version.
-          </ThemedText>
+          <View style={styles.actions}>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                void downloadHires();
+              }}
+              disabled={hires === 'busy' || state !== 'ok'}
+              accessibilityRole="button"
+              testID="quick-preview-download"
+              style={({ pressed }) => [styles.dlBtn, (pressed || hires === 'busy' || state !== 'ok') && styles.dim]}>
+              {hires === 'busy' ? <ActivityIndicator size="small" color={Palette.accentText} /> : null}
+              <ThemedText type="smallBold" style={styles.dlText}>
+                {hires === 'busy' ? 'Rendering, about half a minute…' : 'Download full-size image'}
+              </ThemedText>
+            </Pressable>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.caption}>
+              {hires === 'failed' ? 'That render did not finish. Try again in a moment.' : 'A low-resolution look. The download is the full version.'}
+            </ThemedText>
+          </View>
         </View>
       </Pressable>
     </Modal>
@@ -115,4 +144,16 @@ const styles = StyleSheet.create({
   img: { width: '100%', flex: 1 },
   hidden: { opacity: 0 },
   caption: { textAlign: 'center' },
+  actions: { alignItems: 'center', gap: 6 },
+  dlBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Radius.control,
+    backgroundColor: Palette.accent,
+  },
+  dlText: { color: Palette.accentText },
+  dim: { opacity: 0.6 },
 });

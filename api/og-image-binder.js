@@ -1302,7 +1302,7 @@ function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
   const clean = style === 'clean';
   // The strip is just tall enough for the lockup, and the clean page keeps a slimmer margin, so
   // the page is as large as it can be (owner, 2026-10-25: 'could be a bit bigger').
-  const STRIP = clean ? 30 * S : 0;
+  const STRIP = clean ? 28 * S : 0;
   // The SAME measurement serves both faces; only the ground differs. Under bands the chrome sits
   // on 94% cream, so this reliably returns the dark ink at about 11:1 — which is the point: the
   // band face is not exempt from the guarantee, it simply always passes it.
@@ -1320,9 +1320,11 @@ function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
   // small stamp in the bottom-right corner, over the backdrop (and over a small pill on the band
   // face). Level, not tilted: see the note on `rotate` in compose().
   const MARGIN = clean ? 2 * S : 14 * S;
+  // Clean: a little air above the page (owner, 2026-10-26), and the lockup close under it.
+  const TOP = clean ? 10 * S : MARGIN;
   // The mat's own padding and hairline, both sides of each, are not available to the cards.
   const matChrome = 36 * S + 2 * MAT_EDGE;
-  const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - MARGIN * 2, SINGLE_H - STRIP - matChrome - MARGIN * 2);
+  const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - MARGIN * 2, SINGLE_H - STRIP - matChrome - TOP - MARGIN);
   const GAP = gapOf(cw);
   const matW = cols * cw + (cols - 1) * GAP + matChrome;
   const matH = rows * ch + (rows - 1) * GAP + matChrome;
@@ -1353,6 +1355,44 @@ function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
       }),
     );
   }
+  // The stamp: mark and wordmark, small, bottom right. On the band face a pill sits under it so
+  // the ink keeps its contrast whatever the backdrop's corner holds. In the clean style it is
+  // larger, centred, and FOLLOWS THE PAGE: it sits in the same column, a few px under the mat, so
+  // it hugs the page however tall the page turns out (the sized box used to leave a gap).
+  const markPx = clean ? 20 * S : 16 * S;
+  const wordPx = clean ? 13 * S : 11 * S;
+  const stamp = h(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        ...(clean
+          ? { marginTop: 3 * S, height: markPx + 4 * S, justifyContent: 'center' }
+          : { position: 'absolute', right: 14 * S, bottom: 10 * S, paddingTop: 5 * S, paddingBottom: 5 * S, paddingLeft: 9 * S, paddingRight: 10 * S, borderRadius: 14 * S }),
+        ...(bands && !clean ? { backgroundColor: BAND_FILL } : {}),
+      },
+    },
+    [
+      logoMark(markPx, stampInk.pocket),
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            marginLeft: (clean ? 10 : 7) * S,
+            fontSize: wordPx,
+            color: stampInk.ink,
+            ...(stampInk.halo ? { textShadow: stampInk.halo } : {}),
+          },
+        },
+        'michi-maker.com',
+      ),
+    ],
+  );
+  const pageNode = look
+    ? pageMat(pageGrid(page, cw, ch, manifest, art, look), look, cols * cw + (cols - 1) * GAP, rows * ch + (rows - 1) * GAP)
+    : mat(pageGrid(page, cw, ch, manifest, art), 0, true);
   layers.push(
     h(
       'div',
@@ -1363,56 +1403,19 @@ function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
           left: 0,
           top: 0,
           width: SINGLE_W,
-          height: SINGLE_H - STRIP,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-      },
-      h(
-        'div',
-        { style: { display: 'flex', width: matW, height: matH } },
-        look
-          ? pageMat(pageGrid(page, cw, ch, manifest, art, look), look, cols * cw + (cols - 1) * GAP, rows * ch + (rows - 1) * GAP)
-          : mat(pageGrid(page, cw, ch, manifest, art), 0, true),
-      ),
-    ),
-  );
-  // The stamp: mark and wordmark, small, bottom right. On the band face a pill sits under it so
-  // the ink keeps its contrast whatever the backdrop's corner holds. In the clean style it is
-  // larger and centred in the strip under the page.
-  const markPx = clean ? 20 * S : 16 * S;
-  const wordPx = clean ? 13 * S : 11 * S;
-  layers.push(
-    h(
-      'div',
-      {
-        style: {
-          display: 'flex',
-          position: 'absolute',
+          height: SINGLE_H,
+          // Clean: a column that hangs from the top margin, the page then the stamp under it.
           ...(clean
-            ? { left: 0, right: 0, bottom: 0, height: STRIP, justifyContent: 'center', alignItems: 'center' }
-            : { right: 14 * S, bottom: 10 * S, alignItems: 'center', paddingTop: 5 * S, paddingBottom: 5 * S, paddingLeft: 9 * S, paddingRight: 10 * S, borderRadius: 14 * S }),
-          ...(bands && !clean ? { backgroundColor: BAND_FILL } : {}),
+            ? { flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', paddingTop: TOP }
+            : { alignItems: 'center', justifyContent: 'center' }),
         },
       },
-      [
-        logoMark(markPx, stampInk.pocket),
-        h(
-          'div',
-          {
-            style: {
-              display: 'flex',
-              marginLeft: (clean ? 10 : 7) * S,
-              fontSize: wordPx,
-              color: stampInk.ink,
-              ...(stampInk.halo ? { textShadow: stampInk.halo } : {}),
-            },
-          },
-          'michi-maker.com',
-        ),
-      ],
+      clean
+        ? [h('div', { style: { display: 'flex', width: matW } }, pageNode), stamp]
+        : h('div', { style: { display: 'flex', width: matW, height: matH } }, pageNode),
     ),
   );
+  if (!clean) layers.push(stamp);
   return h(
     'div',
     {

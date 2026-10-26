@@ -1300,7 +1300,9 @@ function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
   // THE CLEAN STYLE (owner, 2026-10-25): no scrim over the picture, and the lockup centred in a
   // strip under the page instead of tucked in the corner. The page gives up the strip's height.
   const clean = style === 'clean';
-  const STRIP = clean ? 46 * S : 0;
+  // The strip is just tall enough for the lockup, and the clean page keeps a slimmer margin, so
+  // the page is as large as it can be (owner, 2026-10-25: 'could be a bit bigger').
+  const STRIP = clean ? 36 * S : 0;
   // The SAME measurement serves both faces; only the ground differs. Under bands the chrome sits
   // on 94% cream, so this reliably returns the dark ink at about 11:1 — which is the point: the
   // band face is not exempt from the guarantee, it simply always passes it.
@@ -1317,7 +1319,7 @@ function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
   // page stands the full height of the frame less a small margin, centred, and the lockup is a
   // small stamp in the bottom-right corner, over the backdrop (and over a small pill on the band
   // face). Level, not tilted: see the note on `rotate` in compose().
-  const MARGIN = 14 * S;
+  const MARGIN = clean ? 6 * S : 14 * S;
   // The mat's own padding and hairline, both sides of each, are not available to the cards.
   const matChrome = 36 * S + 2 * MAT_EDGE;
   const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - MARGIN * 2, SINGLE_H - STRIP - matChrome - MARGIN * 2);

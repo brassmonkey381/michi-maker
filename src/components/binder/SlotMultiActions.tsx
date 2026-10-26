@@ -18,9 +18,12 @@ export function SlotMultiActions({
   onAddToBinder,
   onMerge,
   mergeHint,
+  onStyle,
   onClose,
 }: {
   count: number;
+  /** Sleeves and art backings for every selected pocket at once (owner, 2026-10-25). */
+  onStyle?: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
   /** Two neighbouring pieces of one picture: join them into one pocket (see data/sliceMerge). */
@@ -81,6 +84,19 @@ export function SlotMultiActions({
                 <ThemedText type="smallBold" style={onAddToBinder ? undefined : styles.btnFilledText}>
                   ≈ Find similar to all
                 </ThemedText>
+              </Pressable>
+            ) : null}
+            {onStyle ? (
+              <Pressable
+                onPress={onStyle}
+                testID="multi-style"
+                style={({ pressed }) => [
+                  styles.btn,
+                  styles.btnOutline,
+                  { borderColor: theme.backgroundSelected },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold">Sleeves & backing…</ThemedText>
               </Pressable>
             ) : null}
             <Pressable

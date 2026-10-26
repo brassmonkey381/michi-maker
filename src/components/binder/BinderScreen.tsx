@@ -47,7 +47,7 @@ import { WalkthroughBanner } from '@/components/binder/WalkthroughBanner';
 import { ShortcutsCard } from '@/components/binder/ShortcutsCard';
 import { BinderFields, BinderLook } from '@/components/binder/inspector/BinderSection';
 import { PageFields } from '@/components/binder/inspector/PageSection';
-import { PocketWear } from '@/components/binder/inspector/PocketSection';
+import { PocketWear, PocketsWear } from '@/components/binder/inspector/PocketSection';
 import { PageWearBar } from '@/components/binder/PageWearBar';
 import { PAGE_NUMBER_DEBOUNCE_MS, PLAIN_KEYS, SHORTCUTS_SEEN_KEY } from '@/data/keyboardShortcuts';
 import { canSplitSlice, isSlicedArt, mergeRefusalText, mergeSlices } from '@/data/sliceMerge';
@@ -277,6 +277,8 @@ export function BinderScreen({
   const [pageInfoOpen, setPageInfoOpen] = useState(false);
   /** The selected pocket's own colour dialog (its sleeve, or its art backing). */
   const [slotStyleOpen, setSlotStyleOpen] = useState(false);
+  /** The multi-selection's colour dialog: sleeves and backings for every selected pocket at once. */
+  const [multiStyleOpen, setMultiStyleOpen] = useState(false);
   // The view chips (double-sided, labels, strip side, owned, scans) are rendered by BinderPages,
   // but the gear that opens them belongs up in this screen's header, where it costs no page height.
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1710,6 +1712,17 @@ export function BinderScreen({
   // --- Bulk actions on the Ctrl/Cmd multi-selection ---
   const closeMultiActions = () => {
     setMultiActionsOpen(false);
+    clearMulti();
+  };
+
+  // The colour dialog keeps the selection (the pockets stay ringed while their colour changes);
+  // Done drops it, as every other bulk action does.
+  const styleMany = () => {
+    setMultiActionsOpen(false);
+    setMultiStyleOpen(true);
+  };
+  const closeMultiStyle = () => {
+    setMultiStyleOpen(false);
     clearMulti();
   };
 
@@ -3432,8 +3445,25 @@ export function BinderScreen({
             onAddToBinder={selectedCardIds().length > 0 ? addSelectionToBinder : undefined}
             onMerge={mergePair && 'merged' in mergePair.result ? mergeMany : undefined}
             mergeHint={mergePair && 'refused' in mergePair.result ? mergeRefusalText(mergePair.result.refused) : undefined}
+            onStyle={styleMany}
             onClose={closeMultiActions}
           />
+        ) : null}
+        {multiStyleOpen && multiIds.size > 0 ? (
+          <Modal visible transparent animationType="fade" onRequestClose={closeMultiStyle}>
+            <View style={sheet.dialogBackdrop}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={closeMultiStyle} />
+              <ThemedView type="backgroundElement" style={[styles.toolsCard, { maxWidth: 420 }]}>
+                <View style={styles.toolsHead}>
+                  <ThemedText type="subtitle">{`${multiIds.size} pocket${multiIds.size === 1 ? '' : 's'}`}</ThemedText>
+                  <Pressable onPress={closeMultiStyle} hitSlop={10} testID="slots-style-done">
+                    <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
+                  </Pressable>
+                </View>
+                <PocketsWear binder={binder} page={page} slots={page.slots.filter((s) => multiIds.has(s.id))} />
+              </ThemedView>
+            </View>
+          </Modal>
         ) : null}
         {addElsewhereIds ? (
           <AddToBinderSheet

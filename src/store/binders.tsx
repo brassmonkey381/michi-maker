@@ -252,6 +252,8 @@ interface BinderStore {
   setPageStyle: (binderId: string, patch: PageStylePatch) => void;
   /** One pocket's own sleeve or art backing; null hands it back to the page's, then the binder's. */
   setSlotStyle: (binderId: string, pageId: string, slotId: string, patch: { sleeve?: string | null; artBacking?: string | null }) => void;
+  /** The same for several pockets at once (the multi-selection): one commit, one undo step. */
+  setSlotsStyle: (binderId: string, pageId: string, slotIds: string[], patch: { sleeve?: string | null; artBacking?: string | null }) => void;
   /** Re-frame a placed art pocket: a new picture, window, fit or transform, same pocket. */
   setSlotArt: (
     binderId: string,
@@ -1413,6 +1415,28 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         ),
       );
       if (!target.isExample) persist(() => repo.upsertSlot(pageId, next));
+    },
+    [binders, commit, persist],
+  );
+
+  const setSlotsStyle = useCallback(
+    (binderId: string, pageId: string, slotIds: string[], patch: { sleeve?: string | null; artBacking?: string | null }) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      const page = target?.pages.find((p) => p.id === pageId);
+      if (!target || !page) return;
+      const ids = new Set(slotIds);
+      const nexts = page.slots.filter((sl) => ids.has(sl.id)).map((sl): DemoSlot => ({ ...sl, ...patch }));
+      if (!nexts.length) return;
+      const byId = new Map(nexts.map((sl) => [sl.id, sl]));
+      track('pocket.style', { what: Object.keys(patch).sort().join(','), count: nexts.length });
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? { ...binder, pages: binder.pages.map((p) => (p.id === pageId ? { ...p, slots: p.slots.map((sl) => byId.get(sl.id) ?? sl) } : p)) }
+            : binder,
+        ),
+      );
+      if (!target.isExample) for (const next of nexts) persist(() => repo.upsertSlot(pageId, next));
     },
     [binders, commit, persist],
   );
@@ -2866,6 +2890,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       setBinderBackground,
       setPageStyle,
       setSlotStyle,
+      setSlotsStyle,
       setSlotArt,
       removePage,
       sendPageToBinder,
@@ -2931,6 +2956,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       setBinderBackground,
       setPageStyle,
       setSlotStyle,
+      setSlotsStyle,
       setSlotArt,
       removePage,
       sendPageToBinder,

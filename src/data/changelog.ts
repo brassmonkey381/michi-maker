@@ -135,6 +135,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Sleeves and art backings for several pockets at once',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'Select pockets, open the actions, and "Sleeves & backing" colours every selected card '
+          + 'sleeve or art backing in one go. One undo step takes it all back.',
+      },
+      {
+        products: ['michi'],
         head: 'The daily puzzle reacts: the cards hop, the box shakes, a stamp lands',
         kind: 'better',
         area: 'binders',

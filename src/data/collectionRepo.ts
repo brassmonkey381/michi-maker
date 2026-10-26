@@ -5,6 +5,8 @@
  */
 import type { OwnedEntry } from '@/data/ownedCopies';
 import type { TcgscanBinder } from '@/data/tcgscanBinderImport';
+import { getPriceSummary, type PriceSummary } from '@/lib/prices';
+import { uuidv4 } from '@/data/binderTypes';
 import { requireSupabase } from '@/lib/supabase';
 
 /** One inventory line: a card the user owns (per condition), with a quantity. */
@@ -72,6 +74,78 @@ export async function fetchPortfolioGroups(): Promise<PortfolioGroup[]> {
     if (g) g.quantities.set(e.card_id, (g.quantities.get(e.card_id) ?? 0) + e.quantity);
   }
   return [...groups.values()].filter((g) => g.quantities.size > 0);
+}
+
+/**
+ * THE ONE-TAP OWNED MARK (owner, 2026-10-26: "finish is already a one-click toggle, do the same
+ * for owned"). Marking a card owned adds one copy to a portfolio michi keeps for exactly this,
+ * named below, so the copy shows up in tcgscan-app as a portfolio like any other and the
+ * `user_cards` rollup trigger lights the tick everywhere at once. Unmarking removes THIS
+ * portfolio's copies of the card only: a copy that came from a scan or an import in another
+ * portfolio is a fact recorded elsewhere, and the tick stays lit until it is dealt with there.
+ *
+ * Writes follow the CSV import (importAsPortfolio): client-minted `col-…` / `lot-…` ids, an
+ * owner insert under RLS, the sole published finish where there is one.
+ */
+export const MARKED_PORTFOLIO_NAME = 'Marked in michi-maker';
+
+async function markedPortfolioId(create: boolean): Promise<string | null> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('collections')
+    .select('id, archived_at')
+    .eq('name', MARKED_PORTFOLIO_NAME)
+    .order('created_at', { ascending: true })
+    .limit(5);
+  if (error) throw new Error(`marked portfolio: ${error.message}`);
+  const live = (data ?? []).find((c) => !c.archived_at);
+  if (live) return live.id;
+  if (!create) return null;
+  const id = `col-${uuidv4()}`;
+  const { error: insErr } = await supabase.from('collections').insert({ id, name: MARKED_PORTFOLIO_NAME });
+  if (insErr) throw new Error(`marked portfolio: ${insErr.message}`);
+  return id;
+}
+
+/** Add one owned copy of `cardId` to the michi-marked portfolio. */
+export async function markOwned(cardId: string): Promise<void> {
+  const supabase = requireSupabase();
+  const collectionId = await markedPortfolioId(true);
+  if (!collectionId) throw new Error('mark owned: no portfolio');
+  // Best-effort finish, as the CSV import does: the sole published finish, else Normal, which the
+  // pocket's finish chip can correct.
+  const priced = await getPriceSummary().catch(() => ({}) as PriceSummary);
+  const names = Object.keys(priced[cardId]?.variants ?? {});
+  const { error } = await supabase.from('portfolio_entries').insert({
+    id: `lot-${uuidv4()}`,
+    collection_id: collectionId,
+    card_id: cardId,
+    variant: names.length === 1 ? names[0] : 'Normal',
+    condition: 'NM',
+    quantity: 1,
+  });
+  if (error) throw new Error(`mark owned: ${error.message}`);
+}
+
+/**
+ * Remove the michi-marked copies of `cardId`. 'elsewhere' means other copies remain in other
+ * portfolios (a scan, an import), so the card stays owned; 'none' means there was nothing to remove.
+ */
+export async function unmarkOwned(cardId: string): Promise<'removed' | 'elsewhere' | 'none'> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('portfolio_entries')
+    .select('id, collection_id')
+    .eq('card_id', cardId);
+  if (error) throw new Error(`unmark owned: ${error.message}`);
+  const marked = await markedPortfolioId(false);
+  const mine = (data ?? []).filter((e) => e.collection_id === marked).map((e) => e.id);
+  const others = (data ?? []).length - mine.length;
+  if (mine.length) {
+    const { error: delErr } = await supabase.from('portfolio_entries').delete().in('id', mine);
+    if (delErr) throw new Error(`unmark owned: ${delErr.message}`);
+  }
+  return others > 0 ? 'elsewhere' : mine.length ? 'removed' : 'none';
 }
 
 /**

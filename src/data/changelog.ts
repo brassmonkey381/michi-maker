@@ -135,6 +135,17 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Tap the owned tick to mark a card as yours',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'With the Owned view on, every card pocket carries a tick: green when you own the card, '
+          + 'a hollow ring when you do not. Tap it to flip. A marked card lands in a "Marked in '
+          + 'michi-maker" portfolio in tcgscan too, and a card you scanned or imported stays owned '
+          + 'until you remove it there.',
+      },
+      {
+        products: ['michi'],
         head: 'A clean style for the share picture',
         kind: 'new',
         area: 'sharing',

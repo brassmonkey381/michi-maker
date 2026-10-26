@@ -279,6 +279,12 @@ interface BinderGridProps {
    *  Undefined/omitted = the owned overlay is off. */
   ownedIds?: ReadonlySet<string>;
   /**
+   * Tapping the owned mark (owner, 2026-10-26). With this, every card pocket gets a target where
+   * the mark sits: the green tick when owned, a hollow ring when not, and a tap flips it. Without
+   * it the tick is a label, as before.
+   */
+  onOwnedPress?: (slot: DemoSlot) => void;
+  /**
    * Real-scan lookup for the "Scans" pill: the owner's own photo of a card, by id (public
    * scan-images URL from their portfolio entries). Card pockets prefer it and error-fall back
    * into the normal catalog march; artwork heroes never use it (a phone crop as full-bleed art
@@ -359,6 +365,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onDragStart,
     dropTargets,
     ownedIds,
+    onOwnedPress,
     scanUrlOf,
   }: BinderGridProps,
   ref,
@@ -896,6 +903,35 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                     {chip.letter}
                   </Text>
                 </Pressable>
+              </View>
+            );
+          })}
+
+        {/* THE OWNED TARGET (owner, 2026-10-26): the same overlay idea as the finish chip, on the
+            other corner. Owned pockets get a transparent target over their tick; unowned ones get a
+            hollow ring, so the tap has somewhere to land and the invitation is visible. */}
+        {onOwnedPress &&
+          ownedIds &&
+          !small &&
+          page.slots.map((slot) => {
+            if (!slot.cardId || slot.type !== 'card' || connected) return null;
+            const owned = ownedIds.has(slot.cardId);
+            const b = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
+            const size = chipBox(chipScale).height;
+            return (
+              <View
+                key={`own-${slot.id}`}
+                pointerEvents="box-none"
+                style={[styles.ownedRow, { left: b.left + FRAMED_INSET, top: b.top + FRAMED_INSET, width: b.width - FRAMED_INSET * 2 }]}>
+                <Pressable
+                  onPress={() => onOwnedPress(slot)}
+                  accessibilityRole="button"
+                  accessibilityState={{ checked: owned }}
+                  accessibilityLabel={owned ? 'Owned, tap to unmark' : 'Not owned, tap to mark as owned'}
+                  hitSlop={{ top: 10, left: 10, bottom: 6, right: 6 }}
+                  testID={`owned-toggle-${slot.id}`}
+                  style={[styles.ownedTarget, { width: size, height: size, borderRadius: size / 2 }, !owned && styles.ownedRing]}
+                />
               </View>
             );
           })}
@@ -2999,6 +3035,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ownedBadgeSmall: { top: 2, left: 2, width: 13, height: 13, borderRadius: 6.5 },
+  /** The tap layer over the owned corner, in grid coordinates like variantRow. */
+  ownedRow: { position: 'absolute', flexDirection: 'row', justifyContent: 'flex-start', zIndex: 20 },
+  ownedTarget: { backgroundColor: 'transparent' },
+  ownedRing: { borderWidth: 2, borderColor: 'rgba(46,158,91,0.75)', backgroundColor: 'rgba(255,255,255,0.55)' },
   ownedBadgeText: { color: Palette.white, fontSize: 10, fontWeight: Weight.bold, lineHeight: 12 },
   ownedBadgeTextSmall: { fontSize: 8, lineHeight: 10 },
 });

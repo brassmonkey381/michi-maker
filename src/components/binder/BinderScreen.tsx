@@ -83,7 +83,7 @@ import {
   useOwnedCopies,
 } from '@/hooks/use-owned-copies';
 import { useAuth } from '@/store/auth';
-import { EntryChangedElsewhereError, invalidateOwnedEntries, setEntryVariant } from '@/data/collectionRepo';
+import { EntryChangedElsewhereError, invalidateOwnedEntries, markOwned, setEntryVariant, unmarkOwned } from '@/data/collectionRepo';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import { usePriceSummaryWhen } from '@/lib/prices';
 import { chipFor, effectiveFinish, finishIsAskable, nextFinish } from '@/constants/printVariant';
@@ -168,6 +168,10 @@ interface BinderScreenProps {
 
 /** Pinned above the page, clear of the action bar — visible whatever the binder is doing. */
 const EYEDROPPER_BANNER = { position: 'absolute' as const, top: 8, left: 12, right: 12, alignItems: 'center' as const, zIndex: 40 };
+
+/** Cards whose owned mark is mid-write, so a double tap cannot add two copies. Module-level on
+ *  purpose: the screen returns early above where the handler sits, so a hook cannot live there. */
+const owningBusy = new Set<string>();
 
 export function BinderScreen({
   binderId,
@@ -1463,6 +1467,44 @@ export function BinderScreen({
     store.setSlotFinish(binder.id, page.id, slot.id, next);
   };
 
+  /**
+   * Tapping the owned mark (owner, 2026-10-26): one copy in or out of the michi-marked portfolio
+   * (collectionRepo.markOwned). The tick itself follows the `user_cards` realtime feed, so nothing
+   * is set optimistically here; the toast says what happened, and why a tick stayed lit.
+   */
+  const onOwnedPress = (slot: DemoSlot, owned: boolean) => {
+    if (!slot.cardId || !user) return;
+    const cardId = slot.cardId;
+    if (owningBusy.has(cardId)) return;
+    owningBusy.add(cardId);
+    const name = resolveCard(cardId)?.name ?? 'This card';
+    (async () => {
+      try {
+        if (owned) {
+          const r = await unmarkOwned(cardId);
+          showToast(
+            r === 'elsewhere'
+              ? `${name} is still in a tcgscan portfolio, so it stays owned. Remove it there.`
+              : r === 'removed'
+                ? `${name} unmarked`
+                : `${name} is owned through a tcgscan portfolio. Remove it there.`,
+          );
+        } else {
+          await markOwned(cardId);
+          showToast(`${name} marked as owned`);
+        }
+        invalidateOwnedEntries(user.id);
+      } catch (e) {
+        showToast(e instanceof Error ? e.message : 'That did not save');
+      } finally {
+        owningBusy.delete(cardId);
+      }
+    })();
+  };
+  /** The grid prop: only while the Owned view is on and someone is signed in. */
+  const ownedToggle = (ids: ReadonlySet<string> | undefined) =>
+    ids && user ? (slot: DemoSlot) => onOwnedPress(slot, !!slot.cardId && ids.has(slot.cardId)) : undefined;
+
   const openVariantPicker = (slot: DemoSlot) => {
     if (!slot.sourceEntryId || !slot.cardId) return;
     const entry = entryById.get(slot.sourceEntryId);
@@ -2173,7 +2215,7 @@ export function BinderScreen({
     }
     if (!editing) {
       return (
-        <BinderGrid page={p} width={width} pageStyle={binder.pageStyle} cutLines={view.cutLines} outerEdge={outerEdgeOf(p)} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} />
+        <BinderGrid page={p} width={width} pageStyle={binder.pageStyle} cutLines={view.cutLines} outerEdge={outerEdgeOf(p)} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} onOwnedPress={ownedToggle(ownedIds)} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} />
       );
     }
     if (role === 'prev' || role === 'next') {
@@ -2188,6 +2230,7 @@ export function BinderScreen({
           editable
           captionFields={captionFields}
           ownedIds={ownedIds} scanUrlOf={scanUrlOf}
+          onOwnedPress={ownedToggle(ownedIds)}
           variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
           // A tray slice reaches the neighbours too: show its legal pockets here, and let an
           // armed slice tap-place onto them (drags resolve via resolveSpreadHit regardless).
@@ -2217,6 +2260,7 @@ export function BinderScreen({
           editable
           captionFields={captionFields}
           ownedIds={ownedIds} scanUrlOf={scanUrlOf}
+          onOwnedPress={ownedToggle(ownedIds)}
           variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
           // The facing page is a first-class drop surface for tray slices too.
           dropTargets={isPrev ? prevDropTargets : nextDropTargets}
@@ -2256,6 +2300,7 @@ export function BinderScreen({
         editable={!arrangePreview}
         captionFields={captionFields}
         ownedIds={ownedIds} scanUrlOf={scanUrlOf}
+        onOwnedPress={ownedToggle(ownedIds)}
         variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
         selectedSlotId={selectedSlotId}
         // Which pocket the panels are pointed at. Only on the ACTIVE page: pickerCell is a cell

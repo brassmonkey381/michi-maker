@@ -26,6 +26,7 @@ const {
   completeManifest,
   pickPages,
   loadArt,
+  loadFacts,
   render,
   blurBackdrop,
   backdropSource,
@@ -120,6 +121,7 @@ if (pageNo) {
   pages = [one];
 }
 const art = await loadArt(pages, v2 ? binder : null);
+await loadFacts(pages);
 const single = pages.length === 1;
 console.log(`"${binder.title}" -> ${pages.length} page(s), ${single ? 'narrow 1800x1512' : 'spread 2880x1512'}${v2 ? ', v2 look' : ''}`);
 

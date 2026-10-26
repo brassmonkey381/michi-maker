@@ -112,7 +112,11 @@ async function fetchBinder(id) {
   // exists. (A genuinely private/missing binder returns [] on the first try and resolves to null.)
   // The middle entry keeps the look on a database that has page styles but not yet the backdrop.
   const styled = looked.replace('share_backdrop,', '');
-  for (const select of [`share_page_ids,${looked}`, `share_page_ids,${styled}`, `share_page_ids,${base}`, base]) {
+  // THE ART VIEW (owner, 2026-10-26): a page shown as its illustrations (binder_pages.art_view,
+  // src/data/artView.ts) shares that way too. Asked for first; a database without the column
+  // answers 400 and the selects below still draw the page as cards.
+  const viewed = looked.replace('binder_pages(id,position,rows,cols,', 'binder_pages(id,position,rows,cols,art_view,');
+  for (const select of [`share_page_ids,${viewed}`, `share_page_ids,${looked}`, `share_page_ids,${styled}`, `share_page_ids,${base}`, base]) {
     const url = `${SUPABASE_URL}/rest/v1/binders?id=eq.${encodeURIComponent(
       id,
     )}&is_public=eq.true&select=${encodeURIComponent(select)}`;
@@ -298,6 +302,235 @@ function slotArt(slot, manifest, art) {
 /** The page(s) to show. See choosePreviewPages in api/_lib.js for the rule and its history. */
 const pickPages = choosePreviewPages;
 
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// THE ART VIEW (owner, 2026-10-26: "print the binder page exactly how it's displayed"). A page
+// whose art_view is 'window' sets each windowed card's illustration on a plain black stock card
+// with its name and references under it; 'connected' lays the bare windows edge to edge. Mirrors
+// src/data/artView.ts and src/components/binder/ArtViewCard.tsx; the numbers are copied because
+// these api/ files are plain CommonJS outside the Expo build. KEEP THEM IN STEP.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The art window as fractions of the card (artView.ts ART_WINDOW): one window for every era. */
+const ART_WINDOW = { x0: 0.086, y0: 0.103, x1: 0.917, y1: 0.462 };
+/** The border of a full-art card (artView.ts ART_FULL_TRIM). */
+const ART_FULL_TRIM = { left: 0.047, right: 0.042, top: 0.033, bottom: 0.033 };
+const CARD_H_OVER_W = 88 / 63;
+const ART_WINDOW_H_OVER_W = ((ART_WINDOW.y1 - ART_WINDOW.y0) * CARD_H_OVER_W) / (ART_WINDOW.x1 - ART_WINDOW.x0);
+const ART_FULL_GAP_OVER_W = (ART_FULL_TRIM.left + ART_FULL_TRIM.right) / (1 - ART_FULL_TRIM.left - ART_FULL_TRIM.right);
+const ART_FULL_H_OVER_W = ((1 - ART_FULL_TRIM.top - ART_FULL_TRIM.bottom) * CARD_H_OVER_W) / (1 - ART_FULL_TRIM.left - ART_FULL_TRIM.right);
+
+/** Where the whole card picture goes so its window fills a box `boxW` wide (artView.ts windowPlacement). */
+function windowPlacement(boxW) {
+  const width = boxW / (ART_WINDOW.x1 - ART_WINDOW.x0);
+  const height = width * CARD_H_OVER_W;
+  return { width, height, left: -ART_WINDOW.x0 * width, top: -ART_WINDOW.y0 * height };
+}
+/** As windowPlacement, for the art inside a full-art card's border (artView.ts fullArtPlacement). */
+function fullArtPlacement(boxW) {
+  const width = boxW / (1 - ART_FULL_TRIM.left - ART_FULL_TRIM.right);
+  const height = width * CARD_H_OVER_W;
+  return { width, height, left: -ART_FULL_TRIM.left * width, top: -ART_FULL_TRIM.top * height };
+}
+
+/**
+ * A full-art card has no window to cut, so the window view leaves it whole and a connected page
+ * of them is cut inside the border. The app reads the catalogue's full-art flag and kind; neither
+ * is readable from here (the data project keeps them off the anonymous role), so the rarity
+ * stands in: the rarities printed as full art. The known gap: a V, a Radiant or a Gold Star is
+ * windowed here as it is in the app (artView.ts).
+ */
+const FULL_ART_RARITIES = /^(double rare|illustration rare|special illustration rare|ultra rare|shiny ultra rare|hyper rare|rainbow rare|mega hyper rare|black white rare)$/;
+const isFullArtFact = (fact) => !!fact && FULL_ART_RARITIES.test(String(fact.rarity || '').toLowerCase());
+
+/** The data project's REST origin, as the browse kit derives it from the browse URL. */
+function catalogApiUrl() {
+  try {
+    return BROWSE_URL ? `${new URL(BROWSE_URL).origin}/rest/v1` : '';
+  } catch {
+    return '';
+  }
+}
+const CATALOG_API_KEY = process.env.EXPO_PUBLIC_CATALOG_API_KEY || '';
+const FACT_COLS = 'id,name,number,rarity,set_name,series,release_date,illustrator,types,stage';
+
+/**
+ * What the stock cards say: name, type and stage, set, number, illustrator and year for every card
+ * on an art-view page, read from the data project's `cards` view (the columns the browse kit itself
+ * reads anonymously), fifty ids a request. Attached to each page as `facts` (id → row) so the
+ * drawing below finds them without threading one more argument through the frames. A page with no
+ * art view gets nothing and costs nothing; a failed read leaves the windows without their text.
+ */
+async function loadFacts(pages) {
+  const viewed = (pages || []).filter((p) => p.art_view === 'window' || p.art_view === 'connected');
+  if (!viewed.length) return;
+  const ids = new Set();
+  for (const p of viewed) for (const s of p.binder_slots || []) if (s.card_id) ids.add(String(s.card_id));
+  const facts = new Map();
+  const api = catalogApiUrl();
+  if (api && CATALOG_API_KEY && ids.size) {
+    const list = [...ids];
+    for (let i = 0; i < list.length; i += 50) {
+      const chunk = list.slice(i, i + 50).map((id) => encodeURIComponent(id)).join(',');
+      const rows = await fetchJson(`${api}/cards?select=${FACT_COLS}&id=in.(${chunk})`, { apikey: CATALOG_API_KEY });
+      for (const r of Array.isArray(rows) ? rows : []) facts.set(String(r.id), r);
+    }
+  }
+  for (const p of viewed) p.facts = facts;
+}
+
+/** The stock card's text (artView.ts stockCardText): blank fields left out, so a row never reads "SET". */
+function stockText(fact) {
+  if (!fact) return { name: '', sub: '', rows: [] };
+  const sub = [Array.isArray(fact.types) ? fact.types[0] : null, fact.stage].filter(Boolean).join(' · ');
+  const rows = [
+    ['Series', fact.series],
+    ['Set', fact.set_name],
+    ['Number', fact.number],
+    ['Illustrator', fact.illustrator],
+    ['Released', fact.release_date ? String(fact.release_date).slice(0, 4) : ''],
+  ]
+    .filter(([, v]) => !!v)
+    .map(([label, value]) => ({ label, value: String(value) }));
+  return { name: fact.name || '', sub, rows };
+}
+
+/** A card's picture cut to its window (or to the art inside a full-art border), filling a box. */
+function artWindowImg(src, boxW, cut) {
+  const place = cut === 'full' ? fullArtPlacement(boxW) : windowPlacement(boxW);
+  return h('img', {
+    src,
+    width: Math.round(place.width),
+    height: Math.round(place.height),
+    style: { position: 'absolute', left: Math.round(place.left), top: Math.round(place.top), objectFit: 'fill' },
+  });
+}
+
+/**
+ * THE STOCK CARD (ArtViewCard.tsx StockCard): the art window at the full width of a near-black
+ * card, no rescaling, and under it the name, a type and stage line, and the references in a ruled
+ * table, as many rows as fit. The pocket's ring or sleeve sits round it as round any card.
+ */
+function stockCard(left, top, w, hgt, art, fact, wear) {
+  const ring = wear ? wear.ring : 0;
+  const cw = w - ring * 2;
+  const chh = hgt - ring * 2;
+  const margin = Math.round(cw * 0.07);
+  const windowW = Math.max(0, cw - margin * 2);
+  const windowH = windowW * ART_WINDOW_H_OVER_W;
+  const unit = cw / 300;
+  const nameSize = Math.max(8, 27 * unit);
+  const rowSize = Math.max(6, 12.5 * unit);
+  const labelSize = Math.max(5, 9 * unit);
+  const rowH = 24 * unit;
+  const nameBlock = (38 + 18 + 14) * unit;
+  const spare = chh - margin - windowH - nameBlock - 24 * unit;
+  const text = stockText(fact);
+  const rows = text.rows.slice(0, Math.max(0, Math.floor(spare / rowH)));
+  const textKids = [];
+  if (text.name) {
+    textKids.push(h('div', { style: { display: 'flex', fontSize: nameSize, lineHeight: 1.15, fontWeight: 700, color: '#f2efe6', whiteSpace: 'nowrap', overflow: 'hidden' } }, text.name));
+  }
+  if (text.sub) {
+    textKids.push(h('div', { style: { display: 'flex', fontSize: labelSize * 1.15, letterSpacing: 1.6 * unit, marginTop: 4 * unit, color: '#a39e8e', whiteSpace: 'nowrap', overflow: 'hidden' } }, text.sub.toUpperCase()));
+  }
+  if (rows.length) textKids.push(h('div', { style: { display: 'flex', height: 1, marginTop: 10 * unit, backgroundColor: '#34343c' } }));
+  for (const r of rows) {
+    textKids.push(
+      h(
+        'div',
+        { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: rowH, borderBottomWidth: 1, borderBottomStyle: 'solid', borderBottomColor: '#1f1f25' } },
+        [
+          h('div', { style: { display: 'flex', fontSize: labelSize, letterSpacing: 1.4 * unit, color: '#7d7868', whiteSpace: 'nowrap' } }, r.label.toUpperCase()),
+          h('div', { style: { display: 'flex', fontSize: rowSize, color: '#e4dfd0', marginLeft: 6, whiteSpace: 'nowrap', overflow: 'hidden' } }, r.value),
+        ],
+      ),
+    );
+  }
+  const card = h(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        position: 'absolute',
+        left: ring,
+        top: ring,
+        width: cw,
+        height: chh,
+        borderRadius: Math.max(0, POCKET_RADIUS - ring),
+        overflow: 'hidden',
+        backgroundColor: '#111114',
+        borderWidth: Math.max(1, Math.round(S)),
+        borderStyle: 'solid',
+        borderColor: '#2a2a30',
+      },
+    },
+    [
+      h('div', { style: { display: 'flex', position: 'absolute', left: margin, top: margin, width: windowW, height: Math.round(windowH), overflow: 'hidden', backgroundColor: '#000' } }, art ? [artWindowImg(art.src, windowW, 'window')] : []),
+      h('div', { style: { display: 'flex', flexDirection: 'column', position: 'absolute', left: margin, top: margin + windowH + 10 * unit, width: windowW } }, textKids),
+    ],
+  );
+  return h(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        position: 'absolute',
+        left,
+        top,
+        width: w,
+        height: hgt,
+        borderRadius: POCKET_RADIUS,
+        overflow: 'hidden',
+        backgroundColor: wear ? wear.color || 'transparent' : '#e9e4da',
+      },
+    },
+    [card],
+  );
+}
+
+/**
+ * THE CONNECTED SHEET (artView.ts, BinderGrid): the cards' windows edge to edge, no pockets and no
+ * gaps, so a picture one card continues onto the next meets itself; a page whose cards are all full
+ * art is cut inside the border and spaced by the band it lost. The sheet is shorter than a page
+ * of cards, so it is centred in the page's height and the page keeps its size.
+ */
+function connectedSheet(page, cw, ch, manifest, art) {
+  const cols = page.cols || 3;
+  const rows = page.rows || 3;
+  const GAP = gapOf(cw);
+  const innerW = cols * cw + (cols - 1) * GAP;
+  const innerH = rows * ch + (rows - 1) * GAP;
+  const facts = page.facts || new Map();
+  const known = (page.binder_slots || []).filter((s) => s.card_id && facts.has(String(s.card_id))).map((s) => facts.get(String(s.card_id)));
+  const cut = known.length > 0 && known.every(isFullArtFact) ? 'full' : 'window';
+  const cellW = cut === 'full' ? innerW / cols / (1 + ART_FULL_GAP_OVER_W) : innerW / cols;
+  const gap = cut === 'full' ? cellW * ART_FULL_GAP_OVER_W : 0;
+  const cellH = cellW * (cut === 'full' ? ART_FULL_H_OVER_W : ART_WINDOW_H_OVER_W);
+  const sheetH = rows * cellH + (rows - 1) * gap;
+  const sheetTop = Math.max(0, (innerH - sheetH) / 2);
+  const cells = [];
+  for (const s of page.binder_slots || []) {
+    const r = Math.trunc(s.row_index);
+    const c = Math.trunc(s.col_index);
+    if (!(r >= 0 && r < rows && c >= 0 && c < cols)) continue;
+    const rs = Math.max(1, Math.min(Math.trunc(s.row_span) || 1, rows - r));
+    const cs = Math.max(1, Math.min(Math.trunc(s.col_span) || 1, cols - c));
+    const a = slotArt(s, manifest, art);
+    if (!a) continue;
+    const bw = cs * cellW + (cs - 1) * gap;
+    const bh = rs * cellH + (rs - 1) * gap;
+    const inner = a.artwork ? slotImage(a, bw, bh, rs > 1 || cs > 1) : artWindowImg(a.src, bw, cut);
+    cells.push(
+      h(
+        'div',
+        { style: { display: 'flex', position: 'absolute', left: c * (cellW + gap), top: sheetTop + r * (cellH + gap), width: bw, height: bh, overflow: 'hidden', backgroundColor: '#000' } },
+        [inner],
+      ),
+    );
+  }
+  return h('div', { style: { display: 'flex', position: 'relative', width: innerW, height: innerH } }, cells);
+}
+
 /** Card size that fits `cols`×`rows` inside the given box while staying card-shaped. */
 function cardSize(cols, rows, maxGridW, maxGridH) {
   // The grid is cols*cw + (cols-1)*gap wide and rows*ch + (rows-1)*gap tall, with gap = GAP_RATIO*cw
@@ -482,6 +715,8 @@ function pocket(left, top, w, hgt, art, spanning, wear) {
  * strip this frame doesn't draw. Cells no slot covers get the empty-pocket tint.
  */
 function pageGrid(page, cw, ch, manifest, art, look) {
+  if (page.art_view === 'connected') return connectedSheet(page, cw, ch, manifest, art);
+  const windowed = page.art_view === 'window';
   const cols = page.cols || 3;
   const rows = page.rows || 3;
   const GAP = gapOf(cw);
@@ -498,16 +733,21 @@ function pageGrid(page, cw, ch, manifest, art, look) {
     const cs = Math.max(1, Math.min(Math.trunc(s.col_span) || 1, cols - c));
     for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) covered.add(`${r + i}:${c + j}`);
     const a = slotArt(s, manifest, art);
+    const fact = windowed && s.card_id && page.facts ? page.facts.get(String(s.card_id)) : null;
+    // THE ART VIEW: a windowed card's illustration on a stock card; a full-art card stays a card.
+    const stock = windowed && a && !a.artwork && !a.hero && !isFullArtFact(fact);
     boxes.push(
-      pocket(
-        c * colStep,
-        r * rowStep,
-        cs * cw + (cs - 1) * GAP,
-        rs * ch + (rs - 1) * GAP,
-        a,
-        rs > 1 || cs > 1,
-        look ? pocketWear(look, s, a, cw) : null,
-      ),
+      stock
+        ? stockCard(c * colStep, r * rowStep, cs * cw + (cs - 1) * GAP, rs * ch + (rs - 1) * GAP, a, fact, look ? pocketWear(look, s, a, cw) : null)
+        : pocket(
+            c * colStep,
+            r * rowStep,
+            cs * cw + (cs - 1) * GAP,
+            rs * ch + (rs - 1) * GAP,
+            a,
+            rs > 1 || cs > 1,
+            look ? pocketWear(look, s, a, cw) : null,
+          ),
     );
   }
   const empties = [];
@@ -1575,7 +1815,7 @@ module.exports = async (req, res) => {
       if (binder) {
         cover = manifestUrl(manifest, binder.cover_card_id, 'image') || cover;
         const pages = pickPages(binder);
-        const art = await loadArt(pages, look ? binder : null);
+        const [art] = await Promise.all([loadArt(pages, look ? binder : null), loadFacts(pages)]);
         // Only compose when at least one pocket actually resolves to an image — otherwise
         // an all-blank page is worse than the cover fallback.
         const anyImage = pages.some((page) =>
@@ -1621,6 +1861,7 @@ module.exports.__tooling = {
   manifestUrl,
   pickPages,
   loadArt,
+  loadFacts,
   render,
   blurBackdrop,
   backdropSource,

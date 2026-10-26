@@ -19,7 +19,7 @@ process.env.OG_SCALE = process.env.OG_HIRES_SCALE || '4';
 process.env.OG_SHARPEN = process.env.OG_HIRES_SHARPEN || '0.6';
 
 const { __tooling } = require('./og-image-binder.js');
-const { fetchBinder, fetchManifest, pickPages, loadArt, render, completeManifest } = __tooling;
+const { fetchBinder, fetchManifest, pickPages, loadArt, loadFacts, render, completeManifest } = __tooling;
 
 const CACHE = 'public, max-age=0, s-maxage=86400, stale-while-revalidate=604800';
 
@@ -71,7 +71,7 @@ module.exports = async (req, res) => {
     const look = String((req.query && req.query.v) || '') === '2';
     // ?s=clean (owner, 2026-10-25): the picture unfaded, the lockup centred under the page.
     const style = String((req.query && req.query.s) || '') === 'clean' ? 'clean' : 'soft';
-    const art = await loadArt(pages, look ? binder : null);
+    const [art] = await Promise.all([loadArt(pages, look ? binder : null), loadFacts(pages)]);
     const { body, type } = await render(pages, manifest, art, pages.length === 1, undefined, { look, binder, style });
     res.setHeader('content-type', type);
     res.setHeader('cache-control', CACHE);

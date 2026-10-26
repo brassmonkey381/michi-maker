@@ -69,13 +69,15 @@ module.exports = async (req, res) => {
     }
     // v2 (an experiment, 2026-09-15): draw the binder's look. Opt-in by URL while it is judged.
     const look = String((req.query && req.query.v) || '') === '2';
+    // ?s=clean (owner, 2026-10-25): the picture unfaded, the lockup centred under the page.
+    const style = String((req.query && req.query.s) || '') === 'clean' ? 'clean' : 'soft';
     const art = await loadArt(pages, look ? binder : null);
-    const { body, type } = await render(pages, manifest, art, pages.length === 1, undefined, { look, binder });
+    const { body, type } = await render(pages, manifest, art, pages.length === 1, undefined, { look, binder, style });
     res.setHeader('content-type', type);
     res.setHeader('cache-control', CACHE);
     res.setHeader(
       'content-disposition',
-      `attachment; filename="michi-maker-${slug(binder.title)}-${id.slice(0, 8)}.${type === 'image/jpeg' ? 'jpg' : 'png'}"`,
+      `attachment; filename="michi-maker-${slug(binder.title)}-${id.slice(0, 8)}${style === 'clean' ? '-clean' : ''}.${type === 'image/jpeg' ? 'jpg' : 'png'}"`,
     );
     return res.end(body);
   } catch (e) {

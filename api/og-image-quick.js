@@ -37,8 +37,9 @@ module.exports = async (req, res) => {
       res.setHeader('content-type', 'application/json');
       return res.end(JSON.stringify({ error: 'nothing to draw' }));
     }
+    const style = String((req.query && req.query.s) || '') === 'clean' ? 'clean' : 'soft';
     const art = await loadArt(pages, binder);
-    const { body, type } = await render(pages, manifest, art, pages.length === 1, undefined, { look: true, binder });
+    const { body, type } = await render(pages, manifest, art, pages.length === 1, undefined, { look: true, binder, style });
     res.setHeader('content-type', type);
     res.setHeader('cache-control', CACHE);
     return res.end(body);

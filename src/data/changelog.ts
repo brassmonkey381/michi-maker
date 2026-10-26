@@ -135,6 +135,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'A clean style for the share picture',
+        kind: 'new',
+        area: 'sharing',
+        body:
+          'Soft or Clean, in the Share sheet. Clean leaves your backdrop exactly as it is, no wash '
+          + 'over it, and sets the michi-maker mark centred under the page. Picks the full-size '
+          + 'download and the quick look.',
+      },
+      {
+        products: ['michi'],
         head: 'Sleeves and art backings for several pockets at once',
         kind: 'new',
         area: 'binders',

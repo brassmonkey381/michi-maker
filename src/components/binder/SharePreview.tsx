@@ -19,7 +19,7 @@ import { PresetPictureGrid } from '@/components/binder/PresetPictureGrid';
 import { ThemedText } from '@/components/themed-text';
 import { Palette, Radius, Spacing } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
-import { binderQuickPreviewUrl } from '@/lib/appUrl';
+import { binderQuickPreviewUrl, type ShareImageStyle } from '@/lib/appUrl';
 import { useBinders } from '@/store/binders';
 
 export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
@@ -58,19 +58,19 @@ export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
   );
 }
 
-export function QuickPreviewButton({ binder }: { binder: DemoBinder }) {
+export function QuickPreviewButton({ binder, style = 'soft' }: { binder: DemoBinder; style?: ShareImageStyle }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <PillButton label="Quick look at the share image" onPress={() => setOpen(true)} testID="share-quick-look" />
-      {open ? <QuickPreviewModal binder={binder} onClose={() => setOpen(false)} /> : null}
+      {open ? <QuickPreviewModal binder={binder} style={style} onClose={() => setOpen(false)} /> : null}
     </>
   );
 }
 
 /** The quick share image in a modal: the Share sheet's button opens it, and so does Q (owner, 2026-09-16). */
-export function QuickPreviewModal({ binder, onClose }: { binder: DemoBinder; onClose: () => void }) {
-  const [src] = useState(() => binderQuickPreviewUrl(binder.id, binder.updatedAt));
+export function QuickPreviewModal({ binder, style = 'soft', onClose }: { binder: DemoBinder; style?: ShareImageStyle; onClose: () => void }) {
+  const [src] = useState(() => binderQuickPreviewUrl(binder.id, binder.updatedAt, style));
   const [state, setState] = useState<'loading' | 'ok' | 'failed'>('loading');
   const { width, height } = useWindowDimensions();
   return (

@@ -89,6 +89,15 @@ collage --v2` beside the same command without the flag. To make it the default, 
 `ogImageUrl` (api/_lib.js), bump `OG_IMAGE_REV`, and add `&v=2` in `binderHiresImageUrl`
 (src/lib/appUrl.ts).
 
+## The clean style (2026-10-25)
+
+`?s=clean` on `api/og-image-hires` and `api/og-image-quick` draws the owner's backdrop as it is
+(no cream scrim, resized to the canvas's own size rather than an upscaled 1680px copy) and centres
+the lockup in a strip under a single page; a spread already centres it. The Share sheet's
+Soft / Clean switch picks it for the download and the quick look. The link preview the scrapers
+fetch (`api/og-image-binder`) stays soft. Judge it with `node scripts/og-preview.mjs <id> <dir>
+collage --v2 --clean` beside the same command without the flag.
+
 ## Follow-ups
 
 - **Backfill the art already in `binder-art`.** New uploads are fixed — `uploadArt.ts` now

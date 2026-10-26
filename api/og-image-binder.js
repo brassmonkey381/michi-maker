@@ -1012,11 +1012,15 @@ const brand = (ink) =>
  * The disclaimer that used to share the strip (r6 to r11) is gone at the owner's request, and the
  * height it took went to the pages.
  */
-const frame = (inner, backdrop) => {
+const frame = (inner, backdrop, style) => {
   // The same blurred collage the single page sits on (r12, owner's ask): the cream either side
   // of a height-bound spread reads as the binder's own colours instead of empty margin. The
   // stamp's ink is measured against what is behind it, as on the single page.
-  const ink = backdrop ? chromeInk(backdrop.bottom, SCRIM) : null;
+  //
+  // THE CLEAN STYLE (owner, 2026-10-25): the picture as it is, with no cream scrim over it. The
+  // ink is measured against the bare picture, so the halo does the work the scrim used to.
+  const clean = style === 'clean';
+  const ink = backdrop ? chromeInk(backdrop.bottom, clean ? 0 : SCRIM) : null;
   const layers = [];
   if (backdrop) {
     layers.push(
@@ -1026,6 +1030,8 @@ const frame = (inner, backdrop) => {
         height: H,
         style: { display: 'flex', position: 'absolute', left: 0, top: 0, objectFit: 'cover' },
       }),
+    );
+    if (!clean) layers.push(
       h('div', {
         style: {
           display: 'flex',
@@ -1138,9 +1144,12 @@ async function blurBackdrop(src, shape = { w: 560, h: 470 }, opts) {
     // no blur, at a size the canvas can show, so the wave or the sky they picked stays a wave or
     // a sky. The strips are still measured, so the chrome's ink still answers to what is behind it.
     const sharpen = opts && opts.sharp;
-    let pipe = sharp(bytes).resize(sharpen ? shape.w * 3 : shape.w, sharpen ? shape.h * 3 : shape.h, { fit: 'cover' });
+    // THE CLEAN STYLE (owner, 2026-10-25) draws the picture at the canvas's own size, so a poster
+    // at 4x is not an upscaled 1680px copy, and leaves its colours alone.
+    const size = opts && opts.size;
+    let pipe = sharp(bytes).resize(size ? size.w : sharpen ? shape.w * 3 : shape.w, size ? size.h : sharpen ? shape.h * 3 : shape.h, { fit: 'cover' });
     if (!sharpen) pipe = pipe.blur(22).modulate({ brightness: 1.06, saturation: 1.15 });
-    const out = await pipe.jpeg({ quality: sharpen ? 80 : 62 }).toBuffer();
+    const out = await pipe.jpeg({ quality: size ? 86 : sharpen ? 80 : 62 }).toBuffer();
     if (sharpen) {
       // The strips are read from a small copy at the measuring shape.
       const small = await sharp(out).resize(shape.w, shape.h, { fit: 'cover' }).jpeg({ quality: 60 }).toBuffer();
@@ -1286,12 +1295,16 @@ function chromeInk(bg, scrim) {
  */
 const SCRIM = 0.34;
 
-function singleFrame(page, manifest, art, backdrop, chrome, look) {
+function singleFrame(page, manifest, art, backdrop, chrome, look, style) {
   const bands = chrome === 'bands';
+  // THE CLEAN STYLE (owner, 2026-10-25): no scrim over the picture, and the lockup centred in a
+  // strip under the page instead of tucked in the corner. The page gives up the strip's height.
+  const clean = style === 'clean';
+  const STRIP = clean ? 46 * S : 0;
   // The SAME measurement serves both faces; only the ground differs. Under bands the chrome sits
   // on 94% cream, so this reliably returns the dark ink at about 11:1 — which is the point: the
   // band face is not exempt from the guarantee, it simply always passes it.
-  const groundScrim = bands ? BAND_FILL_ALPHA : SCRIM;
+  const groundScrim = bands ? BAND_FILL_ALPHA : clean ? 0 : SCRIM;
   // With no backdrop the frame is flat cream, where the dark ink already reads at about 12:1, so
   // the fallback needs no measurement.
   const flat = { ink: 'rgb(38,30,20)', pocket: BRAND_POCKET, halo: null };
@@ -1307,7 +1320,7 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
   const MARGIN = 14 * S;
   // The mat's own padding and hairline, both sides of each, are not available to the cards.
   const matChrome = 36 * S + 2 * MAT_EDGE;
-  const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - MARGIN * 2, SINGLE_H - matChrome - MARGIN * 2);
+  const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - MARGIN * 2, SINGLE_H - STRIP - matChrome - MARGIN * 2);
   const GAP = gapOf(cw);
   const matW = cols * cw + (cols - 1) * GAP + matChrome;
   const matH = rows * ch + (rows - 1) * GAP + matChrome;
@@ -1321,7 +1334,10 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
         height: SINGLE_H,
         style: { display: 'flex', position: 'absolute', left: 0, top: 0, objectFit: 'cover' },
       }),
-      // Scrim: the text has to stay readable over whatever art happens to land behind it.
+    );
+    // Scrim: the text has to stay readable over whatever art happens to land behind it. The clean
+    // style leaves the picture alone and lets the stamp's halo carry the contrast.
+    if (!clean) layers.push(
       h('div', {
         style: {
           display: 'flex',
@@ -1345,7 +1361,7 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
           left: 0,
           top: 0,
           width: SINGLE_W,
-          height: SINGLE_H,
+          height: SINGLE_H - STRIP,
           alignItems: 'center',
           justifyContent: 'center',
         },
@@ -1360,7 +1376,10 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
     ),
   );
   // The stamp: mark and wordmark, small, bottom right. On the band face a pill sits under it so
-  // the ink keeps its contrast whatever the backdrop's corner holds.
+  // the ink keeps its contrast whatever the backdrop's corner holds. In the clean style it is
+  // larger and centred in the strip under the page.
+  const markPx = clean ? 24 * S : 16 * S;
+  const wordPx = clean ? 15 * S : 11 * S;
   layers.push(
     h(
       'div',
@@ -1368,26 +1387,21 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
         style: {
           display: 'flex',
           position: 'absolute',
-          right: 14 * S,
-          bottom: 10 * S,
-          alignItems: 'center',
-          paddingTop: 5 * S,
-          paddingBottom: 5 * S,
-          paddingLeft: 9 * S,
-          paddingRight: 10 * S,
-          borderRadius: 14 * S,
-          ...(bands ? { backgroundColor: BAND_FILL } : {}),
+          ...(clean
+            ? { left: 0, right: 0, bottom: 0, height: STRIP, justifyContent: 'center', alignItems: 'center' }
+            : { right: 14 * S, bottom: 10 * S, alignItems: 'center', paddingTop: 5 * S, paddingBottom: 5 * S, paddingLeft: 9 * S, paddingRight: 10 * S, borderRadius: 14 * S }),
+          ...(bands && !clean ? { backgroundColor: BAND_FILL } : {}),
         },
       },
       [
-        logoMark(16 * S, stampInk.pocket),
+        logoMark(markPx, stampInk.pocket),
         h(
           'div',
           {
             style: {
               display: 'flex',
-              marginLeft: 7 * S,
-              fontSize: 11 * S,
+              marginLeft: (clean ? 10 : 7) * S,
+              fontSize: wordPx,
               color: stampInk.ink,
               ...(stampInk.halo ? { textShadow: stampInk.halo } : {}),
             },
@@ -1412,7 +1426,7 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
   );
 }
 
-function compose(pages, manifest, art, backdrop, looks) {
+function compose(pages, manifest, art, backdrop, looks, style) {
   if (pages.length >= 2) {
     // Open spread: shared card size so both pages align; sized to a half-frame box.
     const cols = Math.max(pages[0].cols || 3, pages[1].cols || 3);
@@ -1441,6 +1455,7 @@ function compose(pages, manifest, art, backdrop, looks) {
           ],
         ),
         backdrop,
+        style,
       );
     }
     return frame(
@@ -1454,6 +1469,7 @@ function compose(pages, manifest, art, backdrop, looks) {
         Boolean(backdrop),
       ),
       backdrop,
+      style,
     );
   }
   const page = pages[0];
@@ -1462,9 +1478,9 @@ function compose(pages, manifest, art, backdrop, looks) {
     const GAP = gapOf(cw);
     const gw = (page.cols || 3) * cw + ((page.cols || 3) - 1) * GAP;
     const gh = (page.rows || 3) * ch + ((page.rows || 3) - 1) * GAP;
-    return frame(h('div', { style: { display: 'flex' } }, pageMat(pageGrid(page, cw, ch, manifest, art, looks[0]), looks[0], gw, gh)), backdrop);
+    return frame(h('div', { style: { display: 'flex' } }, pageMat(pageGrid(page, cw, ch, manifest, art, looks[0]), looks[0], gw, gh)), backdrop, style);
   }
-  return frame(mat(pageGrid(page, cw, ch, manifest, art), -1.5, Boolean(backdrop)), backdrop);
+  return frame(mat(pageGrid(page, cw, ch, manifest, art), -1.5, Boolean(backdrop)), backdrop, style);
 }
 
 /**
@@ -1487,15 +1503,21 @@ async function render(pages, manifest, art, single, chrome, opts) {
   if (looks && looks.length >= 2) looks[0].noPull = true;
   // THE OWNER'S OWN BACKDROP (2026-09-15) replaces the blurred page art when it loaded, as itself.
   const chosen = binder && isImageRef(binder.share_backdrop) && art ? art.get(binder.share_backdrop) || null : null;
+  // THE STYLE (owner, 2026-10-25): 'soft' is the original (a cream scrim over the picture, the
+  // stamp in the corner of a single page); 'clean' leaves the picture alone, drawn at the canvas's
+  // own size, and centres the lockup under the page.
+  const style = opts && opts.style === 'clean' ? 'clean' : 'soft';
+  const cleanSize = style === 'clean' ? (single ? { w: SINGLE_W, h: SINGLE_H } : { w: W, h: H }) : undefined;
   const node = single
     ? singleFrame(
         pages[0],
         manifest,
         art,
-        chosen ? await blurBackdrop(chosen, undefined, { sharp: true }) : await blurBackdrop(backdropSource(pages[0], manifest, art)),
+        chosen ? await blurBackdrop(chosen, undefined, { sharp: true, size: cleanSize }) : await blurBackdrop(backdropSource(pages[0], manifest, art)),
         // A chosen picture is the point of the image, so it is never hidden behind the bands.
         chosen ? 'collage' : chrome || flipChrome(),
         looks ? looks[0] : null,
+        style,
       )
     : compose(
         pages,
@@ -1503,13 +1525,14 @@ async function render(pages, manifest, art, single, chrome, opts) {
         art,
         // The spread's blur, at the spread's own aspect. Whichever page has art supplies it.
         chosen
-          ? await blurBackdrop(chosen, { w: 800, h: Math.round((800 * H) / W) }, { sharp: true })
+          ? await blurBackdrop(chosen, { w: 800, h: Math.round((800 * H) / W) }, { sharp: true, size: cleanSize })
           : await blurBackdrop(
               backdropSource(pages[0], manifest, art) ||
                 (pages[1] ? backdropSource(pages[1], manifest, art) : null),
               { w: 800, h: Math.round((800 * H) / W) },
             ),
         looks,
+        style,
       );
   const png = Buffer.from(
     await new ImageResponse(node, {

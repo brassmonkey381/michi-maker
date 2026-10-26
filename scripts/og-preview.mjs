@@ -75,6 +75,8 @@ if (args[0] === '--contrast') {
 // `--v2` draws the binder's look (page style, zip, spine, sleeves, backgrounds) — the 2026-09-15
 // experiment — so the two versions can be judged side by side from the same binder.
 const v2 = args.includes('--v2');
+// `--clean` draws the clean style (owner, 2026-10-25): the picture unfaded, the lockup centred under the page.
+const clean = args.includes('--clean');
 // `--page N` renders page N alone on the narrow canvas, the way a shared page link does;
 // `--backdrop URL` stands in for the binder's own share_backdrop, to try a picture without saving it.
 const opt = (name) => {
@@ -85,7 +87,7 @@ const pageNo = opt('--page') ? Number(opt('--page')) : undefined;
 const backdropOverride = opt('--backdrop');
 // `--preset id` renders as that named binder (see src/data/binderPresets.ts) without saving it.
 const presetOverride = opt('--preset');
-const skip = new Set(['--v2', '--page', '--backdrop', '--preset', opt('--page'), opt('--backdrop'), opt('--preset')].filter(Boolean));
+const skip = new Set(['--v2', '--clean', '--page', '--backdrop', '--preset', opt('--page'), opt('--backdrop'), opt('--preset')].filter(Boolean));
 const [id, outDir = '.', ...faces] = args.filter((a) => !skip.has(a));
 if (!id) {
   console.log('FAILED: pass a binder id [outDir] [collage|bands ...] [--v2] [--page N] [--backdrop URL]');
@@ -123,8 +125,8 @@ console.log(`"${binder.title}" -> ${pages.length} page(s), ${single ? 'narrow 18
 
 mkdirSync(outDir, { recursive: true });
 for (const face of faces.length ? faces : [undefined]) {
-  const { body, type } = await render(pages, manifest, art, single, face, { look: v2, binder });
-  const label = (face || 'flipped') + (v2 ? '-v2' : '');
+  const { body, type } = await render(pages, manifest, art, single, face, { look: v2, binder, style: clean ? 'clean' : 'soft' });
+  const label = (face || 'flipped') + (v2 ? '-v2' : '') + (clean ? '-clean' : '');
   const file = join(outDir, `og-${id.slice(0, 8)}-${label}.${type === 'image/jpeg' ? 'jpg' : 'png'}`);
   writeFileSync(file, body);
   console.log(`  ${label.padEnd(8)} ${String(Math.round(body.length / 1024)).padStart(5)} KB  ${file}`);

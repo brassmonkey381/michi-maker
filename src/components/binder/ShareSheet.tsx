@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 
+import { Seg } from '@/components/binder/inspector/controls';
 import { ContestEntrySection } from '@/components/contest/ContestEntrySection';
 import { QuickPreviewButton, ShareBackdropField } from '@/components/binder/SharePreview';
 import { ThemedText } from '@/components/themed-text';
@@ -29,7 +30,7 @@ import type { DemoBinder } from '@/data/binderTypes';
 import { CONTEST } from '@/data/contest';
 import { useTheme } from '@/hooks/use-theme';
 import { previewDeepLinkPage } from '@/data/previewPages';
-import { binderShareUrl, downloadBinderHiresImage, warmBinderPreview } from '@/lib/appUrl';
+import { SHARE_IMAGE_STYLES, binderShareUrl, downloadBinderHiresImage, warmBinderPreview, type ShareImageStyle } from '@/lib/appUrl';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 import { AuthSheet } from '@/components/auth/AuthSheet';
@@ -258,12 +259,15 @@ export function ShareSheet({
   // people zoom in, rather than the link. It takes half a minute the first time, so the button
   // says so and stays busy until the file lands.
   const [hires, setHires] = useState<'idle' | 'busy' | 'failed'>('idle');
+  // THE PICTURE'S STYLE (owner, 2026-10-25): soft (the original) or clean. Picks the download and
+  // the quick look; the link preview the scrapers fetch stays soft.
+  const [imageStyle, setImageStyle] = useState<ShareImageStyle>('soft');
   const downloadHires = async () => {
     if (hires === 'busy') return;
     setHires('busy');
     try {
-      await downloadBinderHiresImage(binder.id, binder.updatedAt);
-      track('share.hires', { surface: 'share_sheet', binder_id: binder.id });
+      await downloadBinderHiresImage(binder.id, binder.updatedAt, imageStyle);
+      track('share.hires', { surface: 'share_sheet', binder_id: binder.id, style: imageStyle });
       setHires('idle');
     } catch {
       setHires('failed');
@@ -593,6 +597,12 @@ export function ShareSheet({
                 </View>
                 {/* The picture itself, at poster scale, for posts where people zoom in. */}
                 <View style={styles.hiresRow}>
+                  <View style={styles.styleRow} testID="share-image-style">
+                    <Seg options={SHARE_IMAGE_STYLES} value={imageStyle} onChange={setImageStyle} />
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.previewText}>
+                      {SHARE_IMAGE_STYLES.find((s) => s.id === imageStyle)?.blurb}
+                    </ThemedText>
+                  </View>
                   <Pressable
                     onPress={() => void downloadHires()}
                     disabled={hires === 'busy'}
@@ -613,7 +623,7 @@ export function ShareSheet({
                     the result, so a backdrop that is not what they expected costs seconds. */}
                 <ShareBackdropField binder={binder} />
                 <View style={styles.hiresRow}>
-                  <QuickPreviewButton binder={binder} />
+                  <QuickPreviewButton binder={binder} style={imageStyle} />
                 </View>
               </>
             ) : (
@@ -676,6 +686,7 @@ const styles = StyleSheet.create({
   },
   copyText: { color: Palette.accentText },
   hiresRow: { gap: Spacing.two, marginTop: Spacing.two },
+  styleRow: { gap: Spacing.one, alignItems: 'flex-start' },
   hiresBtn: {
     flexDirection: 'row',
     alignItems: 'center',

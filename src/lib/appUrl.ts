@@ -64,18 +64,29 @@ export function binderShareUrl(id: string, shareKey?: string | null, page?: numb
  * single page, as a download. `updatedAt` keys the CDN cache, so an edit gets a fresh render and a
  * repeat of the same version is instant.
  */
-export function binderHiresImageUrl(id: string, updatedAt?: string | null): string {
+export function binderHiresImageUrl(id: string, updatedAt?: string | null, style: ShareImageStyle = 'soft'): string {
   const stamp = updatedAt ? Date.parse(updatedAt) || 0 : 0;
-  return `${appOrigin()}/api/og-image-hires?id=${encodeURIComponent(id)}&t=${stamp}&v=2`;
+  return `${appOrigin()}/api/og-image-hires?id=${encodeURIComponent(id)}&t=${stamp}&v=2${style === 'clean' ? '&s=clean' : ''}`;
 }
+
+/**
+ * How the share image is drawn (owner, 2026-10-25). 'soft': a cream wash over the backdrop and
+ * the stamp in the corner. 'clean': the backdrop as it is, and the lockup centred under the page.
+ * The link preview itself stays soft; this picks the download and the quick look.
+ */
+export type ShareImageStyle = 'soft' | 'clean';
+export const SHARE_IMAGE_STYLES: readonly { id: ShareImageStyle; label: string; blurb: string }[] = [
+  { id: 'soft', label: 'Soft', blurb: 'A light wash over the backdrop, the stamp in the corner.' },
+  { id: 'clean', label: 'Clean', blurb: 'The backdrop as it is, the logo centred under the page.' },
+];
 
 /**
  * The share image at a glance (api/og-image-quick.js): the same picture at 1x, drawn in a few
  * seconds, for the Share sheet's preview. `updatedAt` keys it so a change shows on the next look.
  */
-export function binderQuickPreviewUrl(id: string, updatedAt?: string | null): string {
+export function binderQuickPreviewUrl(id: string, updatedAt?: string | null, style: ShareImageStyle = 'soft'): string {
   const stamp = updatedAt ? Date.parse(updatedAt) || 0 : 0;
-  return `${appOrigin()}/api/og-image-quick?id=${encodeURIComponent(id)}&t=${stamp}&n=${Date.now()}`;
+  return `${appOrigin()}/api/og-image-quick?id=${encodeURIComponent(id)}&t=${stamp}&n=${Date.now()}${style === 'clean' ? '&s=clean' : ''}`;
 }
 
 /**
@@ -83,8 +94,8 @@ export function binderQuickPreviewUrl(id: string, updatedAt?: string | null): st
  * or more the first time (it is rendered on demand); resolves when the file is saved or the tab has
  * it open. On native the URL opens in the system browser instead.
  */
-export async function downloadBinderHiresImage(id: string, updatedAt?: string | null): Promise<void> {
-  const url = binderHiresImageUrl(id, updatedAt);
+export async function downloadBinderHiresImage(id: string, updatedAt?: string | null, style: ShareImageStyle = 'soft'): Promise<void> {
+  const url = binderHiresImageUrl(id, updatedAt, style);
   if (Platform.OS !== 'web' || typeof window === 'undefined') {
     const { Linking } = await import('react-native');
     await Linking.openURL(url);

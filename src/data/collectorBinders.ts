@@ -169,7 +169,7 @@ export function facetOptions(result: CollectorResult, cardOf: (id: string) => Co
  * How a species or line result is ordered. Sets and the dex keep their own order. A key and a
  * direction: tapping the active chip flips the direction (owner, 2026-10-26).
  */
-export type CollectorSortKey = 'release' | 'rarity' | 'value' | 'artist' | 'name';
+export type CollectorSortKey = 'number' | 'dex' | 'release' | 'rarity' | 'value' | 'artist' | 'name';
 export type SortDir = 'asc' | 'desc';
 export interface CollectorSort {
   key: CollectorSortKey;
@@ -177,6 +177,8 @@ export interface CollectorSort {
 }
 
 export const COLLECTOR_SORT_KEYS: readonly { id: CollectorSortKey; label: string; blurb: string }[] = [
+  { id: 'number', label: 'Number', blurb: 'In set order.' },
+  { id: 'dex', label: 'Dex', blurb: 'In Pokédex order.' },
   { id: 'release', label: 'Release', blurb: 'By release date.' },
   { id: 'rarity', label: 'Rarity', blurb: 'By rarity.' },
   { id: 'value', label: 'Value', blurb: 'By market value.' },
@@ -185,7 +187,32 @@ export const COLLECTOR_SORT_KEYS: readonly { id: CollectorSortKey; label: string
 ];
 
 /** The direction a key reads best in first: newest, rarest and priciest first; names A to Z. */
-export const DEFAULT_DIR: Record<CollectorSortKey, SortDir> = { release: 'desc', rarity: 'desc', value: 'desc', artist: 'asc', name: 'asc' };
+export const DEFAULT_DIR: Record<CollectorSortKey, SortDir> = { number: 'asc', dex: 'asc', release: 'desc', rarity: 'desc', value: 'desc', artist: 'asc', name: 'asc' };
+
+/**
+ * SORTING EVERY SHAPE (owner, 2026-10-26: "always offer sorting and filtering for all binder
+ * types"). Each shape has a natural order, the one its result is built in: a set by number, the
+ * dex by Pokédex number, a Pokémon or line by release. The natural key in its default direction
+ * leaves the result as built (so a master set's reverse run stays where the control put it);
+ * any other key re-sorts the pockets. The keys offered are the ones that mean something for the
+ * shape: Number only for a set, Dex only for the living dex.
+ */
+export function naturalSortKey(kind: CollectorKind): CollectorSortKey {
+  return kind === 'complete' || kind === 'master' ? 'number' : kind === 'dex' ? 'dex' : 'release';
+}
+
+export function sortKeysFor(kind: CollectorKind): typeof COLLECTOR_SORT_KEYS {
+  return COLLECTOR_SORT_KEYS.filter((k) =>
+    k.id === 'number' ? kind === 'complete' || kind === 'master'
+      : k.id === 'dex' ? kind === 'dex'
+        : k.id === 'release' ? kind !== 'complete' && kind !== 'master'
+          : true);
+}
+
+/** Whether a sort choice changes the result's own order (see naturalSortKey). */
+export function sortChangesOrder(kind: CollectorKind, sort: CollectorSort): boolean {
+  return sort.key !== naturalSortKey(kind) || sort.dir !== DEFAULT_DIR[sort.key];
+}
 
 /**
  * Rarity names from the catalogue, plainest to rarest. A name not listed sorts with the plain
@@ -324,6 +351,8 @@ export function sortPockets(
   const sign = sort.dir === 'asc' ? 1 : -1;
   const key = (p: CollectorPocket, c: CollectorCard): number | string => {
     switch (sort.key) {
+      case 'number': return numberKey(c.number);
+      case 'dex': return dexNumber(speciesOf(c.name)) || Number.MAX_SAFE_INTEGER;
       case 'release': return c.releaseDate || '9999';
       case 'rarity': return rarityRank(c.rarity);
       case 'value': return valueOf(p.cardId);

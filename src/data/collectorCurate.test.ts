@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { type CollectorCard, type CollectorResult, evolutionFamilies, masterSet, speciesSet } from './collectorBinders.ts';
-import { collectorPool, collectorStrength, curateMaxPages, leftoverPockets } from './collectorCurate.ts';
+import { collectorPool, collectorStrength, curateMaxPages, leftoverPockets, tailTitle, titleTailPages } from './collectorCurate.ts';
 
 const card = (id: string, name: string, number: string, extra: Partial<CollectorCard> = {}): CollectorCard => ({
   id, name, number, setId: 'sv3pt5', releaseDate: '2023-09-22', rarity: 'Common', evolutionLine: [], ...extra,
@@ -67,4 +67,38 @@ test('curated page budget: one page per five cards, one at least, forty at most'
   assert.equal(curateMaxPages(3), 1);
   assert.equal(curateMaxPages(264), 40);
   assert.equal(curateMaxPages(52), 11);
+});
+
+const mk = (id: string, name: string, number: string, extra: Partial<CollectorCard> = {}): CollectorCard =>
+  ({ id, name, number, setId: 'sv8pt5', releaseDate: '2025-01-17', rarity: 'Common', evolutionLine: [], ...extra });
+
+test('in-order pages are titled by the span they cover under the sort, and say what they are', () => {
+  const a = mk('a', 'Eevee', '010/131', { releaseDate: '2016-05-02', rarity: 'Common', illustrator: 'Atsuko Nishida' });
+  const b = mk('b', 'Vaporeon', '018/131', { releaseDate: '2018-11-02', rarity: 'Rare', illustrator: 'Kouki Saitou' });
+  const subject = 'Prismatic Evolutions: complete set';
+  assert.deepEqual(tailTitle([a, b], { kind: 'complete', sort: { key: 'number', dir: 'asc' }, subject }), { title: 'Nos. 010 to 018', description: `${subject} in number order.` });
+  assert.deepEqual(tailTitle([a, a], { kind: 'complete', sort: { key: 'number', dir: 'asc' }, subject }), { title: 'No. 010', description: `${subject} in number order.` });
+  assert.deepEqual(tailTitle([a, b], { kind: 'dex', sort: { key: 'dex', dir: 'asc' }, subject: 'Living Pokédex' }), { title: '#133 to #134', description: 'Living Pokédex in Pokédex order.' });
+  assert.deepEqual(tailTitle([b, a], { kind: 'species', sort: { key: 'release', dir: 'desc' }, subject: 'Every Eevee' }), { title: '2018 to 2016', description: 'Every Eevee by release, newest first.' });
+  assert.equal(tailTitle([a, b], { kind: 'species', sort: { key: 'rarity', dir: 'asc' }, subject: 'Every Eevee' }).title, 'Common to Rare');
+  assert.equal(tailTitle([a, b], { kind: 'species', sort: { key: 'artist', dir: 'asc' }, subject: 'Every Eevee' }).description, 'Every Eevee by illustrator, A to Z.');
+  assert.equal(tailTitle([a, b], { kind: 'species', sort: { key: 'value', dir: 'desc' }, subject: 'Every Eevee' }).title, 'By value');
+  assert.equal(tailTitle([a, b], { kind: 'species', sort: { key: 'name', dir: 'asc' }, subject: 'Every Eevee' }).title, 'Eevee to Vaporeon');
+});
+
+test('titling leaves curated pages and empty pages alone, and reads the cards in slot order', () => {
+  const a = mk('a', 'Eevee', '010/131');
+  const b = mk('b', 'Vaporeon', '018/131');
+  const cardOf = (id: string) => ({ a, b } as Record<string, CollectorCard>)[id];
+  const slot = (id: string, col: number) => ({ id: `s${col}`, row: 0, col, rowSpan: 1, colSpan: 1, type: 'card' as const, cardId: id });
+  const order = { kind: 'complete' as const, sort: { key: 'number' as const, dir: 'asc' as const }, subject: 'Set' };
+  const pages = titleTailPages([
+    { id: 'p1', rows: 3, cols: 3, title: 'The Eevees', description: 'kept', slots: [slot('a', 0)] },
+    { id: 'p2', rows: 3, cols: 3, slots: [slot('a', 0), slot('b', 1), { id: 'art', row: 1, col: 0, rowSpan: 1, colSpan: 1, type: 'artwork' as const }] },
+    { id: 'p3', rows: 3, cols: 3, slots: [] },
+  ], cardOf, order);
+  assert.equal(pages[0].title, 'The Eevees');
+  assert.equal(pages[0].description, 'kept');
+  assert.equal(pages[1].title, 'Nos. 010 to 018');
+  assert.equal(pages[2].title, undefined);
 });

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import {
   type CollectorCard, completeSet, dexNumber, evolutionLineSet, inLanguage, isSecretRare, livingDex, masterSet, MICHI_PAGE_TEMPLATES,
-  facetOptions, familyFromEvolvesFrom, filterPockets, isFullArt, isPokemonCard, michiPages, NO_FILTERS, numberKey, pagesNeeded, POKEDEX, rarityRank, searchSpecies, sortPockets, speciesCounts, speciesOf, speciesSet,
+  facetOptions, familyFromEvolvesFrom, filterPockets, isFullArt, isPokemonCard, michiPages, naturalSortKey, NO_FILTERS, numberKey, pagesNeeded, POKEDEX, rarityRank, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesOf, speciesSet,
   withCameos,
 } from './collectorBinders.ts';
 
@@ -182,8 +182,21 @@ test('sorting a species result: rarest, artist, name, newest; counts per species
   ];
   const cardOf = (id: string) => cards.find((c) => c.id === id);
   const base = { pockets: cards.map((c) => ({ cardId: c.id })), missing: [] };
-  const by = (key: 'release' | 'rarity' | 'value' | 'artist' | 'name', dir: 'asc' | 'desc', valueOf?: (id: string) => number) =>
+  const by = (key: 'number' | 'dex' | 'release' | 'rarity' | 'value' | 'artist' | 'name', dir: 'asc' | 'desc', valueOf?: (id: string) => number) =>
     sortPockets(base, cardOf, { key, dir }, valueOf).pockets.map((p) => p.cardId);
+  // Every shape sorts: by set number, and by Pokédex number (Charmander 4, Charmeleon 5, Charizard 6).
+  assert.deepEqual(by('number', 'asc').slice(0, 2).sort(), ['c', 'z']);
+  assert.deepEqual(by('number', 'desc')[0], 's');
+  assert.deepEqual(by('dex', 'asc'), ['c', 'a', 'z', 's']);
+  assert.equal(naturalSortKey('complete'), 'number');
+  assert.equal(naturalSortKey('dex'), 'dex');
+  assert.equal(naturalSortKey('line'), 'release');
+  assert.deepEqual(sortKeysFor('master').map((k) => k.id), ['number', 'rarity', 'value', 'artist', 'name']);
+  assert.deepEqual(sortKeysFor('dex').map((k) => k.id), ['dex', 'release', 'rarity', 'value', 'artist', 'name']);
+  assert.deepEqual(sortKeysFor('species').map((k) => k.id), ['release', 'rarity', 'value', 'artist', 'name']);
+  assert.equal(sortChangesOrder('master', { key: 'number', dir: 'asc' }), false);
+  assert.equal(sortChangesOrder('master', { key: 'number', dir: 'desc' }), true);
+  assert.equal(sortChangesOrder('master', { key: 'rarity', dir: 'desc' }), true);
   assert.deepEqual(by('rarity', 'desc'), ['s', 'z', 'a', 'c']);
   assert.deepEqual(by('rarity', 'asc'), ['c', 'a', 'z', 's']);
   assert.deepEqual(by('artist', 'asc'), ['a', 'z', 'c', 's']);

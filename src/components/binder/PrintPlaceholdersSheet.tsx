@@ -192,11 +192,13 @@ export function PrintPlaceholdersSheet({
   /**
    * MATS (owner, 2026-10-26): the pages shown in the art view can print their cards as mats, a
    * frame with the art window cut out that the real card slides in behind (placeholderPdf.ts
-   * header). Offered only when the binder has such a page; off by default so a print is what it
-   * was. The colour is the mat's: black as on screen, or white for no ink.
+   * header). Offered only when the binder has such a page, and on by default then. The colour is
+   * the mat's: black as on screen, or white for no ink.
    */
   const hasArtView = useMemo(() => binder.pages.some((p) => p.artView === 'window' || p.artView === 'connected'), [binder.pages]);
-  const [matChoice, setMatChoice] = useState<'off' | MatColor>('off');
+  // On by default for a binder shown in the art view (owner, 2026-10-26: the Collect page's art
+  // window choice is a choice to print mats); black as on screen, white a tap away.
+  const [matChoice, setMatChoice] = useState<'off' | MatColor>(() => (hasArtView ? 'black' : 'off'));
   const mats: MatColor | undefined = hasArtView && matChoice !== 'off' ? matChoice : undefined;
   /**
    * EVERY GAME'S CARDS, NOT POKÉMON'S ALONE (2026-09-20). The builder asks one lookup for a name,

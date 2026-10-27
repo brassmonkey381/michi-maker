@@ -20,7 +20,8 @@
  * Pure. The planner's likeness and palette providers are the page's business (app/collect.tsx).
  */
 import type { PaletteColor } from './arrange.ts';
-import { type CollectorCard, type CollectorPocket, type CollectorResult, isFullArt, isPokemonCard, RARITY_RANK, rarityRank } from './collectorBinders.ts';
+import type { DemoPage } from './binderTypes.ts';
+import { type CollectorCard, type CollectorKind, type CollectorPocket, type CollectorResult, type CollectorSort, dexNumber, isFullArt, isPokemonCard, RARITY_RANK, rarityRank, speciesOf } from './collectorBinders.ts';
 import type { PoolCard } from './storyPages.ts';
 
 /** How strongly a card deserves to seed a page: its rung on the rarity ladder, 0..1, plus 0.25 for full art. */
@@ -79,6 +80,70 @@ export function leftoverPockets(result: CollectorResult, placedIds: ReadonlySet<
     out.push(p);
   }
   return out;
+}
+
+/** How the pages after the curated ones are ordered: the shape, its sort, and the binder's title as the subject. */
+export interface TailOrder {
+  kind: CollectorKind;
+  sort: CollectorSort;
+  /** The binder title: "Every Eevee", "Prismatic Evolutions: complete set". */
+  subject: string;
+}
+
+/**
+ * TITLES FOR THE PAGES IN ORDER (owner, 2026-10-26: the pages after the curated ones "dont have
+ * their titles set or mention why the page of cards was chosen this way"). A page that holds the
+ * result in its own order is named by the span it covers under that order (set numbers 010 to
+ * 018, dex numbers, years, rarities, illustrators, names), and its description says what the
+ * page is: the subject in that order. Pages that already carry a title (the curated ones) are left
+ * alone. A page with no known card is left alone too.
+ */
+export function titleTailPages(pages: readonly DemoPage[], cardOf: (id: string) => CollectorCard | undefined, order: TailOrder): DemoPage[] {
+  return pages.map((p) => {
+    if (p.title) return p;
+    const cards = p.slots
+      .filter((s) => s.type === 'card' && s.cardId)
+      .map((s) => cardOf(s.cardId!))
+      .filter((c): c is CollectorCard => !!c);
+    if (!cards.length) return p;
+    return { ...p, ...tailTitle(cards, order) };
+  });
+}
+
+/** The title and description for one in-order page from the cards on it, in the page's order. */
+export function tailTitle(cards: readonly CollectorCard[], order: TailOrder): { title: string; description: string } {
+  const first = cards[0];
+  const last = cards[cards.length - 1];
+  const span = (a: string, b: string) => (a === b ? a : `${a} to ${b}`);
+  const who = order.subject.trim() || 'The cards';
+  const desc = order.sort.dir === 'desc';
+  switch (order.sort.key) {
+    case 'number': {
+      const num = (c: CollectorCard) => c.number.split('/')[0].trim() || '?';
+      const a = num(first);
+      const b = num(last);
+      return { title: a === b ? `No. ${a}` : `Nos. ${a} to ${b}`, description: `${who} in number order${desc ? ', last first' : ''}.` };
+    }
+    case 'dex': {
+      const dex = (c: CollectorCard) => {
+        const n = dexNumber(speciesOf(c.name));
+        return n ? `#${String(n).padStart(3, '0')}` : '#?';
+      };
+      return { title: span(dex(first), dex(last)), description: `${who} in Pokédex order${desc ? ', last first' : ''}.` };
+    }
+    case 'release': {
+      const year = (c: CollectorCard) => (c.releaseDate || '').slice(0, 4) || 'undated';
+      return { title: span(year(first), year(last)), description: `${who} by release, ${desc ? 'newest' : 'oldest'} first.` };
+    }
+    case 'rarity':
+      return { title: span(first.rarity || 'Rare', last.rarity || 'Rare'), description: `${who} by rarity, ${desc ? 'rarest' : 'plainest'} first.` };
+    case 'value':
+      return { title: 'By value', description: `${who} by market value, ${desc ? 'priciest' : 'cheapest'} first.` };
+    case 'artist':
+      return { title: span(first.illustrator || 'Unknown', last.illustrator || 'Unknown'), description: `${who} by illustrator, ${desc ? 'Z to A' : 'A to Z'}.` };
+    default:
+      return { title: span(first.name, last.name), description: `${who} by card name, ${desc ? 'Z to A' : 'A to Z'}.` };
+  }
 }
 
 /** Most curated pages to plan for a pool: one per five cards, forty at the outside (each page is server likeness calls). */

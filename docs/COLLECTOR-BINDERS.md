@@ -58,11 +58,13 @@ Jumbo and V-UNION pieces are skipped everywhere: they have no pocket in a 3x3 pa
 | Include secret rares | complete, master | `isSecretRare`: a number past the printed total ("200/165"); lettered runs are not secrets |
 | Reverse holos after / beside | master | after the run (collectors' default) or each beside its card |
 | Add cameo cards | one Pokémon, evolution line | the kit's `cameo:<species>` search on the data server, merged by `withCameos` after the result in release order, marked `cameo`; metered like the browser (a free plan gets the top few and the page says so) |
-| Sort: Release, Rarity, Value, Artist, Name | one Pokémon, evolution line | `sortPockets`, a key and a direction; tapping the active chip flips it; Rarity uses `RARITY_RANK`, Value the price summary's headline |
+| Sort: Number / Dex / Release, Rarity, Value, Artist, Name | all | `sortPockets`, a key and a direction; tapping the active chip flips it; Rarity uses `RARITY_RANK`, Value the price summary's headline. Each shape offers the keys that mean something for it (`sortKeysFor`) and starts in its natural order (`naturalSortKey`: a set by number, the dex by Pokédex number, a Pokémon by release); the natural key in its default direction leaves the result as built, so a master set's reverse run stays where its control put it |
 | Filter: Rarity, Series, Set, Artist, Type | all (Series and Set only for the Pokémon shapes) | multi-select facets from `facetOptions`, which names only values the result has, with counts; `filterPockets` |
 | Full art, Pokémon only, Owned all / only / missing | all | `isFullArt` (kit flag, else the Arrange module's full-art kinds), `isPokemonCard` (card class, else the species rule), the Owned data |
 | Newest / oldest print | living dex | which print stands for the species |
-| Curate pages | all | `planPages` over the result's pool, at most one page per five cards (40 at the outside); leftovers follow on plain or michi pages |
+| In order / Curated | all | one or the other (owner, 2026-10-26). Curated: `planPages` over the result's pool, pass after pass over what no page took, at most one page per five cards (40 at the outside); the leftovers follow in order. Every in-order page is titled by the span it covers under the sort (`titleTailPages`: "Nos. 010 to 018", "#133 to #134", "2018 to 2016", rarities, illustrators, names) with a one-line description of what it is |
+| Fill the art panels | michi layouts or curated | after the binder is created, each reserved panel is dressed from stock art searched by the page's subject (`pageSubject`: its species, else the binder title), one at a time with a progress note, 60 panels at most; the rest stay panels |
+| Card view / Art window black / white | all | sets `artView: 'window'` on every page, so the binder opens in the art view; the free print is withdrawn (mats are part of the paid print) and the binder's Print sheet opens with mats on, black by default |
 
 The result shows 18 thumbnails and a "Show all N" button; an evolution line also lists the count
 per species ("62 Charmander · 45 Charmeleon · 42 Charizard").

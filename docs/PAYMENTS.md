@@ -290,6 +290,10 @@ for the time-dependent paths) and then smoke-tested with a **real card** on 2026
    `interval`, `period_start`, and `term_print_allocation`.
 3. **Client refresh** — surfaces poll `useTier().refresh()` after returning with `?checkout=success`
    (the grant lags the redirect by seconds).
+   For the one-time PDF the binder page opens its print sheet on that return, and the sheet
+   downloads the files and locks the unlock to the current version by itself, once, under the
+   unlocked celebration (owner, 2026-10-27: it took Print, close preview, Download, confirm before).
+   A purchase found on a later visit still waits for the Download button.
 4. **Secrets** live in the Supabase function env (`supabase secrets set`), never in app code.
 
 Price lives entirely in the Stripe dashboard; the app resolves it by `lookup_key`, never a raw

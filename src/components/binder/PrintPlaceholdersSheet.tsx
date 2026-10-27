@@ -27,7 +27,7 @@ import { createWebArtLoader } from '@/data/fillSheetArt';
 import { fileStem, saveBytes, saveFillSheetFiles } from '@/data/fillSheetSave';
 import { startCheckout } from '@/data/checkout';
 import { Seg } from '@/components/binder/inspector/controls';
-import { buildFillSheetPdfs, collectFillTiles, type FillSheetPdf, type MatColor, CARDSTOCK_SHEET_USD } from '@/data/placeholderPdf';
+import { buildFillSheetPdfs, collectFillTiles, describeDownload, describeFiles, type FillSheetPdf, type MatColor, CARDSTOCK_SHEET_USD } from '@/data/placeholderPdf';
 import { printCutWarningText, printCutWarnings } from '@/data/printFit';
 import {
   binderFingerprint,
@@ -63,8 +63,8 @@ export function PrintPlaceholdersSheet({
   /** Open with the preview of this binder already rendering (the P key). */
   previewAtOpen?: boolean;
   onClose: () => void;
-  /** Fired after a successful download (for a host toast). */
-  onDone?: (sheets: number) => void;
+  /** Fired after a successful download (for a host toast): the sheets and a line naming the files. */
+  onDone?: (done: { sheets: number; files: number; summary: string }) => void;
 }) {
   const { catalog, guestGated, loading } = useCatalog(true);
   const cutWarnings = useMemo(() => printCutWarnings(binder), [binder]);
@@ -153,6 +153,7 @@ export function PrintPlaceholdersSheet({
   // regenerating it is a FREE re-download for everyone (no credit, no purchase).
   const versionPaidFor = pState === 'current';
 
+
   // Subscriber print credits: the included allocation for the CURRENT window — normally this
   // billing month (PRO 1 / VIP 3), or the whole term at once (PRO 12 / VIP 36 on a full year,
   // less if they upgraded mid-term — see term_print_allocation) for a yearly
@@ -230,6 +231,14 @@ export function PrintPlaceholdersSheet({
   );
   const counts = collected?.counts ?? null;
   const sheets = counts?.sheets ?? 0;
+  // The PDFs the download holds (owner, 2026-10-27: say exactly how many and which), from the
+  // counts, so the list is right before anything is built and matches the zip to the file.
+  const fileList = useMemo(() => (counts ? describeFiles(counts) : []), [counts]);
+  const downloadSummary = describeDownload(fileList);
+  // The download that runs by itself back from checkout: started, then done (see the effect below `download`).
+  const [autoStarted, setAutoStarted] = useState(false);
+  const [autoDownloaded, setAutoDownloaded] = useState(false);
+
   const ownedCount = counts?.ownedCards ?? 0;
 
   /**
@@ -238,11 +247,12 @@ export function PrintPlaceholdersSheet({
    * the version, no usage record). Free re-downloads of an already-paid version pass neither —
    * usage is only ever bumped by an explicit confirmation.
    */
-  const download = async (opts: { credit?: boolean; spend?: boolean } = {}) => {
+  const download = async (opts: { credit?: boolean; spend?: boolean; stay?: boolean } = {}) => {
     if (!catalog || !counts || counts.total === 0 || busy) return;
     setConfirming(null);
     setBusy(true);
     setError(null);
+    if (opts.stay) setAutoStarted(true);
     track('print.download', { credit: !!opts.credit, spend: !!opts.spend, pockets: counts.total });
     try {
       // A plain-paper placeholders PDF and a matte-cardstock art PDF (either omitted if the binder
@@ -301,14 +311,40 @@ export function PrintPlaceholdersSheet({
       if (opts.credit) {
         allowance.noteSpent(recorded);
       }
-      onDone?.(sheets);
-      onClose();
+      onDone?.({ sheets, files: files.length, summary: downloadSummary });
+      // `stay`: the download that runs by itself back from checkout leaves the sheet up, under the
+      // unlocked celebration, which says the files are already on disk.
+      if (!opts.stay) onClose();
+      else setAutoDownloaded(true);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   };
+
+  /**
+   * BACK FROM CHECKOUT, THE FILES COME BY THEMSELVES (owner, 2026-10-27). It took Print, then
+   * closing the preview, then Download, then a confirm to get the thing just paid for. Now, when
+   * the purchase lands on the visit back from Stripe and is unspent, the download runs once, locks
+   * the unlock to this version, and the celebration says the files are on disk. Needs the catalog
+   * and counts (the effect waits for them), and never runs for a purchase found on a later visit.
+   */
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (!cameFromCheckout || !purchased || pState !== 'unspent' || autoRan.current) return;
+    if (!catalog || !counts || counts.total === 0 || busy) return;
+    // Off the render path: the download sets state as it goes, which an effect body may not.
+    const t = setTimeout(() => {
+      if (autoRan.current) return;
+      autoRan.current = true;
+      track('print.auto_download', { binder_id: binder.id });
+      void download({ spend: true, stay: true });
+    }, 0);
+    return () => clearTimeout(t);
+    // `download` is recreated every render; the guards above are the real dependencies.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameFromCheckout, purchased, pState, catalog, counts, busy]);
 
   /** Download one purchased version (every spent purchase stays downloadable forever). We
    *  REGENERATE whenever the version's content is recoverable — from its frozen snapshot, or
@@ -580,13 +616,6 @@ export function PrintPlaceholdersSheet({
                     {' · '}
                     <ThemedText type="smallBold">{sheets}</ThemedText> sheet
                     {sheets === 1 ? '' : 's'}
-                    {counts.art + counts.mats > 0
-                      ? ` (${[
-                        `${counts.placeholderSheets} plain paper`,
-                        counts.art > 0 ? `${counts.artSheets} matte cardstock` : '',
-                        counts.mats > 0 ? `${counts.matSheets} mat cardstock` : '',
-                      ].filter(Boolean).join(', ')})`
-                      : ''}
                     {colorOwned && ownedCount > 0 ? (
                       <>
                         {' · '}
@@ -594,6 +623,21 @@ export function PrintPlaceholdersSheet({
                       </>
                     ) : null}
                   </ThemedText>
+                ) : null}
+                {fileList.length > 0 ? (
+                  // Exactly what the download is (owner, 2026-10-27): each PDF, its size, its paper.
+                  <View style={styles.fileList} testID="print-file-list">
+                    <ThemedText type="smallBold">
+                      {fileList.length === 1 ? 'Your download is 1 PDF' : `Your download is ${fileList.length} PDFs in one zip`}
+                    </ThemedText>
+                    {fileList.map((f) => (
+                      <ThemedText key={f.section} type="small" themeColor="textSecondary">
+                        {'• '}
+                        <ThemedText type="smallBold">{f.name}</ThemedText>
+                        {` · ${f.size}${f.paper ? `, ${f.paper}` : ''}`}
+                      </ThemedText>
+                    ))}
+                  </View>
                 ) : null}
                 {counts && counts.art > 0 && counts.artSheetsSpaced > counts.artSheets ? (
                   // The print space optimizer: art shares cut lines and folds share the sheets with
@@ -1014,6 +1058,9 @@ export function PrintPlaceholdersSheet({
       <PdfUnlockedModal
         visible={cameFromCheckout && purchased && !celebrated}
         binderTitle={binder.title}
+        files={fileList}
+        downloaded={autoDownloaded}
+        downloading={busy && autoStarted && !autoDownloaded}
         onClose={() => setCelebrated(true)}
       />
     </DialogCard>
@@ -1025,6 +1072,7 @@ const styles = StyleSheet.create({
   bad: { color: Palette.danger },
   goodBox: { marginTop: 6, padding: Spacing.three, borderRadius: Radius.control, backgroundColor: `${Palette.success}1A` },
   matsBlock: { gap: Spacing.two },
+  fileList: { gap: 2, padding: Spacing.three, borderRadius: Radius.control, backgroundColor: Palette.selectionSoft },
   good: { color: Palette.success },
   sub: { lineHeight: 20 },
   legalNote: { lineHeight: 17, fontSize: FontSize.sm, fontStyle: 'italic' },

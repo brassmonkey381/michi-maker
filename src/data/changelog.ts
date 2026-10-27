@@ -130,9 +130,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    date: '2026-10-26',
+    date: '2026-10-27',
     title: 'Collector binders, the owned tick, and a clean share picture',
     items: [
+      {
+        products: ['michi'],
+        head: 'The print sheet says which PDFs you get, and brings them after checkout',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The print sheet now lists the download before you take it: each PDF by name, with its '
+          + 'sheet count and the paper it wants, placeholders on plain paper, art on matte '
+          + 'cardstock, mats on photo paper or white cardstock, and a read-me, all in one zip. '
+          + 'And a binder bought at checkout no longer needs four more taps: coming back from '
+          + 'Stripe, the print sheet opens, the files download and the unlock locks to this '
+          + 'version by itself.',
+      },
       {
         products: ['michi'],
         head: 'Collector binders: ask for a set and get the binder',
@@ -149,7 +162,8 @@ export const CHANGELOG: ChangelogEntry[] = [
           + 'page, with art panels ready for your pictures. Curated pages build the binder the way '
           + 'a story binder is built, one idea a page, pass after pass, with the rest following in '
           + 'order on pages named by what they hold. Every shape sorts and filters, the art panels '
-          + 'can be filled from stock art on the way out, and an art window choice shows the pages '
+          + 'can be filled with stock photos in the mood of each page (the sea for a Water page, '
+          + 'embers for Fire), and an art window choice shows the pages '
           + 'in the art view with mats ready to print. With the '
           + 'Owned view it says how many you already have.',
       },

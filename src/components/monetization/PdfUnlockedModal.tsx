@@ -19,14 +19,24 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
 import { WOAHPOKE_GUIDE } from '@/data/guides';
+import type { FillFileDescription } from '@/data/placeholderPdf';
 
 export function PdfUnlockedModal({
   visible,
   binderTitle,
+  files,
+  downloaded,
+  downloading,
   onClose,
 }: {
   visible: boolean;
   binderTitle: string;
+  /** The PDFs the download holds, named one by one; empty while the counts are unknown. */
+  files: readonly FillFileDescription[];
+  /** The files already downloaded by themselves on the way back from checkout. */
+  downloaded: boolean;
+  /** That download is running right now. */
+  downloading: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -50,13 +60,20 @@ export function PdfUnlockedModal({
                 {binderTitle} is ready to print
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-                Your unlock covers this binder exactly as it is today, and that version stays
-                yours to download forever.
+                {downloaded
+                  ? 'Your files are downloading now and this version is locked in, yours to download again forever.'
+                  : downloading
+                    ? 'Your files are on their way, and this version is being locked in, yours to download again forever.'
+                    : 'Your unlock covers this binder exactly as it is today, and that version stays yours to download forever.'}
               </ThemedText>
 
               <View style={styles.features}>
                 {[
-                  'Two files: plain-paper placeholders and a matte-cardstock art sheet',
+                  files.length > 1
+                    ? `${files.length} PDFs in one zip: ${files.map((f) => `${f.name.toLowerCase()} (${f.size}${f.paper ? `, ${f.paper}` : ''})`).join(', ')}`
+                    : files.length === 1
+                      ? `1 PDF: ${files[0].name.toLowerCase()} (${files[0].size})`
+                      : 'A PDF for each kind of paper, plus a read-me, in one zip',
                   'Every piece at true 2.5 by 3.5 inch card size, cut-ready',
                   'Re-download any time, even years from now',
                   'Edit the binder later and the version you bought still prints',
@@ -103,7 +120,7 @@ export function PdfUnlockedModal({
                 onPress={onClose}
                 style={({ pressed }) => [styles.cta, pressed && styles.pressed]}>
                 <ThemedText type="smallBold" style={styles.ctaText}>
-                  Download my sheets
+                  {downloaded ? 'Done' : downloading ? 'Downloading…' : 'Download my sheets'}
                 </ThemedText>
               </Pressable>
             </ScrollView>

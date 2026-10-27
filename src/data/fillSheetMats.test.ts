@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { DemoBinder, DemoSlot } from './binderTypes.ts';
-import { type CardMeta, collectFillTiles, type MatTile } from './placeholderPdf.ts';
+import { type CardMeta, collectFillTiles, describeDownload, describeFiles, type MatTile } from './placeholderPdf.ts';
 
 const META: Record<string, CardMeta> = {
   w1: { name: 'Wartortle', setName: 'Pokemon GO', number: '016/078', types: ['Water'], stage: 'Stage 1', seriesId: 'Sword & Shield', illustrator: 'kurumitsu', releaseDate: '2022-07-01' },
@@ -80,4 +80,18 @@ test('the mats are their own PDF, after the art and before the instructions', as
   assert.deepEqual(files.map((f) => f.section), ['placeholders', 'mats', 'instructions']);
   assert.equal(files[1].pieces, 2);
   assert.equal(files[1].sheets, 1);
+});
+
+test('the download is described file by file from the counts, and the read-me comes last', () => {
+  const art = slot('art', 1, 0, { type: 'artwork', cardId: undefined, imageUrl: 'https://x/a.png' });
+  const b = binder([{ id: 'p1', rows: 3, cols: 3, artView: 'window', slots: [slot('w1', 0, 0), slot('w2', 0, 1), art] }]);
+  const files = describeFiles(collectFillTiles(b, cards, undefined, 'black').counts);
+  assert.deepEqual(files.map((f) => f.section), ['placeholders', 'art', 'mats', 'instructions']);
+  assert.equal(files[2].paper, 'matte photo paper');
+  assert.equal(files[3].size, '1 page');
+  assert.equal(describeDownload(files), '4 PDFs in one zip: placeholders, art, mats and a read-me');
+  const noMats = describeFiles(collectFillTiles(b, cards).counts);
+  assert.deepEqual(noMats.map((f) => f.section), ['placeholders', 'art', 'instructions']);
+  assert.equal(describeFiles(collectFillTiles(binder([]), cards).counts).length, 0);
+  assert.equal(describeDownload([]), 'Nothing to print');
 });

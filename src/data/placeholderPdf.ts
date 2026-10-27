@@ -285,6 +285,42 @@ export interface FillCounts {
   artSheetsSpaced: number;
 }
 
+/** One file of a download, for the sheet's list and the toast: the name the zip uses, and its size. */
+export interface FillFileDescription {
+  section: PrintSection | 'instructions';
+  /** The file's name in the zip, without the binder stem. */
+  name: string;
+  /** "12 sheets", "1 page". */
+  size: string;
+  /** The paper it wants, or '' for the instructions. */
+  paper: string;
+}
+
+/**
+ * The PDFs a download of this binder holds, in the order the zip lists them, from the counts alone
+ * so the sheet can say "4 PDFs in one zip" before the first byte is built. Empty when there is
+ * nothing to print. Mirrors `buildFillSheetPdfs`: a file per section that has pieces, then the
+ * instructions whenever there is any file at all.
+ */
+export function describeFiles(counts: FillCounts): FillFileDescription[] {
+  const sheets = (n: number) => `${n} sheet${n === 1 ? '' : 's'}`;
+  const out: FillFileDescription[] = [];
+  if (counts.cards + counts.inserts > 0) out.push({ section: 'placeholders', name: 'Placeholders', size: sheets(counts.placeholderSheets), paper: 'plain paper' });
+  if (counts.art > 0) out.push({ section: 'art', name: 'Art', size: sheets(counts.artSheets), paper: 'matte cardstock' });
+  if (counts.mats > 0) out.push({ section: 'mats', name: 'Mats', size: sheets(counts.matSheets), paper: counts.matColor === 'black' ? 'matte photo paper' : 'white cardstock' });
+  if (out.length > 0) out.push({ section: 'instructions', name: 'Read me first', size: '1 page', paper: '' });
+  return out;
+}
+
+/** "4 PDFs in one zip: placeholders, art, mats and a read-me" for a toast or a modal line. */
+export function describeDownload(files: readonly FillFileDescription[]): string {
+  if (files.length === 0) return 'Nothing to print';
+  if (files.length === 1) return `1 PDF: ${files[0].name.toLowerCase()}`;
+  const names = files.map((f) => (f.section === 'instructions' ? 'a read-me' : f.name.toLowerCase()));
+  const last = names.pop();
+  return `${files.length} PDFs in one zip: ${names.join(', ')} and ${last}`;
+}
+
 /** What the builder knows about a card: the placeholder's three lines, and what a mat says and needs. */
 export interface CardMeta {
   name: string;

@@ -512,7 +512,7 @@ export default function MyBindersScreen() {
         <PrintPlaceholdersSheet
           binder={printBinder}
           onClose={() => setPrintId(null)}
-          onDone={(sheets) => showToast(`Placeholder PDF downloaded (${sheets + 1} pages)`)}
+          onDone={({ sheets, summary }) => showToast(`Downloaded: ${summary}. ${sheets} sheet${sheets === 1 ? '' : 's'} to print.`)}
         />
       ) : null}
       <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />

@@ -31,11 +31,11 @@ import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/bi
 import {
   COLLECTOR_KINDS, type CollectorFilters, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult,
   type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionFamilies, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets,
-  inLanguage, isPokemonCard, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
+  inLanguage, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
 } from '@/data/collectorBinders';
 import { collectorPool, curateMaxPages, leftoverPockets, type TailOrder, titleTailPages } from '@/data/collectorCurate';
 import { saveFillSheetFiles, fileStem } from '@/data/fillSheetSave';
-import { pageSubject } from '@/data/pageArtSubject';
+import { moodQuery, pageMood } from '@/data/pageMood';
 import { buildFillSheetPdfs } from '@/data/placeholderPdf';
 import { planPages, type PagesProviders } from '@/data/storyPages';
 import { LIMITS_ENFORCED } from '@/data/tiers';
@@ -336,17 +336,22 @@ export default function CollectScreen() {
     if (!catalog) return 0;
     const jobs = pages.flatMap((p) => p.slots.filter((s) => s.type === 'artwork' && !s.cardId && !s.imageUrl).map((s) => ({ page: p, slot: s }))).slice(0, ART_FILL_CAP);
     const used = new Set<string>();
+    const panelOnPage = new Map<string, number>();
     let placed = 0;
     for (const [i, { page, slot }] of jobs.entries()) {
-      setNote(`Finding art, panel ${i + 1} of ${jobs.length}…`);
-      const subjectCards: { name: string; isPokemon: boolean }[] = [];
+      setNote(`Finding photos, panel ${i + 1} of ${jobs.length}…`);
+      // Stock sites do not know Pokémon, so the search is the page's mood: the sea for a Water
+      // page, embers for Fire, read off the cards' energy types. Two scenes a type, alternating.
+      const cardTypes: string[][] = [];
       for (const s of page.slots) {
         const x = s.type === 'card' && s.cardId ? catalog.getCard(s.cardId) : undefined;
-        if (x) subjectCards.push({ name: x.name, isPokemon: isPokemonCard(x) });
+        if (x) cardTypes.push(x.types ?? []);
       }
-      const subject = pageSubject(subjectCards, page.title ?? title);
-      const queries = [...new Set([subject.query, (species ?? set?.name ?? title).toLowerCase()].filter(Boolean))];
-      const art = await fetchStockArtForPanel(queries, slot.rowSpan, slot.colSpan, 'any', used);
+      const nth = panelOnPage.get(page.id) ?? 0;
+      panelOnPage.set(page.id, nth + 1);
+      const mood = pageMood(cardTypes);
+      const queries = [moodQuery(mood, nth), moodQuery(mood, nth + 1)];
+      const art = await fetchStockArtForPanel(queries, slot.rowSpan, slot.colSpan, 'photo', used);
       if (!art) continue;
       storeRef.current.placeArtPanels(binderId, page.id, slot.row, slot.col, [
         { r: 0, c: 0, rs: slot.rowSpan, cs: slot.colSpan, imageUrl: art.imageUrl, crop: art.crop, attribution: art.attribution },
@@ -580,7 +585,7 @@ export default function CollectScreen() {
                   ) : null}
                   <Check on={roomForArt} onPress={() => setRoomForArt((v) => !v)} testID="collect-room-for-art">{curate ? 'Michi layouts for the pages in order too.' : 'Michi layouts: random art panels on every page.'}</Check>
                   {roomForArt || curate ? (
-                    <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">Fill the art panels from stock art.</Check>
+                    <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">Fill the art panels with stock photos.</Check>
                   ) : null}
                   <Seg options={ART_WINDOWS} value={artWindow} onChange={setArtWindow} />
                   <View style={styles.actions}>

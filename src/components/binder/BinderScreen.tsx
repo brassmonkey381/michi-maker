@@ -501,7 +501,13 @@ export function BinderScreen({
   // never said the thing on screen could be printed at true size. Two people had ever tried
   // the free example. The sheet gates the paid path by entitlement as it always has; a visitor
   // gets the free sample and the pitch.
-  const [printOpen, setPrintOpen] = useState(initialPrintOpen);
+  // Back from Stripe with the print unlock (?checkout=success lands on this page): the print sheet
+  // opens by itself, and it downloads the files by itself (owner, 2026-10-27; PrintPlaceholdersSheet).
+  const [printOpen, setPrintOpen] = useState(
+    () =>
+      initialPrintOpen ||
+      (Platform.OS === 'web' && typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('checkout') === 'success'),
+  );
   // P opens the print sheet with the preview already rendering (owner, 2026-10-16); the buttons
   // open it at rest, as before.
   const [printPreviewAtOpen, setPrintPreviewAtOpen] = useState(false);
@@ -3529,7 +3535,7 @@ export function BinderScreen({
               setPrintOpen(false);
               setPrintPreviewAtOpen(false);
             }}
-            onDone={(sheets) => showToast(`Placeholder PDF downloaded (${sheets + 1} pages)`)}
+            onDone={({ sheets, summary }) => showToast(`Downloaded: ${summary}. ${sheets} sheet${sheets === 1 ? '' : 's'} to print.`)}
           />
         ) : null}
         <ShareSheet

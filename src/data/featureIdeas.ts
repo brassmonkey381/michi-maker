@@ -22,16 +22,18 @@ export const FEATURE_IDEAS: readonly FeatureIdea[] = [
   // binder (the print files cover it). Their ids keep their rows; they are just not shown.
   // Cut to twelve 2026-10-27 (owner): pin a card, deck binders, follow collectors, build together,
   // new set alerts, slab pockets. Same rule: rows stay, ids never reused for something else.
+  // Then (owner): remix and import cut too, duplicate and CSV import exist; mats reworded as the
+  // improvement it is (colour and pattern), deck binders and build together back in.
   { id: 'carousel-export', label: 'Instagram carousel export', blurb: 'Every page as a square picture, ready to post as one carousel.' },
-  { id: 'remix-binder', label: 'Remix a public binder', blurb: 'Start from someone else\u2019s binder with your own cards in its pockets.' },
   { id: 'price-alerts', label: 'Price alerts on your cards', blurb: 'A note when a card in your binder jumps or drops, with its history.' },
-  { id: 'mat-styles', label: 'Printable mat styles', blurb: 'Patterns and palettes for the cut-out mats behind your cards.' },
+  { id: 'mat-styles', label: 'Mats in colour and pattern', blurb: 'Palettes and patterns for the cut-out mats, beyond black and white.' },
+  { id: 'deck-binders', label: 'Deck binders', blurb: 'Pages shaped for a 60-card deck and its sideboard, one deck per binder.' },
+  { id: 'build-together', label: 'Build a binder together', blurb: 'Invite a friend to edit the same binder.' },
   { id: 'own-layouts', label: 'Design your own layouts', blurb: 'Save a page shape and its art panels as a layout you can reuse.' },
   { id: 'want-list', label: 'Want list and trade list', blurb: 'What each set still needs, and the cards you can spare, as one list.' },
   { id: 'scan-to-pocket', label: 'Scan a card into a pocket', blurb: 'Point your phone at a card and it lands in the pocket you chose.' },
   { id: 'binder-comments', label: 'Comments on shared binders', blurb: 'Leave a note on a public binder, and read what people say about yours.' },
   { id: 'binder-stats', label: 'Binder stats', blurb: 'Total value, rarest card, most used artist, and how complete each set is.' },
-  { id: 'spreadsheet-import', label: 'Import a collection', blurb: 'Bring a spreadsheet or an export from another app into your binders.' },
   { id: 'page-turn-video', label: 'A page-turn video', blurb: 'Your binder as a short clip, ready for a post.' },
   { id: 'phone-app', label: 'A phone app', blurb: 'The editor in the app stores, with your binders synced.' },
 ];

@@ -525,6 +525,12 @@ export type Database = {
         Update: { word?: string; suggest?: boolean; created_at?: string }
         Relationships: []
       }
+      feature_votes: {
+        Row: { app: string; user_id: string; feature: string; created_at: string }
+        Insert: { app: string; user_id?: string; feature: string; created_at?: string }
+        Update: { app?: string; user_id?: string; feature?: string; created_at?: string }
+        Relationships: []
+      }
       feedback_responses: {
         Row: {
           answers: Json
@@ -1220,6 +1226,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      feature_vote_counts: {
+        Args: { p_app: string }
+        Returns: { feature: string; votes: number }[]
+      }
+      feature_votes_quota_left: {
+        Args: { p_app: string }
+        Returns: boolean
+      }
       admin_remove_binder: {
         Args: { p_binder_id: string }
         Returns: undefined

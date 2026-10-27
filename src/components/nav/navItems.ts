@@ -7,8 +7,8 @@
  * from the other for months without anything failing.
  *
  * The groups are "Explore" (anywhere you might go) and "You" (your own account's things), and the
- * order inside each is deliberate: My Binders sits directly above My Purchases, and Leave Feedback
- * under that.
+ * order inside each is deliberate: My Binders sits directly above My Purchases, then the what-next
+ * vote, and Leave Feedback under that (owner, 2026-10-27: "a link right above leave feedback").
  */
 import type { Href } from 'expo-router';
 
@@ -58,6 +58,7 @@ export const NAV_EXPLORE: NavItem[] = [
 export const NAV_YOU: NavItem[] = [
   { label: 'My Binders', href: '/my-binders' as Href, match: (p) => p.startsWith('/my-binders') },
   { label: 'My Purchases', href: '/purchases' as Href, match: (p) => p.startsWith('/purchases') },
+  { label: 'Vote on What’s Next', href: '/wishlist' as Href, match: (p) => p.startsWith('/wishlist') },
   { label: 'Leave Feedback', href: '/feedback' as Href, match: (p) => p.startsWith('/feedback') },
 ];
 

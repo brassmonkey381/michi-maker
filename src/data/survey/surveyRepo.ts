@@ -26,6 +26,8 @@ export interface SurveyContext {
   binders?: number | null;
   /** The analytics session this belongs to, so a response can be put next to what they did. */
   sessionId?: string | null;
+  /** The what-next page: the idea ids the writer had voted for, so the words are read with the clicks. */
+  votes?: string[] | null;
 }
 
 export type SubmitOutcome =

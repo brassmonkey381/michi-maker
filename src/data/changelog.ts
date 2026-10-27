@@ -135,6 +135,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Vote on what we build next',
+        kind: 'new',
+        area: 'account',
+        body:
+          'A new page in the left menu, above Leave Feedback: a dozen ideas, one tap each to vote, '
+          + 'with everyone’s counts, and a box for anything not on the list. No account needed.',
+      },
+      {
+        products: ['michi'],
         head: 'Arrange the whole spread, every take, and Shuffle',
         kind: 'better',
         area: 'binders',

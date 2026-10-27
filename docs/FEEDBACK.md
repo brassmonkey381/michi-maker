@@ -120,6 +120,28 @@ write grant, that the server stamps identity and time rather than trusting the c
 author cannot read their own row back, that the sixth response in a day is refused, and that the
 summary scores a known set correctly. Every row the checks write is deleted in the same run.
 
+## The what-next page (/wishlist, 2026-10-27)
+
+The owner asked for "a page asking users what features they would like to see next ... premade
+buttons for them to vote on via single click, and also a freeform text box", linked directly above
+Leave Feedback. It is two stores:
+
+- **Clicks** are rows in `feature_votes` (migration `20261027150000_feature_votes.sql`): one per
+  (app, voter, idea), a second click deletes it. The ideas are `FEATURE_IDEAS` in
+  `src/data/featureIdeas.ts`; the server only format-checks the id. Voters read their own rows,
+  everyone reads the tally through `feature_vote_counts('michi')` (counts only). Cap: 24 votes per
+  account per app, inside the insert policy. Applier: `scripts/apply-feature-votes.mjs`, wrapped by
+  `../apply-feature-votes.ps1`.
+- **Words** are a survey response like any other: `MICHI_WISHLIST` (`src/data/surveys/michiWishlist.ts`,
+  survey id `wishlist`) through `submitSurvey`, so they land in `feedback_responses` and are read with
+  `admin_feedback_recent('michi')` next to the feedback. The response's `context.votes` carries the
+  ids the writer had voted for.
+
+Reading the votes: `select * from feature_vote_counts('michi') order by votes desc;`.
+
+Adding an idea: one entry in `FEATURE_IDEAS`. Removing one: delete the entry; its rows stay.
+Never rename an id that has votes.
+
 ## Things to watch
 
 - **The tier snapshot can lie while it is loading.** `useTier().tier` reports `guest` for a real

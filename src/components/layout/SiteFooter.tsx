@@ -36,6 +36,7 @@ const LINKS: { label: string; href: Href }[] = [
   { label: 'Browse Pokémon cards', href: '/browse' as Href },
   { label: 'Plans & pricing', href: '/plans' as Href },
   { label: 'My Purchases', href: '/purchases' as Href },
+  { label: 'Vote on what we build next', href: '/wishlist' as Href },
   { label: 'Give feedback on michi-maker', href: '/feedback' as Href },
   { label: 'What’s New', href: '/whats-new' as Href },
   { label: 'Terms', href: '/legal/terms' },

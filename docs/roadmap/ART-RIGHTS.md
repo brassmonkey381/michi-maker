@@ -185,3 +185,16 @@ is unchanged: we still never serve bytes we do not host.
 
 The re-tighten runbook above still applies; for copied art the jsonb query is the same with
 `'copied'` in place of `'external'`.
+
+## 2026-10-27: an admin-only fan-art fill, to test before deciding
+
+The owner asked whether Collect binders could fill their art panels with art of the species on
+each page, from DeviantArt and Art of Pokémon, the way the persona binders were built by hand.
+That is the fetch this document rules out for users, so it is built as a TEST the owner alone
+can run: the `fan-art` edge function searches both sites and answers only a caller whose
+`profiles.is_admin` is true (read with the service client); the Collect control that offers it
+renders only for an admin profile (`collect.tsx`, "Admin test: where the art comes from"); what
+it places is re-hosted, credited to the author and source page, and stamped `external` like any
+other imported picture. Nothing about users' posture changes: they get stock photos by mood.
+If the owner decides to open this up, the decision is recorded here first, with the licensing
+basis, before the gate moves.

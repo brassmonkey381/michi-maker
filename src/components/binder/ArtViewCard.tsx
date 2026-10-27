@@ -64,6 +64,11 @@ export function StockCard({ card, radius, small, renderImage }: { card: CatalogC
           <View style={{ position: 'absolute', left: margin, top: margin, width: windowW, height: windowH }}>
             <ArtWindow renderImage={renderImage} />
           </View>
+          {text.dex ? (
+            // The dex number, large and a shade above the card's black, in the bottom corner as the
+            // mock-up had it. Drawn before the text so the rows sit over it.
+            <Text style={[styles.stockDex, { right: margin, bottom: 6 * unit, fontSize: 56 * unit, lineHeight: 56 * unit }]}>{text.dex}</Text>
+          ) : null}
           <View style={{ position: 'absolute', left: margin, right: margin, top: margin + windowH + 10 * unit }}>
             <Text numberOfLines={1} style={[styles.stockName, { fontSize: nameSize, lineHeight: nameSize * 1.15 }]}>{text.name}</Text>
             {!small && text.sub ? (
@@ -88,6 +93,7 @@ const styles = StyleSheet.create({
   /** The art view's stock card: near-black, a hairline inside its edge, the window and text laid absolutely. */
   stockCard: { backgroundColor: '#111114', borderWidth: 1, borderColor: '#2a2a30', overflow: 'hidden' },
   stockName: { fontFamily: Fonts.serif, fontWeight: Weight.bold, color: '#f2efe6' },
+  stockDex: { position: 'absolute', fontFamily: Fonts.serif, color: '#1b1b20' },
   stockSub: { color: '#a39e8e' },
   stockRule: { height: 1, backgroundColor: '#34343c' },
   stockRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#1f1f25' },

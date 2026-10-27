@@ -177,7 +177,8 @@ export const CHANGELOG: ChangelogEntry[] = [
           + 'picture, the quick look and the full-size download draw the stock cards and the '
           + 'connected sheet. And on the print sheet, those pages can print as mats, black or '
           + 'white: cardstock with the art window cut out, the card slides in behind, and the '
-          + 'name, set, number, illustrator and year sit under the window. No card art is printed. '
+          + 'name, set, number, illustrator and year sit under the window, and the Pokédex number '
+          + 'leads the line and sits large and faint in the corner. No card art is printed. '
           + 'The mats come as their own file, with the paper to print them on named on its page.',
       },
       {

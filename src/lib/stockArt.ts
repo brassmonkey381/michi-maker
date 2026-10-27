@@ -13,8 +13,11 @@ import type { ArtAttribution } from '@/data/artworkLibrary';
 import { importRemoteArtToBucket } from '@/lib/importArt';
 import { requireSupabase } from '@/lib/supabase';
 
+export type StockProvider = 'pexels' | 'pixabay' | 'deviantart' | 'artofpkm';
+
 export interface StockHit {
-  provider: 'pexels' | 'pixabay';
+  /** The two photo sites, or the two Pokémon art sites the admin-only fan-art test searches (lib/fanArt). */
+  provider: StockProvider;
   id: string;
   url: string;
   width: number;
@@ -65,13 +68,13 @@ export function orientationFor(aspect: number): StockOrientation {
  * big enough to print (short side ≥ 700px), and not already used in this binder. Earlier hits win
  * ties — both providers rank by relevance.
  */
-export function pickStockHit(hits: StockHit[], aspect: number, used: ReadonlySet<string> = new Set()): StockHit | null {
+export function pickStockHit(hits: StockHit[], aspect: number, used: ReadonlySet<string> = new Set(), minShort = 700): StockHit | null {
   let bestHit: StockHit | null = null;
   let bestCost = Infinity;
   for (const [i, h] of hits.entries()) {
     if (used.has(`${h.provider}:${h.id}`)) continue;
     if (!h.width || !h.height) continue;
-    if (Math.min(h.width, h.height) < 700) continue;
+    if (Math.min(h.width, h.height) < minShort) continue;
     const fit = Math.abs(Math.log(h.width / h.height / aspect));
     // A little weight on rank so a marginally better-shaped 12th result does not beat the 1st.
     const cost = fit + i * 0.03;
@@ -94,10 +97,12 @@ export function coverCrop(width: number, height: number, aspect: number): { x: n
   return { x: 0, y: (1 - h) / 2, w: 1, h };
 }
 
+const SOURCE_NAME: Record<StockProvider, string> = { pexels: 'Pexels', pixabay: 'Pixabay', deviantart: 'DeviantArt', artofpkm: 'Art of Pokémon' };
+
 export function stockAttribution(hit: StockHit): ArtAttribution {
   return {
     artist: hit.author,
-    sourceName: hit.provider === 'pexels' ? 'Pexels' : 'Pixabay',
+    sourceName: SOURCE_NAME[hit.provider],
     sourceUrl: hit.pageUrl,
     origin: 'external',
   };

@@ -17,7 +17,8 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View 
 
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { CardBrowse } from '@/components/binder/CardBrowse';
-import { FindArtSheet, useArtLead } from '@/components/binder/FindArtSheet';
+import { FindArtSheet, openArtSearch, useArtLead } from '@/components/binder/FindArtSheet';
+import { artSearchLinks } from '@/data/pageArtSubject';
 import { StockArtSearch } from '@/components/binder/StockArtSearch';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -47,7 +48,9 @@ export function AddArtSheet({
   onClose: () => void;
 }) {
   const [cardPickOpen, setCardPickOpen] = useState(false);
-  const [findOpen, setFindOpen] = useState(false);
+  // Open on arrival (owner, 2026-10-27): an empty panel should be one tap from art of what the
+  // page shows, with the species already typed and every site one tap away.
+  const [findOpen, setFindOpen] = useState(true);
   const [sitesOpen, setSitesOpen] = useState(false);
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -112,11 +115,21 @@ export function AddArtSheet({
         {findOpen ? (
           <View style={styles.find}>
             <View style={styles.findHead}>
-              <Text style={styles.findTitle}>Free photos</Text>
+              <Text style={styles.findTitle}>{lead.label ? `Art of ${lead.label}` : 'Find art'}</Text>
               <Pressable onPress={() => setSitesOpen(true)} hitSlop={6}>
-                <Text style={styles.link}>Other sites ↗</Text>
+                <Text style={styles.link}>About the sites ↗</Text>
               </Pressable>
             </View>
+            {lead.query ? (
+              <View style={styles.siteRow} testID="add-art-sites">
+                {artSearchLinks(lead.query).map((l) => (
+                  <Pressable key={l.title} onPress={() => openArtSearch(l.url)} accessibilityRole="link" hitSlop={4} style={({ pressed }) => [styles.siteChip, pressed && styles.pressed]}>
+                    <Text style={styles.siteChipText}>{l.title} ↗</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            <Text style={styles.findSub}>Free photos</Text>
             <StockArtSearch
               initialQuery={lead.query}
               busyId={busy}
@@ -203,6 +216,10 @@ const styles = StyleSheet.create({
   findHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   findTitle: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink },
   link: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.accent },
+  siteRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  siteChip: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: Palette.selectionSoft },
+  siteChipText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.accent },
+  findSub: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.muted3, marginTop: 4 },
   urlRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: { flex: 1, minWidth: 0, height: 36, paddingHorizontal: 10, borderRadius: Radius.control, backgroundColor: Palette.panel, color: Palette.ink, fontSize: FontSize.label },
   loadBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: Radius.control, backgroundColor: Palette.panel },

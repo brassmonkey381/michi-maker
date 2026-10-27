@@ -32,7 +32,8 @@ test('mats are off unless asked for, and print nothing for a page in the card vi
   const mats = tiles.filter((t): t is MatTile => t.kind === 'mat');
   assert.deepEqual(mats.map((m) => [m.page, m.row, m.col, m.cut, m.color]), [[1, 1, 1, 'window', 'black'], [1, 1, 2, 'window', 'black']]);
   assert.equal(mats[0].name, 'Wartortle');
-  assert.equal(mats[0].sub, 'Water · Stage 1');
+  assert.equal(mats[0].sub, 'No. 008 · Water · Stage 1');
+  assert.equal(mats[0].dex, '008');
   assert.deepEqual(mats[0].rows.map((r) => r.label), ['Series', 'Set', 'Number', 'Illustrator', 'Released']);
   assert.equal(mats[0].rows[4].value, '2022');
 });

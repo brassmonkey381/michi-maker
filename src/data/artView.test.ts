@@ -65,12 +65,16 @@ test('the stock card text leaves out what the catalogue does not know', () => {
     number: '9/236', illustrator: 'Kagemaru Himeno', releaseDate: '2019-08-02',
   });
   assert.equal(t.name, 'Leavanny');
-  assert.equal(t.sub, 'Grass · Stage 2');
+  assert.equal(t.sub, 'No. 542 · Grass · Stage 2');
+  assert.equal(t.dex, '542');
   assert.deepEqual(t.rows.map((r) => `${r.label}=${r.value}`), [
     'Series=Sun & Moon', 'Set=Unified Minds', 'Number=9/236', 'Illustrator=Kagemaru Himeno', 'Released=2019',
   ]);
   const bare = stockCardText({ name: 'Whismur', types: [], stage: '', seriesId: '', setName: 'Nintendo Promos', number: '019', illustrator: '', releaseDate: '' });
-  assert.equal(bare.sub, '');
+  assert.equal(bare.sub, 'No. 293', 'the dex number stands alone when the type and stage are unknown');
+  const trainer = stockCardText({ name: 'Professor Oak', types: [], stage: '', seriesId: '', setName: 'Base', number: '88', illustrator: '', releaseDate: '' });
+  assert.equal(trainer.sub, '');
+  assert.equal(trainer.dex, '');
   assert.deepEqual(bare.rows.map((r) => r.label), ['Set', 'Number']);
   assert.equal(stockCardText(undefined, 'Unknown').name, 'Unknown');
 });

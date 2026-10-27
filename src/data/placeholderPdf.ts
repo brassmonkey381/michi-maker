@@ -196,6 +196,8 @@ const MAT_BLACK = rgb(0.067, 0.067, 0.078);
 const MAT_INK = rgb(0.95, 0.94, 0.9);
 const MAT_MUTED = rgb(0.64, 0.62, 0.56);
 const MAT_RULE = rgb(0.2, 0.2, 0.24);
+const MAT_DEX = rgb(0.105, 0.105, 0.125);
+const MAT_DEX_LIGHT = rgb(0.9, 0.9, 0.9);
 
 // ---- tiles ------------------------------------------------------------------
 
@@ -253,9 +255,11 @@ export interface MatTile {
   row: number;
   col: number;
   name: string;
-  /** Type and stage, "Water · Stage 1". */
+  /** Dex number, type and stage, "No. 008 · Water · Stage 1". */
   sub: string;
   rows: { label: string; value: string }[];
+  /** The dex number for the faint watermark in the corner, '' when unknown. */
+  dex: string;
   /** The hole: the art window, or the art inside a full-art card's border (artView.ts). */
   cut: 'window' | 'full';
   color: MatColor;
@@ -341,7 +345,7 @@ export interface CardMetaSource {
 }
 
 /** A mat's words, as the stock card on screen says them (artView.ts stockCardText). */
-function matText(m: CardMeta): Pick<MatTile, 'name' | 'sub' | 'rows'> {
+function matText(m: CardMeta): Pick<MatTile, 'name' | 'sub' | 'rows' | 'dex'> {
   return stockCardText({
     name: m.name,
     types: m.types ?? [],
@@ -576,7 +580,7 @@ export function collectFillTiles(
         if (view === 'window' && isFullArtCard(fullArtOf(m))) return;
         tiles.push({
           kind: 'mat', page: pageIndex + 1, row: slot.row + 1, col: slot.col + 1,
-          ...(m ? matText(m) : { name: 'Unknown card', sub: '', rows: [] }),
+          ...(m ? matText(m) : { name: 'Unknown card', sub: '', rows: [], dex: '' }),
           cut, color: mats!,
         });
       });
@@ -1128,6 +1132,12 @@ function drawMatTile(page: PDFPage, tile: MatTile, x: number, y: number, bold: P
   const right = hx + hw;
   const w = hw;
   const bottom = y + 10;
+  // The dex number, large and faint in the bottom corner, as the approved mock-up had it: a
+  // shade above the mat's black, or a whisper of grey on white. The rows print over it.
+  if (tile.dex) {
+    const size = 34;
+    page.drawText(tile.dex, { x: right - bold.widthOfTextAtSize(tile.dex, size), y: bottom, size, font: bold, color: dark ? MAT_DEX : MAT_DEX_LIGHT });
+  }
   let cursor = hy - 16;
   if (cursor - 12 < bottom) return;
   const [name] = wrap(sanitize(tile.name), bold, 12, w, 1);

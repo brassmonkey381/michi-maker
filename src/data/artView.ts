@@ -30,6 +30,7 @@
  * PURE: no react-native, so `node --test` reaches all of it.
  */
 import type { CatalogCard } from '../lib/catalog.ts';
+import { dexNumber, speciesOf } from './collectorBinders.ts';
 
 export type ArtView = 'window' | 'connected';
 
@@ -133,13 +134,21 @@ export function isFullArtCard(card: Pick<CatalogCard, 'fullArt' | 'fullArtKind'>
 export interface StockCardText {
   name: string;
   /** "Grass · Stage 2", or less when the catalogue has less. */
+  /** "No. 093 · Ghost · Stage 1": the dex number leads when the species is known. */
   sub: string;
   rows: { label: string; value: string }[];
+  /** The dex number, three digits, for the faint watermark in the card's bottom corner; '' when unknown. */
+  dex: string;
 }
 
 export function stockCardText(card: Pick<CatalogCard, 'name' | 'types' | 'stage' | 'seriesId' | 'setName' | 'number' | 'illustrator' | 'releaseDate'> | undefined, fallbackName = ''): StockCardText {
-  if (!card) return { name: fallbackName, sub: '', rows: [] };
-  const sub = [card.types?.[0], card.stage].filter((s): s is string => !!s).join(' · ');
+  if (!card) return { name: fallbackName, sub: '', rows: [], dex: '' };
+  // The approved mock-up (scripts/lab/windowed-stock-card.mjs) led the sub line with the dex
+  // number and set it large and faint in the bottom corner; both were left out of the first port
+  // (owner, 2026-10-27). The number comes from the species the card is a card of.
+  const n = dexNumber(speciesOf(card.name));
+  const dex = n > 0 ? String(n).padStart(3, '0') : '';
+  const sub = [dex ? `No. ${dex}` : '', card.types?.[0], card.stage].filter((s): s is string => !!s).join(' · ');
   const rows = [
     ['Series', card.seriesId],
     ['Set', card.setName],
@@ -149,5 +158,5 @@ export function stockCardText(card: Pick<CatalogCard, 'name' | 'types' | 'stage'
   ]
     .filter(([, v]) => !!v)
     .map(([label, value]) => ({ label, value }));
-  return { name: card.name || fallbackName, sub, rows };
+  return { name: card.name || fallbackName, sub, rows, dex };
 }

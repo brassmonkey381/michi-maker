@@ -31,10 +31,11 @@ import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/bi
 import {
   COLLECTOR_KINDS, type CollectorFilters, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult,
   type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionFamilies, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets,
-  inLanguage, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
+  inLanguage, isPokemonCard, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
 } from '@/data/collectorBinders';
 import { collectorPool, curateMaxPages, leftoverPockets, type TailOrder, titleTailPages } from '@/data/collectorCurate';
 import { saveFillSheetFiles, fileStem } from '@/data/fillSheetSave';
+import { pageSubject } from '@/data/pageArtSubject';
 import { moodQuery, pageMood } from '@/data/pageMood';
 import { buildFillSheetPdfs } from '@/data/placeholderPdf';
 import { planPages, type PagesProviders } from '@/data/storyPages';
@@ -47,6 +48,7 @@ import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { depthOfCards } from '@/lib/depth';
 import { getPriceSummary, type PriceSummary } from '@/lib/prices';
 import { similarityAmong } from '@/lib/similarity';
+import { FAN_ART_SOURCES, fetchFanArtForPanel, type FanArtSource } from '@/lib/fanArt';
 import { fetchStockArtForPanel } from '@/lib/stockArt';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
@@ -65,6 +67,12 @@ const ART_WINDOWS = [
   { id: 'black', label: 'Art window, black', blurb: 'Pages show the art window on black. Black mats print from the binder.' },
   { id: 'white', label: 'Art window, white', blurb: 'Pages show the art window. White mats print from the binder.' },
 ] as const;
+/**
+ * Where the art panels are filled from. Stock photos for everyone; the two Pokémon art sites are
+ * an ADMIN TEST (owner, 2026-10-27): the control is shown to an admin profile only and the edge
+ * function refuses everyone else (supabase/functions/fan-art). docs/roadmap/ART-RIGHTS.md.
+ */
+const ART_FILL_SOURCES = [{ id: 'stock', label: 'Stock photos', blurb: 'Photos in the mood of each page.' }, ...FAN_ART_SOURCES] as const;
 /** Stock-art panels filled on the way out, at most: each is a search and a re-host. */
 const ART_FILL_CAP = 60;
 const LANGS = [
@@ -120,7 +128,8 @@ export function pagesForPockets(pockets: readonly CollectorPocket[]): DemoPage[]
 export default function CollectScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, profile } = useAuth();
+  const isAdmin = !!profile?.is_admin;
   const store = useBinders();
   const { limits, tier } = useTier();
   const ownedIds = useOwnedCards();
@@ -136,6 +145,9 @@ export default function CollectScreen() {
   const [pageMode, setPageMode] = useState<'order' | 'curate'>('order');
   const curate = pageMode === 'curate';
   const [fillArt, setFillArt] = useState(false);
+  const [fillSource, setFillSource] = useState<'stock' | FanArtSource>('stock');
+  // A non-admin can never hold a fan-art source, whatever state says.
+  const fanArt: FanArtSource | null = isAdmin && fillSource !== 'stock' ? fillSource : null;
   const [artWindow, setArtWindow] = useState<'off' | 'black' | 'white'>('off');
   // The store as of the latest render, for the art fill that runs across awaits after the binder
   // is created (the render-time closure would not know the new binder).
@@ -339,19 +351,30 @@ export default function CollectScreen() {
     const panelOnPage = new Map<string, number>();
     let placed = 0;
     for (const [i, { page, slot }] of jobs.entries()) {
-      setNote(`Finding photos, panel ${i + 1} of ${jobs.length}…`);
-      // Stock sites do not know Pokémon, so the search is the page's mood: the sea for a Water
-      // page, embers for Fire, read off the cards' energy types. Two scenes a type, alternating.
+      setNote(`${fanArt ? 'Finding art' : 'Finding photos'}, panel ${i + 1} of ${jobs.length}…`);
       const cardTypes: string[][] = [];
+      const subjectCards: { name: string; isPokemon: boolean }[] = [];
       for (const s of page.slots) {
         const x = s.type === 'card' && s.cardId ? catalog.getCard(s.cardId) : undefined;
-        if (x) cardTypes.push(x.types ?? []);
+        if (!x) continue;
+        cardTypes.push(x.types ?? []);
+        subjectCards.push({ name: x.name, isPokemon: isPokemonCard(x) });
       }
       const nth = panelOnPage.get(page.id) ?? 0;
       panelOnPage.set(page.id, nth + 1);
-      const mood = pageMood(cardTypes);
-      const queries = [moodQuery(mood, nth), moodQuery(mood, nth + 1)];
-      const art = await fetchStockArtForPanel(queries, slot.rowSpan, slot.colSpan, 'photo', used);
+      let art: Awaited<ReturnType<typeof fetchStockArtForPanel>>;
+      if (fanArt) {
+        // ADMIN TEST: fan art of the page's species, the way the persona binders were made.
+        const subject = pageSubject(subjectCards, page.title ?? title);
+        const queries = [...new Set([subject.query, species ?? ''].filter(Boolean))];
+        art = queries.length ? await fetchFanArtForPanel(queries, slot.rowSpan, slot.colSpan, fanArt, used) : null;
+      } else {
+        // Stock sites do not know Pokémon, so the search is the page's mood: the sea for a Water
+        // page, embers for Fire, read off the cards' energy types. Two scenes a type, alternating.
+        const mood = pageMood(cardTypes);
+        const queries = [moodQuery(mood, nth), moodQuery(mood, nth + 1)];
+        art = await fetchStockArtForPanel(queries, slot.rowSpan, slot.colSpan, 'photo', used);
+      }
       if (!art) continue;
       storeRef.current.placeArtPanels(binderId, page.id, slot.row, slot.col, [
         { r: 0, c: 0, rs: slot.rowSpan, cs: slot.colSpan, imageUrl: art.imageUrl, crop: art.crop, attribution: art.attribution },
@@ -412,7 +435,7 @@ export default function CollectScreen() {
     }
     setBuilding(false);
     setNote(null);
-    track('collector.binder', { kind, pockets: result.pockets.length, roomForArt, curate, curated, fillArt, artPlaced, artWindow, sort: sort.key, lang, cameos: cameoCount });
+    track('collector.binder', { kind, pockets: result.pockets.length, roomForArt, curate, curated, fillArt, fanArt: fanArt ?? 'off', artPlaced, artWindow, sort: sort.key, lang, cameos: cameoCount });
     router.push(`/binder/${created.id}?edit=1` as Href);
   };
 
@@ -585,7 +608,14 @@ export default function CollectScreen() {
                   ) : null}
                   <Check on={roomForArt} onPress={() => setRoomForArt((v) => !v)} testID="collect-room-for-art">{curate ? 'Michi layouts for the pages in order too.' : 'Michi layouts: random art panels on every page.'}</Check>
                   {roomForArt || curate ? (
-                    <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">Fill the art panels with stock photos.</Check>
+                    <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">{fanArt ? 'Fill the art panels with fan art.' : 'Fill the art panels with stock photos.'}</Check>
+                  ) : null}
+                  {isAdmin && fillArt && (roomForArt || curate) ? (
+                    // ADMIN TEST ONLY: the two Pokémon art sites, searched by each page's species.
+                    <View style={styles.adminBox} testID="collect-admin-fill-source">
+                      <ThemedText type="small" themeColor="textSecondary">Admin test: where the art comes from.</ThemedText>
+                      <Seg options={ART_FILL_SOURCES} value={fillSource} onChange={setFillSource} />
+                    </View>
                   ) : null}
                   <Seg options={ART_WINDOWS} value={artWindow} onChange={setArtWindow} />
                   <View style={styles.actions}>
@@ -653,6 +683,7 @@ const styles = StyleSheet.create({
   sortTextOn: { color: Palette.accentText, fontWeight: Weight.semibold },
   more: { marginLeft: Spacing.one, paddingVertical: Spacing.one, paddingHorizontal: Spacing.two, borderRadius: Radius.control, borderWidth: 1, borderColor: Palette.hairlineStrong },
   moreText: { color: Palette.accent },
+  adminBox: { gap: Spacing.two, padding: Spacing.two, borderRadius: Radius.control, borderWidth: 1, borderStyle: 'dashed', borderColor: Palette.accent },
   toggleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   box: { width: 18, height: 18, borderRadius: 4, borderWidth: 1, borderColor: Palette.hairlineStrong, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   boxOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },

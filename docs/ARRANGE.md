@@ -16,8 +16,21 @@ tags, not hand labels. Lines marked **[owner]** are decisions that are theirs.
 
 ## Scope (owner, 2026-10-21; the product's constraints, not only the lab's)
 
-- **Single pages only.** No facing spreads as one canvas. The module can still seat a spread
-  (`ArrangeInput.spread`, kept for the tests); the sheet and the lab never ask it to.
+- **Single pages, or the open spread** (owner, 2026-10-27: "could we offer arrangements that span
+  a two page double spread?"). When the binder is double-sided and the facing page has the same
+  shape, the bar offers **Page / Spread**; Spread seats both pages' cards as one canvas: the 18
+  spread templates, Flow's gradient across the gutter, Mirror across it, and a card may cross to
+  the facing page (`reseat_slots` already moved pockets between pages in one transaction). Page 1
+  faces the cover, so it has no spread. Until then it was single pages only; the lab has never
+  run on a spread, so the weights are the single-page ones.
+- **Every take is offered** (owner, 2026-10-27: "offer them all, loosen the rules"): the best,
+  then every other distinct seating next best first, named Take 2, Take 3, … It used to stop at
+  two. A template now needs to seat a third of the page's cards, not half.
+- **Shuffle** (owner, 2026-10-27: "a random button could be nice"): each press adds three fresh
+  takes, never one already shown. Each starts from a random seating on a random layout the shape
+  allows and climbs with the champion's weights each nudged between half and double, so it reads a
+  different way (palette first one time, depth first the next) and still reads. Seeded by the press
+  count, so the same page shuffles the same way again. `arrangeShuffle` in `src/data/arranger.ts`.
 - **One art class per page**, read by majority. Full art is `full_art_kind` special_illustration_rare,
   illustration_rare, named_full_art, measured or double_rare; the rest is windowed. The catalogue's
   kinds miss some full arts (2,651 `scene_tagged` rows are full art by the data server's own flag,

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 
 import { ART_TEMPLATES } from './artTemplates.ts';
 import { type ArrangeCard, cardCells, connectedPairs } from './arrange.ts';
-import { ARRANGER_WEIGHTS, arrangePage, scoreTerms, totalScore } from './arranger.ts';
+import { ARRANGER_WEIGHTS, arrangePage, arrangeShuffle, scoreTerms, totalScore } from './arranger.ts';
 
 const lab = (L: number, a: number, b: number) => [{ L, a, b, w: 1 }];
 const card = (id: string, over: Partial<ArrangeCard> = {}): ArrangeCard => ({ id, name: id, ...over });
@@ -104,4 +104,43 @@ test('arranger: connected art stays adjacent whatever the weights', () => {
   const bottom = at('sky1');
   assert.equal(bottom.col, top.col);
   assert.equal(bottom.row, top.row + 1);
+});
+
+test('arranger: every distinct take is offered, each one a different page', () => {
+  const cards = strataPage();
+  const a = arrangePage({ rows: 3, cols: 3, spread: false, cards, templates: ART_TEMPLATES })!;
+  assert.ok(a.alternates.length > 2, `more than two takes: ${a.alternates.length}`);
+  const sig = (t: typeof a.best) => t.placements.map((p) => `${p.cardId}@${p.cell.row},${p.cell.col}`).sort().join('|');
+  const sigs = new Set([a.best, ...a.alternates].map(sig));
+  assert.equal(sigs.size, a.alternates.length + 1);
+  assert.equal(a.alternates[0].name, 'Take 2');
+});
+
+test('arranger: a spread seats cards on both leaves and may carry one across the gutter', () => {
+  const cards = [...strataPage(), ...strataPage().map((c) => ({ ...c, id: `${c.id}-b`, name: `${c.name} b` }))];
+  const a = arrangePage({ rows: 3, cols: 3, spread: true, cards, templates: ART_TEMPLATES })!;
+  const leaves = new Set(a.best.placements.map((p) => p.cell.leaf));
+  assert.deepEqual([...leaves].sort(), ['left', 'right']);
+  const ids = new Set([...a.best.placements.map((p) => p.cardId), ...a.best.held.map((h) => h.id)]);
+  assert.equal(ids.size, cards.length);
+  const spreadTakes = [a.best, ...a.alternates].filter((t) => t.template?.spread);
+  assert.ok(spreadTakes.length > 0, 'a spread template is offered');
+});
+
+test('arranger: shuffle gives fresh takes, the same again for the same seed, none dropped', () => {
+  const cards = strataPage();
+  const a = arrangePage({ rows: 3, cols: 3, spread: false, cards, templates: ART_TEMPLATES })!;
+  const sig = (t: typeof a.best) => t.placements.map((p) => `${p.cardId}@${p.cell.leaf}:${p.cell.row},${p.cell.col}`).sort().join('|');
+  const avoid = new Set([a.best, ...a.alternates].map(sig));
+  const s1 = arrangeShuffle({ rows: 3, cols: 3, spread: false, cards, templates: ART_TEMPLATES, seed: 7, avoid });
+  const s2 = arrangeShuffle({ rows: 3, cols: 3, spread: false, cards, templates: ART_TEMPLATES, seed: 7, avoid });
+  assert.ok(s1.length >= 1 && s1.length <= 3);
+  assert.deepEqual(s1.map(sig), s2.map(sig));
+  for (const t of s1) {
+    assert.ok(!avoid.has(sig(t)), `${t.name} is not one already shown`);
+    const ids = new Set([...t.placements.map((p) => p.cardId), ...t.held.map((h) => h.id)]);
+    assert.equal(ids.size, cards.length);
+  }
+  const s3 = arrangeShuffle({ rows: 3, cols: 3, spread: false, cards, templates: ART_TEMPLATES, seed: 8, avoid });
+  assert.notDeepEqual(s3.map(sig), s1.map(sig));
 });

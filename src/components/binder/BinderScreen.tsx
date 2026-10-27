@@ -387,7 +387,7 @@ export function BinderScreen({
   // them, because full size is better to see"). While the bar is open the current page renders
   // the candidate being looked at, read-only; Keep commits it, Cancel or Esc puts the page back.
   const [arrangeOpen, setArrangeOpen] = useState(false);
-  const [arrangePreview, setArrangePreview] = useState<DemoPage | null>(null);
+  const [arrangePreview, setArrangePreview] = useState<Record<string, DemoPage> | null>(null);
   // Ctrl/Cmd multi-select (web): a set of pocket ids highlighted together; releasing the modifier
   // opens the bulk-action modal. `modifierHeld` is read at click time; `multiIdsRef` lets the
   // key-up handler read the latest selection without re-subscribing.
@@ -2259,11 +2259,12 @@ export function BinderScreen({
       return (
         <BinderGrid
           ref={isPrev ? prevRef : nextRef}
-          page={p}
+          // Arrange on the spread previews its take on this half too, read-only while it is looked at.
+          page={arrangePreview?.[p.id] ?? p}
           width={width}
           pageStyle={binder.pageStyle} cutLines={view.cutLines}
           outerEdge={outerEdgeOf(p)}
-          editable
+          editable={!arrangePreview}
           captionFields={captionFields}
           ownedIds={ownedIds} scanUrlOf={scanUrlOf}
           onOwnedPress={ownedToggle(ownedIds)}
@@ -2299,7 +2300,7 @@ export function BinderScreen({
         // The active-page grid in both the spread ('current') and the narrow single view — curRef
         // must point to it either way so a tray slice can hit-test its drop cell.
         ref={curRef}
-        page={arrangePreview && p.id === page.id ? arrangePreview : p}
+        page={arrangePreview?.[p.id] ?? p}
         width={width}
         pageStyle={binder.pageStyle} cutLines={view.cutLines}
         outerEdge={outerEdgeOf(p)}
@@ -3131,6 +3132,9 @@ export function BinderScreen({
           <ArrangeSheet
             visible={arrangeOpen}
             page={page}
+            // The facing page of the open spread (BinderPages pairs 2·3, 4·5, …; page 1 faces the
+            // cover), offered when the binder is double-sided. The sheet checks the shapes match.
+            facing={view.doubleSided && idx > 0 ? (idx % 2 === 1 ? (nextPage ? { page: nextPage, side: 'right' } : null) : prevPage ? { page: prevPage, side: 'left' } : null) : null}
             onPreview={setArrangePreview}
             onClose={() => {
               setArrangeOpen(false);

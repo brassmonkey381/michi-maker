@@ -1,7 +1,13 @@
 /**
  * ARRANGE SHEET: several finished layouts for the cards a page already has (docs/ARRANGE.md).
  *
- * One button (or G) opens this. SINGLE PAGES ONLY. A page is read as full art or windowed by its
+ * One button (or G) opens this. A page, or since 2026-10-27 the open SPREAD: when the binder is
+ * double-sided and the facing page has the same shape, the bar offers Page / Spread, and Spread
+ * seats both pages' cards as one canvas (the spread templates, a gradient across the gutter, a
+ * card may cross to the facing page; reseat_slots lands it in one transaction either way).
+ * SHUFFLE (owner: "a random button could be nice") adds three fresh takes each press: random
+ * starts climbed with the weights nudged, so they read differently but still read.
+ * A page is read as full art or windowed by its
  * majority (the owner's pages are one or the other; the catalogue's kinds miss some full arts, and
  * refusing a mixed page blocked the owner on an all-full-art page on 2026-10-22, so it is read, not
  * refused). THE ARRANGER'S answer (data/arranger: one score the lab tunes to the owner's eye, over
@@ -55,7 +61,7 @@ import { ART_TEMPLATES, templateArtSlots } from '@/data/artTemplates';
 import { slotCells, uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import { track } from '@/lib/analytics';
-import { arrangePage } from '@/data/arranger';
+import { arrangePage, arrangeShuffle } from '@/data/arranger';
 import { depthOfCards } from '@/lib/depth';
 import { similarityAmong, type Similarity } from '@/lib/similarity';
 
@@ -72,22 +78,27 @@ export type ArrangeMove = { slotId: string; fromPageId: string; toPageId: string
 export function ArrangeSheet({
   visible,
   page,
+  facing,
   onPreview,
   onClose,
   onApply,
 }: {
   visible: boolean;
   page: DemoPage;
-  /** The take being looked at, as the page would be; null for the page as it is (or on close). */
-  onPreview: (preview: DemoPage | null) => void;
+  /** The page facing `page` on the open spread, and which side it is on, when the binder is double-sided. */
+  facing?: { page: DemoPage; side: 'left' | 'right' } | null;
+  /** The take being looked at, each page as it would be, by page id; null for the page as it is (or on close). */
+  onPreview: (preview: Record<string, DemoPage> | null) => void;
   onClose: () => void;
   /** The store write: the moves and any template art gaps, applied as one commit by the screen. */
   onApply: (what: string, moves: ArrangeMove[], art: { pageId: string; slot: DemoSlot }[]) => void;
 }) {
   const { catalog, guestGated } = useCatalog(visible);
-  // The module can seat a facing spread as one canvas; the product does not offer it.
-  const spread = false;
-  const pages = useMemo(() => [page], [page]);
+  const canSpread = !!facing && facing.page.rows === page.rows && facing.page.cols === page.cols;
+  const [wantSpread, setWantSpread] = useState(false);
+  const spread = canSpread && wantSpread;
+  // Book order: the left leaf first.
+  const pages = useMemo(() => (spread && facing ? (facing.side === 'left' ? [facing.page, page] : [page, facing.page]) : [page]), [spread, facing, page]);
   const rows = page.rows;
   const cols = page.cols;
 
@@ -138,7 +149,7 @@ export function ArrangeSheet({
   // All full arts or all windowed cards: a mixed page is refused with the count, not seated.
   const mix = useMemo(() => (catalog ? pageArtMix(pockets.map((p) => { const c = catalog.getCard(p.slot.cardId!); return { fullArtKind: c?.fullArtKind, fullArt: c?.fullArt }; })) : null), [catalog, pockets]);
 
-  const candidates = useMemo<Candidate[] | null>(() => {
+  const arranged = useMemo<{ list: Candidate[]; input: Parameters<typeof arrangePage>[0] } | null>(() => {
     if (!visible || !catalog || !depth || pockets.length < 2 || !mix) return null;
     const index = getColorIndex();
     const cards: ArrangeCard[] = pockets.map((p) => {
@@ -176,7 +187,8 @@ export function ArrangeSheet({
       }
       sim.set(a.slot.id, m);
     }
-    const answer = arrangePage({ rows, cols, spread, cards, reserved, current, templates, similarity: sim });
+    const input = { rows, cols, spread, cards, reserved, current, templates, similarity: sim };
+    const answer = arrangePage(input);
     if (!answer) return null;
     const cells = cardCells(rows, cols, spread, reserved);
     const placements = pockets.map((p) => ({ cardId: p.slot.id, cell: current.get(p.slot.id)! }));
@@ -194,36 +206,67 @@ export function ArrangeSheet({
       fit: 0,
       score: 0,
     };
-    return [asIs, answer.best, ...answer.alternates];
+    return { list: [asIs, answer.best, ...answer.alternates], input };
     // paletteTick re-reads the index once it has loaded; it carries no value of its own.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, catalog, depth, similarity, pockets, reserved, hasArt, rows, cols, spread, paletteTick, mix]);
+
+  // SHUFFLE: three fresh takes per press, appended after the arranger's, never one already shown.
+  // Keyed by the arranger run so a page edited since starts clean. The seed is the press count.
+  const baseKey = arranged ? arranged.list.map((c) => c.id).join('|') : '';
+  const [shuffle, setShuffle] = useState<{ key: string; seed: number } | null>(null);
+  const seed = shuffle && shuffle.key === baseKey ? shuffle.seed : 0;
+  const candidates = useMemo<Candidate[] | null>(() => {
+    if (!arranged) return null;
+    if (!seed) return arranged.list;
+    const sig = (c: Candidate) => c.placements.map((pl) => `${pl.cardId}@${cellKey(pl.cell)}`).sort().join('|');
+    const avoid = new Set(arranged.list.map(sig));
+    const out: Candidate[] = [...arranged.list];
+    for (let s = 1; s <= seed; s += 1) {
+      const fresh = arrangeShuffle({ ...arranged.input, seed: s, avoid });
+      for (const c of fresh) avoid.add(sig(c));
+      out.push(...fresh.map((c, i) => ({ ...c, name: `Shuffle ${(s - 1) * 3 + i + 1}` })));
+    }
+    return out;
+  }, [arranged, seed]);
 
   const pageOf = (leaf: Leaf): DemoPage => (leaf === 'right' ? pages[1] : pages[0]);
 
   // WHICH TAKE IS ON THE PAGE. Keyed by the candidate run, so a fresh run opens on the arranger's
   // answer (index 1; 0 is the page as it is) without a synchronous reset in an effect.
-  const candKey = candidates ? candidates.map((c) => c.id).join('|') : '';
+  const candKey = baseKey;
   const [sel, setSel] = useState<{ key: string; i: number } | null>(null);
-  const index = candidates ? (sel && sel.key === candKey ? sel.i : Math.min(1, candidates.length - 1)) : 0;
+  const index = candidates ? Math.min(sel && sel.key === candKey ? sel.i : Math.min(1, candidates.length - 1), candidates.length - 1) : 0;
   const cand = candidates ? candidates[index] : null;
   const step = (d: number) => {
     if (!candidates) return;
     setSel({ key: candKey, i: (index + d + candidates.length) % candidates.length });
   };
+  const shuffleMore = () => {
+    if (!candidates || !arranged) return;
+    setShuffle({ key: baseKey, seed: seed + 1 });
+    // The new takes are appended, so the first of them sits where the list ends now.
+    setSel({ key: candKey, i: candidates.length });
+    track('arrange_shuffle', { press: seed + 1, spread });
+  };
 
   // The take as a page: the untouched slots, the pockets re-seated, the template's art panels,
   // the held cards gone (to the tray on Keep). Ids are the real pockets' ids, so the grid draws it
   // exactly as it will be. Minted once per take so the preview is stable while it is looked at.
-  const preview = useMemo<DemoPage | null>(() => {
+  const preview = useMemo<Record<string, DemoPage> | null>(() => {
     if (!visible || !cand || cand.mode === 'current') return null;
     const pocketIds = new Set(pockets.map((p) => p.slot.id));
     const byId = new Map(pockets.map((p) => [p.slot.id, p.slot]));
-    const kept = page.slots.filter((s) => !pocketIds.has(s.id));
-    const seated: DemoSlot[] = cand.placements.map((pl) => ({ ...byId.get(pl.cardId)!, row: pl.cell.row, col: pl.cell.col }));
-    const art = cand.template ? templateArtSlots(cand.template, uuidv4) : [];
-    return { ...page, slots: [...kept, ...seated, ...art] };
-  }, [visible, cand, pockets, page]);
+    const out: Record<string, DemoPage> = {};
+    pages.forEach((pg, i) => {
+      const leaf: Leaf = spread ? (i === 0 ? 'left' : 'right') : 'single';
+      const kept = pg.slots.filter((s) => !pocketIds.has(s.id));
+      const seated: DemoSlot[] = cand.placements.filter((pl) => pl.cell.leaf === leaf).map((pl) => ({ ...byId.get(pl.cardId)!, row: pl.cell.row, col: pl.cell.col }));
+      const art = cand.template ? templateArtSlots(cand.template, uuidv4, spread ? (leaf as 'left' | 'right') : undefined) : [];
+      out[pg.id] = { ...pg, slots: [...kept, ...seated, ...art] };
+    });
+    return out;
+  }, [visible, cand, pockets, pages, spread]);
   useEffect(() => {
     onPreview(preview);
   }, [preview, onPreview]);
@@ -253,6 +296,7 @@ export function ArrangeSheet({
       mode: cand.mode,
       rank,
       shown: candidates.length - 1,
+      shuffled: cand.id.startsWith('shuffle'),
       moves: moves.length,
       toTray: cand.held.length,
       spread,
@@ -325,7 +369,7 @@ export function ArrangeSheet({
               <Text style={styles.count}>{`${index + 1} of ${candidates.length}`}</Text>
             </View>
             <ThemedText type="small" themeColor="textSecondary" numberOfLines={2} style={styles.reason}>
-              {isNow ? `Step through the takes with the arrows; the page shows each one full size.${mixNote ? ` ${mixNote}` : ''}` : cand.reason}
+              {isNow ? `Step through the takes with the arrows; the ${spread ? 'spread' : 'page'} shows each one full size. Shuffle adds three more.${mixNote ? ` ${mixNote}` : ''}` : cand.reason}
             </ThemedText>
             {!isNow && (cand.artCells > reserved.size || cand.held.length || cand.open.length || cand.ask) ? (
               <View style={styles.chips}>
@@ -337,6 +381,13 @@ export function ArrangeSheet({
             ) : null}
           </View>
           <Btn text="›" label="Next take" onPress={() => step(1)} />
+          {canSpread ? (
+            <View style={styles.seg} accessibilityRole="radiogroup" accessibilityLabel="Arrange the page or the whole spread">
+              <SegBtn text="Page" on={!spread} onPress={() => setWantSpread(false)} />
+              <SegBtn text="Spread" on={spread} onPress={() => setWantSpread(true)} />
+            </View>
+          ) : null}
+          <Btn text="Shuffle" label="Three fresh takes" onPress={shuffleMore} testID="arrange-shuffle" />
           <Btn text="Keep" primary disabled={isNow} label="Keep this arrangement (Enter)" onPress={() => apply(cand, index)} />
           <Btn text="Cancel" label="Cancel, put the page back (Esc)" onPress={onClose} />
         </>
@@ -345,7 +396,15 @@ export function ArrangeSheet({
   );
 }
 
-function Btn({ text, label, onPress, primary, disabled }: { text: string; label?: string; onPress: () => void; primary?: boolean; disabled?: boolean }) {
+function SegBtn({ text, on, onPress }: { text: string; on: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ checked: on }} style={[styles.segBtn, on && styles.segOn]}>
+      <Text style={[styles.btnText, on && styles.btnTextPrimary]}>{text}</Text>
+    </Pressable>
+  );
+}
+
+function Btn({ text, label, onPress, primary, disabled, testID }: { text: string; label?: string; onPress: () => void; primary?: boolean; disabled?: boolean; testID?: string }) {
   return (
     <Pressable
       onPress={onPress}
@@ -353,6 +412,7 @@ function Btn({ text, label, onPress, primary, disabled }: { text: string; label?
       accessibilityRole="button"
       accessibilityLabel={label ?? text}
       accessibilityState={{ disabled }}
+      testID={testID}
       hitSlop={6}
       style={({ pressed }) => [styles.btn, primary && styles.btnPrimary, disabled && styles.btnOff, pressed && styles.pressed]}>
       <Text style={[styles.btnText, primary && styles.btnTextPrimary]}>{text}</Text>
@@ -407,6 +467,9 @@ const styles = StyleSheet.create({
   btn: { paddingVertical: 6, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairlineStrong },
   btnPrimary: { backgroundColor: Palette.accent, borderColor: Palette.accent },
   btnOff: { opacity: 0.45 },
+  seg: { flexDirection: 'row', borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairlineStrong, overflow: 'hidden' },
+  segBtn: { paddingVertical: 6, paddingHorizontal: Spacing.two },
+  segOn: { backgroundColor: Palette.ink2 },
   btnText: { color: Palette.ink2, fontWeight: Weight.semibold, fontSize: FontSize.label },
   btnTextPrimary: { color: Palette.accentText },
   pressed: { opacity: 0.75 },

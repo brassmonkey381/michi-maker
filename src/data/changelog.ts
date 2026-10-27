@@ -135,6 +135,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Arrange the whole spread, every take, and Shuffle',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Arrange (G) now offers every take it finds, not three, and a Shuffle button adds three '
+          + 'fresh ones each press. In a double-sided binder the bar also offers Spread: both facing '
+          + 'pages seated as one, with the spread layouts, and a card may cross to the facing page.',
+      },
+      {
+        products: ['michi'],
         head: 'The art view for the whole binder, a page, or a pocket',
         kind: 'better',
         area: 'binders',

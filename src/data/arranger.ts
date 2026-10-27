@@ -256,7 +256,11 @@ export interface Arrangement extends Candidate {
 export interface ArrangerAnswer {
   /** The one answer: the best seating over every layout the page's shape allows. */
   best: Arrangement;
-  /** Up to two other seatings that differ, next best first ("another take"). */
+  /**
+   * Every other seating that differs, next best first. It used to stop at two; the owner asked
+   * for them all (2026-10-27: "offer them all, loosen the rules"), so a nine-card page now steps
+   * through every template the shape allows.
+   */
   alternates: Arrangement[];
 }
 
@@ -289,10 +293,10 @@ function seeds(cards: readonly ArrangeCard[], ctx: SeatCtx, current: ReadonlyMap
  * The best seating for one canvas: climb from every seed, then let a held card trade places
  * with a seated one when that reads better (so the tray gets the cards the page needs least).
  */
-function bestOnCanvas(cards: readonly ArrangeCard[], ctx: SeatCtx, total: number, w: ArrangerWeights, sim: Similarity | undefined, current: ReadonlyMap<string, Cell> | undefined): { seating: Seating; held: ArrangeCard[]; terms: Terms; score: number } | null {
-  let best: { seating: Seating; held: ArrangeCard[]; terms: Terms; score: number } | null = null;
-  const byId = new Map(cards.map((c) => [c.id, c]));
-  for (const seed of seeds(cards, ctx, current)) {
+type Climbed = { seating: Seating; held: ArrangeCard[]; terms: Terms; score: number };
+
+/** Climb from one seating: pairwise swaps, then held cards trading in, then connected art fixed. */
+function climb(seed: { seating: Seating; held: ArrangeCard[] }, cards: readonly ArrangeCard[], ctx: SeatCtx, total: number, w: ArrangerWeights, sim: Similarity | undefined, byId: ReadonlyMap<string, ArrangeCard>): Climbed {
     const held = [...seed.held];
     const score = (s: Seating) => totalScore(scoreTerms(s, ctx, total, sim, cards), w);
     let seating = improve(seed.seating, score, () => true);
@@ -323,8 +327,15 @@ function bestOnCanvas(cards: readonly ArrangeCard[], ctx: SeatCtx, total: number
     }
     const fixed = fixConnected(seating, ctx, held, byId);
     const terms = scoreTerms(fixed, ctx, total, sim, cards);
-    const sc = totalScore(terms, w);
-    if (!best || sc > best.score + 1e-9) best = { seating: fixed, held, terms, score: sc };
+    return { seating: fixed, held, terms, score: totalScore(terms, w) };
+}
+
+function bestOnCanvas(cards: readonly ArrangeCard[], ctx: SeatCtx, total: number, w: ArrangerWeights, sim: Similarity | undefined, current: ReadonlyMap<string, Cell> | undefined): Climbed | null {
+  let best: Climbed | null = null;
+  const byId = new Map(cards.map((c) => [c.id, c]));
+  for (const seed of seeds(cards, ctx, current)) {
+    const r = climb(seed, cards, ctx, total, w, sim, byId);
+    if (!best || r.score > best.score + 1e-9) best = r;
   }
   return best;
 }
@@ -378,9 +389,10 @@ export function arrangePage(input: ArrangerInput): ArrangerAnswer | null {
   for (const t of input.templates ?? []) {
     if (t.rows !== input.rows || t.cols !== input.cols || t.spread !== input.spread) continue;
     const cells = cardCells(input.rows, input.cols, input.spread, templateCells(t, input.spread));
-    // A template must seat at least half the page's cards: a page is cards with art between them,
-    // not art with a card or two left over.
-    if (cells.length >= 2 && cells.length * 2 >= input.cards.length) geometries.push({ t, cells });
+    // A template must seat a third of the page's cards (it was half until 2026-10-27, when the
+    // owner asked for the rules loosened): a page is cards with art between them, not art with a
+    // card or two left over, but a six-card page may well read best as three cards and a plate.
+    if (cells.length >= 2 && cells.length * 3 >= input.cards.length) geometries.push({ t, cells });
   }
   const results: Arrangement[] = [];
   const seen = new Set<string>();
@@ -402,6 +414,62 @@ export function arrangePage(input: ArrangerInput): ArrangerAnswer | null {
   const [best, ...rest] = distinct;
   best.id = 'arranged';
   best.name = 'Arranged';
-  const alternates = rest.slice(0, 2).map((r, i) => ({ ...r, id: `alt-${i + 1}`, name: i === 0 ? 'Another take' : 'A third take' }));
+  const alternates = rest.map((r, i) => ({ ...r, id: `alt-${i + 1}`, name: `Take ${i + 2}` }));
   return { best, alternates };
+}
+
+/** A small seeded generator (mulberry32), so a shuffle is the same again for the same seed. */
+function rng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * SHUFFLE (owner, 2026-10-27: "a random button could be nice"). `count` fresh takes that are
+ * still arranged, not random piles: each one starts from a random seating on a random layout the
+ * shape allows and climbs with the champion's weights each nudged between half and double, so the
+ * page reads a different way (palette first one time, depth first the next) and the climb keeps it
+ * readable. Takes that repeat one already shown (`avoid`, placement signatures) are retried.
+ * Deterministic for a seed; the sheet bumps the seed on every press.
+ */
+export function arrangeShuffle(input: ArrangerInput & { seed: number; count?: number; avoid?: ReadonlySet<string> }): Arrangement[] {
+  const rand = rng(input.seed);
+  const count = input.count ?? 3;
+  const total = input.rows * input.cols * (input.spread ? 2 : 1);
+  const pairs: readonly ConnectedPair[] = input.pairs ?? connectedPairs(input.cards);
+  const reserved = input.reserved ?? new Set<string>();
+  const geometries: { t: ArtTemplate | null; cells: Cell[] }[] = [{ t: null, cells: cardCells(input.rows, input.cols, input.spread, reserved) }];
+  for (const t of input.templates ?? []) {
+    if (t.rows !== input.rows || t.cols !== input.cols || t.spread !== input.spread) continue;
+    const cells = cardCells(input.rows, input.cols, input.spread, templateCells(t, input.spread));
+    if (cells.length >= 2 && cells.length * 3 >= input.cards.length) geometries.push({ t, cells });
+  }
+  const byId = new Map(input.cards.map((c) => [c.id, c]));
+  const seen = new Set<string>(input.avoid ?? []);
+  const out: Arrangement[] = [];
+  for (let attempt = 0; attempt < count * 4 && out.length < count; attempt += 1) {
+    const g = geometries[Math.floor(rand() * geometries.length)];
+    const ctx: SeatCtx = { cells: g.cells, cols: input.cols, rows: input.rows, spread: input.spread, pairs };
+    const w: ArrangerWeights = { ...ARRANGER_WEIGHTS, ...(input.weights ?? {}) };
+    for (const k of Object.keys(w) as (keyof ArrangerWeights)[]) w[k] *= 2 ** (rand() * 2 - 1);
+    const deck = [...input.cards];
+    for (let i = deck.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(rand() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    const seating: Seating = ctx.cells.map((_, i) => deck[i] ?? null);
+    const r = climb({ seating, held: deck.slice(ctx.cells.length) }, input.cards, ctx, total, w, input.similarity, byId);
+    const sig = r.seating.map((c, i) => (c ? `${c.id}@${cellKey(ctx.cells[i])}` : '')).filter(Boolean).sort().join('|');
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    const n = out.length + 1;
+    out.push(toArrangement(`shuffle-${input.seed}-${n}`, `Shuffle ${n}`, r, g.t, ctx, total));
+  }
+  return out;
 }

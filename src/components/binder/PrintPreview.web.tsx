@@ -78,6 +78,7 @@ interface SheetImage {
 const SECTION_LABEL: Record<FillSheetPdf['section'], string> = {
   placeholders: 'Card placeholders, on plain paper',
   art: 'Art, on matte cardstock',
+  mats: 'Mats, on cardstock',
   instructions: 'Instructions',
 };
 

@@ -579,7 +579,11 @@ export function PrintPlaceholdersSheet({
                     <ThemedText type="smallBold">{sheets}</ThemedText> sheet
                     {sheets === 1 ? '' : 's'}
                     {counts.art + counts.mats > 0
-                      ? ` (${counts.placeholderSheets} plain paper, ${counts.artSheets} matte cardstock)`
+                      ? ` (${[
+                        `${counts.placeholderSheets} plain paper`,
+                        counts.art > 0 ? `${counts.artSheets} matte cardstock` : '',
+                        counts.mats > 0 ? `${counts.matSheets} mat cardstock` : '',
+                      ].filter(Boolean).join(', ')})`
                       : ''}
                     {colorOwned && ownedCount > 0 ? (
                       <>
@@ -623,7 +627,7 @@ export function PrintPlaceholdersSheet({
                     <ThemedText type="smallBold">Art-view pages as mats</ThemedText>
                     <Seg options={MAT_OPTIONS} value={matChoice} onChange={setMatChoice} />
                     <ThemedText type="small" themeColor="textSecondary">
-                      A mat is cardstock with the art window cut out. The card slides in behind it. No card art is printed.
+                      A mat is cardstock with the art window cut out. The card slides in behind it. No card art is printed. Mats come as their own file; the instructions name the paper.
                     </ThemedText>
                   </View>
                 ) : null}

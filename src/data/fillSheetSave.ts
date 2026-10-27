@@ -31,8 +31,9 @@ export const fileStem = (title: string) => title.replace(/[^\w\- ]+/g, '').trim(
 export async function saveFillSheetFiles(files: FillSheetPdf[], stem: string, suffix = '') {
   const label = (f: FillSheetPdf) =>
     f.section === 'art' ? 'Art (matte cardstock)'
-      : f.section === 'placeholders' ? 'Placeholders (plain paper)'
-        : 'Read me first (instructions)';
+      : f.section === 'mats' ? 'Mats (cardstock)'
+        : f.section === 'placeholders' ? 'Placeholders (plain paper)'
+          : 'Read me first (instructions)';
   const nameFor = (f: FillSheetPdf) => `${stem} - ${label(f)}${suffix}.pdf`;
   if (files.length === 1) {
     saveBytes(files[0].bytes, nameFor(files[0]));

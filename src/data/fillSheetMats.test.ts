@@ -24,8 +24,10 @@ test('mats are off unless asked for, and print nothing for a page in the card vi
     { id: 'p2', rows: 3, cols: 3, slots: [slot('w1', 0, 0)] },
   ]);
   assert.equal(collectFillTiles(b, cards).counts.mats, 0);
+  assert.equal(collectFillTiles(b, cards).counts.matColor, undefined);
   const { tiles, counts } = collectFillTiles(b, cards, undefined, 'black');
   assert.equal(counts.mats, 2, 'only the window page gets mats');
+  assert.equal(counts.matColor, 'black');
   assert.equal(counts.cards, 3, 'the placeholders still print for every pocket');
   const mats = tiles.filter((t): t is MatTile => t.kind === 'mat');
   assert.deepEqual(mats.map((m) => [m.page, m.row, m.col, m.cut, m.color]), [[1, 1, 1, 'window', 'black'], [1, 1, 2, 'window', 'black']]);
@@ -54,7 +56,7 @@ test('a connected page is cut as the sheet is: inside the border when every card
   assert.deepEqual(cutsOf(mixed), ['window', 'window']);
 });
 
-test('mats ride in the art file as singles and count toward the cardstock sheets', () => {
+test('mats pack nine a sheet in their own file and count toward the total', () => {
   const slots: DemoSlot[] = [];
   for (let r = 0; r < 3; r += 1) for (let c = 0; c < 3; c += 1) slots.push(slot(c % 2 ? 'w1' : 'w2', r, c));
   const b = binder([
@@ -64,8 +66,18 @@ test('mats ride in the art file as singles and count toward the cardstock sheets
   const { counts } = collectFillTiles(b, cards, undefined, 'black');
   assert.equal(counts.mats, 12);
   assert.equal(counts.art, 0);
-  // Twelve singles: four rows of three, three rows to a sheet.
-  assert.equal(counts.artSheets, 2);
+  assert.equal(counts.artSheets, 0, 'no art, so no art file');
+  // Twelve mats: four rows of three, three rows to a sheet.
+  assert.equal(counts.matSheets, 2);
   assert.equal(counts.placeholderSheets, 2);
   assert.equal(counts.sheets, 4);
+});
+
+test('the mats are their own PDF, after the art and before the instructions', async () => {
+  const { buildFillSheetPdfs } = await import('./placeholderPdf.ts');
+  const b = binder([{ id: 'p1', rows: 3, cols: 3, artView: 'window', slots: [slot('w1', 0, 0), slot('w2', 0, 1)] }]);
+  const files = await buildFillSheetPdfs(b, cards, { mats: 'white' });
+  assert.deepEqual(files.map((f) => f.section), ['placeholders', 'mats', 'instructions']);
+  assert.equal(files[1].pieces, 2);
+  assert.equal(files[1].sheets, 1);
 });

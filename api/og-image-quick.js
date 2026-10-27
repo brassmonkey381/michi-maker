@@ -13,7 +13,7 @@ process.env.OG_SHARPEN = '0';
 process.env.OG_JPEG_QUALITY = process.env.OG_QUICK_QUALITY || '72';
 
 const { __tooling } = require('./og-image-binder.js');
-const { fetchBinder, fetchManifest, pickPages, loadArt, loadFacts, render, completeManifest } = __tooling;
+const { fetchBinder, fetchManifest, pickPages, loadArt, loadFacts, render, completeManifest, fullCards } = __tooling;
 
 const CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
 
@@ -38,6 +38,8 @@ module.exports = async (req, res) => {
       return res.end(JSON.stringify({ error: 'nothing to draw' }));
     }
     const style = String((req.query && req.query.s) || '') === 'clean' ? 'clean' : 'soft';
+    // ?a=cards (owner, 2026-10-27): every pocket as the whole card, the art views set aside.
+    if (String((req.query && req.query.a) || '') === 'cards') fullCards(pages);
     const [art] = await Promise.all([loadArt(pages, binder), loadFacts(pages)]);
     const { body, type } = await render(pages, manifest, art, pages.length === 1, undefined, { look: true, binder, style });
     res.setHeader('content-type', type);

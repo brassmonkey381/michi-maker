@@ -55,7 +55,7 @@ import { pageHalfFull } from '@/data/editorHints';
 import { useEditorHint } from '@/hooks/use-editor-hint';
 import { loadPokemonColorIndexes } from '@/lib/colorIndexes';
 import { MovePageSheet } from '@/components/binder/MovePageSheet';
-import { QuickPreviewModal } from '@/components/binder/SharePreview';
+import { QuickPreviewModal, SharePictureChooser } from '@/components/binder/SharePreview';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { pillChip, sheet } from '@/constants/ui';
@@ -110,7 +110,7 @@ import { DOCK_PCT_MAX, LEGACY_MIN_WIDTH, MIN_PAGE_WIDTH, PANEL_GAP, PANEL_MAX_WI
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
-import { downloadBinderHiresImage } from '@/lib/appUrl';
+import { downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
 import { track, type CardAddVia } from '@/lib/analytics';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
@@ -287,7 +287,11 @@ export function BinderScreen({
   // but the gear that opens them belongs up in this screen's header, where it costs no page height.
   const [settingsOpen, setSettingsOpen] = useState(false);
   /** Q: the quick share image, and W: the move-this-page sheet (owner, 2026-09-16). */
-  const [quickOpen, setQuickOpen] = useState(false);
+  // Q and F go through THE EXTRA STEP first (owner, 2026-10-27): style and which cards, then the
+  // quick look (`quick` holds its options while it is open) or the download.
+  const [pictureStep, setPictureStep] = useState<'quick' | 'download' | null>(null);
+  const [quick, setQuick] = useState<ShareImageOptions | null>(null);
+  const quickOpen = quick !== null;
   const [movePageOpen, setMovePageOpen] = useState(false);
   /**
    * WHETHER THE PHONE'S TOOLS ROW HAS MORE OFF EITHER EDGE (owner, 2026-09-15). The row scrolls
@@ -3332,7 +3336,7 @@ export function BinderScreen({
           onToggleArt={phone ? undefined : () => setArtworkOpen((v) => !v)}
           onToggleCards={phone ? undefined : () => setCardsCollapsed((v) => !v)}
           onToggleSettings={() => setSettingsOpen((v) => !v)}
-          onQuickPreview={() => setQuickOpen((v) => !v)}
+          onQuickPreview={() => (quickOpen ? setQuick(null) : setPictureStep((v) => (v ? null : 'quick')))}
           onShare={isSupabaseConfigured ? () => setShareOpen((v) => !v) : undefined}
           onPrint={() => {
             setPrintPreviewAtOpen(true);
@@ -3347,15 +3351,7 @@ export function BinderScreen({
                     setShareOpen(true);
                     return;
                   }
-                  hiresBusy.current = true;
-                  showToast('Rendering the full-size image, about half a minute…');
-                  track('share.hires', { surface: 'f_key', binder_id: binder.id });
-                  void downloadBinderHiresImage(binder.id, binder.updatedAt)
-                    .then(() => showToast('Full-size image downloaded'))
-                    .catch(() => showToast('That render did not finish. Press F to try again in a moment.'))
-                    .finally(() => {
-                      hiresBusy.current = false;
-                    });
+                  setPictureStep((v) => (v ? null : 'download'));
                 }
               : undefined
           }
@@ -3370,7 +3366,8 @@ export function BinderScreen({
               setArrangeOpen(false);
               setArrangePreview(null);
             } else if (moving) setMoving(null);
-            else if (quickOpen) setQuickOpen(false);
+            else if (pictureStep) setPictureStep(null);
+            else if (quickOpen) setQuick(null);
             else if (movePageOpen) setMovePageOpen(false);
             else if (settingsOpen) setSettingsOpen(false);
             else if (binderInfoOpen) setBinderInfoOpen(false);
@@ -3387,7 +3384,30 @@ export function BinderScreen({
             }
           }}
         />
-        {quickOpen ? <QuickPreviewModal binder={binder} onClose={() => setQuickOpen(false)} /> : null}
+        {pictureStep ? (
+          <SharePictureChooser
+            intent={pictureStep}
+            onClose={() => setPictureStep(null)}
+            onQuick={(opts) => {
+              setPictureStep(null);
+              setQuick(opts);
+            }}
+            onDownload={(opts) => {
+              setPictureStep(null);
+              if (hiresBusy.current) return;
+              hiresBusy.current = true;
+              showToast('Rendering the full-size image, about half a minute…');
+              track('share.hires', { surface: 'f_key', binder_id: binder.id, style: opts.style, cards: opts.artView });
+              void downloadBinderHiresImage(binder.id, binder.updatedAt, opts)
+                .then(() => showToast('Full-size image downloaded'))
+                .catch(() => showToast('That render did not finish. Press F to try again in a moment.'))
+                .finally(() => {
+                  hiresBusy.current = false;
+                });
+            }}
+          />
+        ) : null}
+        {quick ? <QuickPreviewModal binder={binder} options={quick} onClose={() => setQuick(null)} /> : null}
         {movePageOpen && editing ? (
           <MovePageSheet
             pages={binder.pages}

@@ -135,6 +135,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'The share picture asks first: soft or clean, art views or full cards',
+        kind: 'better',
+        area: 'sharing',
+        body:
+          'Q and F used to draw the picture at once in the soft style. Now a small step comes first: '
+          + 'soft or clean, and whether the cards follow the binder\u2019s art views or show as whole '
+          + 'cards. The Share panel has the same two choices.',
+      },
+      {
+        products: ['michi'],
         head: 'Vote on what we build next',
         kind: 'new',
         area: 'account',

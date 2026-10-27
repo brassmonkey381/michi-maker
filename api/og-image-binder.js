@@ -1867,7 +1867,21 @@ module.exports = async (req, res) => {
 // Tooling seam for scripts/og-preview.mjs, which renders a binder's real share image to a file so
 // a design change can be judged on the shipping path rather than on a mock, and for the test that
 // pins SECONDARY_PREFIXES to src/lib/otherGameKeys.ts. Not reachable from the handler.
+/**
+ * FULL CARDS (owner, 2026-10-27): the share picture drawn with every pocket as the whole card,
+ * whatever art view the binder, its pages or its pockets carry. `?a=cards` on the quick and hires
+ * handlers. The link preview the scrapers fetch always follows the binder.
+ */
+function fullCards(pages) {
+  for (const p of pages) {
+    p.art_view = null;
+    for (const s of p.binder_slots || []) s.art_view = null;
+  }
+  return pages;
+}
+
 module.exports.__tooling = {
+  fullCards,
   SECONDARY_PREFIXES,
   fetchBinder,
   fetchManifest,

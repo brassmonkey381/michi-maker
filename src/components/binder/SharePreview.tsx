@@ -14,12 +14,12 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
-import { ImageLinkField, PillButton } from '@/components/binder/inspector/controls';
+import { ImageLinkField, PillButton, Seg } from '@/components/binder/inspector/controls';
 import { PresetPictureGrid } from '@/components/binder/PresetPictureGrid';
 import { ThemedText } from '@/components/themed-text';
 import { Palette, Radius, Spacing } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
-import { binderQuickPreviewUrl, downloadBinderHiresImage, type ShareImageStyle } from '@/lib/appUrl';
+import { DEFAULT_SHARE_IMAGE, SHARE_ART_VIEWS, SHARE_IMAGE_STYLES, binderQuickPreviewUrl, downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
 import { useBinders } from '@/store/binders';
 
 export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
@@ -58,19 +58,83 @@ export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
   );
 }
 
-export function QuickPreviewButton({ binder, style = 'soft', label = 'Quick look at the share image' }: { binder: DemoBinder; style?: ShareImageStyle; label?: string }) {
+export function QuickPreviewButton({ binder, options = DEFAULT_SHARE_IMAGE, label = 'Quick look at the share image' }: { binder: DemoBinder; options?: ShareImageOptions; label?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <PillButton label={label} onPress={() => setOpen(true)} testID="share-quick-look" />
-      {open ? <QuickPreviewModal binder={binder} style={style} onClose={() => setOpen(false)} /> : null}
+      {open ? <QuickPreviewModal binder={binder} options={options} onClose={() => setOpen(false)} /> : null}
     </>
   );
 }
 
+/**
+ * THE EXTRA STEP (owner, 2026-10-27: the share preview and full-size hotkeys "need an extra step
+ * (clean, soft, with art view, etc)"). Q and F open this first: the picture's style and which
+ * cards it draws, then the quick look or the download. `intent` puts the key's own action first.
+ */
+export function SharePictureChooser({
+  intent,
+  onClose,
+  onQuick,
+  onDownload,
+}: {
+  intent: 'quick' | 'download';
+  onClose: () => void;
+  onQuick: (opts: ShareImageOptions) => void;
+  onDownload: (opts: ShareImageOptions) => void;
+}) {
+  const [opts, setOpts] = useState<ShareImageOptions>(DEFAULT_SHARE_IMAGE);
+  const styleBlurb = SHARE_IMAGE_STYLES.find((s) => s.id === opts.style)?.blurb;
+  const viewBlurb = SHARE_ART_VIEWS.find((v) => v.id === opts.artView)?.blurb;
+  const quick = (
+    <Pressable
+      key="quick"
+      onPress={() => onQuick(opts)}
+      accessibilityRole="button"
+      testID="picture-step-quick"
+      style={({ pressed }) => [intent === 'quick' ? styles.dlBtn : styles.altBtn, pressed && styles.dim]}>
+      <ThemedText type="smallBold" style={intent === 'quick' ? styles.dlText : undefined}>Quick look</ThemedText>
+    </Pressable>
+  );
+  const download = (
+    <Pressable
+      key="download"
+      onPress={() => onDownload(opts)}
+      accessibilityRole="button"
+      testID="picture-step-download"
+      style={({ pressed }) => [intent === 'download' ? styles.dlBtn : styles.altBtn, pressed && styles.dim]}>
+      <ThemedText type="smallBold" style={intent === 'download' ? styles.dlText : undefined}>Download full-size image</ThemedText>
+    </Pressable>
+  );
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" testID="picture-step">
+        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+          <ThemedText type="smallBold">The share picture</ThemedText>
+          <View style={styles.block}>
+            <ThemedText type="small" themeColor="textSecondary">Style</ThemedText>
+            <Seg options={SHARE_IMAGE_STYLES} value={opts.style} onChange={(style) => setOpts((o) => ({ ...o, style }))} />
+            <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>{styleBlurb}</ThemedText>
+          </View>
+          <View style={styles.block}>
+            <ThemedText type="small" themeColor="textSecondary">Cards</ThemedText>
+            <Seg options={SHARE_ART_VIEWS} value={opts.artView} onChange={(artView) => setOpts((o) => ({ ...o, artView }))} />
+            <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>{viewBlurb}</ThemedText>
+          </View>
+          <View style={styles.row}>{intent === 'quick' ? [quick, download] : [download, quick]}</View>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.caption}>
+            The quick look takes a few seconds; the download about half a minute. Esc closes.
+          </ThemedText>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 /** The quick share image in a modal: the Share sheet's button opens it, and so does Q (owner, 2026-09-16). */
-export function QuickPreviewModal({ binder, style = 'soft', onClose }: { binder: DemoBinder; style?: ShareImageStyle; onClose: () => void }) {
-  const [src] = useState(() => binderQuickPreviewUrl(binder.id, binder.updatedAt, style));
+export function QuickPreviewModal({ binder, options = DEFAULT_SHARE_IMAGE, onClose }: { binder: DemoBinder; options?: ShareImageOptions; onClose: () => void }) {
+  const [src] = useState(() => binderQuickPreviewUrl(binder.id, binder.updatedAt, options));
   const [state, setState] = useState<'loading' | 'ok' | 'failed'>('loading');
   // THE DOWNLOAD FROM THE PREVIEW (owner, 2026-10-26): what you are looking at is what the
   // full-size file will be, so the button to get it belongs right here, in the same style.
@@ -79,7 +143,7 @@ export function QuickPreviewModal({ binder, style = 'soft', onClose }: { binder:
     if (hires === 'busy') return;
     setHires('busy');
     try {
-      await downloadBinderHiresImage(binder.id, binder.updatedAt, style);
+      await downloadBinderHiresImage(binder.id, binder.updatedAt, options);
       setHires('idle');
     } catch {
       setHires('failed');
@@ -156,4 +220,13 @@ const styles = StyleSheet.create({
   },
   dlText: { color: Palette.accentText },
   dim: { opacity: 0.6 },
+  card: { backgroundColor: Palette.surface, borderRadius: Radius.panel, padding: Spacing.four, gap: Spacing.three, width: '100%', maxWidth: 520 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, alignItems: 'center' },
+  altBtn: {
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Radius.control,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+  },
 });

@@ -30,7 +30,7 @@ import type { DemoBinder } from '@/data/binderTypes';
 import { CONTEST } from '@/data/contest';
 import { useTheme } from '@/hooks/use-theme';
 import { previewDeepLinkPage } from '@/data/previewPages';
-import { SHARE_IMAGE_STYLES, binderShareUrl, downloadBinderHiresImage, warmBinderPreview, type ShareImageStyle } from '@/lib/appUrl';
+import { DEFAULT_SHARE_IMAGE, SHARE_ART_VIEWS, SHARE_IMAGE_STYLES, binderShareUrl, downloadBinderHiresImage, warmBinderPreview, type ShareImageOptions } from '@/lib/appUrl';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 import { AuthSheet } from '@/components/auth/AuthSheet';
@@ -261,13 +261,13 @@ export function ShareSheet({
   const [hires, setHires] = useState<'idle' | 'busy' | 'failed'>('idle');
   // THE PICTURE'S STYLE (owner, 2026-10-25): soft (the original) or clean. Picks the download and
   // the quick look; the link preview the scrapers fetch stays soft.
-  const [imageStyle, setImageStyle] = useState<ShareImageStyle>('soft');
+  const [imageOpts, setImageOpts] = useState<ShareImageOptions>(DEFAULT_SHARE_IMAGE);
   const downloadHires = async () => {
     if (hires === 'busy') return;
     setHires('busy');
     try {
-      await downloadBinderHiresImage(binder.id, binder.updatedAt, imageStyle);
-      track('share.hires', { surface: 'share_sheet', binder_id: binder.id, style: imageStyle });
+      await downloadBinderHiresImage(binder.id, binder.updatedAt, imageOpts);
+      track('share.hires', { surface: 'share_sheet', binder_id: binder.id, style: imageOpts.style, cards: imageOpts.artView });
       setHires('idle');
     } catch {
       setHires('failed');
@@ -602,13 +602,19 @@ export function ShareSheet({
                 <View style={styles.hiresRow}>
                   <ThemedText type="smallBold">The share picture</ThemedText>
                   <View style={styles.styleRow} testID="share-image-style">
-                    <Seg options={SHARE_IMAGE_STYLES} value={imageStyle} onChange={setImageStyle} />
+                    <Seg options={SHARE_IMAGE_STYLES} value={imageOpts.style} onChange={(style) => setImageOpts((o) => ({ ...o, style }))} />
                     <ThemedText type="small" themeColor="textSecondary" style={styles.previewText}>
-                      {SHARE_IMAGE_STYLES.find((s) => s.id === imageStyle)?.blurb}
+                      {SHARE_IMAGE_STYLES.find((s) => s.id === imageOpts.style)?.blurb}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.styleRow} testID="share-image-cards">
+                    <Seg options={SHARE_ART_VIEWS} value={imageOpts.artView} onChange={(artView) => setImageOpts((o) => ({ ...o, artView }))} />
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.previewText}>
+                      {SHARE_ART_VIEWS.find((v) => v.id === imageOpts.artView)?.blurb}
                     </ThemedText>
                   </View>
                   <View style={styles.pictureBtns}>
-                    <QuickPreviewButton binder={binder} style={imageStyle} label="Quick look" />
+                    <QuickPreviewButton binder={binder} options={imageOpts} label="Quick look" />
                     <Pressable
                       onPress={() => void downloadHires()}
                       disabled={hires === 'busy'}

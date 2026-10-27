@@ -64,9 +64,9 @@ export function binderShareUrl(id: string, shareKey?: string | null, page?: numb
  * single page, as a download. `updatedAt` keys the CDN cache, so an edit gets a fresh render and a
  * repeat of the same version is instant.
  */
-export function binderHiresImageUrl(id: string, updatedAt?: string | null, style: ShareImageStyle = 'soft'): string {
+export function binderHiresImageUrl(id: string, updatedAt?: string | null, opts: ShareImageOptions = DEFAULT_SHARE_IMAGE): string {
   const stamp = updatedAt ? Date.parse(updatedAt) || 0 : 0;
-  return `${appOrigin()}/api/og-image-hires?id=${encodeURIComponent(id)}&t=${stamp}&v=2${style === 'clean' ? '&s=clean' : ''}`;
+  return `${appOrigin()}/api/og-image-hires?id=${encodeURIComponent(id)}&t=${stamp}&v=2${shareImageQuery(opts)}`;
 }
 
 /**
@@ -81,12 +81,34 @@ export const SHARE_IMAGE_STYLES: readonly { id: ShareImageStyle; label: string; 
 ];
 
 /**
+ * Which cards the picture draws (owner, 2026-10-27: the share and full-size hotkeys "need an extra
+ * step (clean, soft, with art view, etc)"). 'look' follows the binder's art views (windows,
+ * connected art, a page or pocket's own choice); 'cards' draws every pocket as the whole card.
+ */
+export type ShareArtView = 'look' | 'cards';
+export const SHARE_ART_VIEWS: readonly { id: ShareArtView; label: string; blurb: string }[] = [
+  { id: 'look', label: 'As the binder shows them', blurb: 'Art windows and connected art as set on the binder, its pages and pockets.' },
+  { id: 'cards', label: 'Full cards', blurb: 'Every pocket as the whole card, art views set aside.' },
+];
+
+export interface ShareImageOptions {
+  style: ShareImageStyle;
+  artView: ShareArtView;
+}
+export const DEFAULT_SHARE_IMAGE: ShareImageOptions = { style: 'soft', artView: 'look' };
+
+/** The query the quick and hires handlers read: `s=clean`, `a=cards`; nothing for the defaults. */
+export function shareImageQuery(opts: ShareImageOptions): string {
+  return `${opts.style === 'clean' ? '&s=clean' : ''}${opts.artView === 'cards' ? '&a=cards' : ''}`;
+}
+
+/**
  * The share image at a glance (api/og-image-quick.js): the same picture at 1x, drawn in a few
  * seconds, for the Share sheet's preview. `updatedAt` keys it so a change shows on the next look.
  */
-export function binderQuickPreviewUrl(id: string, updatedAt?: string | null, style: ShareImageStyle = 'soft'): string {
+export function binderQuickPreviewUrl(id: string, updatedAt?: string | null, opts: ShareImageOptions = DEFAULT_SHARE_IMAGE): string {
   const stamp = updatedAt ? Date.parse(updatedAt) || 0 : 0;
-  return `${appOrigin()}/api/og-image-quick?id=${encodeURIComponent(id)}&t=${stamp}&n=${Date.now()}${style === 'clean' ? '&s=clean' : ''}`;
+  return `${appOrigin()}/api/og-image-quick?id=${encodeURIComponent(id)}&t=${stamp}&n=${Date.now()}${shareImageQuery(opts)}`;
 }
 
 /**
@@ -94,8 +116,8 @@ export function binderQuickPreviewUrl(id: string, updatedAt?: string | null, sty
  * or more the first time (it is rendered on demand); resolves when the file is saved or the tab has
  * it open. On native the URL opens in the system browser instead.
  */
-export async function downloadBinderHiresImage(id: string, updatedAt?: string | null, style: ShareImageStyle = 'soft'): Promise<void> {
-  const url = binderHiresImageUrl(id, updatedAt, style);
+export async function downloadBinderHiresImage(id: string, updatedAt?: string | null, opts: ShareImageOptions = DEFAULT_SHARE_IMAGE): Promise<void> {
+  const url = binderHiresImageUrl(id, updatedAt, opts);
   if (Platform.OS !== 'web' || typeof window === 'undefined') {
     const { Linking } = await import('react-native');
     await Linking.openURL(url);

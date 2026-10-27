@@ -135,6 +135,18 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Collector binders: one choice for the pages',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The In order and Curated switch and the Michi layouts box were two controls that read '
+          + 'alike. They are now one choice of three: Plain pages, nine cards a page in your sort '
+          + 'order; Michi layouts, art panels on every page with your cards in sort order around '
+          + 'them; or Curated, one idea a page and the rest in michi layouts after. Your sort '
+          + 'always decides the sequence. A line under the choice says what it does.',
+      },
+      {
+        products: ['michi'],
         head: 'The print sheet says which PDFs you get, and brings them after checkout',
         kind: 'better',
         area: 'binders',

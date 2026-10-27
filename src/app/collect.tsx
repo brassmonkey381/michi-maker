@@ -5,9 +5,11 @@
  * digital binder in the account, laid into the michi layouts at random (one per page) if wanted,
  * which then prints like any other binder. Controls (owner, 2026-10-26): EN / JP / both, secret
  * rares, where the reverse holos sit, cameo cards from the data server's cameo tags, a sort and
- * filters for every shape. Pages are IN ORDER or CURATED (owner, 2026-10-26, one or the other):
- * curated runs the Story Binder page planner over the result, pass after pass, one idea a page,
- * and the cards no page took follow in order; every in-order page is titled by the span it
+ * filters for every shape. PAGES is one choice of three (owner, 2026-10-27, "do we need 2
+ * toggles?"): Plain (nine a page, in the sort), Michi layouts (art panels on every page, the cards
+ * in the sort around them) or Curated (the Story Binder page planner over the result, pass after
+ * pass, one idea a page, then the rest in michi layouts). The sort always decides the sequence;
+ * curating only decides which cards share a page. Every in-order page is titled by the span it
  * covers (data/collectorCurate.ts). Art panels can be filled from stock art on the way out, and
  * an ART WINDOW choice shows every page in the art view, whose mats print from the binder's Print
  * sheet (the free print here stays placeholders only).
@@ -58,10 +60,17 @@ const DEX_PICKS = [
   { id: 'newest', label: 'Newest print', blurb: 'The most recent card of each Pokémon.' },
   { id: 'oldest', label: 'Oldest print', blurb: 'The first card of each Pokémon.' },
 ] as const;
-const PAGE_MODES = [
-  { id: 'order', label: 'In order', blurb: 'Pages follow the sort, nine or so a page.' },
-  { id: 'curate', label: 'Curated', blurb: 'One idea a page, the rest in order after.' },
+/**
+ * ONE CHOICE FOR THE PAGES (owner, 2026-10-27): the old In order / Curated switch plus a Michi
+ * layouts box read as two toggles nobody could tell apart. The sort above decides the sequence in
+ * every case; this decides only how the cards are laid on a page.
+ */
+const PAGE_OPTIONS = [
+  { id: 'plain', label: 'Plain pages', blurb: 'Nine cards a page, in your sort order.' },
+  { id: 'michi', label: 'Michi layouts', blurb: 'Art panels on every page for your pictures, cards in your sort order around them.' },
+  { id: 'curate', label: 'Curated', blurb: 'One idea a page, then the rest in michi layouts. Reads likeness from the server, allow a minute.' },
 ] as const;
+type PageChoice = (typeof PAGE_OPTIONS)[number]['id'];
 const ART_WINDOWS = [
   { id: 'off', label: 'Card view', blurb: 'Pages show the whole card.' },
   { id: 'black', label: 'Art window, black', blurb: 'Pages show the art window on black. Black mats print from the binder.' },
@@ -141,9 +150,10 @@ export default function CollectScreen() {
   const [set, setSet] = useState<CatalogSet | null>(null);
   const [species, setSpecies] = useState<string | null>(null);
   const [dexPick, setDexPick] = useState<'newest' | 'oldest'>('newest');
-  const [roomForArt, setRoomForArt] = useState(false);
-  const [pageMode, setPageMode] = useState<'order' | 'curate'>('order');
-  const curate = pageMode === 'curate';
+  const [pageChoice, setPageChoice] = useState<PageChoice>('plain');
+  const curate = pageChoice === 'curate';
+  /** Michi layouts and curated pages both carry art panels; curated leftovers lie in michi layouts too. */
+  const roomForArt = pageChoice !== 'plain';
   const [fillArt, setFillArt] = useState(false);
   const [fillSource, setFillSource] = useState<'stock' | FanArtSource>('stock');
   // A non-admin can never hold a fan-art source, whatever state says.
@@ -419,14 +429,14 @@ export default function CollectScreen() {
     // The art window shows every page in the art view; its mats print from the binder's Print
     // sheet, where mats are on by default for such a binder.
     if (artWindow !== 'off') built = built.map((p) => ({ ...p, artView: 'window' as const }));
-    const created = store.createBinder({ title, pages: built, ...(curated ? { description: `${curated} pages each one idea, then the rest in order.` } : {}) });
+    const created = store.createBinder({ title, pages: built, ...(curated ? { description: `${curated} pages each one idea, then the rest in order in michi layouts.` } : {}) });
     if (!created) {
       setBuilding(false);
       setNote(tier === 'guest' || tier === 'free' ? `Your plan's ${limits.binders} binders are used. PRO has no limit.` : 'That did not save. Try again.');
       return;
     }
     let artPlaced = 0;
-    if (fillArt && (roomForArt || curate)) {
+    if (fillArt && roomForArt) {
       try {
         artPlaced = await fillArtPanels(created.id, built);
       } catch {
@@ -435,7 +445,7 @@ export default function CollectScreen() {
     }
     setBuilding(false);
     setNote(null);
-    track('collector.binder', { kind, pockets: result.pockets.length, roomForArt, curate, curated, fillArt, fanArt: fanArt ?? 'off', artPlaced, artWindow, sort: sort.key, lang, cameos: cameoCount });
+    track('collector.binder', { kind, pockets: result.pockets.length, pages: pageChoice, curated, fillArt, fanArt: fanArt ?? 'off', artPlaced, artWindow, sort: sort.key, lang, cameos: cameoCount });
     router.push(`/binder/${created.id}?edit=1` as Href);
   };
 
@@ -602,15 +612,12 @@ export default function CollectScreen() {
 
               {result.pockets.length > 0 ? (
                 <>
-                  <Seg options={PAGE_MODES} value={pageMode} onChange={setPageMode} />
-                  {curate ? (
-                    <ThemedText type="small" themeColor="textSecondary">Curated pages carry art panels. Curating reads likeness from the server. Allow a minute.</ThemedText>
-                  ) : null}
-                  <Check on={roomForArt} onPress={() => setRoomForArt((v) => !v)} testID="collect-room-for-art">{curate ? 'Michi layouts for the pages in order too.' : 'Michi layouts: random art panels on every page.'}</Check>
-                  {roomForArt || curate ? (
+                  <Seg options={PAGE_OPTIONS} value={pageChoice} onChange={setPageChoice} />
+                  <ThemedText type="small" themeColor="textSecondary" testID="collect-pages-blurb">{PAGE_OPTIONS.find((o) => o.id === pageChoice)?.blurb}</ThemedText>
+                  {roomForArt ? (
                     <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">{fanArt ? 'Fill the art panels with fan art.' : 'Fill the art panels with stock photos.'}</Check>
                   ) : null}
-                  {isAdmin && fillArt && (roomForArt || curate) ? (
+                  {isAdmin && fillArt && roomForArt ? (
                     // ADMIN TEST ONLY: the two Pokémon art sites, searched by each page's species.
                     <View style={styles.adminBox} testID="collect-admin-fill-source">
                       <ThemedText type="small" themeColor="textSecondary">Admin test: where the art comes from.</ThemedText>

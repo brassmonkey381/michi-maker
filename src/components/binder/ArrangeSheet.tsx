@@ -37,7 +37,7 @@
  * EVERY PICK IS RECORDED (template, mode, rank shown, rank picked) so the weights can be tuned
  * later from what the owner actually chooses.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { getColorIndex, loadColorIndex } from 'tcgscan-browse';
 
@@ -151,7 +151,14 @@ export function ArrangeSheet({
   // All full arts or all windowed cards: a mixed page is refused with the count, not seated.
   const mix = useMemo(() => (catalog ? pageArtMix(pockets.map((p) => { const c = catalog.getCard(p.slot.cardId!); return { fullArtKind: c?.fullArtKind, fullArt: c?.fullArt }; })) : null), [catalog, pockets]);
 
-  const arranged = useMemo<{ list: Candidate[]; input: Parameters<typeof arrangePage>[0] } | null>(() => {
+  // THE ARRANGER RUNS OFF THE RENDER (owner, 2026-10-27: "very slow ... or hung"). It used to run
+  // inside a useMemo, so the frame that asked for it waited for every template to be seated
+  // before anything painted. Now the bar paints "Reading the cards…" and the run starts on the
+  // next tick; the result is state, keyed by what it was asked for.
+  type Arranged = { list: Candidate[]; input: Parameters<typeof arrangePage>[0] };
+  const [arranged, setArranged] = useState<Arranged | null>(null);
+
+  const compute = (): Arranged | null => {
     if (!visible || !catalog || !depth || pockets.length < 2 || !mix) return null;
     const index = getColorIndex();
     const cards: ArrangeCard[] = pockets.map((p) => {
@@ -209,28 +216,39 @@ export function ArrangeSheet({
       score: 0,
     };
     return { list: [asIs, answer.best, ...answer.alternates], input };
-    // paletteTick re-reads the index once it has loaded; it carries no value of its own.
+  };
+
+  /* eslint-disable react-hooks/set-state-in-effect -- the run is deferred on purpose; see above. */
+  useEffect(() => {
+    if (!visible || !catalog || !depth || pockets.length < 2 || !mix) {
+      setArranged(null);
+      return;
+    }
+    let live = true;
+    const handle = setTimeout(() => {
+      if (!live) return;
+      const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
+      const out = compute();
+      if (typeof performance !== 'undefined') console.info(`[arrange] ${out ? out.list.length : 0} takes in ${Math.round(performance.now() - t0)} ms`);
+      if (live) setArranged(out);
+    }, 0);
+    return () => {
+      live = false;
+      clearTimeout(handle);
+    };
+    // compute() reads exactly these; paletteTick re-reads the index once it has loaded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, catalog, depth, similarity, pockets, reserved, hasArt, rows, cols, spread, paletteTick, mix]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // SHUFFLE: three fresh takes per press, appended after the arranger's, never one already shown.
-  // Keyed by the arranger run so a page edited since starts clean. The seed is the press count.
+  // Kept as state and APPENDED, so a press costs one shuffle, not every shuffle so far. Keyed by
+  // the arranger run so a page edited since starts clean.
   const baseKey = arranged ? arranged.list.map((c) => c.id).join('|') : '';
-  const [shuffle, setShuffle] = useState<{ key: string; seed: number } | null>(null);
-  const seed = shuffle && shuffle.key === baseKey ? shuffle.seed : 0;
-  const candidates = useMemo<Candidate[] | null>(() => {
-    if (!arranged) return null;
-    if (!seed) return arranged.list;
-    const sig = (c: Candidate) => c.placements.map((pl) => `${pl.cardId}@${cellKey(pl.cell)}`).sort().join('|');
-    const avoid = new Set(arranged.list.map(sig));
-    const out: Candidate[] = [...arranged.list];
-    for (let s = 1; s <= seed; s += 1) {
-      const fresh = arrangeShuffle({ ...arranged.input, seed: s, avoid });
-      for (const c of fresh) avoid.add(sig(c));
-      out.push(...fresh.map((c, i) => ({ ...c, name: `Shuffle ${(s - 1) * 3 + i + 1}` })));
-    }
-    return out;
-  }, [arranged, seed]);
+  const [shuffled, setShuffled] = useState<{ key: string; seed: number; takes: Candidate[] } | null>(null);
+  const extra = shuffled && shuffled.key === baseKey ? shuffled : null;
+  const seed = extra ? extra.seed : 0;
+  const candidates = useMemo<Candidate[] | null>(() => (arranged ? (extra ? [...arranged.list, ...extra.takes] : arranged.list) : null), [arranged, extra]);
 
   const pageOf = (leaf: Leaf): DemoPage => (leaf === 'right' ? pages[1] : pages[0]);
 
@@ -246,10 +264,14 @@ export function ArrangeSheet({
   };
   const shuffleMore = () => {
     if (!candidates || !arranged) return;
-    setShuffle({ key: baseKey, seed: seed + 1 });
+    const sig = (c: Candidate) => c.placements.map((pl) => `${pl.cardId}@${cellKey(pl.cell)}`).sort().join('|');
+    const avoid = new Set(candidates.map(sig));
+    const next = seed + 1;
+    const fresh = arrangeShuffle({ ...arranged.input, seed: next, avoid }).map((c, i) => ({ ...c, name: `Shuffle ${seed * 3 + i + 1}` }));
+    setShuffled({ key: baseKey, seed: next, takes: [...(extra ? extra.takes : []), ...fresh] });
     // The new takes are appended, so the first of them sits where the list ends now.
-    setSel({ key: candKey, i: candidates.length });
-    track('arrange_shuffle', { press: seed + 1, spread });
+    setSel({ key: candKey, i: fresh.length ? candidates.length : index });
+    track('arrange_shuffle', { press: next, spread, fresh: fresh.length });
   };
 
   // The take as a page: the untouched slots, the pockets re-seated, the template's art panels,
@@ -269,9 +291,15 @@ export function ArrangeSheet({
     });
     return out;
   }, [visible, cand, pockets, pages, spread]);
+  const previewKey = preview ? `${cand?.id ?? ''}|${Object.keys(preview).join(',')}` : '';
+  const lastPreviewKey = useRef<string | null>(null);
   useEffect(() => {
+    // Only on a real change: the screen re-rendering on this very call must not come back here as
+    // another call (owner, 2026-10-27: the bar had the screen in a render loop).
+    if (lastPreviewKey.current === previewKey) return;
+    lastPreviewKey.current = previewKey;
     onPreview(preview);
-  }, [preview, onPreview]);
+  }, [preview, previewKey, onPreview]);
 
   const [applying, setApplying] = useState(false);
   const apply = (cand: Candidate, rank: number) => {

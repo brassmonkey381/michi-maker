@@ -20,23 +20,19 @@ export const FEATURE_IDEAS: readonly FeatureIdea[] = [
   // Pruned 2026-10-27 (owner: "prune things we already kind of have"): prices on the page (the
   // edit view has a value badge), more card games (Collect builds every game), print the whole
   // binder (the print files cover it). Their ids keep their rows; they are just not shown.
+  // Cut to twelve 2026-10-27 (owner): pin a card, deck binders, follow collectors, build together,
+  // new set alerts, slab pockets. Same rule: rows stay, ids never reused for something else.
   { id: 'carousel-export', label: 'Instagram carousel export', blurb: 'Every page as a square picture, ready to post as one carousel.' },
   { id: 'remix-binder', label: 'Remix a public binder', blurb: 'Start from someone else\u2019s binder with your own cards in its pockets.' },
   { id: 'price-alerts', label: 'Price alerts on your cards', blurb: 'A note when a card in your binder jumps or drops, with its history.' },
   { id: 'mat-styles', label: 'Printable mat styles', blurb: 'Patterns and palettes for the cut-out mats behind your cards.' },
-  { id: 'pin-a-card', label: 'Pin a card while arranging', blurb: 'Hold one pocket in place and let Arrange seat the rest around it.' },
   { id: 'own-layouts', label: 'Design your own layouts', blurb: 'Save a page shape and its art panels as a layout you can reuse.' },
   { id: 'want-list', label: 'Want list and trade list', blurb: 'What each set still needs, and the cards you can spare, as one list.' },
   { id: 'scan-to-pocket', label: 'Scan a card into a pocket', blurb: 'Point your phone at a card and it lands in the pocket you chose.' },
-  { id: 'deck-binders', label: 'Deck binders', blurb: 'Pages shaped for a 60-card deck and its sideboard, one deck per binder.' },
   { id: 'binder-comments', label: 'Comments on shared binders', blurb: 'Leave a note on a public binder, and read what people say about yours.' },
-  { id: 'follow-collectors', label: 'Follow collectors', blurb: 'See new binders from the people whose pages you like.' },
   { id: 'binder-stats', label: 'Binder stats', blurb: 'Total value, rarest card, most used artist, and how complete each set is.' },
   { id: 'spreadsheet-import', label: 'Import a collection', blurb: 'Bring a spreadsheet or an export from another app into your binders.' },
   { id: 'page-turn-video', label: 'A page-turn video', blurb: 'Your binder as a short clip, ready for a post.' },
-  { id: 'build-together', label: 'Build a binder together', blurb: 'Invite a friend to edit the same binder.' },
-  { id: 'set-alerts', label: 'New set alerts', blurb: 'A note the day a new set\u2019s cards arrive, with a binder ready to start.' },
-  { id: 'slab-pockets', label: 'Pockets for graded slabs', blurb: 'Pages shaped for slabs, alongside the card pages.' },
   { id: 'phone-app', label: 'A phone app', blurb: 'The editor in the app stores, with your binders synced.' },
 ];
 

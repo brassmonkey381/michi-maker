@@ -35,6 +35,8 @@ out as a collection before the first pack is opened, because:
 day 7  repost the chase page with the week's price movement
 ```
 
+The watcher covers every published game: Pokémon from the tables, One Piece, Lorcana, Riftbound, Digimon, Magic and the rest from their public browse bundles (the list is read from `src/lib/otherGameKeys.ts`). Collect builds Pokémon only; another game's set is laid out from the card picker.
+
 The watcher only reports. Every build and every post is a human act, which is also what keeps
 the claims honest (`marketing-studio` lints copy against `claims.yaml`).
 

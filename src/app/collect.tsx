@@ -1,7 +1,8 @@
 /**
  * COLLECTOR BINDERS (owner, 2026-10-26): ask for a set or a binder type and get it built. A
  * complete set, a master set, every card of one Pokémon, an evolution line, or the living Pokédex,
- * 1 to 1025. Two ways out: print the placeholders free (no art, no customising), or make it a
+ * 1 to 1025. EVERY OTHER PUBLISHED GAME too (owner, 2026-10-27): One Piece, Lorcana and the rest
+ * build a complete set from their own catalogue (lib/otherGame), the Pokémon-only shapes aside. Two ways out: print the placeholders free (no art, no customising), or make it a
  * digital binder in the account, laid into the michi layouts at random (one per page) if wanted,
  * which then prints like any other binder. Controls (owner, 2026-10-26): EN / JP / both, secret
  * rares, where the reverse holos sit, cameo cards from the data server's cameo tags, a sort and
@@ -20,7 +21,7 @@
  */
 import { useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { type CatalogCard, type CatalogSet, findSimilarToMany, getBrowseLanguages, loadColorIndex, parseQuery, searchCards } from 'tcgscan-browse';
@@ -43,6 +44,8 @@ import { buildFillSheetPdfs } from '@/data/placeholderPdf';
 import { planPages, type PagesProviders } from '@/data/storyPages';
 import { LIMITS_ENFORCED } from '@/data/tiers';
 import { useCatalog } from '@/hooks/use-catalog';
+import { PICKER_GAMES, gameLabel, type GameId } from '@/lib/games';
+import { loadOtherGameCatalog, otherGameCatalog, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useTier } from '@/hooks/use-tier';
 import { track } from '@/lib/analytics';
@@ -56,6 +59,13 @@ import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
 const KIND_OPTIONS = COLLECTOR_KINDS.map((k) => ({ id: k.id, label: k.label, blurb: k.blurb }));
+/**
+ * EVERY GAME THE PICKER OFFERS (owner, 2026-10-27: "add a drop down select for the other games
+ * for collect"). Another game's catalogue is the same Catalog shape as Pokémon's (lib/otherGame),
+ * so a complete set builds the same way; the Pokémon-only shapes (master set's reverse holos,
+ * species, lines, the dex), the Japanese print runs and the curated pass stay with Pokémon.
+ */
+const GAME_OPTIONS = PICKER_GAMES.map((g) => ({ id: g, label: gameLabel(g) }));
 const DEX_PICKS = [
   { id: 'newest', label: 'Newest print', blurb: 'The most recent card of each Pokémon.' },
   { id: 'oldest', label: 'Oldest print', blurb: 'The first card of each Pokémon.' },
@@ -143,7 +153,14 @@ export default function CollectScreen() {
   const { limits, tier } = useTier();
   const ownedIds = useOwnedCards();
   useImageManifest();
-  const { catalog, loading, guestGated } = useCatalog(true);
+  const { catalog: pokemonCatalog, loading, guestGated } = useCatalog(true);
+  const [game, setGame] = useState<GameId>('pokemon');
+  const secondary = game !== 'pokemon';
+  useSyncExternalStore(subscribeOtherGame, otherGameVersion, otherGameVersion);
+  useEffect(() => {
+    if (secondary) void loadOtherGameCatalog(game);
+  }, [game, secondary]);
+  const catalog = secondary ? otherGameCatalog(game) : pokemonCatalog;
 
   const [kind, setKind] = useState<CollectorKind>('complete');
   const [query, setQuery] = useState('');
@@ -426,10 +443,15 @@ export default function CollectScreen() {
       setNote(`${built.length} pages; your plan allows ${limits.pagesPerBinder}. PRO has no page limit.`);
       return;
     }
-    // The art window shows every page in the art view; its mats print from the binder's Print
-    // sheet, where mats are on by default for such a binder.
-    if (artWindow !== 'off') built = built.map((p) => ({ ...p, artView: 'window' as const }));
-    const created = store.createBinder({ title, pages: built, ...(curated ? { description: `${curated} pages each one idea, then the rest in order in michi layouts.` } : {}) });
+    // The art window is set ONCE FOR THE BINDER (pageStyle.artView, 2026-10-27), so every page
+    // shows the art view and the owner can flip the whole binder back from the gear; its mats
+    // print from the binder's Print sheet, where mats are on by default for such a binder.
+    const created = store.createBinder({
+      title,
+      pages: built,
+      ...(artWindow !== 'off' ? { pageStyle: { artView: 'window' as const } } : {}),
+      ...(curated ? { description: `${curated} pages each one idea, then the rest in order in michi layouts.` } : {}),
+    });
     if (!created) {
       setBuilding(false);
       setNote(tier === 'guest' || tier === 'free' ? `Your plan's ${limits.binders} binders are used. PRO has no limit.` : 'That did not save. Try again.');
@@ -445,7 +467,7 @@ export default function CollectScreen() {
     }
     setBuilding(false);
     setNote(null);
-    track('collector.binder', { kind, pockets: result.pockets.length, pages: pageChoice, curated, fillArt, fanArt: fanArt ?? 'off', artPlaced, artWindow, sort: sort.key, lang, cameos: cameoCount });
+    track('collector.binder', { game, kind, pockets: result.pockets.length, pages: pageChoice, curated, fillArt, fanArt: fanArt ?? 'off', artPlaced, artWindow, sort: sort.key, lang, cameos: cameoCount });
     router.push(`/binder/${created.id}?edit=1` as Href);
   };
 
@@ -464,9 +486,31 @@ export default function CollectScreen() {
           </View>
 
           <View style={styles.panel}>
-            <Seg options={KIND_OPTIONS} value={kind} onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); setFilters(NO_FILTERS); setOpenFacet(null); setSort({ key: naturalSortKey(k), dir: DEFAULT_DIR[naturalSortKey(k)] }); }} />
+            {GAME_OPTIONS.length > 1 ? (
+              <Seg
+                options={GAME_OPTIONS}
+                value={game}
+                onChange={(g) => {
+                  setGame(g);
+                  setKind('complete');
+                  setQuery('');
+                  setSet(null);
+                  setSpecies(null);
+                  setNote(null);
+                  setFilters(NO_FILTERS);
+                  setOpenFacet(null);
+                  setSort({ key: naturalSortKey('complete'), dir: DEFAULT_DIR[naturalSortKey('complete')] });
+                  if (g !== 'pokemon') {
+                    setLang('en');
+                    setPageChoice((p) => (p === 'curate' ? 'michi' : p));
+                  }
+                }}
+              />
+            ) : null}
+            {secondary && !catalog ? <ThemedText type="small" themeColor="textSecondary">Loading {gameLabel(game)}…</ThemedText> : null}
+            <Seg options={secondary ? KIND_OPTIONS.filter((k) => k.id === 'complete') : KIND_OPTIONS} value={kind} onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); setFilters(NO_FILTERS); setOpenFacet(null); setSort({ key: naturalSortKey(k), dir: DEFAULT_DIR[naturalSortKey(k)] }); }} />
             <ThemedText type="small" themeColor="textSecondary">{KIND_OPTIONS.find((k) => k.id === kind)?.blurb}</ThemedText>
-            <Seg options={LANGS} value={lang} onChange={(l) => { setLang(l); setSet(null); if (needs === 'set') setQuery(''); }} />
+            {!secondary ? <Seg options={LANGS} value={lang} onChange={(l) => { setLang(l); setSet(null); if (needs === 'set') setQuery(''); }} /> : null}
 
             {needs !== 'none' ? (
               <View style={styles.askRow}>
@@ -484,7 +528,7 @@ export default function CollectScreen() {
             ) : (
               <Seg options={DEX_PICKS} value={dexPick} onChange={setDexPick} />
             )}
-            {needs === 'set' ? (
+            {needs === 'set' && !secondary ? (
               <Check on={secrets} onPress={() => setSecrets((v) => !v)} testID="collect-secrets">Include secret rares, numbered past the set total.</Check>
             ) : null}
             {kind === 'master' ? <Seg options={REVERSE} value={reverse} onChange={setReverse} /> : null}
@@ -612,7 +656,7 @@ export default function CollectScreen() {
 
               {result.pockets.length > 0 ? (
                 <>
-                  <Seg options={PAGE_OPTIONS} value={pageChoice} onChange={setPageChoice} />
+                  <Seg options={secondary ? PAGE_OPTIONS.filter((o) => o.id !== 'curate') : PAGE_OPTIONS} value={pageChoice} onChange={setPageChoice} />
                   <ThemedText type="small" themeColor="textSecondary" testID="collect-pages-blurb">{PAGE_OPTIONS.find((o) => o.id === pageChoice)?.blurb}</ThemedText>
                   {roomForArt ? (
                     <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">{fanArt ? 'Fill the art panels with fan art.' : 'Fill the art panels with stock photos.'}</Check>

@@ -6,10 +6,42 @@
  */
 import { View } from 'react-native';
 
-import { WearRow, styles } from '@/components/binder/inspector/controls';
+import { ThemedText } from '@/components/themed-text';
+
+import { Row, Seg, WearRow, styles } from '@/components/binder/inspector/controls';
+import { POCKET_ART_VIEWS, type PocketArtView, resolveArtView } from '@/data/artView';
 import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { resolveWear } from '@/data/pageStyle';
+import { hasArtViews } from '@/data/tiers';
 import { useBinders } from '@/store/binders';
+
+/**
+ * A card pocket's art view (artView.ts): the page's, the full card, or the art window. One row
+ * for one pocket or for every selected card pocket at once; a connected page overrides them all,
+ * and the row says so. PRO's feature, like the page's own picker (tiers.ts hasArtViews).
+ */
+function PocketArtViewRow({ binder, page, slots, own, testID }: { binder: DemoBinder; page: DemoPage; slots: DemoSlot[]; own: PocketArtView | null | undefined; testID: string }) {
+  const store = useBinders();
+  const locked = !hasArtViews(store.tier);
+  const pageView = resolveArtView(page.artView, binder.pageStyle?.artView);
+  if (pageView === 'connected') {
+    return <Row label="Art view" testID={testID}><ThemedText type="small" themeColor="textSecondary">Connected art: the whole page is one sheet.</ThemedText></Row>;
+  }
+  return (
+    <Row label={locked ? 'Art view \u00b7 PRO' : 'Art view'} testID={testID}>
+      <View style={locked ? { opacity: 0.45 } : undefined}>
+        <Seg
+          options={POCKET_ART_VIEWS}
+          value={own ?? 'inherit'}
+          onChange={(id) => {
+            if (locked) return;
+            store.setSlotsStyle(binder.id, page.id, slots.map((s) => s.id), { artView: id === 'inherit' ? null : id });
+          }}
+        />
+      </View>
+    </Row>
+  );
+}
 
 /** The value every pocket shares, or undefined when they differ (the row then shows the page's). */
 function common(values: (string | null | undefined)[]): string | null | undefined {
@@ -25,15 +57,18 @@ export function PocketsWear({ binder, page, slots }: { binder: DemoBinder; page:
   return (
     <View style={styles.section}>
       {cards.length ? (
-        <WearRow
-          label={cards.length === slots.length ? 'Sleeve' : `Sleeve (${cards.length} card${cards.length === 1 ? '' : 's'})`}
-          fieldKey={`${key}-sleeve`}
-          own={common(cards.map((s) => s.sleeve))}
-          above={resolveWear(page.sleeve, binder.pageStyle?.sleeve)}
-          inherit="Use page's"
-          onChange={(sleeve) => store.setSlotsStyle(binder.id, page.id, cards.map((s) => s.id), { sleeve })}
-          testID="slots-sleeve"
-        />
+        <>
+          <WearRow
+            label={cards.length === slots.length ? 'Sleeve' : `Sleeve (${cards.length} card${cards.length === 1 ? '' : 's'})`}
+            fieldKey={`${key}-sleeve`}
+            own={common(cards.map((s) => s.sleeve))}
+            above={resolveWear(page.sleeve, binder.pageStyle?.sleeve)}
+            inherit="Use page's"
+            onChange={(sleeve) => store.setSlotsStyle(binder.id, page.id, cards.map((s) => s.id), { sleeve })}
+            testID="slots-sleeve"
+          />
+          <PocketArtViewRow binder={binder} page={page} slots={cards} own={common(cards.map((s) => s.artView)) as PocketArtView | null | undefined} testID="slots-art-view" />
+        </>
       ) : null}
       {arts.length ? (
         <WearRow
@@ -65,15 +100,18 @@ export function PocketWear({ binder, page, slot }: { binder: DemoBinder; page: D
           testID="slot-backing"
         />
       ) : (
-        <WearRow
-          label="Sleeve"
-          fieldKey={`${slot.id}-style`}
-          own={slot.sleeve}
-          above={resolveWear(page.sleeve, binder.pageStyle?.sleeve)}
-          inherit="Use page's"
-          onChange={(sleeve) => store.setSlotStyle(binder.id, page.id, slot.id, { sleeve })}
-          testID="slot-sleeve"
-        />
+        <>
+          <WearRow
+            label="Sleeve"
+            fieldKey={`${slot.id}-style`}
+            own={slot.sleeve}
+            above={resolveWear(page.sleeve, binder.pageStyle?.sleeve)}
+            inherit="Use page's"
+            onChange={(sleeve) => store.setSlotStyle(binder.id, page.id, slot.id, { sleeve })}
+            testID="slot-sleeve"
+          />
+          <PocketArtViewRow binder={binder} page={page} slots={[slot]} own={slot.artView} testID="slot-art-view" />
+        </>
       )}
     </View>
   );

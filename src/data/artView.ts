@@ -45,6 +45,52 @@ export function normalizeArtView(raw: unknown): ArtView | undefined {
   return raw === 'window' || raw === 'connected' ? raw : undefined;
 }
 
+/**
+ * THE ART VIEW AT THREE LEVELS (owner, 2026-10-27: "binders need a binder wide setting for art
+ * view / mats; it's annoying to alter at each page; make it editable at the pocket level and
+ * multi-select pocket level too, like sleeves"). The binder says what every page shows
+ * (PageStyle.artView), a page can say otherwise (DemoPage.artView), a pocket can say otherwise
+ * again (DemoSlot.artView). A stored 'card' is the full card SAID OUT LOUD, so a page can be plain
+ * inside a windowed binder and a pocket can stay a whole card on a windowed page. Absent or null
+ * is "whatever the layer above says". Connected art is a page's shape (the sheet has no pockets),
+ * so a pocket may choose only the full card or the art window, and a connected page overrides
+ * its pockets. Mirrors resolveWear for sleeves.
+ */
+export type ArtViewSetting = ArtView | 'card';
+
+/** What a pocket may say for itself: the full card or the art window, never connected. */
+export type PocketArtView = 'card' | 'window';
+
+export function normalizeArtViewSetting(raw: unknown): ArtViewSetting | undefined {
+  return raw === 'window' || raw === 'connected' || raw === 'card' ? raw : undefined;
+}
+
+export function normalizePocketArtView(raw: unknown): PocketArtView | undefined {
+  return raw === 'window' || raw === 'card' ? raw : undefined;
+}
+
+/** Pocket, then page, then binder: the first layer that says something wins; 'card' wins with the full card. */
+export function resolveArtView(...layers: (ArtViewSetting | null | undefined)[]): ArtView | undefined {
+  for (const layer of layers) {
+    if (layer === 'card') return undefined;
+    if (layer) return layer;
+  }
+  return undefined;
+}
+
+/** A page's choices: hand it up to the binder, or one of the views. */
+export const PAGE_ART_VIEWS: { id: ArtViewSetting | 'inherit'; label: string; blurb: string }[] = [
+  { id: 'inherit', label: 'Use binder\u2019s', blurb: 'Whatever the binder shows on every page.' },
+  ...ART_VIEWS,
+];
+
+/** A pocket's choices: hand it up to the page, the full card, or the art window. */
+export const POCKET_ART_VIEWS: { id: PocketArtView | 'inherit'; label: string; blurb: string }[] = [
+  { id: 'inherit', label: 'Use page\u2019s', blurb: 'Whatever the page shows.' },
+  { id: 'card', label: 'Full card', blurb: 'The card as it is, frame and all.' },
+  { id: 'window', label: 'Art window', blurb: 'The illustration on a plain stock card with the name, set and number.' },
+];
+
 /** The art window as fractions of the card: left, top, right, bottom. */
 export const ART_WINDOW = { x0: 0.086, y0: 0.103, x1: 0.917, y1: 0.462 } as const;
 

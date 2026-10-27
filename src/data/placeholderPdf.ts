@@ -72,7 +72,7 @@ import {
 } from 'pdf-lib';
 
 // Relative, not '@/': this module is exercised by node --test (fillSheetPacking.test.ts).
-import { ART_FULL_TRIM, ART_WINDOW, connectedCut, isFullArtCard, normalizeArtView, stockCardText } from './artView.ts';
+import { ART_FULL_TRIM, ART_WINDOW, connectedCut, isFullArtCard, resolveArtView, stockCardText } from './artView.ts';
 import { insideEdgePairStarts, pageSide } from './binderPhysics.ts';
 import { cutPieces } from './printFit.ts';
 import type { DemoBinder, DemoSlot, ImageTransform } from '@/data/binderTypes';
@@ -570,14 +570,18 @@ export function collectFillTiles(
     // MATS for an art-view page, after its placeholders so the file keeps page order. One per
     // card-sized card pocket; a jumbo has no mat. On a window page a full-art card stays whole
     // (no window to cut); a connected page is cut as the sheet is (connectedCut).
-    const view = mats ? normalizeArtView(page.artView) : undefined;
-    if (view) {
-      const pockets = page.slots.filter((s) => s.type === 'card' && s.cardId && s.rowSpan === 1 && s.colSpan === 1);
+    // The view is resolved pocket by pocket (artView.ts resolveArtView): the binder's choice, the
+    // page's over it, the pocket's over that; a connected page is the sheet's shape and overrides.
+    const pageView = mats ? resolveArtView(page.artView, binder.pageStyle?.artView) : undefined;
+    const pockets = mats
+      ? page.slots.filter((s) => s.type === 'card' && s.cardId && s.rowSpan === 1 && s.colSpan === 1 && (pageView === 'connected' || resolveArtView(s.artView, page.artView, binder.pageStyle?.artView)))
+      : [];
+    if (pockets.length) {
       const metas = pockets.map((s) => cards.getCard(s.cardId!));
-      const cut = view === 'connected' ? connectedCut(metas.map(fullArtOf)) : 'window';
+      const cut = pageView === 'connected' ? connectedCut(metas.map(fullArtOf)) : 'window';
       pockets.forEach((slot, i) => {
         const m = metas[i];
-        if (view === 'window' && isFullArtCard(fullArtOf(m))) return;
+        if (pageView !== 'connected' && isFullArtCard(fullArtOf(m))) return;
         tiles.push({
           kind: 'mat', page: pageIndex + 1, row: slot.row + 1, col: slot.col + 1,
           ...(m ? matText(m) : { name: 'Unknown card', sub: '', rows: [], dex: '' }),

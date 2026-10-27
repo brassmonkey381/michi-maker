@@ -270,6 +270,7 @@ export type Database = {
           finish: string | null
           sleeve: string | null
           art_backing: string | null
+          art_view: string | null
           id: string
           image_crop: Json | null
           image_fit: string | null
@@ -296,6 +297,7 @@ export type Database = {
           finish?: string | null
           sleeve?: string | null
           art_backing?: string | null
+          art_view?: string | null
           id?: string
           image_crop?: Json | null
           image_fit?: string | null
@@ -322,6 +324,7 @@ export type Database = {
           finish?: string | null
           sleeve?: string | null
           art_backing?: string | null
+          art_view?: string | null
           id?: string
           image_crop?: Json | null
           image_fit?: string | null

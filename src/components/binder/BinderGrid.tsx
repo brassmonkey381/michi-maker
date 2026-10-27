@@ -34,7 +34,7 @@ import {
 import { AboutHoverCard } from '@/components/binder/AboutPopup';
 import { ArtWindow, StockCard } from '@/components/binder/ArtViewCard';
 import { cellWidthFor, gapFor } from '@/data/binderLayout';
-import { ART_FULL_GAP_OVER_W, connectedCellAspect, connectedCut, isFullArtCard, type ArtView, type ConnectedCut } from '@/data/artView';
+import { ART_FULL_GAP_OVER_W, connectedCellAspect, connectedCut, isFullArtCard, resolveArtView, type ArtView, type ConnectedCut } from '@/data/artView';
 import { insideEdgePairStarts } from '@/data/binderPhysics';
 import { cutBoundaries } from '@/data/printFit';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -402,7 +402,10 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const onLabel: LabelPress | undefined = editable ? undefined : openLabel;
   const finishOn = captionFields.includes('finish');
   // An art view reads card metadata too: which cards are full art, and the stock card's text.
-  const { catalog } = useCatalog(captionOn || !!page.artView);
+  // THE PAGE'S VIEW: its own, else the binder's (artView.ts resolveArtView). A pocket may still
+  // say otherwise below, unless the page is connected, which is the sheet's shape.
+  const pageView = resolveArtView(page.artView, pageStyle?.artView);
+  const { catalog } = useCatalog(captionOn || !!pageView || page.slots.some((s) => s.artView === 'window'));
   // The price caption reads from a separate per-card summary (~2.7MB) — load it only when the
   // Price label is actually turned on, so a plain binder view never pulls it.
   const priceOn = captionFields.includes('price');
@@ -446,7 +449,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
    * continues onto the next has to meet itself. The sheet is shorter than a page of cards, so it
    * is centred on the page (sheetTop below) and the page keeps its height.
    */
-  const connected = page.artView === 'connected';
+  const connected = pageView === 'connected';
   // The sheet's cut (artView.ts connectedCut): the art inside the border when every card is full art.
   const cut: ConnectedCut = connected
     ? connectedCut(page.slots.map((s) => (s.type === 'card' ? resolveCatalogCardWith(catalog, s.cardId) : undefined)))
@@ -795,7 +798,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               ring={matColor}
               ringPad={ringPad}
               label={label}
-              artView={page.artView ?? undefined}
+              artView={connected ? 'connected' : resolveArtView(slot.artView, page.artView, pageStyle?.artView)}
               cut={cut}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             chipScale={chipScale}
@@ -1007,7 +1010,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               ring={matColor}
               ringPad={ringPad}
               label={label}
-              artView={page.artView ?? undefined}
+              artView={connected ? 'connected' : resolveArtView(dragged.artView, page.artView, pageStyle?.artView)}
               cut={cut}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
             chipScale={chipScale}

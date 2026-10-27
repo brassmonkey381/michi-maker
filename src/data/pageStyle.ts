@@ -18,9 +18,11 @@
  *
  * PURE, importing nothing from react-native, so `node --test` can reach all of it.
  */
+import { type ArtViewSetting, normalizeArtViewSetting } from './artView.ts';
 import { binderPreset } from './binderPresets.ts';
 
 /** The stitching on the page: none, one thread along every seam, or two. */
+
 export type PageMaterial = 'classic' | 'stitch' | 'double';
 
 export const PAGE_MATERIALS: { id: PageMaterial; label: string; blurb: string }[] = [
@@ -62,6 +64,8 @@ export interface PageStyle {
   sleeve?: string;
   /** Every art piece sits on a backing of this colour, #rrggbb. Absent means none. */
   artBacking?: string;
+  /** How every page shows its cards unless a page or pocket says otherwise (artView.ts). Absent means the full card. */
+  artView?: ArtViewSetting;
   /** The binder's hardware. Absent means a plain binder. */
   details?: BinderDetails;
   /**
@@ -134,7 +138,7 @@ const SPINES = new Set<string>(SPINE_STYLES.map((s) => s.id));
  */
 export function normalizePageStyle(value: unknown): PageStyle | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const raw = value as { binder?: unknown; material?: unknown; sleeve?: unknown; artBacking?: unknown; details?: unknown; thread?: unknown };
+  const raw = value as { binder?: unknown; material?: unknown; sleeve?: unknown; artBacking?: unknown; artView?: unknown; details?: unknown; thread?: unknown };
   const out: PageStyle = {};
   if (typeof raw.binder === 'string' && binderPreset(raw.binder)) out.binder = raw.binder;
   let material = typeof raw.material === 'string' ? raw.material : undefined;
@@ -149,6 +153,8 @@ export function normalizePageStyle(value: unknown): PageStyle | undefined {
   if (sleeve) out.sleeve = sleeve;
   const artBacking = normalizeSurface(raw.artBacking);
   if (artBacking) out.artBacking = artBacking;
+  const artView = normalizeArtViewSetting(raw.artView);
+  if (artView && artView !== 'card') out.artView = artView; // 'card' is the default; nothing to store
   const details = normalizeDetails(raw.details, legacyZip);
   if (details) out.details = details;
   const thread = normalizeThread(raw.thread);
@@ -189,6 +195,7 @@ export interface PageStylePatch {
   material?: PageMaterial | null;
   sleeve?: string | null;
   artBacking?: string | null;
+  artView?: ArtViewSetting | null;
   /** `zip: null` removes the zip; `zip: {}` adds one with the defaults; fields inside merge. */
   zip?: { pull?: string | null; track?: ZipTrack | null } | null;
   spine?: SpineStyle | null;
@@ -202,7 +209,7 @@ export interface PageStylePatch {
  */
 export function withPageStyle(current: PageStyle | undefined | null, patch: PageStylePatch): PageStyle | undefined {
   const next: Record<string, unknown> = { ...(current ?? {}) };
-  for (const key of ['binder', 'material', 'sleeve', 'artBacking'] as const) {
+  for (const key of ['binder', 'material', 'sleeve', 'artBacking', 'artView'] as const) {
     if (patch[key] === undefined) continue;
     if (patch[key] === null) delete next[key];
     else next[key] = patch[key];

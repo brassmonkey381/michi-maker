@@ -23,7 +23,9 @@ import { BINDER_PRESETS } from '@/data/binderPresets';
 import { coverForPreset, coverLabel } from '@/data/presetCovers';
 import { reflowSummary } from '@/data/pageReflow';
 import { Palette } from '@/constants/theme';
+import { ART_VIEWS } from '@/data/artView';
 import { SPINE_STYLES, WEAR_NONE, isImageRef } from '@/data/pageStyle';
+import { hasArtViews } from '@/data/tiers';
 import { isBlankPage, useBinders } from '@/store/binders';
 
 const PAGE_SIZE_OPTIONS = REAL_PAGE_SIZES.map((s) => ({ id: s.label, label: s.label, rows: s.rows, cols: s.cols }));
@@ -257,6 +259,20 @@ export function BinderLook({
           onChange={(artBacking) => store.setPageStyle(binder.id, { artBacking })}
           testID="binder-backing"
         />
+        {/* THE ART VIEW FOR THE WHOLE BINDER (owner, 2026-10-27; artView.ts): every page shows
+            its cards this way unless a page or a pocket says otherwise. PRO's, like the page's. */}
+        <Row label={hasArtViews(store.tier) ? 'Art view' : 'Art view \u00b7 PRO'} testID="binder-art-view">
+          <View style={hasArtViews(store.tier) ? undefined : local.locked}>
+            <Seg
+              options={ART_VIEWS}
+              value={ps?.artView ?? 'card'}
+              onChange={(id) => {
+                if (!hasArtViews(store.tier)) return;
+                store.setPageStyle(binder.id, { artView: id === 'card' ? null : id });
+              }}
+            />
+          </View>
+        </Row>
       </Group>
       {/* ONE TRACK PER BINDER (owner, 2026-10-14). It plays from the first page to the last. */}
       <Group title="Soundtrack" note="Plays while anyone has this binder open." testID="binder-group-soundtrack">

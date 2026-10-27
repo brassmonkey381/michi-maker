@@ -96,3 +96,19 @@ test('the download is described file by file from the counts, and the read-me co
   assert.equal(describeFiles(collectFillTiles(binder([]), cards).counts).length, 0);
   assert.equal(describeDownload([]), 'Nothing to print');
 });
+
+test('mats follow the art view at every level: the binder, a page saying card, a pocket saying window or card', () => {
+  const windowed = { ...binder([
+    { id: 'p1', rows: 3, cols: 3, slots: [slot('w1', 0, 0), slot('w2', 0, 1)] },
+    { id: 'p2', rows: 3, cols: 3, artView: 'card', slots: [slot('w1', 0, 0)] },
+  ]), pageStyle: { artView: 'window' as const } };
+  const { tiles, counts } = collectFillTiles(windowed, cards, undefined, 'black');
+  assert.equal(counts.mats, 2, 'the binder-wide window mats every pocket of the plain page; the page that says card gets none');
+  assert.deepEqual(tiles.filter((t): t is MatTile => t.kind === 'mat').map((m) => m.page), [1, 1]);
+  const pockets = binder([
+    { id: 'p1', rows: 3, cols: 3, slots: [slot('w1', 0, 0, { artView: 'window' }), slot('w2', 0, 1)] },
+    { id: 'p2', rows: 3, cols: 3, artView: 'window', slots: [slot('w1', 0, 0, { artView: 'card' }), slot('w2', 0, 1)] },
+  ]);
+  const mats = collectFillTiles(pockets, cards, undefined, 'white').tiles.filter((t): t is MatTile => t.kind === 'mat');
+  assert.deepEqual(mats.map((m) => [m.page, m.col]), [[1, 1], [2, 2]], 'one windowed pocket on a plain page, one whole card kept on a windowed page');
+});

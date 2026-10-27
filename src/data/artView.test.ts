@@ -103,3 +103,18 @@ test('a connected page cuts whole only when every card it knows is full art', ()
   assert.equal(connectedCellAspect('full'), ART_FULL_H_OVER_W);
   assert.equal(connectedCellAspect('window'), ART_WINDOW_H_OVER_W);
 });
+
+test('the art view resolves pocket over page over binder, and a stored card is the full card said out loud', async () => {
+  const { resolveArtView, normalizeArtViewSetting, normalizePocketArtView, PAGE_ART_VIEWS, POCKET_ART_VIEWS } = await import('./artView.ts');
+  assert.equal(resolveArtView(undefined, undefined, 'window'), 'window', 'the binder alone');
+  assert.equal(resolveArtView(undefined, 'card', 'window'), undefined, 'a plain page inside a windowed binder');
+  assert.equal(resolveArtView('window', 'card', undefined), 'window', 'a windowed pocket on a plain page');
+  assert.equal(resolveArtView('card', 'window', 'window'), undefined, 'a whole card on a windowed page');
+  assert.equal(resolveArtView(null, null, 'connected'), 'connected');
+  assert.equal(resolveArtView(), undefined);
+  assert.equal(normalizeArtViewSetting('card'), 'card');
+  assert.equal(normalizeArtViewSetting('nope'), undefined);
+  assert.equal(normalizePocketArtView('connected'), undefined, 'connected is a page shape, never a pocket choice');
+  assert.deepEqual(PAGE_ART_VIEWS.map((v) => v.id), ['inherit', 'card', 'window', 'connected']);
+  assert.deepEqual(POCKET_ART_VIEWS.map((v) => v.id), ['inherit', 'card', 'window']);
+});

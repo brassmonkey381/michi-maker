@@ -10,7 +10,10 @@
 import type { ArtAttribution } from '@/data/artworkLibrary';
 import type { PageStyle } from '@/data/pageStyle';
 import type { CoverSurfaceId } from '@/data/binderModels';
-import type { ArtView } from '@/data/artView';
+import type { ArtViewSetting, PocketArtView } from '@/data/artView';
+
+/** What a pocket may wear or show for itself: each field set, cleared with null, or left alone. */
+export type SlotStylePatch = { sleeve?: string | null; artBacking?: string | null; artView?: PocketArtView | null };
 import type { BinderSlotType, CardOrientation, MichiLayoutStyle } from '@/types/domain';
 
 export type { BinderSlotType, CardOrientation, MichiLayoutStyle };
@@ -115,6 +118,12 @@ export interface DemoSlot {
    */
   sleeve?: string | null;
   artBacking?: string | null;
+  /**
+   * THIS POCKET'S OWN art view (artView.ts): 'window' for the illustration on a stock card,
+   * 'card' for the whole card even on a windowed page. Absent or null falls through to the
+   * page's, then the binder's (owner, 2026-10-27). A connected page overrides it.
+   */
+  artView?: PocketArtView | null;
   /**
    * True when this pocket was filled FROM the owner's card inventory ("My collection" /
    * fill-from-my-collection) — it consumes one owned copy in the (free/owned) accounting and
@@ -316,10 +325,11 @@ export interface DemoPage {
   sleeve?: string | null;
   artBacking?: string | null;
   /**
-   * How this page shows its cards: the art window on a stock card, or the windows edge to edge.
-   * Absent or null is the full card. See src/data/artView.ts.
+   * How this page shows its cards: the art window on a stock card, the windows edge to edge, or
+   * 'card' for the full card even in a windowed binder. Absent or null is whatever the binder
+   * says (PageStyle.artView), which is the full card unless set. See src/data/artView.ts.
    */
-  artView?: ArtView | null;
+  artView?: ArtViewSetting | null;
   /**
    * Whether the page is visible to public viewers of a public binder. Absent ⇒ public (the DB
    * default). A private page is hidden from everyone but the owner even inside a public binder.

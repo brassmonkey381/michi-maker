@@ -20,7 +20,7 @@ import { ColorBox, PillButton, Row, Seg, WearRow } from '@/components/binder/ins
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BinderSurface, FontSize, Palette, Radius, Shadows, Weight } from '@/constants/theme';
-import { ART_VIEWS } from '@/data/artView';
+import { ART_VIEWS, PAGE_ART_VIEWS, resolveArtView } from '@/data/artView';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 import { isImageRef, resolveWear } from '@/data/pageStyle';
 import { useBinders } from '@/store/binders';
@@ -72,8 +72,10 @@ export function PageWearBar({
   const [cardH, setCardH] = useState(CARD_H_GUESS);
   const refs = { background: useRef<ViewType>(null), sleeve: useRef<ViewType>(null), artBacking: useRef<ViewType>(null) };
   const artViewRef = useRef<ViewType>(null);
-  const artView = page.artView ?? 'card';
-  const artViewLabel = ART_VIEWS.find((v) => v.id === artView)?.label ?? 'Full card';
+  // The page's own choice (or the binder's, inherited) and what that comes to on screen.
+  const artView = page.artView ?? 'inherit';
+  const shownView = resolveArtView(page.artView, binder.pageStyle?.artView) ?? 'card';
+  const artViewLabel = ART_VIEWS.find((v) => v.id === shownView)?.label ?? 'Full card';
 
   const background = page.backgroundColor ?? BinderSurface.mat;
   const bgPictured = isImageRef(background);
@@ -126,9 +128,9 @@ export function PageWearBar({
             accessibilityRole="button"
             accessibilityLabel={`Art view on this page: ${artViewLabel}. Change`}
             testID="page-bar-artView"
-            style={({ pressed }) => [styles.chip, artView !== 'card' && styles.chipOn, pressed && styles.pressed]}>
-            <Text style={[styles.chipGlyph, artView !== 'card' && styles.chipTextOn]}>{'◫'}</Text>
-            <Text style={[styles.chipText, artView !== 'card' && styles.chipTextOn]}>Art view</Text>
+            style={({ pressed }) => [styles.chip, shownView !== 'card' && styles.chipOn, pressed && styles.pressed]}>
+            <Text style={[styles.chipGlyph, shownView !== 'card' && styles.chipTextOn]}>{'◫'}</Text>
+            <Text style={[styles.chipText, shownView !== 'card' && styles.chipTextOn]}>Art view</Text>
           </Pressable>
         ) : null}
         {select ? (
@@ -206,19 +208,19 @@ export function PageWearBar({
               // the art edge to edge. The same picker as the page fields, where it also lives.
               <View style={artViews?.locked ? styles.locked : undefined}>
                 <Seg
-                  options={ART_VIEWS}
+                  options={PAGE_ART_VIEWS}
                   value={artView}
                   onChange={(id) => {
                     if (artViews?.locked) {
                       artViews.onLocked();
                       return;
                     }
-                    store.updatePage(binder.id, page.id, { artView: id === 'card' ? null : id });
+                    store.updatePage(binder.id, page.id, { artView: id === 'inherit' ? null : id });
                     setOpen(null);
                   }}
                 />
                 <ThemedText type="small" themeColor="textSecondary" style={styles.blurb}>
-                  {ART_VIEWS.find((v) => v.id === artView)?.blurb}
+                  {artView === 'inherit' ? `Use binder\u2019s: ${artViewLabel.toLowerCase()} here. Set it for the whole binder behind the gear.` : PAGE_ART_VIEWS.find((v) => v.id === artView)?.blurb}
                 </ThemedText>
               </View>
             ) : (

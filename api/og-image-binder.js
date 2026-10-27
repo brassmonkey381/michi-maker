@@ -115,7 +115,10 @@ async function fetchBinder(id) {
   // THE ART VIEW (owner, 2026-10-26): a page shown as its illustrations (binder_pages.art_view,
   // src/data/artView.ts) shares that way too. Asked for first; a database without the column
   // answers 400 and the selects below still draw the page as cards.
-  const viewed = looked.replace('binder_pages(id,position,rows,cols,', 'binder_pages(id,position,rows,cols,art_view,');
+  const viewed = looked
+    .replace('binder_pages(id,position,rows,cols,', 'binder_pages(id,position,rows,cols,art_view,')
+    // 2026-10-27: a pocket's own art view (binder_slots.art_view), over the page's and the binder's.
+    .replace('sleeve,art_backing))', 'sleeve,art_backing,art_view))');
   for (const select of [`share_page_ids,${viewed}`, `share_page_ids,${looked}`, `share_page_ids,${styled}`, `share_page_ids,${base}`, base]) {
     const url = `${SUPABASE_URL}/rest/v1/binders?id=eq.${encodeURIComponent(
       id,
@@ -361,7 +364,7 @@ const FACT_COLS = 'id,name,number,rarity,set_name,series,release_date,illustrato
  * art view gets nothing and costs nothing; a failed read leaves the windows without their text.
  */
 async function loadFacts(pages) {
-  const viewed = (pages || []).filter((p) => p.art_view === 'window' || p.art_view === 'connected');
+  const viewed = (pages || []).filter((p) => p.art_view === 'window' || p.art_view === 'connected' || (p.binder_slots || []).some((s) => s.art_view === 'window'));
   if (!viewed.length) return;
   const ids = new Set();
   for (const p of viewed) for (const s of p.binder_slots || []) if (s.card_id) ids.add(String(s.card_id));
@@ -733,9 +736,11 @@ function pageGrid(page, cw, ch, manifest, art, look) {
     const cs = Math.max(1, Math.min(Math.trunc(s.col_span) || 1, cols - c));
     for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) covered.add(`${r + i}:${c + j}`);
     const a = slotArt(s, manifest, art);
-    const fact = windowed && s.card_id && page.facts ? page.facts.get(String(s.card_id)) : null;
+    // THE POCKET'S OWN VIEW (2026-10-27, artView.ts resolveArtView): 'window' or 'card' over the page's.
+    const windowedHere = s.art_view === 'window' ? true : s.art_view === 'card' ? false : windowed;
+    const fact = windowedHere && s.card_id && page.facts ? page.facts.get(String(s.card_id)) : null;
     // THE ART VIEW: a windowed card's illustration on a stock card; a full-art card stays a card.
-    const stock = windowed && a && !a.artwork && !a.hero && !isFullArtFact(fact);
+    const stock = windowedHere && a && !a.artwork && !a.hero && !isFullArtFact(fact);
     boxes.push(
       stock
         ? stockCard(c * colStep, r * rowStep, cs * cw + (cs - 1) * GAP, rs * ch + (rs - 1) * GAP, a, fact, look ? pocketWear(look, s, a, cw) : null)
@@ -1815,6 +1820,15 @@ module.exports = async (req, res) => {
       if (binder) {
         cover = manifestUrl(manifest, binder.cover_card_id, 'image') || cover;
         const pages = pickPages(binder);
+        // THE ART VIEW AT THREE LEVELS (2026-10-27, artView.ts resolveArtView): the binder's
+        // page_style.artView under every page, a page's own art_view over it, 'card' meaning the
+        // full card. Resolved onto each page here so the frames read one value a page; a pocket's
+        // own art_view is read where the pocket is drawn (pageGrid).
+        const binderView = (binder && binder.page_style && binder.page_style.artView) || null;
+        for (const p of pages) {
+          const v = p.art_view || binderView;
+          p.art_view = v === 'window' || v === 'connected' ? v : null;
+        }
         const [art] = await Promise.all([loadArt(pages, look ? binder : null), loadFacts(pages)]);
         // Only compose when at least one pocket actually resolves to an image — otherwise
         // an all-blank page is worse than the cover fallback.

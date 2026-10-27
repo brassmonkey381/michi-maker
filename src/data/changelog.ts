@@ -135,6 +135,30 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'The art view for the whole binder, a page, or a pocket',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The art view used to be set page by page. Now the binder has one setting behind the gear, '
+          + 'under Pockets, and every page follows it; a page can still say otherwise, and so can '
+          + 'a single pocket or every selected pocket at once, the way sleeves work. A pocket '
+          + 'chooses the full card or the art window; connected art stays a page’s shape. '
+          + 'Mats and shared pictures follow the same choices. A collector binder made with an '
+          + 'art window sets it once for the binder.',
+      },
+      {
+        products: ['michi'],
+        head: 'Collector binders for every game',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'Collect now starts with the game: Pokémon, One Piece, Disney Lorcana, Riftbound, Digimon, '
+          + 'Magic and the rest the card picker offers. Pick a game, search its set, and the '
+          + 'complete set becomes a binder the same way, plain pages or michi layouts. The '
+          + 'Pokémon-only shapes stay with Pokémon.',
+      },
+      {
+        products: ['michi'],
         head: 'Collector binders: one choice for the pages',
         kind: 'better',
         area: 'binders',

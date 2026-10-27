@@ -60,6 +60,7 @@ import {
   type DemoSlot,
   type ImageTransform,
   type MichiLayoutStyle,
+  type SlotStylePatch,
 } from '@/data/binderTypes';
 import { mergeSlices, splitSlice, type MergeResult } from '@/data/sliceMerge';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
@@ -251,9 +252,9 @@ interface BinderStore {
   /** The page material, sleeve and art backing, merged (null clears a field). See pageStyle.ts. */
   setPageStyle: (binderId: string, patch: PageStylePatch) => void;
   /** One pocket's own sleeve or art backing; null hands it back to the page's, then the binder's. */
-  setSlotStyle: (binderId: string, pageId: string, slotId: string, patch: { sleeve?: string | null; artBacking?: string | null }) => void;
+  setSlotStyle: (binderId: string, pageId: string, slotId: string, patch: SlotStylePatch) => void;
   /** The same for several pockets at once (the multi-selection): one commit, one undo step. */
-  setSlotsStyle: (binderId: string, pageId: string, slotIds: string[], patch: { sleeve?: string | null; artBacking?: string | null }) => void;
+  setSlotsStyle: (binderId: string, pageId: string, slotIds: string[], patch: SlotStylePatch) => void;
   /** Re-frame a placed art pocket: a new picture, window, fit or transform, same pocket. */
   setSlotArt: (
     binderId: string,
@@ -1400,7 +1401,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   const setSlotStyle = useCallback(
-    (binderId: string, pageId: string, slotId: string, patch: { sleeve?: string | null; artBacking?: string | null }) => {
+    (binderId: string, pageId: string, slotId: string, patch: SlotStylePatch) => {
       const target = binders.find((binder) => binder.id === binderId);
       const page = target?.pages.find((p) => p.id === pageId);
       const slot = page?.slots.find((sl) => sl.id === slotId);
@@ -1420,7 +1421,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   const setSlotsStyle = useCallback(
-    (binderId: string, pageId: string, slotIds: string[], patch: { sleeve?: string | null; artBacking?: string | null }) => {
+    (binderId: string, pageId: string, slotIds: string[], patch: SlotStylePatch) => {
       const target = binders.find((binder) => binder.id === binderId);
       const page = target?.pages.find((p) => p.id === pageId);
       if (!target || !page) return;

@@ -15,7 +15,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { requireSupabase } from '@/lib/supabase';
 import type { Database, Json } from '@/types/database';
-import { normalizeArtView } from '@/data/artView';
+import { normalizeArtViewSetting, normalizePocketArtView } from '@/data/artView';
 import type { BinderCover, BinderTrack, DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
 import { normalizeCover } from '@/data/coverDecorations';
 import { isImageRef, normalizePageStyle, normalizeSurface, normalizeWear } from '@/data/pageStyle';
@@ -113,6 +113,7 @@ function slotRow(slot: DemoSlot, pageId: string | null, binderId?: string): Tabl
     finish: slot.finish ?? null,
     ...(slot.sleeve !== undefined ? { sleeve: slot.sleeve } : {}),
     ...(slot.artBacking !== undefined ? { art_backing: slot.artBacking } : {}),
+    ...(slot.artView !== undefined ? { art_view: slot.artView } : {}),
   };
 }
 
@@ -139,6 +140,7 @@ interface SlotRowIn {
   finish?: string | null;
   sleeve?: string | null;
   art_backing?: string | null;
+  art_view?: string | null;
   updated_at?: string;
 }
 
@@ -224,6 +226,7 @@ function mapSlot(row: SlotRowIn): DemoSlot {
     finish: row.finish ?? undefined,
     sleeve: normalizeWear(row.sleeve),
     artBacking: normalizeWear(row.art_backing),
+    artView: normalizePocketArtView(row.art_view),
   };
 }
 
@@ -244,7 +247,7 @@ function mapPage(row: PageRowIn): DemoPage {
     backgroundColor: normalizeSurface(row.background_color),
     sleeve: normalizeWear(row.sleeve),
     artBacking: normalizeWear(row.art_backing),
-    artView: normalizeArtView(row.art_view),
+    artView: normalizeArtViewSetting(row.art_view),
     isPublic: row.is_public,
     track: trackOf(row.track),
     slots,

@@ -594,6 +594,18 @@ export function BinderScreen({
   }, [editing]);
 
   const binder = store.getBinder(binderId);
+  // The facing page of the open spread (BinderPages pairs 2·3, 4·5, …; page 1 faces the cover),
+  // offered to Arrange when the binder is double-sided. MEMOISED: a fresh object literal here was
+  // a new prop every render, and the sheet re-read the cards, re-fetched depth words and re-ran
+  // the arranger on each one (owner, 2026-10-27: "stalling the webapp"). Here, right after the
+  // binder, before its guard returns; `idx` itself is derived after that guard.
+  const arrangeFacing = useMemo<{ page: DemoPage; side: 'left' | 'right' } | null>(() => {
+    if (!view.doubleSided || !binder) return null;
+    const i = Math.min(pageIndex, binder.pages.length - 1);
+    if (i <= 0) return null;
+    const p = binder.pages[i % 2 === 1 ? i + 1 : i - 1];
+    return p ? { page: p, side: i % 2 === 1 ? 'right' : 'left' } : null;
+  }, [view.doubleSided, binder, pageIndex]);
   /**
    * THE FIRST-POCKET WALKTHROUGH (src/data/firstPocketWalkthrough.ts). One ring and one line,
    * shown once ever, to the people the analytics found: they open a new binder, tap a pocket, and
@@ -3138,7 +3150,7 @@ export function BinderScreen({
             page={page}
             // The facing page of the open spread (BinderPages pairs 2·3, 4·5, …; page 1 faces the
             // cover), offered when the binder is double-sided. The sheet checks the shapes match.
-            facing={view.doubleSided && idx > 0 ? (idx % 2 === 1 ? (nextPage ? { page: nextPage, side: 'right' } : null) : prevPage ? { page: prevPage, side: 'left' } : null) : null}
+            facing={arrangeFacing}
             onPreview={setArrangePreview}
             onClose={() => {
               setArrangeOpen(false);

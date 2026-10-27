@@ -98,7 +98,9 @@ export function ArrangeSheet({
   const [wantSpread, setWantSpread] = useState(false);
   const spread = canSpread && wantSpread;
   // Book order: the left leaf first.
-  const pages = useMemo(() => (spread && facing ? (facing.side === 'left' ? [facing.page, page] : [page, facing.page]) : [page]), [spread, facing, page]);
+  const facingPage = facing?.page ?? null;
+  const facingSide = facing?.side ?? null;
+  const pages = useMemo(() => (spread && facingPage ? (facingSide === 'left' ? [facingPage, page] : [page, facingPage]) : [page]), [spread, facingPage, facingSide, page]);
   const rows = page.rows;
   const cols = page.cols;
 

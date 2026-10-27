@@ -101,6 +101,8 @@ travels best for paper products. Print one set of mats for a chase page and film
 
 ## Standing out on Instagram, ranked by odds of being reshared
 
+**Owner's call (2026-10-27):** 1, 2, 3 and 5 are go. 4 (build timelapses) is a maybe, last.
+
 1. **The set as a binder, the morning it lands.** The only account that can. Make it a named
    series ("Day One Binder") so followers know to look for it the morning a set appears.
 2. **The chase page with prices, day 1 vs day 7.** Price movement is the most shared card content

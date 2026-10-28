@@ -135,6 +135,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'The left menu in four groups, with a glyph on every line',
+        kind: 'better',
+        area: 'account',
+        body:
+          'Make, Explore, Learn and Account, in the order you reach for them: My Binders is first, '
+          + 'and the vote and feedback pages close the list. Home is the wordmark now, and Collector '
+          + 'Binders is called Set Binders in the menu. The phone drawer has the same groups.',
+      },
+      {
+        products: ['michi'],
         head: 'The share picture asks first: soft or clean, art views or full cards',
         kind: 'better',
         area: 'sharing',

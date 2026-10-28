@@ -9,7 +9,16 @@
  */
 import { usePathname, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Pressable,
+  type PressableStateCallbackType,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { LogoMark } from '@/components/brand/LogoMark';
 import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
@@ -18,7 +27,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { freshPinned } from '@/data/changelog';
-import { NAV_EXPLORE, NAV_YOU, navHiddenOn, type NavItem } from '@/components/nav/navItems';
+import { NavIcon } from '@/components/nav/NavIcon';
+import { navGroups, navHiddenOn, type NavGroup, type NavItem } from '@/components/nav/navItems';
 import { useAuth } from '@/store/auth';
 
 /**
@@ -32,13 +42,12 @@ import { useAuth } from '@/store/auth';
  */
 type RailItem = NavItem;
 
-// Two groups: "Explore" (discovery + info) and "You" (the account's own stuff). Both come from
-// nav/navItems; only the What's New glow is decided here, because it depends on state the list
-// itself should not carry. The sister-app link (Scan Cards) lives in the list since 2026-10-13.
-const EXPLORE: RailItem[] = NAV_EXPLORE.map((i) =>
-  i.label === 'What’s New' ? { ...i, glow: freshPinned().length > 0 } : i,
-);
-const YOU: RailItem[] = NAV_YOU;
+// Four groups (Make, Explore, Learn, Account) from nav/navItems; only the What's New glow is
+// decided here, because it depends on state the list itself should not carry.
+const GROUPS: NavGroup[] = navGroups(freshPinned().length > 0);
+
+/** react-native-web reports hover in the style callback; the RN type does not promise it. */
+const hovered = (state: PressableStateCallbackType) => !!(state as { hovered?: boolean }).hovered;
 
 export function AppRail() {
   const { width } = useWindowDimensions();
@@ -62,9 +71,9 @@ export function AppRail() {
         </ThemedText>
       </Pressable>
 
-      <RailGroup label="Explore" items={EXPLORE} pathname={pathname} onNavigate={router.push} />
-      <View style={styles.groupGap} />
-      <RailGroup label="You" items={YOU} pathname={pathname} onNavigate={router.push} />
+      {GROUPS.map((g, n) => (
+        <RailGroup key={g.label} label={g.label} items={g.items} first={n === 0} pathname={pathname} onNavigate={router.push} />
+      ))}
 
       <View style={styles.grow} />
 
@@ -93,14 +102,22 @@ export function AppRail() {
   );
 }
 
+/**
+ * ONE GROUP: a small-caps label over a hairline (the first group has no rule; the wordmark is its
+ * rule), then the rows. A row is glyph, label, and for a lit item the chevron. The active row is
+ * a filled panel with a 3 px accent bar down its left edge, so "you are here" reads from the edge
+ * of the rail before the eye reaches the words; a hovered row gets the panel without the bar.
+ */
 function RailGroup({
   label,
   items,
+  first,
   pathname,
   onNavigate,
 }: {
   label: string;
   items: RailItem[];
+  first: boolean;
   pathname: string;
   onNavigate: (href: Href) => void;
 }) {
@@ -108,44 +125,56 @@ function RailGroup({
   // and opens tcgscan.ai in a new tab. Only the group holding it ever shows a pending state.
   const { opening, open } = useTcgscanOpen();
   return (
-    <>
+    <View style={[styles.group, !first && styles.groupRuled]} accessibilityRole="list" accessibilityLabel={label}>
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.groupLabel}>
         {label}
       </ThemedText>
       <View style={styles.items}>
         {items.map((item) => {
           const active = item.match(pathname);
+          const busy = !!item.external && opening;
+          const lit = active || !!item.glow;
           return (
             <Pressable
               key={item.label}
               onPress={() => (item.external ? open(String(item.href), { newTab: item.newTab }) : onNavigate(item.href))}
-              disabled={item.external && opening}
+              disabled={busy}
               accessibilityRole="link"
-              accessibilityState={{ selected: active, busy: item.external && opening }}
+              accessibilityState={{ selected: active, busy }}
               testID={item.glow ? 'rail-item-glow' : undefined}
-              style={({ pressed }) => [
+              style={(state) => [
                 styles.item,
+                hovered(state) && !active && styles.itemHover,
                 active && styles.itemActive,
-                item.glow && styles.itemGlow,
-                (pressed || (item.external && opening)) && styles.pressed,
+                (state.pressed || busy) && styles.pressed,
               ]}>
               {item.glow ? <Glow /> : null}
+              {active ? <View style={styles.itemBar} /> : null}
               <ThemedText
-                type={active || item.glow ? 'smallBold' : 'small'}
-                themeColor={active || item.glow ? undefined : 'textSecondary'}
-                style={[styles.itemText, item.glow && styles.itemTextGlow]}>
+                themeColor={lit ? undefined : 'textSecondary'}
+                style={[styles.itemIcon, item.glow && styles.itemTextGlow]}>
+                <NavIcon name={item.icon} />
+              </ThemedText>
+              <ThemedText
+                type={lit ? 'smallBold' : 'small'}
+                themeColor={lit ? undefined : 'textSecondary'}
+                style={[styles.itemText, item.glow && styles.itemTextGlow]}
+                numberOfLines={1}>
                 {/* The Scan Cards link mints a sign-in ticket before it navigates; it says so while
                     that is happening rather than looking like a link that missed the press. */}
-                {item.external && opening ? 'Opening…' : item.label}
+                {busy ? 'Opening…' : item.label}
               </ThemedText>
-              {item.glow ? (
-                <ThemedText style={[styles.itemText, styles.itemTextGlow, styles.chevron]}>›</ThemedText>
+              {item.external && !busy ? (
+                <ThemedText themeColor="textSecondary" style={styles.external}>
+                  ↗
+                </ThemedText>
               ) : null}
+              {item.glow ? <ThemedText style={[styles.itemText, styles.itemTextGlow, styles.chevron]}>›</ThemedText> : null}
             </Pressable>
           );
         })}
       </View>
-    </>
+    </View>
   );
 }
 
@@ -221,36 +250,59 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.five,
   },
   wordmark: { fontFamily: Fonts?.brand, fontSize: FontSize.md, fontWeight: Weight.bold },
+  group: { paddingBottom: Spacing.three },
+  // The rule sits above the label, not under it: a line under a heading cuts it off from its own
+  // rows, a line above it closes the group before.
+  groupRuled: { borderTopWidth: 1, borderTopColor: Palette.hairline, paddingTop: Spacing.three },
   groupLabel: {
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    fontSize: FontSize.sm,
-    paddingHorizontal: Spacing.two,
-    marginBottom: Spacing.two,
+    letterSpacing: 1.2,
+    fontSize: FontSize.xs,
+    lineHeight: 14,
+    opacity: 0.8,
+    paddingHorizontal: Spacing.two + Spacing.half,
+    marginBottom: Spacing.one + Spacing.half,
   },
-  items: { gap: 2 },
-  groupGap: { height: Spacing.four },
+  items: { gap: 1 },
   item: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Radius.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two + Spacing.half,
+    minHeight: 32,
+    paddingVertical: Spacing.one + Spacing.half,
+    paddingHorizontal: Spacing.two + Spacing.half,
+    borderRadius: Radius.control,
+    position: 'relative',
+    overflow: 'hidden',
   },
+  itemHover: { backgroundColor: Palette.selectionSoft },
   itemActive: { backgroundColor: Palette.panel },
-  itemGlow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', position: 'relative' },
+  itemBar: {
+    position: 'absolute',
+    left: 0,
+    top: 6,
+    bottom: 6,
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: Palette.accent,
+  },
   glowRing: {
     position: 'absolute',
     top: 0,
     right: 0,
     bottom: 0,
     left: 0,
-    borderRadius: Radius.pill,
+    borderRadius: Radius.control,
     borderWidth: 1,
     borderColor: Palette.accent,
     boxShadow: `0 0 12px ${Palette.accent}`,
   },
-  itemText: { fontSize: FontSize.label },
+  // The glyph takes the row's text colour: it is a ThemedText around an SVG in currentColor.
+  itemIcon: { width: 16, height: 16, lineHeight: 16 },
+  itemText: { fontSize: FontSize.label, flexShrink: 1 },
   itemTextGlow: { color: Palette.accent },
-  chevron: { fontSize: FontSize.md, lineHeight: 18, marginLeft: Spacing.two },
+  external: { fontSize: FontSize.sm, lineHeight: 14, marginLeft: 'auto', opacity: 0.7 },
+  chevron: { fontSize: FontSize.md, lineHeight: 18, marginLeft: 'auto' },
   grow: { flexGrow: 1 },
   bottom: {
     borderTopWidth: 1,

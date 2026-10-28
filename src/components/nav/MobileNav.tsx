@@ -7,10 +7,10 @@
  * text link, which on /browse was itself clipped off the right edge. Every other page relied on
  * the site footer, which is below the fold of a page you have not scrolled.
  *
- * WHY A DRAWER AND NOT TABS (owner, 2026-09-22). There are eleven destinations. A bottom tab bar
+ * WHY A DRAWER AND NOT TABS (owner, 2026-09-22). There are thirteen destinations (2026-10-27). A bottom tab bar
  * holds four or five, so it would mean picking favourites and hiding the rest behind a "More"
  * sheet anyway, and it costs permanent vertical space on a screen that is only 812 points tall.
- * A drawer holds all eleven, costs one tap, and reuses the rail's own list (nav/navItems).
+ * A drawer holds them all, costs one tap, and reuses the rail's own list (nav/navItems).
  *
  * WHY THE BUTTON IS BOTTOM-RIGHT and not a top bar. Every route already owns its top row and each
  * one differently: a back link and a wordmark on the document pages, a "Sign in" pill on My
@@ -29,7 +29,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { freshPinned } from '@/data/changelog';
-import { NAV_EXPLORE, NAV_YOU, navHiddenOn, type NavItem } from '@/components/nav/navItems';
+import { NavIcon } from '@/components/nav/NavIcon';
+import { navGroups, navHiddenOn, type NavItem } from '@/components/nav/navItems';
 
 export function MobileNav() {
   const { width } = useWindowDimensions();
@@ -111,9 +112,8 @@ export function MobileNav() {
   const railShowing = Platform.OS === 'web' && width >= Breakpoints.rail;
   if (railShowing || navHiddenOn(pathname)) return null;
 
-  const explore: NavItem[] = NAV_EXPLORE.map((i) =>
-    i.label === 'What’s New' ? { ...i, glow: freshPinned().length > 0 } : i,
-  );
+  // Four groups, the same as the rail's. Home is the head of the drawer, not a row.
+  const groups = navGroups(freshPinned().length > 0);
 
   return (
     <>
@@ -161,10 +161,22 @@ export function MobileNav() {
           <View style={[styles.drawerWrap, { paddingTop: insets.top }]}>
             <ThemedView type="backgroundElement" style={styles.drawer} testID="mobile-nav-drawer">
               <View style={styles.head}>
-                <LogoMark size={22} />
-                <ThemedText type="smallBold" style={styles.headText}>
-                  Michi-Maker
-                </ThemedText>
+                {/* The head is the Home link, as the wordmark is on the rail: there is no Home row
+                    in the groups any more (2026-10-27). */}
+                <Pressable
+                  onPress={() => {
+                    setOpen(false);
+                    router.push('/');
+                  }}
+                  accessibilityRole="link"
+                  accessibilityLabel="Michi-Maker home"
+                  testID="mobile-nav-home"
+                  style={({ pressed }) => [styles.headHome, pressed && styles.pressed]}>
+                  <LogoMark size={22} />
+                  <ThemedText type="smallBold" style={styles.headText}>
+                    Michi-Maker
+                  </ThemedText>
+                </Pressable>
                 <View style={styles.grow} />
                 <Pressable
                   onPress={() => setOpen(false)}
@@ -177,8 +189,9 @@ export function MobileNav() {
               </View>
 
               <ScrollView contentContainerStyle={[styles.list, { paddingBottom: Spacing.four + insets.bottom }]}>
-                <Group label="Explore" items={explore} pathname={pathname} onGo={go} opening={opening} />
-                <Group label="You" items={NAV_YOU} pathname={pathname} onGo={go} opening={opening} />
+                {groups.map((g, n) => (
+                  <Group key={g.label} label={g.label} items={g.items} first={n === 0} pathname={pathname} onGo={go} opening={opening} />
+                ))}
               </ScrollView>
             </ThemedView>
           </View>
@@ -191,18 +204,20 @@ export function MobileNav() {
 function Group({
   label,
   items,
+  first,
   pathname,
   onGo,
   opening,
 }: {
   label: string;
   items: NavItem[];
+  first: boolean;
   pathname: string;
   onGo: (item: NavItem) => void;
   opening: boolean;
 }) {
   return (
-    <View style={styles.group}>
+    <View style={[styles.group, !first && styles.groupRuled]}>
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.groupLabel}>
         {label.toUpperCase()}
       </ThemedText>
@@ -218,12 +233,17 @@ function Group({
             accessibilityState={{ selected: active, busy }}
             testID={`mobile-nav-${item.label}`}
             style={({ pressed }) => [styles.item, active && styles.itemActive, (pressed || busy) && styles.pressed]}>
+            {/* Web only: the glyph takes the label's colour. Native renders nothing here. */}
+            <ThemedText style={[styles.itemIcon, item.glow && styles.itemGlow]} themeColor={active ? undefined : 'textSecondary'}>
+              <NavIcon name={item.icon} size={18} />
+            </ThemedText>
             <ThemedText
               type={active || item.glow ? 'smallBold' : 'default'}
               style={[styles.itemText, item.glow && styles.itemGlow]}>
               {busy ? 'Opening…' : item.label}
             </ThemedText>
-            {item.glow ? <ThemedText style={[styles.itemText, styles.itemGlow]}>›</ThemedText> : null}
+            {item.external && !busy ? <ThemedText themeColor="textSecondary" style={styles.external}>↗</ThemedText> : null}
+            {item.glow ? <ThemedText style={[styles.itemText, styles.itemGlow, styles.chevron]}>›</ThemedText> : null}
           </Pressable>
         );
       })}
@@ -266,16 +286,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Palette.hairline,
   },
+  headHome: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   headText: { fontSize: FontSize.md },
   grow: { flexGrow: 1 },
   close: { fontSize: FontSize.lg, color: Palette.muted, paddingHorizontal: Spacing.one },
 
-  list: { paddingTop: Spacing.three, gap: Spacing.four },
-  group: { gap: 2 },
+  list: { paddingTop: Spacing.two, gap: 0 },
+  group: { gap: 2, paddingBottom: Spacing.three },
+  groupRuled: { borderTopWidth: 1, borderTopColor: Palette.hairline, paddingTop: Spacing.three },
   groupLabel: {
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    fontSize: FontSize.sm,
+    letterSpacing: 1.2,
+    fontSize: FontSize.xs,
+    lineHeight: 14,
+    opacity: 0.8,
     paddingHorizontal: Spacing.two,
     marginBottom: Spacing.one,
   },
@@ -283,16 +306,23 @@ const styles = StyleSheet.create({
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: Spacing.two + Spacing.half,
     minHeight: 48,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.two,
     borderRadius: Radius.control,
+    // The bar is a border, so every row carries an invisible one: the active row's glyph must
+    // not step 3 px to the right of its neighbours'.
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
   },
   // The drawer's own ground IS `backgroundElement`, and Palette.panel sits within a hair of it, so
   // an active row styled like the rail's was simply invisible here. A tinted accent plus a rule
   // down the edge says "you are here" against a raised surface in both schemes.
-  itemActive: { backgroundColor: Palette.selectionSoft, borderLeftWidth: 3, borderLeftColor: Palette.accent },
-  itemText: { fontSize: FontSize.control, fontWeight: Weight.medium },
+  itemActive: { backgroundColor: Palette.selectionSoft, borderLeftColor: Palette.accent },
+  itemIcon: { width: 18, height: 18, lineHeight: 18 },
+  itemText: { fontSize: FontSize.control, fontWeight: Weight.medium, flexShrink: 1 },
   itemGlow: { color: Palette.accent, fontWeight: Weight.semibold },
+  external: { fontSize: FontSize.sm, marginLeft: 'auto', opacity: 0.7 },
+  chevron: { marginLeft: 'auto' },
 });

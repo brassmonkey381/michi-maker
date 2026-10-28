@@ -55,15 +55,18 @@ export function Seg<T extends string>({
   value,
   onChange,
   labelOf,
+  wrap,
 }: {
   options: readonly { id: T; label: string; blurb?: string }[];
   value: T;
   onChange: (id: T) => void;
   /** The accessible name when the label alone does not say enough. */
   labelOf?: (o: { id: T; label: string; blurb?: string }) => string;
+  /** Lets a long row fold onto more lines instead of running out of its panel (the game row). */
+  wrap?: boolean;
 }) {
   return (
-    <View style={styles.segGroup}>
+    <View style={[styles.segGroup, wrap && styles.segGroupWrap]}>
       {options.map((o) => {
         const active = o.id === value;
         return (
@@ -312,6 +315,7 @@ export const styles = StyleSheet.create({
   inlineLabel: { minWidth: 76, marginRight: 2 },
   colorFieldBox: { width: 170 },
   segGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.panel, borderRadius: Radius.pill, padding: 2 },
+  segGroupWrap: { flexWrap: 'wrap', alignSelf: 'flex-start', borderRadius: Radius.control },
   seg: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill },
   segActive: {
     backgroundColor: Palette.surface,

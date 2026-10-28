@@ -242,6 +242,36 @@ export interface CollectorPocket {
 /** The language bound a collector binder is built under. */
 export type CollectorLanguage = 'en' | 'ja' | 'both';
 
+/**
+ * FIND A SET BY WHAT PEOPLE TYPE (owner, 2026-10-27: "when entering a set name or code, i'm not
+ * getting any results for the other TCGs"). The old test was name-contains or code-equals, which
+ * misses "OP-01" for OP01, "sv3" for sv3pt5, and a series name like "Booster Packs". Now:
+ *   1. the code, with punctuation and spaces ignored, as a prefix: "op-1" finds nothing but "op01"
+ *      and "OP 01" find Romance Dawn, and "sv3" finds sv3 and sv3pt5;
+ *   2. the name, word by word: every word typed must start a word of the name, so "scarlet vio"
+ *      finds Scarlet & Violet and "dawn" finds Romance Dawn;
+ *   3. the name as a plain substring, for anything the words rule misses.
+ * Exact code first, then name matches in catalogue order (newest first), capped at `limit`.
+ */
+export function matchSets<T extends { name: string; code: string }>(sets: readonly T[], query: string, limit = 8): T[] {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const qCode = squash(q);
+  const words = q.split(/\s+/).filter(Boolean);
+  const exact: T[] = [];
+  const rest: T[] = [];
+  for (const s of sets) {
+    const code = squash(s.code);
+    const name = s.name.toLowerCase();
+    if (qCode && code === qCode) exact.push(s);
+    else if (qCode.length >= 2 && code.startsWith(qCode)) rest.push(s);
+    else if (words.every((w) => name.split(/[^a-z0-9]+/).some((nw) => nw.startsWith(w)))) rest.push(s);
+    else if (name.includes(q)) rest.push(s);
+  }
+  return [...exact, ...rest].slice(0, limit);
+}
+
 /** Cards in the asked-for language; 'both' keeps every card. */
 export function inLanguage<T extends { language?: 'en' | 'ja' }>(cards: readonly T[], lang: CollectorLanguage): T[] {
   if (lang === 'both') return cards.slice();

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  matchSets,
   type CollectorCard, completeSet, dexNumber, evolutionLineSet, inLanguage, isSecretRare, livingDex, masterSet, MICHI_PAGE_TEMPLATES,
   facetOptions, familyFromEvolvesFrom, filterPockets, isFullArt, isPokemonCard, michiPages, naturalSortKey, NO_FILTERS, numberKey, pagesNeeded, POKEDEX, rarityRank, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesOf, speciesSet,
   withCameos,
@@ -242,4 +243,24 @@ test('filters narrow a result by facet, full art, Pokémon only and owned', () =
   assert.deepEqual(opts.series.map((o) => o.id), ['sv', 'wotc']);
   assert.deepEqual(opts.artists.map((o) => o.id), ['Nurikabe', 'Ken Sugimori', 'Mitsuhiro Arita']);
   assert.deepEqual(opts.types.map((o) => o.id), ['Fire', 'Water']);
+});
+
+test('matchSets finds a set by a loose code, by name words, or by a substring', () => {
+  const sets = [
+    { name: 'Romance Dawn', code: 'OP01' },
+    { name: 'Paramount War', code: 'OP02' },
+    { name: 'Scarlet & Violet', code: 'sv1' },
+    { name: 'Obsidian Flames', code: 'sv3' },
+    { name: '151', code: 'sv3pt5' },
+  ];
+  const names = (q: string) => matchSets(sets, q).map((s) => s.code);
+  assert.deepEqual(names('OP-01'), ['OP01'], 'punctuation in a code is ignored');
+  assert.deepEqual(names('op 01'), ['OP01'], 'so is a space');
+  assert.deepEqual(names('op'), ['OP01', 'OP02'], 'a code prefix lists the family');
+  assert.deepEqual(names('sv3'), ['sv3', 'sv3pt5'], 'the exact code leads its prefix matches');
+  assert.deepEqual(names('scarlet vio'), ['sv1'], 'every word typed starts a word of the name');
+  assert.deepEqual(names('dawn'), ['OP01'], 'a later word of the name is enough');
+  assert.deepEqual(names('151'), ['sv3pt5'], 'a name that is a number');
+  assert.deepEqual(names('x'), [], 'one character is too little to match on');
+  assert.deepEqual(names('zzz'), [], 'nothing invents a hit');
 });

@@ -135,6 +135,18 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Set Binders: the newest sets offered, and a looser set search',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Before you type, the page lists the newest sets of the game you picked, one tap each. '
+          + 'A code finds its set with or without the dash (OP-01, op01), a code prefix lists its '
+          + 'family (sv3 finds sv3 and sv3pt5), and a name matches word by word. When nothing '
+          + 'matches, the page says so and shows a code to try. The game row folds onto more '
+          + 'lines instead of running off the panel.',
+      },
+      {
+        products: ['michi'],
         head: 'The left menu in four groups, with a glyph on every line',
         kind: 'better',
         area: 'account',

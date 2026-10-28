@@ -33,7 +33,7 @@ import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Rad
 import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/binderTypes';
 import {
   COLLECTOR_KINDS, type CollectorFilters, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult,
-  type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionFamilies, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets,
+  type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionFamilies, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets, matchSets,
   inLanguage, isPokemonCard, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
 } from '@/data/collectorBinders';
 import { collectorPool, curateMaxPages, leftoverPockets, type TailOrder, titleTailPages } from '@/data/collectorCurate';
@@ -205,11 +205,15 @@ export default function CollectScreen() {
   // Every card once, for the species and dex shapes. The catalogue is load-once, so this is too.
   const allCards = useMemo(() => (catalog ? inLanguage(catalog.allSets().flatMap((s) => catalog.listCards(s.id)), lang) : []), [catalog, lang]);
 
-  const setHits = useMemo(() => {
-    if (!catalog || needs !== 'set' || query.trim().length < 2) return [];
-    const q = query.trim().toLowerCase();
-    return inLanguage(catalog.allSets(), lang).filter((s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase() === q).slice(0, 8);
-  }, [catalog, needs, query, lang]);
+  // The sets this game offers in this language, newest first. The matcher, the newest-sets
+  // suggestions and the placeholder all read it.
+  const setsHere = useMemo(() => (catalog && needs === 'set' ? inLanguage(catalog.allSets(), lang) : []), [catalog, needs, lang]);
+  const setHits = useMemo(() => matchSets(setsHere, query), [setsHere, query]);
+  // With nothing typed yet, the newest sets are the help: a reader who does not know the codes
+  // sees what is here and taps one.
+  const suggested = useMemo(() => (query.trim().length < 2 ? setsHere.slice(0, 6) : []), [setsHere, query]);
+  const noSetMatch = needs === 'set' && !!catalog && query.trim().length >= 2 && setHits.length === 0;
+  const exampleSet = setsHere[0];
   const speciesHits = useMemo(() => (needs === 'pokemon' && query.trim().length >= 2 ? searchSpecies(query) : []), [needs, query]);
 
   // THE MASTER SET reads the price summary for which cards were printed reverse holo. Loaded once
@@ -488,6 +492,7 @@ export default function CollectScreen() {
           <View style={styles.panel}>
             {GAME_OPTIONS.length > 1 ? (
               <Seg
+                wrap
                 options={GAME_OPTIONS}
                 value={game}
                 onChange={(g) => {
@@ -508,7 +513,8 @@ export default function CollectScreen() {
               />
             ) : null}
             {secondary && !catalog ? <ThemedText type="small" themeColor="textSecondary">Loading {gameLabel(game)}…</ThemedText> : null}
-            <Seg options={secondary ? KIND_OPTIONS.filter((k) => k.id === 'complete') : KIND_OPTIONS} value={kind} onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); setFilters(NO_FILTERS); setOpenFacet(null); setSort({ key: naturalSortKey(k), dir: DEFAULT_DIR[naturalSortKey(k)] }); }} />
+            {/* Other games offer the complete set only; a one-button row said nothing but took a line. */}
+            {secondary ? null : <Seg options={KIND_OPTIONS} value={kind} onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); setFilters(NO_FILTERS); setOpenFacet(null); setSort({ key: naturalSortKey(k), dir: DEFAULT_DIR[naturalSortKey(k)] }); }} />}
             <ThemedText type="small" themeColor="textSecondary">{KIND_OPTIONS.find((k) => k.id === kind)?.blurb}</ThemedText>
             {!secondary ? <Seg options={LANGS} value={lang} onChange={(l) => { setLang(l); setSet(null); if (needs === 'set') setQuery(''); }} /> : null}
 
@@ -517,7 +523,13 @@ export default function CollectScreen() {
                 <TextInput
                   value={query}
                   onChangeText={(t) => { setQuery(t); if (needs === 'set') setSet(null); else setSpecies(null); }}
-                  placeholder={needs === 'set' ? 'Set name or code, like 151 or sv3pt5' : 'A Pokémon, like Pikachu'}
+                  placeholder={
+                    needs !== 'set'
+                      ? 'A Pokémon, like Pikachu'
+                      : !secondary || !exampleSet
+                        ? 'Set name or code, like 151 or sv3pt5'
+                        : `Set name or code, like ${exampleSet.name} or ${exampleSet.code}`
+                  }
                   placeholderTextColor={Palette.muted}
                   style={styles.input}
                   autoCapitalize="none"
@@ -596,9 +608,17 @@ export default function CollectScreen() {
               <ThemedText type="small" style={styles.note}>Sign in free to build. Guests see nothing here.</ThemedText>
             ) : null}
             {(loading && !catalog) || (wantPrices && !priced) || (wantCameos && !cameoReady) ? <ActivityIndicator style={styles.loading} /> : null}
-            {setHits.length && !set ? (
+            {noSetMatch && !set ? (
+              <ThemedText type="small" style={styles.note} testID="collect-set-none">
+                {`No set matches. Try its code${exampleSet ? `, like ${exampleSet.code}` : ''}.`}
+              </ThemedText>
+            ) : null}
+            {!set && !setHits.length && suggested.length ? (
+              <ThemedText type="small" themeColor="textSecondary">{`Newest ${gameLabel(game)} sets`}</ThemedText>
+            ) : null}
+            {(setHits.length || suggested.length) && !set ? (
               <View style={styles.hits}>
-                {setHits.map((s) => (
+                {(setHits.length ? setHits : suggested).map((s) => (
                   <Pressable key={s.id} onPress={() => { setSet(s); setQuery(s.name); setNote(null); }} style={styles.hit} accessibilityRole="button" testID={`collect-set-${s.id}`}>
                     <ThemedText type="smallBold">{s.name}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">{`${s.code} · ${s.cardCount} cards · ${s.releaseDate.slice(0, 4)}`}</ThemedText>

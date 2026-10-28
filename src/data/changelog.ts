@@ -131,7 +131,7 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-27',
-    title: 'Collector binders, the owned tick, and a clean share picture',
+    title: 'Set binders, a vote on what comes next, art views everywhere, and a new menu',
     items: [
       {
         products: ['michi'],
@@ -241,6 +241,17 @@ export const CHANGELOG: ChangelogEntry[] = [
           + 'embers for Fire), and an art window choice shows the pages '
           + 'in the art view with mats ready to print. With the '
           + 'Owned view it says how many you already have.',
+      },
+      {
+        products: ['michi'],
+        head: 'Add art opens on Find art, and stock cards carry the dex number',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Add art now opens with Find art already open: the page’s Pokémon named, every art '
+          + 'site one chip away, then the free photos. On the screen and on the printed mat the '
+          + 'line under a stock card leads with the dex number, which also sits large and faint '
+          + 'in the corner.',
       },
       {
         products: ['michi'],

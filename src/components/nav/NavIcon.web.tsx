@@ -20,8 +20,8 @@ const PATHS: Record<NavIconName, string[]> = {
   cards: ['M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z', 'M8 7h8', 'M8 11h8'],
   scan: ['M3 7V5a2 2 0 0 1 2-2h2', 'M17 3h2a2 2 0 0 1 2 2v2', 'M21 17v2a2 2 0 0 1-2 2h-2', 'M7 21H5a2 2 0 0 1-2-2v-2', 'M7 12h10'],
   discover: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z', 'M16.2 7.8l-2.1 6.4-6.3 2 2.1-6.4z'],
-  // A jigsaw piece: knobs on the top and right, sockets on the bottom and left.
-  puzzle: ['M4 10V6a1 1 0 0 1 1-1h4a2 2 0 1 1 4 0h4a1 1 0 0 1 1 1v4a2 2 0 1 1 0 4v4a1 1 0 0 1-1 1h-4a2 2 0 1 0-4 0H5a1 1 0 0 1-1-1v-4a2 2 0 1 0 0-4z'],
+  // A jigsaw piece, kept simple for 16 px: a square body with one knob up and one knob right.
+  puzzle: ['M4 8a1 1 0 0 1 1-1h2.5a3 3 0 1 1 6 0H16a1 1 0 0 1 1 1v2.5a3 3 0 1 1 0 6V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z'],
   howto: ['M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z', 'M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z'],
   method: ['M9 18h6', 'M10 22h4', 'M15.1 14c.2-1 .6-1.7 1.4-2.5A4.7 4.7 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.8.8 1.2 1.5 1.4 2.5'],
   news: ['M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9', 'M13.7 21a2 2 0 0 1-3.4 0'],

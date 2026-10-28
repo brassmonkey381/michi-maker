@@ -14,7 +14,7 @@
  *   Make     the work: My Binders first, then the builders and the card sources.
  *   Explore  the things you go and look at.
  *   Learn    how-to, the method, and what changed.
- *   Account  billing, then the two asks: the what-next vote right above Leave Feedback
+ *   Account  billing on one line (purchases sit under the plan), then the two asks: the what-next vote right above Leave Feedback
  *            (owner, 2026-10-27: "a link right above leave feedback").
  *
  * Home is not a link any more: the wordmark above the groups goes home, and so does the drawer's
@@ -37,7 +37,6 @@ export type NavIconName =
   | 'method'
   | 'news'
   | 'plans'
-  | 'purchases'
   | 'vote'
   | 'feedback';
 
@@ -88,13 +87,15 @@ export const NAV_LEARN: NavItem[] = [
 ];
 
 export const NAV_ACCOUNT: NavItem[] = [
+  // ONE LINE FOR BILLING (owner, 2026-10-27: "I thought plans and purchases were getting
+  // combined"). /plans already carries "Your plan" with a My Purchases link under it for a
+  // signed-in member, so the ledger is one click deeper and this line stays lit while you are on it.
   {
-    label: 'Plans',
+    label: 'Plans & Purchases',
     href: '/plans' as Href,
     icon: 'plans',
-    match: (p) => p.startsWith('/plans') || p.startsWith('/subscriptions') || p.startsWith('/pricing'),
+    match: (p) => p.startsWith('/plans') || p.startsWith('/subscriptions') || p.startsWith('/pricing') || p.startsWith('/purchases'),
   },
-  { label: 'My Purchases', href: '/purchases' as Href, icon: 'purchases', match: (p) => p.startsWith('/purchases') },
   { label: 'Vote on What’s Next', href: '/wishlist' as Href, icon: 'vote', match: (p) => p.startsWith('/wishlist') },
   { label: 'Leave Feedback', href: '/feedback' as Href, icon: 'feedback', match: (p) => p.startsWith('/feedback') },
 ];

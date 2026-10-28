@@ -140,8 +140,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'account',
         body:
           'Make, Explore, Learn and Account, in the order you reach for them: My Binders is first, '
-          + 'and the vote and feedback pages close the list. Home is the wordmark now, and Collector '
-          + 'Binders is called Set Binders in the menu. The phone drawer has the same groups.',
+          + 'and the vote and feedback pages close the list. Home is the wordmark now, Plans and My '
+          + 'Purchases share one line, and Collector Binders is called Set Binders in the menu. The phone drawer has the same groups.',
       },
       {
         products: ['michi'],

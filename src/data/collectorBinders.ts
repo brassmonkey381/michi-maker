@@ -35,12 +35,20 @@ export const COLLECTOR_KINDS: readonly { id: CollectorKind; label: string; blurb
  * dex; every other game has the complete set and one character, which lean only on the
  * catalogue's own character key. The label bends to the game's own word for a character.
  */
+/**
+ * The games whose catalogue keys most cards to a character (owner, 2026-10-29, measured on the
+ * English catalogues: One Piece 770 keys for 6356 character cards, Lorcana 737 for 2946, Digimon
+ * 1330 for 7453). Magic and Yu-Gi-Oh! have no such key yet (Riftbound ships on the owner's say), so One of everything there
+ * is nearly the whole catalogue; it waits for the data server's enrichment.
+ */
+const EVERYTHING_GAMES = new Set(['onepiece', 'lorcana', 'digimon', 'riftbound', 'cyberpunk']);
+
 export function kindsFor(game: string): typeof COLLECTOR_KINDS {
   // One of everything is for the games without a dex (owner, 2026-10-29): Pokémon has the living dex.
   if (game === 'pokemon') return COLLECTOR_KINDS.filter((k) => k.id !== 'character' && k.id !== 'everything');
   const label = game === 'digimon' ? 'One Digimon' : game === 'magic' ? 'One card, every printing' : 'One character';
   const blurb = game === 'magic' ? 'Every printing of one card, oldest first.' : game === 'digimon' ? 'Every card of one Digimon, oldest first.' : 'Every card of one character, oldest first.';
-  return COLLECTOR_KINDS.filter((k) => k.id === 'complete' || k.id === 'character' || k.id === 'everything').map((k) => (k.id === 'character' ? { ...k, label, blurb } : k));
+  return COLLECTOR_KINDS.filter((k) => k.id === 'complete' || k.id === 'character' || (k.id === 'everything' && EVERYTHING_GAMES.has(game))).map((k) => (k.id === 'character' ? { ...k, label, blurb } : k));
 }
 
 /** What the builders need from a card: a slice of the kit's CatalogCard. */

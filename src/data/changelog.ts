@@ -271,7 +271,7 @@ export const CHANGELOG: ChangelogEntry[] = [
           'A new page under Make, Set Binders. A complete set in number order, a master set with a reverse '
           + 'holo pocket for every card printed that way, every card of one Pokémon, an evolution '
           + 'line, or the living Pokédex, 1 to 1025. The other games get a complete set, one character '
-          + 'and one of everything. Choose English, Japanese or both, keep or drop '
+          + 'and, for One Piece, Lorcana, Digimon and Riftbound, one of everything. Choose English, Japanese or both, keep or drop '
           + 'the secret rares, put the reverse holos after the run or beside each card, and add the '
           + 'cameo cards of a Pokémon. Print the placeholders free with no account, or make it a '
           + 'binder of your own: the michi layouts option draws a different composition for every '

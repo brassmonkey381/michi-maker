@@ -147,6 +147,18 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
+        head: 'One character binders for every game',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'Set Binders now offers One character beside Complete set for One Piece, Lorcana, '
+          + 'Riftbound, Digimon, Magic, Yu-Gi-Oh! and Cyberpunk: type a name, pick it, and every '
+          + 'card of that character comes back oldest first. The most-printed names rank first, '
+          + 'so luffy finds Monkey.D.Luffy before an event that mentions him; events, items and '
+          + 'locations stay out. Magic asks for one card and gives every printing of it.',
+      },
+      {
+        products: ['michi'],
         head: 'The left menu in four groups, with a glyph on every line',
         kind: 'better',
         area: 'account',

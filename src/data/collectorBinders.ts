@@ -18,15 +18,28 @@ import type { DemoPage, DemoSlot } from './binderTypes.ts';
 import pokedex from './pokedex.json' with { type: 'json' };
 import { seededRandom } from './seededRandom.ts';
 
-export type CollectorKind = 'complete' | 'master' | 'species' | 'line' | 'dex';
+export type CollectorKind = 'complete' | 'master' | 'species' | 'line' | 'dex' | 'character';
 
-export const COLLECTOR_KINDS: readonly { id: CollectorKind; label: string; blurb: string; needs: 'set' | 'pokemon' | 'none' }[] = [
+export const COLLECTOR_KINDS: readonly { id: CollectorKind; label: string; blurb: string; needs: 'set' | 'pokemon' | 'character' | 'none' }[] = [
   { id: 'complete', label: 'Complete set', blurb: 'Every card in a set, in number order.', needs: 'set' },
   { id: 'master', label: 'Master set', blurb: 'The complete set plus every reverse holo.', needs: 'set' },
   { id: 'species', label: 'One Pokémon', blurb: 'Every card of one Pokémon, oldest first.', needs: 'pokemon' },
   { id: 'line', label: 'Evolution line', blurb: 'Every card of a Pokémon and its family.', needs: 'pokemon' },
   { id: 'dex', label: 'Living Pokédex', blurb: 'One card for each of the 1025 Pokémon.', needs: 'none' },
+  { id: 'character', label: 'One character', blurb: 'Every card of one character, oldest first.', needs: 'character' },
 ];
+
+/**
+ * The kinds a game offers. Pokémon has the species, line and dex shapes, which lean on the
+ * dex; every other game has the complete set and one character, which lean only on the
+ * catalogue's own character key. The label bends to the game's own word for a character.
+ */
+export function kindsFor(game: string): typeof COLLECTOR_KINDS {
+  if (game === 'pokemon') return COLLECTOR_KINDS.filter((k) => k.id !== 'character');
+  const label = game === 'digimon' ? 'One Digimon' : game === 'magic' ? 'One card, every printing' : 'One character';
+  const blurb = game === 'magic' ? 'Every printing of one card, oldest first.' : game === 'digimon' ? 'Every card of one Digimon, oldest first.' : 'Every card of one character, oldest first.';
+  return COLLECTOR_KINDS.filter((k) => k.id === 'complete' || k.id === 'character').map((k) => (k.id === 'character' ? { ...k, label, blurb } : k));
+}
 
 /** What the builders need from a card: a slice of the kit's CatalogCard. */
 export interface CollectorCard {
@@ -457,6 +470,66 @@ export function withCameos(result: CollectorResult, cameoCards: readonly Collect
 }
 
 /** Every card of one species, oldest print first. */
+/**
+ * ONE CHARACTER, for the games without a dex. The catalogue's character key is the first
+ * entry of `evolutionLine` (the data server strips Lorcana's subtitle and Riftbound's epithet
+ * there: 'Elsa - Snow Queen' and 'Darius, Trifarian' key as 'elsa' and 'darius'); a card
+ * without one keys by its own name.
+ */
+export const characterKey = (c: CollectorCard): string => (c.evolutionLine[0] ?? c.name).toLowerCase();
+
+export function characterSet(cards: Iterable<CollectorCard>, character: string, opts: { charactersOnly?: boolean } = {}): CollectorResult {
+  const want = character.toLowerCase();
+  const hits: CollectorCard[] = [];
+  for (const c of cards) if (standard(c) && characterKey(c) === want && (opts.charactersOnly === false || isCharacterCard(c))) hits.push(c);
+  hits.sort(byRelease);
+  return { pockets: hits.map((c) => ({ cardId: c.id })), missing: [] };
+}
+
+export interface CharacterEntry { key: string; label: string; count: number }
+
+/**
+ * Every character in a catalogue, most-printed first, each with the label a reader knows:
+ * the card name cut down to the key's length when the name starts with the key ('Elsa - Snow
+ * Queen' labels as 'Elsa'), else the shortest name that carries it.
+ */
+const NON_CHARACTER_TYPES = /^(event|action|item|location|option|tamer|stage|don!!|spell|signature spell|gear|rune|battlefield)$/i;
+
+/** Does this card stand for a character (a person, creature or Digimon), not an event or an item? */
+export const isCharacterCard = (c: CollectorCard): boolean => !c.cardType?.length || !c.cardType.every((t) => NON_CHARACTER_TYPES.test(t));
+
+export function characterIndex(cards: Iterable<CollectorCard>, opts: { charactersOnly?: boolean } = {}): CharacterEntry[] {
+  const by = new Map<string, CharacterEntry>();
+  for (const c of cards) {
+    if (!standard(c)) continue;
+    if (opts.charactersOnly !== false && !isCharacterCard(c)) continue;
+    const key = characterKey(c);
+    const label = c.name.toLowerCase().startsWith(key) ? c.name.slice(0, key.length) : c.name;
+    const cur = by.get(key);
+    if (!cur) by.set(key, { key, label, count: 1 });
+    else {
+      cur.count += 1;
+      if (label.length < cur.label.length) cur.label = label;
+    }
+  }
+  return Array.from(by.values()).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+/** Characters matching a query: names that start with it first, then names that contain it. */
+export function searchCharacters(index: readonly CharacterEntry[], query: string, limit = 8): string[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  // The index is most-printed first, so Monkey.D.Luffy (156 cards) outranks a one-off whose
+  // name happens to start with "luffy"; an exact key wins outright.
+  const exact: string[] = [];
+  const rest: string[] = [];
+  for (const e of index) {
+    if (e.key === q) exact.push(e.label);
+    else if (e.key.includes(q)) rest.push(e.label);
+  }
+  return [...exact, ...rest].slice(0, limit);
+}
+
 export function speciesSet(cards: Iterable<CollectorCard>, species: string): CollectorResult {
   const want = speciesKey(species);
   const hits: CollectorCard[] = [];

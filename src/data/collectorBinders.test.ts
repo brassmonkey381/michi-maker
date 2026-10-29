@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  matchSets,
+  matchSets, characterIndex, characterSet, kindsFor, searchCharacters,
   type CollectorCard, completeSet, dexNumber, evolutionLineSet, inLanguage, isSecretRare, livingDex, masterSet, MICHI_PAGE_TEMPLATES,
   facetOptions, familyFromEvolvesFrom, filterPockets, isFullArt, isPokemonCard, michiPages, naturalSortKey, NO_FILTERS, numberKey, pagesNeeded, POKEDEX, rarityRank, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesOf, speciesSet,
   withCameos,
@@ -263,4 +263,27 @@ test('matchSets finds a set by a loose code, by name words, or by a substring', 
   assert.deepEqual(names('151'), ['sv3pt5'], 'a name that is a number');
   assert.deepEqual(names('x'), [], 'one character is too little to match on');
   assert.deepEqual(names('zzz'), [], 'nothing invents a hit');
+});
+
+test('one character for the other games: keyed by the catalogue, labelled by the shortest name, oldest first', () => {
+  const card = (id: string, name: string, key: string, releaseDate: string): CollectorCard =>
+    ({ id, name, number: id, setId: 's', releaseDate, rarity: 'C', evolutionLine: [key] });
+  void card;
+  const cards = [
+    card('3', 'Elsa - Spirit of Winter', 'elsa', '2024-02-01'),
+    card('1', 'Elsa - Snow Queen', 'elsa', '2023-08-18'),
+    card('2', 'Anna - Heir to Arendelle', 'anna', '2023-08-18'),
+    card('4', 'Darius, Trifarian', 'darius', '2025-10-01'),
+    { ...card('5', 'Luffy Is the Man', 'luffy is the man', '2024-01-01'), cardType: ['Event'] },
+  ];
+  const index = characterIndex(cards);
+  assert.deepEqual(index.map((e) => `${e.label}:${e.count}`), ['Elsa:2', 'Anna:1', 'Darius:1']);
+  assert.deepEqual(searchCharacters(index, 'el'), ['Elsa']);
+  assert.deepEqual(searchCharacters(index, 'ar'), ['Darius']);
+  assert.deepEqual(searchCharacters(index, 'luffy'), [], 'an event card is not a character');
+  assert.equal(characterIndex(cards, { charactersOnly: false }).length, 4, 'Magic keeps every printing');
+  assert.deepEqual(characterSet(cards, 'Elsa').pockets.map((p) => p.cardId), ['1', '3']);
+  assert.deepEqual(kindsFor('lorcana').map((k) => k.id), ['complete', 'character']);
+  assert.equal(kindsFor('digimon')[1].label, 'One Digimon');
+  assert.equal(kindsFor('pokemon').some((k) => k.id === 'character'), false);
 });

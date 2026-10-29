@@ -34,7 +34,7 @@ import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/bi
 import {
   COLLECTOR_KINDS, type CollectorFilters, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult,
   type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionFamilies, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets, matchSets,
-  inLanguage, isPokemonCard, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
+  characterIndex, characterSet, inLanguage, isPokemonCard, kindsFor, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchCharacters, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
 } from '@/data/collectorBinders';
 import { collectorPool, curateMaxPages, leftoverPockets, type TailOrder, titleTailPages } from '@/data/collectorCurate';
 import { saveFillSheetFiles, fileStem } from '@/data/fillSheetSave';
@@ -58,7 +58,7 @@ import { fetchStockArtForPanel } from '@/lib/stockArt';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
-const KIND_OPTIONS = COLLECTOR_KINDS.map((k) => ({ id: k.id, label: k.label, blurb: k.blurb }));
+const kindOptionsFor = (game: string) => kindsFor(game).map((k) => ({ id: k.id, label: k.label, blurb: k.blurb }));
 /**
  * EVERY GAME THE PICKER OFFERS (owner, 2026-10-27: "add a drop down select for the other games
  * for collect"). Another game's catalogue is the same Catalog shape as Pokémon's (lib/otherGame),
@@ -214,7 +214,12 @@ export default function CollectScreen() {
   const suggested = useMemo(() => (query.trim().length < 2 ? setsHere.slice(0, 6) : []), [setsHere, query]);
   const noSetMatch = needs === 'set' && !!catalog && query.trim().length >= 2 && setHits.length === 0;
   const exampleSet = setsHere[0];
-  const speciesHits = useMemo(() => (needs === 'pokemon' && query.trim().length >= 2 ? searchSpecies(query) : []), [needs, query]);
+  // Characters for the other games come from the loaded catalogue itself, most-printed first.
+  // Magic is the one game where every printing of a card is the ask, items and lands included.
+  const charactersOnly = game !== 'magic';
+  const charIndex = useMemo(() => (needs === 'character' ? characterIndex(allCards, { charactersOnly }) : []), [needs, allCards, charactersOnly]);
+  const exampleCharacter = charIndex[0]?.label;
+  const speciesHits = useMemo(() => (query.trim().length < 2 ? [] : needs === 'pokemon' ? searchSpecies(query) : needs === 'character' ? searchCharacters(charIndex, query) : []), [needs, query, charIndex]);
 
   // THE MASTER SET reads the price summary for which cards were printed reverse holo. Loaded once
   // when first asked for, into state from the promise's callback; everything else is the
@@ -267,11 +272,12 @@ export default function CollectScreen() {
     if (kind === 'complete' && set) r = completeSet(catalog.listCards(set.id), setOpts);
     else if (kind === 'master' && set) r = priced ? masterSet(catalog.listCards(set.id), (id) => !!priced[id]?.variants?.['Reverse Holofoil'], setOpts) : null;
     else if (kind === 'species' && species) r = speciesSet(allCards, species);
+    else if (kind === 'character' && species) r = characterSet(allCards, species, { charactersOnly });
     else if (kind === 'line' && species) r = evolutionLineSet(allCards, species);
     else if (kind === 'dex') r = livingDex(allCards, dexPick);
     if (r && wantCameos && cameoReady && cameoHits) r = withCameos(r, cameoHits.cards);
     return r;
-  }, [catalog, allCards, kind, set, species, dexPick, priced, secrets, reverse, wantCameos, cameoReady, cameoHits]);
+  }, [catalog, allCards, kind, set, species, dexPick, priced, secrets, reverse, wantCameos, cameoReady, cameoHits, charactersOnly]);
   const filterCtx = useMemo(() => ({
     seriesOf: (setId: string) => catalog?.getSet(setId)?.seriesId ?? '',
     ownedIds,
@@ -284,7 +290,7 @@ export default function CollectScreen() {
     let r = filterPockets(unfiltered, (id) => catalog.getCard(id), filters, filterCtx);
     // A Pokémon or line is always sorted (its result has no order of its own); a set or the dex
     // only when the sort leaves its natural order, so a master set's reverse run stays put.
-    if (kind === 'species' || kind === 'line' || sortChangesOrder(kind, sort)) r = sortPockets(r, (id) => catalog.getCard(id), sort, (id) => priced?.[id]?.cur ?? 0);
+    if (kind === 'species' || kind === 'line' || kind === 'character' || sortChangesOrder(kind, sort)) r = sortPockets(r, (id) => catalog.getCard(id), sort, (id) => priced?.[id]?.cur ?? 0);
     return r;
   }, [unfiltered, catalog, filters, filterCtx, kind, sort, priced]);
   const perSpecies = useMemo(() => (result && catalog && kind === 'line' ? speciesCounts(result, (id) => catalog.getCard(id)) : []), [result, catalog, kind]);
@@ -293,7 +299,7 @@ export default function CollectScreen() {
     ? 'Living Pokédex'
     : kind === 'complete' && set ? `${set.name}: complete set`
       : kind === 'master' && set ? `${set.name}: master set`
-        : kind === 'species' && species ? `Every ${species}`
+        : (kind === 'species' || kind === 'character') && species ? `Every ${species}`
           : kind === 'line' && species ? `${species} evolution line`
             : '';
   // The michi layouts seat five to seven cards a page, so the count comes from a dry build with
@@ -513,9 +519,8 @@ export default function CollectScreen() {
               />
             ) : null}
             {secondary && !catalog ? <ThemedText type="small" themeColor="textSecondary">Loading {gameLabel(game)}…</ThemedText> : null}
-            {/* Other games offer the complete set only; a one-button row said nothing but took a line. */}
-            {secondary ? null : <Seg options={KIND_OPTIONS} value={kind} onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); setFilters(NO_FILTERS); setOpenFacet(null); setSort({ key: naturalSortKey(k), dir: DEFAULT_DIR[naturalSortKey(k)] }); }} />}
-            <ThemedText type="small" themeColor="textSecondary">{KIND_OPTIONS.find((k) => k.id === kind)?.blurb}</ThemedText>
+            <Seg options={kindOptionsFor(game)} value={kind} wrap onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); setFilters(NO_FILTERS); setOpenFacet(null); setSort({ key: naturalSortKey(k), dir: DEFAULT_DIR[naturalSortKey(k)] }); }} />
+            <ThemedText type="small" themeColor="textSecondary">{kindOptionsFor(game).find((k) => k.id === kind)?.blurb}</ThemedText>
             {!secondary ? <Seg options={LANGS} value={lang} onChange={(l) => { setLang(l); setSet(null); if (needs === 'set') setQuery(''); }} /> : null}
 
             {needs !== 'none' ? (
@@ -524,9 +529,11 @@ export default function CollectScreen() {
                   value={query}
                   onChangeText={(t) => { setQuery(t); if (needs === 'set') setSet(null); else setSpecies(null); }}
                   placeholder={
-                    needs !== 'set'
+                    needs === 'pokemon'
                       ? 'A Pokémon, like Pikachu'
-                      : !secondary || !exampleSet
+                      : needs === 'character'
+                        ? (exampleCharacter ? `A name, like ${exampleCharacter}` : 'A name')
+                        : !secondary || !exampleSet
                         ? 'Set name or code, like 151 or sv3pt5'
                         : `Set name or code, like ${exampleSet.name} or ${exampleSet.code}`
                   }

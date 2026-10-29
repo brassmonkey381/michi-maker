@@ -147,6 +147,15 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
+        head: 'Set Binders on 2×2, 3×4 and 4×4 pages',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'Plain pages in Set Binders now come in the four real page sizes, not only 3×3. Pick '
+          + 'the size under Plain pages and the page count follows.',
+      },
+      {
+        products: ['michi'],
         head: 'One character and One of everything binders for every game',
         kind: 'new',
         area: 'binders',

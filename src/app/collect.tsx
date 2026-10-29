@@ -36,6 +36,7 @@ import {
   type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionFamilies, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets, matchSets,
   characterIndex, characterSet, inLanguage, isPokemonCard, kindsFor, livingCatalogue, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchCharacters, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
 } from '@/data/collectorBinders';
+import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import { collectorPool, curateMaxPages, leftoverPockets, type TailOrder, titleTailPages } from '@/data/collectorCurate';
 import { saveFillSheetFiles, fileStem } from '@/data/fillSheetSave';
 import { pageSubject } from '@/data/pageArtSubject';
@@ -76,11 +77,18 @@ const DEX_PICKS = [
  * every case; this decides only how the cards are laid on a page.
  */
 const PAGE_OPTIONS = [
-  { id: 'plain', label: 'Plain pages', blurb: 'Nine cards a page, in your sort order.' },
+  { id: 'plain', label: 'Plain pages', blurb: 'Cards in your sort order, on the page size you pick.' },
   { id: 'michi', label: 'Michi layouts', blurb: 'Art panels on every page for your pictures, cards in your sort order around them.' },
   { id: 'curate', label: 'Curated', blurb: 'One idea a page, then the rest in michi layouts. Reads likeness from the server, allow a minute.' },
 ] as const;
 type PageChoice = (typeof PAGE_OPTIONS)[number]['id'];
+/**
+ * The real side-load page sizes the editor already draws (owner, 2026-10-29, "add shapes to
+ * collect"). Plain pages only: the michi layouts and the curated templates are drawn for a 3×3.
+ */
+const SHAPE_OPTIONS = REAL_PAGE_SIZES.map((s) => ({ id: s.label, label: `${s.label} · ${s.rows * s.cols} pockets`, rows: s.rows, cols: s.cols }));
+type ShapeId = (typeof SHAPE_OPTIONS)[number]['id'];
+const shapeOf = (id: ShapeId) => SHAPE_OPTIONS.find((s) => s.id === id) ?? SHAPE_OPTIONS[1];
 const ART_WINDOWS = [
   { id: 'off', label: 'Card view', blurb: 'Pages show the whole card.' },
   { id: 'black', label: 'Art window, black', blurb: 'Pages show the art window on black. Black mats print from the binder.' },
@@ -123,9 +131,9 @@ function countingId() {
  * Pages for the pockets, nine to a page, plain. The finish rides the slot so a reverse-holo pocket
  * prints and shows as one. The michi layouts are data/collectorBinders.ts → michiPages.
  */
-export function pagesForPockets(pockets: readonly CollectorPocket[]): DemoPage[] {
+export function pagesForPockets(pockets: readonly CollectorPocket[], shape: { rows: number; cols: number } = { rows: 3, cols: 3 }): DemoPage[] {
   const cells: { row: number; col: number }[] = [];
-  for (let r = 0; r < 3; r += 1) for (let c = 0; c < 3; c += 1) cells.push({ row: r, col: c });
+  for (let r = 0; r < shape.rows; r += 1) for (let c = 0; c < shape.cols; c += 1) cells.push({ row: r, col: c });
   const pages: DemoPage[] = [];
   for (let i = 0; i < pockets.length; i += cells.length) {
     const chunk = pockets.slice(i, i + cells.length);
@@ -139,7 +147,7 @@ export function pagesForPockets(pockets: readonly CollectorPocket[]): DemoPage[]
       cardId: p.cardId,
       ...(p.finish ? { finish: p.finish } : {}),
     }));
-    pages.push({ id: uuidv4(), rows: 3, cols: 3, slots });
+    pages.push({ id: uuidv4(), rows: shape.rows, cols: shape.cols, slots });
   }
   return pages;
 }
@@ -168,6 +176,8 @@ export default function CollectScreen() {
   const [species, setSpecies] = useState<string | null>(null);
   const [dexPick, setDexPick] = useState<'newest' | 'oldest'>('newest');
   const [pageChoice, setPageChoice] = useState<PageChoice>('plain');
+  const [shapeId, setShapeId] = useState<ShapeId>('3×3');
+  const shape = shapeOf(shapeId);
   const curate = pageChoice === 'curate';
   /** Michi layouts and curated pages both carry art panels; curated leftovers lie in michi layouts too. */
   const roomForArt = pageChoice !== 'plain';
@@ -307,7 +317,7 @@ export default function CollectScreen() {
   // The michi layouts seat five to seven cards a page, so the count comes from a dry build with
   // the same seed the real build uses.
   const seed = `${title}:${result?.pockets.length ?? 0}`;
-  const pages = !result ? 0 : roomForArt ? michiPages(result.pockets, countingId(), seed).length : pagesNeeded(result.pockets.length, 9);
+  const pages = !result ? 0 : roomForArt ? michiPages(result.pockets, countingId(), seed).length : pagesNeeded(result.pockets.length, shape.rows * shape.cols);
   const cameoCount = result ? result.pockets.filter((p) => p.cameo).length : 0;
   const owned = result && ownedIds ? result.pockets.filter((p) => ownedIds.has(p.cardId)).length : null;
   const overPageCap = LIMITS_ENFORCED && pages > limits.pagesPerBinder;
@@ -321,7 +331,7 @@ export default function CollectScreen() {
     setPrinting(true);
     setNote(null);
     try {
-      const binder: DemoBinder = { id: `collector-${kind}`, title, layoutStyle: 'freeform', isExample: false, pages: pagesForPockets(result.pockets) };
+      const binder: DemoBinder = { id: `collector-${kind}`, title, layoutStyle: 'freeform', isExample: false, pages: pagesForPockets(result.pockets, shape) };
       const files = await buildFillSheetPdfs(binder, catalog, { ownedIds });
       if (!files.length) throw new Error('Nothing to print.');
       await saveFillSheetFiles(files, fileStem(title));
@@ -373,7 +383,7 @@ export default function CollectScreen() {
       curated.push(...plan.pages.map((p) => p.page));
       rest = { ...rest, pockets: leftoverPockets(rest, new Set(plan.pages.flatMap((p) => p.cards.map((c) => c.id)))) };
     }
-    const tail = titleTailPages(roomForArt ? michiPages(rest.pockets, uuidv4, seed) : pagesForPockets(rest.pockets), cardOf, tailOrder);
+    const tail = titleTailPages(roomForArt ? michiPages(rest.pockets, uuidv4, seed) : pagesForPockets(rest.pockets, shape), cardOf, tailOrder);
     return { pages: [...curated, ...tail], curated: curated.length };
   };
 
@@ -443,7 +453,7 @@ export default function CollectScreen() {
         built = planned.pages;
         curated = planned.curated;
       } else {
-        built = titleTailPages(roomForArt ? michiPages(result.pockets, uuidv4, seed) : pagesForPockets(result.pockets), (id) => catalog?.getCard(id), tailOrder);
+        built = titleTailPages(roomForArt ? michiPages(result.pockets, uuidv4, seed) : pagesForPockets(result.pockets, shape), (id) => catalog?.getCard(id), tailOrder);
       }
     } catch (e) {
       setBuilding(false);
@@ -479,7 +489,7 @@ export default function CollectScreen() {
     }
     setBuilding(false);
     setNote(null);
-    track('collector.binder', { game, kind, pockets: result.pockets.length, pages: pageChoice, curated, fillArt, fanArt: fanArt ?? 'off', artPlaced, artWindow, sort: sort.key, lang, cameos: cameoCount });
+    track('collector.binder', { game, kind, pockets: result.pockets.length, pages: pageChoice, shape: roomForArt ? '3×3' : shapeId, curated, fillArt, fanArt: fanArt ?? 'off', artPlaced, artWindow, sort: sort.key, lang, cameos: cameoCount });
     router.push(`/binder/${created.id}?edit=1` as Href);
   };
 
@@ -687,6 +697,7 @@ export default function CollectScreen() {
                 <>
                   <Seg options={secondary ? PAGE_OPTIONS.filter((o) => o.id !== 'curate') : PAGE_OPTIONS} value={pageChoice} onChange={setPageChoice} />
                   <ThemedText type="small" themeColor="textSecondary" testID="collect-pages-blurb">{PAGE_OPTIONS.find((o) => o.id === pageChoice)?.blurb}</ThemedText>
+                  {roomForArt ? null : <Seg options={SHAPE_OPTIONS} value={shapeId} wrap onChange={setShapeId} />}
                   {roomForArt ? (
                     <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">{fanArt ? 'Fill the art panels with fan art.' : 'Fill the art panels with stock photos.'}</Check>
                   ) : null}

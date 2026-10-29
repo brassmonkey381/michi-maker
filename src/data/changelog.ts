@@ -214,6 +214,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         head: 'The art view for the whole binder, a page, or a pocket',
         kind: 'better',
         area: 'binders',
+        pinned: true,
         body:
           'The art view used to be set page by page. Now the binder has one setting behind the gear, '
           + 'under Pockets, and every page follows it; a page can still say otherwise, and so can '
@@ -260,14 +261,17 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
-        head: 'Collector binders: ask for a set and get the binder',
+        head: 'Set Binders (Beta): ask for a set and get the binder',
         kind: 'new',
         area: 'binders',
         big: true,
+        pinned: true,
+        featured: true,
         body:
-          'A new page under Explore. A complete set in number order, a master set with a reverse '
+          'A new page under Make, Set Binders. A complete set in number order, a master set with a reverse '
           + 'holo pocket for every card printed that way, every card of one Pokémon, an evolution '
-          + 'line, or the living Pokédex, 1 to 1025. Choose English, Japanese or both, keep or drop '
+          + 'line, or the living Pokédex, 1 to 1025. The other games get a complete set, one character '
+          + 'and one of everything. Choose English, Japanese or both, keep or drop '
           + 'the secret rares, put the reverse holos after the run or beside each card, and add the '
           + 'cameo cards of a Pokémon. Print the placeholders free with no account, or make it a '
           + 'binder of your own: the michi layouts option draws a different composition for every '
@@ -1008,7 +1012,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         products: ['michi'],
         head: 'PRO is half price: $2.99 a month or $24.99 a year',
         pinned: true,
-        featured: true,
         kind: 'better',
         area: 'account',
         big: true,
@@ -2539,7 +2542,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'A pocket holds one of your cards',
-        pinned: true,
         kind: 'new',
         area: 'collection',
         big: true,

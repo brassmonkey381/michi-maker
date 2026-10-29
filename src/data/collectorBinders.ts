@@ -36,7 +36,8 @@ export const COLLECTOR_KINDS: readonly { id: CollectorKind; label: string; blurb
  * catalogue's own character key. The label bends to the game's own word for a character.
  */
 export function kindsFor(game: string): typeof COLLECTOR_KINDS {
-  if (game === 'pokemon') return COLLECTOR_KINDS.filter((k) => k.id !== 'character');
+  // One of everything is for the games without a dex (owner, 2026-10-29): Pokémon has the living dex.
+  if (game === 'pokemon') return COLLECTOR_KINDS.filter((k) => k.id !== 'character' && k.id !== 'everything');
   const label = game === 'digimon' ? 'One Digimon' : game === 'magic' ? 'One card, every printing' : 'One character';
   const blurb = game === 'magic' ? 'Every printing of one card, oldest first.' : game === 'digimon' ? 'Every card of one Digimon, oldest first.' : 'Every card of one character, oldest first.';
   return COLLECTOR_KINDS.filter((k) => k.id === 'complete' || k.id === 'character' || k.id === 'everything').map((k) => (k.id === 'character' ? { ...k, label, blurb } : k));

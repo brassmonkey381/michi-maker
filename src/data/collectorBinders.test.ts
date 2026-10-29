@@ -285,7 +285,7 @@ test('one character for the other games: keyed by the catalogue, labelled by the
   assert.deepEqual(characterSet(cards, 'Elsa').pockets.map((p) => p.cardId), ['1', '3']);
   assert.deepEqual(kindsFor('lorcana').map((k) => k.id), ['complete', 'character', 'everything']);
   assert.equal(kindsFor('digimon')[1].label, 'One Digimon');
-  assert.equal(kindsFor('pokemon').some((k) => k.id === 'character'), false);
+  assert.equal(kindsFor('pokemon').some((k) => k.id === 'character' || k.id === 'everything'), false);
   assert.deepEqual(kindsFor('onepiece').map((k) => k.id), ['complete', 'character', 'everything']);
   // One of everything: one card per name, events included, in order of debut; newest print stands for the name.
   assert.deepEqual(livingCatalogue(cards, 'newest').pockets.map((p) => p.cardId), ['2', '3', '5', '4']);

@@ -103,6 +103,13 @@ async function getDeviceId(): Promise<string | null> {
  * (config/events.json → gaps.referrer in the studio).
  */
 const CAMPAIGN_PARAMS = ['code', 'utm_source', 'utm_medium', 'utm_campaign'] as const;
+/**
+ * What a campaign code looks like: our own short labels (oakland_cardshow, rd_lidi_image). Anything
+ * else on `?code=` is NOT ours - the OAuth provider returns to `/auth-callback?code=<uuid>` and that
+ * UUID was being recorded as a campaign (about 400 of them by 2026-10-29, each a single-use token
+ * the analytics table had no business holding). Dashes are the tell; our codes never have one.
+ */
+const CAMPAIGN_CODE = /^[a-z0-9_]{1,64}$/i;
 
 /**
  * Parsed ONCE at module load (web only): the only moment the URL is guaranteed to still be the
@@ -117,10 +124,29 @@ const landingCampaign = (() => {
     const kept = new URLSearchParams();
     for (const k of CAMPAIGN_PARAMS) {
       const v = q.get(k);
-      if (v && v.length <= 64) kept.append(k, v); // printed codes are short; anything huge is not ours
+      if (!v || v.length > 64) continue; // printed codes are short; anything huge is not ours
+      if (k === 'code' && !CAMPAIGN_CODE.test(v)) continue; // an OAuth code, not a campaign
+      kept.append(k, v);
     }
+    // The page that linked here, as the browser reports it (empty for a typed URL, a bookmark, most
+    // apps, and any site that sends Referrer-Policy: no-referrer). Trimmed CLIENT-SIDE to origin +
+    // pathname so another site's query string can never carry its parameters into our database; a
+    // same-origin referrer is our own navigation or a reload, not an arrival, and is dropped. Turned
+    // on 2026-10-29 (owner), with the privacy page updated in the same change.
+    const referrer = (() => {
+      try {
+        const r = document.referrer;
+        if (!r) return null;
+        const u = new URL(r);
+        if (u.origin === window.location.origin) return null;
+        return `${u.origin}${u.pathname}`.slice(0, 200);
+      } catch {
+        return null;
+      }
+    })();
     const s = kept.toString();
-    return s ? { suffix: `?${s}`, code: kept.get('code'), params: Object.fromEntries(kept) } : null;
+    if (!s && !referrer) return null;
+    return { suffix: s ? `?${s}` : '', code: kept.get('code'), params: Object.fromEntries(kept), referrer };
   } catch {
     return null; // never throw at module load
   }
@@ -303,7 +329,11 @@ async function ensureSession(): Promise<string | null> {
             name: 'session.start',
             // The campaign params ride on session.start too (web only, allowlisted - see CAMPAIGN_PARAMS)
             // so a paid arrival is one filter on the events table, not a parse of landing_route.
-            props: { is_guest: user.isGuest, ...(landingCampaign?.params ?? {}) } as Json,
+            props: {
+              is_guest: user.isGuest,
+              ...(landingCampaign?.params ?? {}),
+              ...(landingCampaign?.referrer ? { referrer: landingCampaign.referrer } : {}),
+            } as Json,
             session_id: sessionId,
           });
       } catch {

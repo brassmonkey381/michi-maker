@@ -31,10 +31,10 @@ import { similarityWall } from '@/data/similarityGate';
 import { hasFindSimilar } from '@/data/tiers';
 import { binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
 import { fetchAvatarsByUsername } from '@/data/profileRepo';
-import { track } from '@/lib/analytics';
+import { track, trackLandingSkip } from '@/lib/analytics';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { isSupabaseConfigured } from '@/lib/env';
-import { shouldShowLanding } from '@/lib/landing';
+import { landingSkipTarget, markLandingSeen, shouldShowLanding } from '@/lib/landing';
 import { useBinders } from '@/store/binders';
 
 /**
@@ -48,6 +48,17 @@ export default function HomeScreen() {
   // First-time web visitors get the marketing page; any landing CTA sets the seen flag
   // before navigating back here, so this evaluates once per mount and never loops.
   const [showLanding] = useState(shouldShowLanding);
+  // A tagged paid/social arrival skips the marketing page for My Binders (lib/landing). Marked seen
+  // and recorded inside the initializer so it happens exactly once per visit, never per render.
+  // Ordered AFTER showLanding on purpose: markLandingSeen must not flip that answer.
+  const [skipTo] = useState(() => {
+    const to = landingSkipTarget();
+    if (to) {
+      markLandingSeen();
+      trackLandingSkip(to);
+    }
+    return to;
+  });
   const store = useBinders();
   // Which of the user's physical cards each placement claims (see use-owned-copies): every
   // add path resolves it the same way, so what a pocket costs no longer depends on the screen
@@ -199,7 +210,7 @@ export default function HomeScreen() {
   // image manifest — hydrate it so covers repaint with their hashed URLs (no-op in static mode).
   useImageManifest();
 
-  if (showLanding) return <Redirect href="/welcome" />;
+  if (showLanding) return <Redirect href={(skipTo ?? '/welcome') as Href} />;
 
   return (
     <ThemedView style={styles.container}>

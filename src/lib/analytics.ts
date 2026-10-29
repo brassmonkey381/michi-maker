@@ -120,7 +120,7 @@ const landingCampaign = (() => {
       if (v && v.length <= 64) kept.append(k, v); // printed codes are short; anything huge is not ours
     }
     const s = kept.toString();
-    return s ? { suffix: `?${s}`, code: kept.get('code') } : null;
+    return s ? { suffix: `?${s}`, code: kept.get('code'), params: Object.fromEntries(kept) } : null;
   } catch {
     return null; // never throw at module load
   }
@@ -129,6 +129,15 @@ const landingCampaign = (() => {
 /** The campaign code a signup attributes to: this page load's landing code, or one persisted with
  *  the reused web session (a reload loses the query string but must not lose the attribution). */
 let campaignCode: string | null = landingCampaign?.code ?? null;
+
+/**
+ * The allowlisted campaign query THIS page load arrived with (web only; null when untagged). Read by
+ * lib/landing to route a paid/social arrival past the marketing page, and stamped on session.start,
+ * landing.skip and landing.cta so the studio can group a visit by source without parsing landing_route.
+ */
+export function landingCampaignParams(): Readonly<Record<string, string>> | null {
+  return landingCampaign?.params ?? null;
+}
 
 /** The current auth identity, mirrored from the auth store via resetSessionUser(). */
 let cachedUser: { id: string; isGuest: boolean } | null = null;
@@ -292,7 +301,9 @@ async function ensureSession(): Promise<string | null> {
           .insert({
             app: APP,
             name: 'session.start',
-            props: { is_guest: user.isGuest } as Json,
+            // The campaign params ride on session.start too (web only, allowlisted - see CAMPAIGN_PARAMS)
+            // so a paid arrival is one filter on the events table, not a parse of landing_route.
+            props: { is_guest: user.isGuest, ...(landingCampaign?.params ?? {}) } as Json,
             session_id: sessionId,
           });
       } catch {
@@ -892,6 +903,26 @@ function emit(name: string, props?: Record<string, unknown>, ts?: string): void 
  * session bootstrap; idempotent, so extra calls are no-ops.
  */
 /* -- Daily puzzle ---------------------------------------------------------- */
+
+/**
+ * Landing-page instrumentation (web). Added 2026-10-29 when the first Reddit ad day put 243 tagged
+ * visitors on /welcome for a median 12 seconds, and nothing recorded what, if anything, they pressed.
+ *
+ *   landing.skip { to, code?, utm_* }  - a tagged arrival was routed PAST /welcome into the app
+ *                                        (lib/landing SKIP_LANDING_SOURCES); `to` is the route.
+ *   landing.cta  { cta, binder?, code?, utm_* } - which /welcome button a visitor pressed.
+ *
+ * Both carry the campaign params so the studio can split by creative without a landing_route join.
+ */
+export type LandingCta = 'enter_hero' | 'enter_closing' | 'discover' | 'sample_binder';
+
+export function trackLandingSkip(to: string): void {
+  track('landing.skip', { to, ...(landingCampaign?.params ?? {}) });
+}
+
+export function trackLandingCta(cta: LandingCta, binder?: string): void {
+  track('landing.cta', { cta, ...(binder ? { binder } : {}), ...(landingCampaign?.params ?? {}) });
+}
 
 /** Where a puzzle moment happened. `home_card` is the invitation, `daily` the page. */
 export type PuzzleSurface = 'home_card' | 'daily';

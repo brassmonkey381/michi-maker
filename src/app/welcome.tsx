@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter, type Href } from 'expo-router';
 import Head from 'expo-router/head';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   useAnimatedScrollHandler,
@@ -32,8 +32,9 @@ import {
 import { useCommunityStats } from '@/data/communityStats';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
 import { useTheme } from '@/hooks/use-theme';
+import { trackLandingCta, trackLandingSkip } from '@/lib/analytics';
 import { SHOW_CROSS_APP } from '@/lib/crossApp';
-import { markLandingSeen } from '@/lib/landing';
+import { landingSkipTarget, markLandingSeen } from '@/lib/landing';
 
 /**
  * The marketing landing page. First-time web visitors land here from `/` (see lib/landing);
@@ -139,6 +140,16 @@ const FEATURES = [
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  // A tagged paid/social arrival that deep-linked /welcome goes where `/` would have sent it
+  // (lib/landing). Same once-only initializer as the home screen; the Redirect is below the hooks.
+  const [skipTo] = useState(() => {
+    const to = landingSkipTarget();
+    if (to) {
+      markLandingSeen();
+      trackLandingSkip(to);
+    }
+    return to;
+  });
   const { width: windowW } = useWindowDimensions();
   const wide = windowW >= 920;
   const dark = isDarkBackground(useTheme().background);
@@ -161,15 +172,20 @@ export default function WelcomeScreen() {
     transform: [{ translateY: scrollY.value * 0.06 }],
   }));
 
-  const enterApp = () => {
+  // Every CTA records landing.cta BEFORE navigating, so "what did the landing page get them to
+  // press" is answerable per creative (the campaign params ride on the event).
+  const enterApp = (where: 'hero' | 'closing') => {
+    trackLandingCta(where === 'hero' ? 'enter_hero' : 'enter_closing');
     markLandingSeen();
     router.replace('/');
   };
   const browseBinders = () => {
+    trackLandingCta('discover');
     markLandingSeen();
     router.push('/discover');
   };
   const openBinder = (id: string) => {
+    trackLandingCta('sample_binder', id);
     markLandingSeen();
     router.push(`/binder/${id}`);
   };
@@ -199,6 +215,8 @@ export default function WelcomeScreen() {
         Math.floor((Math.min(windowW, MaxContentWidthWide) - Spacing.four * 2 - Spacing.four * 2) / 3),
       )
     : Math.min(windowW - Spacing.four * 2, 380);
+
+  if (skipTo) return <Redirect href={skipTo as Href} />;
 
   return (
     <ThemedView style={[styles.root, { backgroundColor: paper }]}>
@@ -258,7 +276,7 @@ export default function WelcomeScreen() {
                 </ThemedText>
                 <View style={styles.ctaRow}>
                   <Pressable
-                    onPress={enterApp}
+                    onPress={() => enterApp('hero')}
                     style={({ pressed }) => [styles.ctaPrimary, pressed && styles.pressed]}>
                     <ThemedText style={styles.ctaPrimaryText}>Start building for free</ThemedText>
                   </Pressable>
@@ -431,7 +449,7 @@ export default function WelcomeScreen() {
                 between devices, and upgrade only when you outgrow the free plan.
               </ThemedText>
               <Pressable
-                onPress={enterApp}
+                onPress={() => enterApp('closing')}
                 style={({ pressed }) => [styles.ctaPrimary, styles.ctaClosing, pressed && styles.pressed]}>
                 <ThemedText style={styles.ctaPrimaryText}>Start building for free</ThemedText>
               </Pressable>

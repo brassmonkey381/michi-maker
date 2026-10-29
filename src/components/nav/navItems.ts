@@ -33,6 +33,7 @@ export type NavIconName =
   | 'scan'
   | 'discover'
   | 'puzzle'
+  | 'coverage'
   | 'howto'
   | 'method'
   | 'news'
@@ -80,6 +81,8 @@ export const NAV_EXPLORE: NavItem[] = [
   // from a direct hit. `match` still tests the path, so the query is invisible
   // to the active-item highlight.
   { label: 'Daily Puzzle', href: '/daily?from=nav' as Href, icon: 'puzzle', match: (p) => p.startsWith('/daily') },
+  // COVERAGE (owner, 2026-10-29): which features are live or WIP for each game (data/gameCoverage).
+  { label: 'Coverage', href: '/coverage' as Href, icon: 'coverage', match: (p) => p.startsWith('/coverage') },
 ];
 
 export const NAV_LEARN: NavItem[] = [

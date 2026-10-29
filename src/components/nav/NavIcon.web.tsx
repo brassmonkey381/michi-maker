@@ -23,6 +23,8 @@ const PATHS: Record<NavIconName, string[]> = {
   // The jigsaw piece the owner handed over as a picture (2026-10-27), traced into a polygon
   // (OpenCV contour, 0.7 unit tolerance) and fitted to the box. Filled, not stroked: see FILLED.
   puzzle: ['M1.1 6 1 12.1 2.4 12.2 3.8 11.7 5 12.3 5.6 13.2 6 14.8 5.3 16.3 4.4 16.9 1 16.8 1 22.8 7.2 22.9 7.1 19.5 8.2 18.4 9.8 18 11.3 18.6 12.2 19.8 12.3 20.5 11.7 21.9 11.9 22.9 17.9 22.9 18.1 16.7 18.5 16.4 19.2 16.4 20.5 16.9 21.5 16.9 22.6 15.7 23 14.5 22.6 13.2 21.5 12 20.2 12 18.9 12.6 18.1 12.1 18 6.1 11.9 5.9 11.7 4.3 12 3.8 11.9 2.5 10.8 1.3 9.5 1 8.2 1.3 7.1 2.8 7.1 3.5 7.6 4.8 7.6 5.5 7.2 5.9z'],
+  // A 2 x 2 grid with a tick in three cells: the coverage table's live marks.
+  coverage: ['M3 3h18v18H3z', 'M12 3v18', 'M3 12h18', 'M5.5 7.5l1.5 1.5 2.5-3', 'M14.5 7.5l1.5 1.5 2.5-3', 'M5.5 16.5l1.5 1.5 2.5-3'],
   howto: ['M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z', 'M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z'],
   method: ['M9 18h6', 'M10 22h4', 'M15.1 14c.2-1 .6-1.7 1.4-2.5A4.7 4.7 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.8.8 1.2 1.5 1.4 2.5'],
   news: ['M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9', 'M13.7 21a2 2 0 0 1-3.4 0'],

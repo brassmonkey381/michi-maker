@@ -34,7 +34,7 @@ import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/bi
 import {
   COLLECTOR_KINDS, type CollectorFilters, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult,
   type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionFamilies, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets, matchSets,
-  characterIndex, characterSet, inLanguage, isPokemonCard, kindsFor, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchCharacters, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
+  characterIndex, characterSet, inLanguage, isPokemonCard, kindsFor, livingCatalogue, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchCharacters, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
 } from '@/data/collectorBinders';
 import { collectorPool, curateMaxPages, leftoverPockets, type TailOrder, titleTailPages } from '@/data/collectorCurate';
 import { saveFillSheetFiles, fileStem } from '@/data/fillSheetSave';
@@ -67,8 +67,8 @@ const kindOptionsFor = (game: string) => kindsFor(game).map((k) => ({ id: k.id, 
  */
 const GAME_OPTIONS = PICKER_GAMES.map((g) => ({ id: g, label: gameLabel(g) }));
 const DEX_PICKS = [
-  { id: 'newest', label: 'Newest print', blurb: 'The most recent card of each Pokémon.' },
-  { id: 'oldest', label: 'Oldest print', blurb: 'The first card of each Pokémon.' },
+  { id: 'newest', label: 'Newest print', blurb: 'The most recent card of each name.' },
+  { id: 'oldest', label: 'Oldest print', blurb: 'The first card of each name.' },
 ] as const;
 /**
  * ONE CHOICE FOR THE PAGES (owner, 2026-10-27): the old In order / Curated switch plus a Michi
@@ -275,6 +275,7 @@ export default function CollectScreen() {
     else if (kind === 'character' && species) r = characterSet(allCards, species, { charactersOnly });
     else if (kind === 'line' && species) r = evolutionLineSet(allCards, species);
     else if (kind === 'dex') r = livingDex(allCards, dexPick);
+    else if (kind === 'everything') r = livingCatalogue(allCards, dexPick);
     if (r && wantCameos && cameoReady && cameoHits) r = withCameos(r, cameoHits.cards);
     return r;
   }, [catalog, allCards, kind, set, species, dexPick, priced, secrets, reverse, wantCameos, cameoReady, cameoHits, charactersOnly]);
@@ -297,6 +298,7 @@ export default function CollectScreen() {
 
   const title = kind === 'dex'
     ? 'Living Pokédex'
+    : kind === 'everything' ? `${gameLabel(game)}: one of everything`
     : kind === 'complete' && set ? `${set.name}: complete set`
       : kind === 'master' && set ? `${set.name}: master set`
         : (kind === 'species' || kind === 'character') && species ? `Every ${species}`

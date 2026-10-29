@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  matchSets, characterIndex, characterSet, kindsFor, searchCharacters,
+  matchSets, characterIndex, characterSet, kindsFor, livingCatalogue, searchCharacters,
   type CollectorCard, completeSet, dexNumber, evolutionLineSet, inLanguage, isSecretRare, livingDex, masterSet, MICHI_PAGE_TEMPLATES,
   facetOptions, familyFromEvolvesFrom, filterPockets, isFullArt, isPokemonCard, michiPages, naturalSortKey, NO_FILTERS, numberKey, pagesNeeded, POKEDEX, rarityRank, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesOf, speciesSet,
   withCameos,
@@ -283,7 +283,11 @@ test('one character for the other games: keyed by the catalogue, labelled by the
   assert.deepEqual(searchCharacters(index, 'luffy'), [], 'an event card is not a character');
   assert.equal(characterIndex(cards, { charactersOnly: false }).length, 4, 'Magic keeps every printing');
   assert.deepEqual(characterSet(cards, 'Elsa').pockets.map((p) => p.cardId), ['1', '3']);
-  assert.deepEqual(kindsFor('lorcana').map((k) => k.id), ['complete', 'character']);
+  assert.deepEqual(kindsFor('lorcana').map((k) => k.id), ['complete', 'character', 'everything']);
   assert.equal(kindsFor('digimon')[1].label, 'One Digimon');
   assert.equal(kindsFor('pokemon').some((k) => k.id === 'character'), false);
+  assert.deepEqual(kindsFor('onepiece').map((k) => k.id), ['complete', 'character', 'everything']);
+  // One of everything: one card per name, events included, in order of debut; newest print stands for the name.
+  assert.deepEqual(livingCatalogue(cards, 'newest').pockets.map((p) => p.cardId), ['2', '3', '5', '4']);
+  assert.deepEqual(livingCatalogue(cards, 'oldest').pockets.map((p) => p.cardId), ['2', '1', '5', '4']);
 });

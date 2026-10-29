@@ -18,7 +18,7 @@ import type { DemoPage, DemoSlot } from './binderTypes.ts';
 import pokedex from './pokedex.json' with { type: 'json' };
 import { seededRandom } from './seededRandom.ts';
 
-export type CollectorKind = 'complete' | 'master' | 'species' | 'line' | 'dex' | 'character';
+export type CollectorKind = 'complete' | 'master' | 'species' | 'line' | 'dex' | 'character' | 'everything';
 
 export const COLLECTOR_KINDS: readonly { id: CollectorKind; label: string; blurb: string; needs: 'set' | 'pokemon' | 'character' | 'none' }[] = [
   { id: 'complete', label: 'Complete set', blurb: 'Every card in a set, in number order.', needs: 'set' },
@@ -27,6 +27,7 @@ export const COLLECTOR_KINDS: readonly { id: CollectorKind; label: string; blurb
   { id: 'line', label: 'Evolution line', blurb: 'Every card of a Pokémon and its family.', needs: 'pokemon' },
   { id: 'dex', label: 'Living Pokédex', blurb: 'One card for each of the 1025 Pokémon.', needs: 'none' },
   { id: 'character', label: 'One character', blurb: 'Every card of one character, oldest first.', needs: 'character' },
+  { id: 'everything', label: 'One of everything', blurb: 'One card for every name in the game: characters, events, items, locations, in order of debut.', needs: 'none' },
 ];
 
 /**
@@ -38,7 +39,7 @@ export function kindsFor(game: string): typeof COLLECTOR_KINDS {
   if (game === 'pokemon') return COLLECTOR_KINDS.filter((k) => k.id !== 'character');
   const label = game === 'digimon' ? 'One Digimon' : game === 'magic' ? 'One card, every printing' : 'One character';
   const blurb = game === 'magic' ? 'Every printing of one card, oldest first.' : game === 'digimon' ? 'Every card of one Digimon, oldest first.' : 'Every card of one character, oldest first.';
-  return COLLECTOR_KINDS.filter((k) => k.id === 'complete' || k.id === 'character').map((k) => (k.id === 'character' ? { ...k, label, blurb } : k));
+  return COLLECTOR_KINDS.filter((k) => k.id === 'complete' || k.id === 'character' || k.id === 'everything').map((k) => (k.id === 'character' ? { ...k, label, blurb } : k));
 }
 
 /** What the builders need from a card: a slice of the kit's CatalogCard. */
@@ -528,6 +529,29 @@ export function searchCharacters(index: readonly CharacterEntry[], query: string
     else if (e.key.includes(q)) rest.push(e.label);
   }
   return [...exact, ...rest].slice(0, limit);
+}
+
+/**
+ * ONE OF EVERYTHING: the living dex for a game without a dex. One card for every character key
+ * in the catalogue, events and items included, in order of the name's debut (its oldest print),
+ * then name. `pick` chooses which print stands for the name, newest or oldest, like the dex.
+ */
+export function livingCatalogue(cards: Iterable<CollectorCard>, pick: 'newest' | 'oldest' = 'newest'): CollectorResult {
+  const by = new Map<string, { chosen: CollectorCard; debut: string }>();
+  for (const c of cards) {
+    if (!standard(c)) continue;
+    const key = characterKey(c);
+    const cur = by.get(key);
+    if (!cur) {
+      by.set(key, { chosen: c, debut: c.releaseDate || '9999' });
+      continue;
+    }
+    if ((c.releaseDate || '9999') < cur.debut) cur.debut = c.releaseDate || '9999';
+    const newer = byRelease(c, cur.chosen) > 0;
+    if (pick === 'newest' ? newer : !newer) cur.chosen = c;
+  }
+  const rows = Array.from(by.values()).sort((a, b) => a.debut.localeCompare(b.debut) || a.chosen.name.localeCompare(b.chosen.name));
+  return { pockets: rows.map((r) => ({ cardId: r.chosen.id })), missing: [] };
 }
 
 export function speciesSet(cards: Iterable<CollectorCard>, species: string): CollectorResult {

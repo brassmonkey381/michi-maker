@@ -242,6 +242,7 @@ function Group({
               style={[styles.itemText, item.glow && styles.itemGlow]}>
               {busy ? 'Opening…' : item.label}
             </ThemedText>
+            {item.tag ? <ThemedText style={styles.tag}>{item.tag}</ThemedText> : null}
             {item.external && !busy ? <ThemedText themeColor="textSecondary" style={styles.external}>↗</ThemedText> : null}
             {item.glow ? <ThemedText style={[styles.itemText, styles.itemGlow, styles.chevron]}>›</ThemedText> : null}
           </Pressable>
@@ -324,5 +325,6 @@ const styles = StyleSheet.create({
   itemText: { fontSize: FontSize.control, fontWeight: Weight.medium, flexShrink: 1 },
   itemGlow: { color: Palette.accent, fontWeight: Weight.semibold },
   external: { fontSize: FontSize.sm, marginLeft: 'auto', opacity: 0.7 },
+  tag: { fontSize: 10, lineHeight: 14, fontWeight: Weight.bold, letterSpacing: 0.5, textTransform: 'uppercase', color: Palette.accent, backgroundColor: Palette.panel, borderRadius: Radius.pill, paddingHorizontal: 6, paddingVertical: 1, marginLeft: 6 },
   chevron: { marginLeft: 'auto' },
 });

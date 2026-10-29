@@ -52,6 +52,8 @@ export type NavItem = {
   newTab?: boolean;
   /** A glow and a chevron while there is something unread. Today only What's New earns it. */
   glow?: boolean;
+  /** A small tag after the label: 'Beta' on a page still finding its feet (owner, 2026-10-29). */
+  tag?: string;
 };
 
 export type NavGroup = { label: string; items: NavItem[] };
@@ -60,7 +62,7 @@ export const NAV_MAKE: NavItem[] = [
   { label: 'My Binders', href: '/my-binders' as Href, icon: 'binders', match: (p) => p.startsWith('/my-binders') },
   // SET BINDERS (owner, 2026-10-26, as Collector Binders): a set or a binder type, built by rule:
   // free placeholders or a binder. Renamed in the menu only, 2026-10-27.
-  { label: 'Set Binders', href: '/collect' as Href, icon: 'set', match: (p) => p.startsWith('/collect') },
+  { label: 'Set Binders', href: '/collect' as Href, icon: 'set', match: (p) => p.startsWith('/collect'), tag: 'Beta' },
   { label: 'Browse Cards', href: '/browse' as Href, icon: 'cards', match: (p) => p.startsWith('/browse') },
   // SCAN CARDS (owner, 2026-10-13): tcgscan.ai in a new tab, signed in as this account by way of
   // the one-time handoff ticket (data/handoff.ts), so a member does not sign in twice. Shown in

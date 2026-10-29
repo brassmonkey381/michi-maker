@@ -512,7 +512,7 @@ export default function CollectScreen() {
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
-            <ThemedText type="small" style={styles.eyebrow}>COLLECTOR BINDERS</ThemedText>
+            <ThemedText type="small" style={styles.eyebrow}>COLLECTOR BINDERS (BETA)</ThemedText>
             <ThemedText type="subtitle" style={styles.h1}>Ask for a set, get the binder</ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
               Print the placeholders free, or make it your binder. Sign in first.

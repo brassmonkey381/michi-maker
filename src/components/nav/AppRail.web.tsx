@@ -164,6 +164,7 @@ function RailGroup({
                     that is happening rather than looking like a link that missed the press. */}
                 {busy ? 'Opening…' : item.label}
               </ThemedText>
+              {item.tag ? <ThemedText style={styles.tag}>{item.tag}</ThemedText> : null}
               {item.external && !busy ? (
                 <ThemedText themeColor="textSecondary" style={styles.external}>
                   ↗
@@ -302,6 +303,7 @@ const styles = StyleSheet.create({
   itemText: { fontSize: FontSize.label, flexShrink: 1 },
   itemTextGlow: { color: Palette.accent },
   external: { fontSize: FontSize.sm, lineHeight: 14, marginLeft: 'auto', opacity: 0.7 },
+  tag: { fontSize: 10, lineHeight: 14, fontWeight: Weight.bold, letterSpacing: 0.5, textTransform: 'uppercase', color: Palette.accent, backgroundColor: Palette.panel, borderRadius: Radius.pill, paddingHorizontal: 6, paddingVertical: 1, marginLeft: 6 },
   chevron: { fontSize: FontSize.md, lineHeight: 18, marginLeft: 'auto' },
   grow: { flexGrow: 1 },
   bottom: {

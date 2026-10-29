@@ -34,7 +34,7 @@ import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/bi
 import {
   COLLECTOR_KINDS, type CollectorFilters, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult,
   type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionFamilies, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets, matchSets,
-  characterIndex, characterSet, inLanguage, isPokemonCard, kindsFor, livingCatalogue, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchCharacters, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
+  characterIndex, characterSet, facetsFor, hasMichiLayouts, heroOnlyLabel, inLanguage, isPokemonCard, kindsFor, livingCatalogue, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchCharacters, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
 } from '@/data/collectorBinders';
 import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import { collectorPool, curateMaxPages, leftoverPockets, type TailOrder, titleTailPages } from '@/data/collectorCurate';
@@ -84,7 +84,8 @@ const PAGE_OPTIONS = [
 type PageChoice = (typeof PAGE_OPTIONS)[number]['id'];
 /**
  * The real side-load page sizes the editor already draws (owner, 2026-10-29, "add shapes to
- * collect"). Plain pages only: the michi layouts and the curated templates are drawn for a 3×3.
+ * collect"). Plain pages take all four; the michi layouts and the curated templates are drawn for
+ * a 3×3 and a 3×4, so under those the other two dim and say so when tapped.
  */
 const SHAPE_OPTIONS = REAL_PAGE_SIZES.map((s) => ({ id: s.label, label: `${s.label} · ${s.rows * s.cols} pockets`, rows: s.rows, cols: s.cols }));
 type ShapeId = (typeof SHAPE_OPTIONS)[number]['id'];
@@ -208,6 +209,16 @@ export default function CollectScreen() {
   const [building, setBuilding] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const shapeOptions = useMemo(() => SHAPE_OPTIONS.map((s) => ({ ...s, disabled: roomForArt && !hasMichiLayouts(s) })), [roomForArt]);
+  const pickShape = (id: ShapeId) => {
+    if (roomForArt && !hasMichiLayouts(shapeOf(id))) { setNote(`Michi layouts come on 3×3 and 3×4 pages for now, not ${id}.`); return; }
+    setNote(null);
+    setShapeId(id);
+  };
+  const pickPages = (choice: PageChoice) => {
+    setPageChoice(choice);
+    if (choice !== 'plain' && !hasMichiLayouts(shape)) setShapeId('3×3');
+  };
 
   const needs = COLLECTOR_KINDS.find((k) => k.id === kind)?.needs ?? 'none';
   const wide = width >= Breakpoints.phone;
@@ -292,9 +303,10 @@ export default function CollectScreen() {
   const filterCtx = useMemo(() => ({
     seriesOf: (setId: string) => catalog?.getSet(setId)?.seriesId ?? '',
     ownedIds,
+    game,
     labelOf: (facet: FacetKey, id: string) =>
       facet === 'series' ? catalog?.getSeries(id)?.name ?? id : facet === 'sets' ? catalog?.getSet(id)?.name ?? id : id || 'Unknown',
-  }), [catalog, ownedIds]);
+  }), [catalog, ownedIds, game]);
   const facets = useMemo(() => (unfiltered && catalog ? facetOptions(unfiltered, (id) => catalog.getCard(id), filterCtx) : null), [unfiltered, catalog, filterCtx]);
   const result = useMemo<CollectorResult | null>(() => {
     if (!unfiltered || !catalog) return null;
@@ -317,7 +329,7 @@ export default function CollectScreen() {
   // The michi layouts seat five to seven cards a page, so the count comes from a dry build with
   // the same seed the real build uses.
   const seed = `${title}:${result?.pockets.length ?? 0}`;
-  const pages = !result ? 0 : roomForArt ? michiPages(result.pockets, countingId(), seed).length : pagesNeeded(result.pockets.length, shape.rows * shape.cols);
+  const pages = !result ? 0 : roomForArt ? michiPages(result.pockets, countingId(), seed, shape).length : pagesNeeded(result.pockets.length, shape.rows * shape.cols);
   const cameoCount = result ? result.pockets.filter((p) => p.cameo).length : 0;
   const owned = result && ownedIds ? result.pockets.filter((p) => ownedIds.has(p.cardId)).length : null;
   const overPageCap = LIMITS_ENFORCED && pages > limits.pagesPerBinder;
@@ -378,12 +390,12 @@ export default function CollectScreen() {
     for (let pass = 0; pass < 4 && curated.length < budget; pass += 1) {
       const pool = collectorPool(rest, cardOf, sources);
       if (pool.length < 5) break;
-      const plan = await planPages(pool, providers, { shape: { rows: 3, cols: 3 }, maxPages: budget - curated.length, minPage: 5, mkId: uuidv4 });
+      const plan = await planPages(pool, providers, { shape: { rows: shape.rows, cols: shape.cols }, maxPages: budget - curated.length, minPage: 5, mkId: uuidv4 });
       if (!plan.pages.length) break;
       curated.push(...plan.pages.map((p) => p.page));
       rest = { ...rest, pockets: leftoverPockets(rest, new Set(plan.pages.flatMap((p) => p.cards.map((c) => c.id)))) };
     }
-    const tail = titleTailPages(roomForArt ? michiPages(rest.pockets, uuidv4, seed) : pagesForPockets(rest.pockets, shape), cardOf, tailOrder);
+    const tail = titleTailPages(roomForArt ? michiPages(rest.pockets, uuidv4, seed, shape) : pagesForPockets(rest.pockets, shape), cardOf, tailOrder);
     return { pages: [...curated, ...tail], curated: curated.length };
   };
 
@@ -453,7 +465,7 @@ export default function CollectScreen() {
         built = planned.pages;
         curated = planned.curated;
       } else {
-        built = titleTailPages(roomForArt ? michiPages(result.pockets, uuidv4, seed) : pagesForPockets(result.pockets, shape), (id) => catalog?.getCard(id), tailOrder);
+        built = titleTailPages(roomForArt ? michiPages(result.pockets, uuidv4, seed, shape) : pagesForPockets(result.pockets, shape), (id) => catalog?.getCard(id), tailOrder);
       }
     } catch (e) {
       setBuilding(false);
@@ -489,7 +501,7 @@ export default function CollectScreen() {
     }
     setBuilding(false);
     setNote(null);
-    track('collector.binder', { game, kind, pockets: result.pockets.length, pages: pageChoice, shape: roomForArt ? '3×3' : shapeId, curated, fillArt, fanArt: fanArt ?? 'off', artPlaced, artWindow, sort: sort.key, lang, cameos: cameoCount });
+    track('collector.binder', { game, kind, pockets: result.pockets.length, pages: pageChoice, shape: shapeId, curated, fillArt, fanArt: fanArt ?? 'off', artPlaced, artWindow, sort: sort.key, lang, cameos: cameoCount });
     router.push(`/binder/${created.id}?edit=1` as Href);
   };
 
@@ -565,7 +577,7 @@ export default function CollectScreen() {
             {kind === 'master' ? <Seg options={REVERSE} value={reverse} onChange={setReverse} /> : null}
             <View style={styles.sortRow} testID="collect-sort">
               <ThemedText type="small" themeColor="textSecondary">Sort</ThemedText>
-              {sortKeysFor(kind).map((k) => {
+              {sortKeysFor(kind, game).map((k) => {
                 const on = sort.key === k.id;
                 return (
                   <Pressable key={k.id} onPress={() => pickSort(k.id)} style={[styles.sortChip, on && styles.sortChipOn]} accessibilityRole="button" accessibilityLabel={`${k.label}: ${k.blurb} Tap again to flip.`} testID={`collect-sort-${k.id}`}>
@@ -581,7 +593,7 @@ export default function CollectScreen() {
               <>
                 <View style={styles.sortRow} testID="collect-filters">
                   <ThemedText type="small" themeColor="textSecondary">Filter</ThemedText>
-                  {FACETS.filter((f) => (needs === 'set' ? f.id !== 'series' && f.id !== 'sets' : true)).map((f) => {
+                  {facetsFor(game).filter((f) => (needs === 'set' ? f.id !== 'series' && f.id !== 'sets' : true)).map((f) => {
                     const n = filters[f.id].length;
                     const open = openFacet === f.id;
                     return (
@@ -590,11 +602,14 @@ export default function CollectScreen() {
                       </Pressable>
                     );
                   })}
-                  <Pressable onPress={() => setFilters((v) => ({ ...v, fullArt: !v.fullArt }))} style={[styles.sortChip, filters.fullArt && styles.sortChipOn]} accessibilityRole="switch" accessibilityState={{ checked: filters.fullArt }} testID="collect-full-art">
-                    <ThemedText type="small" style={[styles.sortText, filters.fullArt && styles.sortTextOn]}>Full art</ThemedText>
-                  </Pressable>
+                  {/* The other games' catalogues carry no full-art flag; the chip would empty the result. */}
+                  {secondary ? null : (
+                    <Pressable onPress={() => setFilters((v) => ({ ...v, fullArt: !v.fullArt }))} style={[styles.sortChip, filters.fullArt && styles.sortChipOn]} accessibilityRole="switch" accessibilityState={{ checked: filters.fullArt }} testID="collect-full-art">
+                      <ThemedText type="small" style={[styles.sortText, filters.fullArt && styles.sortTextOn]}>Full art</ThemedText>
+                    </Pressable>
+                  )}
                   <Pressable onPress={() => setFilters((v) => ({ ...v, pokemonOnly: !v.pokemonOnly }))} style={[styles.sortChip, filters.pokemonOnly && styles.sortChipOn]} accessibilityRole="switch" accessibilityState={{ checked: filters.pokemonOnly }} testID="collect-pokemon-only">
-                    <ThemedText type="small" style={[styles.sortText, filters.pokemonOnly && styles.sortTextOn]}>Pokémon only</ThemedText>
+                    <ThemedText type="small" style={[styles.sortText, filters.pokemonOnly && styles.sortTextOn]}>{heroOnlyLabel(game)}</ThemedText>
                   </Pressable>
                   {ownedIds ? (
                     <Pressable onPress={() => setFilters((v) => ({ ...v, owned: v.owned === 'all' ? 'owned' : v.owned === 'owned' ? 'missing' : 'all' }))} style={[styles.sortChip, filters.owned !== 'all' && styles.sortChipOn]} accessibilityRole="button" testID="collect-owned-filter">
@@ -695,9 +710,9 @@ export default function CollectScreen() {
 
               {result.pockets.length > 0 ? (
                 <>
-                  <Seg options={secondary ? PAGE_OPTIONS.filter((o) => o.id !== 'curate') : PAGE_OPTIONS} value={pageChoice} onChange={setPageChoice} />
+                  <Seg options={secondary ? PAGE_OPTIONS.filter((o) => o.id !== 'curate') : PAGE_OPTIONS} value={pageChoice} onChange={pickPages} />
                   <ThemedText type="small" themeColor="textSecondary" testID="collect-pages-blurb">{PAGE_OPTIONS.find((o) => o.id === pageChoice)?.blurb}</ThemedText>
-                  {roomForArt ? null : <Seg options={SHAPE_OPTIONS} value={shapeId} wrap onChange={setShapeId} />}
+                  <Seg options={shapeOptions} value={shapeId} wrap onChange={pickShape} />
                   {roomForArt ? (
                     <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">{fanArt ? 'Fill the art panels with fan art.' : 'Fill the art panels with stock photos.'}</Check>
                   ) : null}
@@ -708,7 +723,8 @@ export default function CollectScreen() {
                       <Seg options={ART_FILL_SOURCES} value={fillSource} onChange={setFillSource} />
                     </View>
                   ) : null}
-                  <Seg options={ART_WINDOWS} value={artWindow} onChange={setArtWindow} />
+                  {/* The art window opens only on a card the catalogue flags full art, which the other games' do not. */}
+                  {secondary ? null : <Seg options={ART_WINDOWS} value={artWindow} onChange={setArtWindow} />}
                   <View style={styles.actions}>
                     {artWindow === 'off' ? (
                       <Pressable onPress={() => void printFree()} disabled={printing} style={[styles.btn, styles.btnOutline, printing && styles.dim]} accessibilityRole="button" testID="collect-print">

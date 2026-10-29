@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  matchSets, characterIndex, characterSet, kindsFor, livingCatalogue, searchCharacters,
+  matchSets, characterIndex, characterSet, kindsFor, livingCatalogue, searchCharacters, facetsFor, hasMichiLayouts, heroOnlyLabel, isCharacterCard, michiTemplatesFor,
   type CollectorCard, completeSet, dexNumber, evolutionLineSet, inLanguage, isSecretRare, livingDex, masterSet, MICHI_PAGE_TEMPLATES,
   facetOptions, familyFromEvolvesFrom, filterPockets, isFullArt, isPokemonCard, michiPages, naturalSortKey, NO_FILTERS, numberKey, pagesNeeded, POKEDEX, rarityRank, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesOf, speciesSet,
   withCameos,
@@ -290,4 +290,34 @@ test('one character for the other games: keyed by the catalogue, labelled by the
   // One of everything: one card per name, events included, in order of debut; newest print stands for the name.
   assert.deepEqual(livingCatalogue(cards, 'newest').pockets.map((p) => p.cardId), ['2', '3', '5', '4']);
   assert.deepEqual(livingCatalogue(cards, 'oldest').pockets.map((p) => p.cardId), ['2', '1', '5', '4']);
+});
+
+test('the chips bend to the game: no Artist, the colour word, creatures only by card type, no michi on a 2x2', () => {
+  assert.deepEqual(facetsFor('lorcana').map((f) => f.label), ['Rarity', 'Series', 'Set', 'Ink']);
+  assert.deepEqual(facetsFor('pokemon').map((f) => f.label), ['Rarity', 'Series', 'Set', 'Artist', 'Type']);
+  assert.deepEqual(sortKeysFor('complete', 'onepiece').map((k) => k.id), ['number', 'rarity', 'value', 'name']);
+  assert.equal(heroOnlyLabel('yugioh'), 'Monsters only');
+  const card = (id: string, cardType: string[]): CollectorCard => ({ id, name: id, number: id, setId: 's', releaseDate: '2024-01-01', rarity: 'C', evolutionLine: [id], cardType });
+  const is = (t: string[]) => isCharacterCard(card('x', t));
+  assert.equal(is(['Legendary Creature']), true);
+  assert.equal(is(['Artifact Creature']), true);
+  assert.equal(is(['Enchantment']), false);
+  assert.equal(is(['Normal Spell']), false);
+  assert.equal(is(['Effect Monster']), true);
+  assert.equal(is(['Digimon/Option']), true);
+  assert.equal(is(['Program']), false);
+  const cards = [card('luffy', ['Character']), card('gum', ['Event']), card('ship', ['Stage'])];
+  const base = { pockets: cards.map((c) => ({ cardId: c.id })), missing: [] };
+  const ctx = { seriesOf: () => '', game: 'onepiece' };
+  assert.deepEqual(filterPockets(base, (id) => cards.find((c) => c.id === id), { ...NO_FILTERS, pokemonOnly: true }, ctx).pockets.map((p) => p.cardId), ['luffy']);
+  assert.equal(hasMichiLayouts({ rows: 3, cols: 4 }), true);
+  assert.equal(hasMichiLayouts({ rows: 2, cols: 2 }), false);
+  assert.ok(michiTemplatesFor({ rows: 3, cols: 4 }).length >= 4);
+  assert.ok(michiTemplatesFor({ rows: 3, cols: 4 }).every((t) => t.cardPockets >= 6 && t.cardPockets <= 9));
+  const pockets = Array.from({ length: 50 }, (_, i) => ({ cardId: `c${i}` }));
+  let n = 0;
+  const pages = michiPages(pockets, () => `id${(n += 1)}`, 'test', { rows: 3, cols: 4 });
+  assert.ok(pages.every((pg) => pg.rows === 3 && pg.cols === 4 && pg.slots.some((s) => s.type === 'artwork')));
+  assert.deepEqual(pages.flatMap((pg) => pg.slots.filter((s) => s.type === 'card').map((s) => s.cardId)), pockets.map((p) => p.cardId));
+  assert.throws(() => michiPages(pockets, () => 'x', 'test', { rows: 2, cols: 2 }), /2×2/);
 });

@@ -151,8 +151,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         body:
-          'Plain pages in Set Binders now come in the four real page sizes, not only 3×3. Pick '
-          + 'the size under Plain pages and the page count follows.',
+          'Set Binders now come in the four real page sizes, not only 3×3. Plain pages take all '
+          + 'four; Michi layouts come on 3×3 and 3×4. Pick the size and the page count follows. '
+          + 'The filter chips also follow the game now: One Piece filters by Color, Lorcana by Ink, '
+          + 'and Characters only replaces Pokémon only.',
       },
       {
         products: ['michi'],

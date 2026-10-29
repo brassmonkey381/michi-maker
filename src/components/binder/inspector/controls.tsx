@@ -57,7 +57,7 @@ export function Seg<T extends string>({
   labelOf,
   wrap,
 }: {
-  options: readonly { id: T; label: string; blurb?: string }[];
+  options: readonly { id: T; label: string; blurb?: string; disabled?: boolean }[];
   value: T;
   onChange: (id: T) => void;
   /** The accessible name when the label alone does not say enough. */
@@ -74,9 +74,9 @@ export function Seg<T extends string>({
             key={o.id}
             onPress={() => onChange(o.id)}
             accessibilityRole="button"
-            accessibilityState={{ selected: active }}
+            accessibilityState={{ selected: active, disabled: !!o.disabled }}
             accessibilityLabel={labelOf ? labelOf(o) : o.blurb ? `${o.label}: ${o.blurb}` : o.label}
-            style={[styles.seg, active && styles.segActive]}>
+            style={[styles.seg, active && styles.segActive, o.disabled && styles.segDisabled]}>
             <Text style={[styles.segText, active && styles.segTextActive]}>{o.label}</Text>
           </Pressable>
         );
@@ -317,6 +317,8 @@ export const styles = StyleSheet.create({
   segGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.panel, borderRadius: Radius.pill, padding: 2 },
   segGroupWrap: { flexWrap: 'wrap', alignSelf: 'flex-start', borderRadius: Radius.control },
   seg: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill },
+  /** An option that cannot be taken right now; the press still fires so the screen can say why. */
+  segDisabled: { opacity: 0.4 },
   segActive: {
     backgroundColor: Palette.surface,
     shadowColor: '#000000',

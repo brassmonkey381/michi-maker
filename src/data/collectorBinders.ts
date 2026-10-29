@@ -94,6 +94,23 @@ export const FACETS: readonly { id: FacetKey; label: string }[] = [
   { id: 'types', label: 'Type' },
 ];
 
+/** What a game calls the colour its `types` carry: One Piece a colour, Lorcana an ink, Riftbound a domain. */
+const TYPE_LABEL: Record<string, string> = { pokemon: 'Type', onepiece: 'Color', digimon: 'Color', cyberpunk: 'Color', lorcana: 'Ink', riftbound: 'Domain', yugioh: 'Attribute', magic: 'Creature type' };
+
+/**
+ * The facets a game can answer (owner, 2026-10-29, "weird chips, like Pokémon only shown for One
+ * Piece"): the other games' catalogues carry no illustrator, so Artist is Pokémon's alone, and
+ * the Type chip takes the game's own word for its colours.
+ */
+export function facetsFor(game: string): typeof FACETS {
+  return FACETS.filter((f) => game === 'pokemon' || f.id !== 'artists').map((f) => (f.id === 'types' ? { ...f, label: TYPE_LABEL[game] ?? 'Type' } : f));
+}
+
+/** The label of the chip that keeps only the game's creatures: Pokémon, Digimon, monsters, characters. */
+export function heroOnlyLabel(game: string): string {
+  return game === 'pokemon' ? 'Pokémon only' : game === 'digimon' ? 'Digimon only' : game === 'magic' ? 'Creatures only' : game === 'yugioh' ? 'Monsters only' : 'Characters only';
+}
+
 const FULL_ART_KINDS = new Set(['special_illustration_rare', 'illustration_rare', 'named_full_art', 'measured', 'double_rare']);
 
 /** Is this a full-art card? The kit's flag wins; the art kind answers for cards without it. */
@@ -109,12 +126,14 @@ export function isPokemonCard(c: CollectorCard): boolean {
 }
 
 /** Energy types only ("Fire"), never the card class, for the Type facet. */
-const energyTypes = (c: CollectorCard) => (c.types ?? []).filter((t) => !/pok|trainer|energy/i.test(t));
+const energyTypes = (c: CollectorCard) => (c.types ?? []).filter((t) => t !== '//' && !/pok|trainer|energy/i.test(t));
 
 export interface FilterContext {
   /** The series a set belongs to, by set id. */
   seriesOf: (setId: string) => string;
   ownedIds?: ReadonlySet<string> | null;
+  /** The game the cards belong to; the creatures-only chip reads Pokémon's card class or the other games' card type. */
+  game?: string;
 }
 
 /** The pockets that pass every filter. A pocket whose card is unknown passes the card facets. */
@@ -133,7 +152,7 @@ export function filterPockets(result: CollectorResult, cardOf: (id: string) => C
     if (!inList(f.artists, c.illustrator ?? '')) return false;
     if (f.types.length && !energyTypes(c).some((t) => f.types.includes(t))) return false;
     if (f.fullArt && !isFullArt(c)) return false;
-    if (f.pokemonOnly && !isPokemonCard(c)) return false;
+    if (f.pokemonOnly && !(ctx.game && ctx.game !== 'pokemon' ? isCharacterCard(c) : isPokemonCard(c))) return false;
     return true;
   });
   return { ...result, pockets };
@@ -215,12 +234,13 @@ export function naturalSortKey(kind: CollectorKind): CollectorSortKey {
   return kind === 'complete' || kind === 'master' ? 'number' : kind === 'dex' ? 'dex' : 'release';
 }
 
-export function sortKeysFor(kind: CollectorKind): typeof COLLECTOR_SORT_KEYS {
+export function sortKeysFor(kind: CollectorKind, game = 'pokemon'): typeof COLLECTOR_SORT_KEYS {
   return COLLECTOR_SORT_KEYS.filter((k) =>
     k.id === 'number' ? kind === 'complete' || kind === 'master'
       : k.id === 'dex' ? kind === 'dex'
         : k.id === 'release' ? kind !== 'complete' && kind !== 'master'
-          : true);
+          : k.id === 'artist' ? game === 'pokemon'
+            : true);
 }
 
 /** Whether a sort choice changes the result's own order (see naturalSortKey). */
@@ -494,10 +514,16 @@ export interface CharacterEntry { key: string; label: string; count: number }
  * the card name cut down to the key's length when the name starts with the key ('Elsa - Snow
  * Queen' labels as 'Elsa'), else the shortest name that carries it.
  */
-const NON_CHARACTER_TYPES = /^(event|action|item|location|option|tamer|stage|don!!|spell|signature spell|gear|rune|battlefield)$/i;
+const NON_CHARACTER_TYPES = /\b(event|action|item|location|option|tamer|stage|don!!|spell|gear|rune|battlefield|trap|instant|sorcery|enchantment|artifact|land|program)\b/i;
+/** A type word that makes a card a character whatever else it says ('Artifact Creature', 'Digimon/Option', 'Effect Monster'). */
+const CHARACTER_TYPES = /\b(character|creature|monster|unit|champion|legend|leader|digimon|digi-egg|planeswalker)\b/i;
 
 /** Does this card stand for a character (a person, creature or Digimon), not an event or an item? */
-export const isCharacterCard = (c: CollectorCard): boolean => !c.cardType?.length || !c.cardType.every((t) => NON_CHARACTER_TYPES.test(t));
+export const isCharacterCard = (c: CollectorCard): boolean => {
+  const types = c.cardType ?? [];
+  if (!types.length || types.some((t) => CHARACTER_TYPES.test(t))) return true;
+  return !types.every((t) => NON_CHARACTER_TYPES.test(t));
+};
 
 export function characterIndex(cards: Iterable<CollectorCard>, opts: { charactersOnly?: boolean } = {}): CharacterEntry[] {
   const by = new Map<string, CharacterEntry>();
@@ -694,15 +720,29 @@ export const MICHI_PAGE_TEMPLATES: readonly ArtTemplate[] = ART_TEMPLATES.filter
   (t) => t.rows === 3 && t.cols === 3 && !t.spread && t.cardPockets >= 5 && t.cardPockets <= 7,
 );
 
-export function michiPages(pockets: readonly CollectorPocket[], mkId: () => string, seed: string | number): DemoPage[] {
+/**
+ * The page shapes the michi layouts come in (owner, 2026-10-29): 3×3 from the five-to-seven
+ * pocket compositions, 3×4 from the six-to-nine. No art template is drawn for a 2×2 or a 4×4 yet.
+ */
+export const MICHI_SHAPES: readonly { rows: number; cols: number }[] = [{ rows: 3, cols: 3 }, { rows: 3, cols: 4 }];
+export const hasMichiLayouts = (shape: { rows: number; cols: number }): boolean => MICHI_SHAPES.some((s) => s.rows === shape.rows && s.cols === shape.cols);
+export function michiTemplatesFor(shape: { rows: number; cols: number }): readonly ArtTemplate[] {
+  if (shape.rows === 3 && shape.cols === 3) return MICHI_PAGE_TEMPLATES;
+  const max = shape.rows * shape.cols - 3;
+  return ART_TEMPLATES.filter((t) => t.rows === shape.rows && t.cols === shape.cols && !t.spread && t.cardPockets >= 6 && t.cardPockets <= max);
+}
+
+export function michiPages(pockets: readonly CollectorPocket[], mkId: () => string, seed: string | number, shape: { rows: number; cols: number } = { rows: 3, cols: 3 }): DemoPage[] {
   const rng = seededRandom(`collect:${seed}`);
+  const templates = michiTemplatesFor(shape);
+  if (!templates.length) throw new Error(`No michi layouts for a ${shape.rows}×${shape.cols} page yet.`);
   const pages: DemoPage[] = [];
   let i = 0;
   let lastId: string | null = null;
   while (i < pockets.length) {
     const left = pockets.length - i;
-    let pool = MICHI_PAGE_TEMPLATES.filter((t) => t.id !== lastId);
-    if (!pool.length) pool = MICHI_PAGE_TEMPLATES.slice();
+    let pool = templates.filter((t) => t.id !== lastId);
+    if (!pool.length) pool = templates.slice();
     const fitting = pool.filter((t) => t.cardPockets >= left);
     const t = fitting.length
       ? fitting.sort((a, b) => a.cardPockets - b.cardPockets || a.id.localeCompare(b.id))[0]

@@ -139,11 +139,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'Before you type, the page lists the newest sets of the game you picked, one tap each. '
-          + 'A code finds its set with or without the dash (OP-01, op01), a code prefix lists its '
-          + 'family (sv3 finds sv3 and sv3pt5), and a name matches word by word. When nothing '
-          + 'matches, the page says so and shows a code to try. The game row folds onto more '
-          + 'lines instead of running off the panel.',
+          'The newest sets of your game are one tap each. A code works with or without the dash '
+          + '(OP-01, op01), a prefix lists its family, and a name matches word by word.',
       },
       {
         products: ['michi'],
@@ -151,10 +148,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         body:
-          'Set Binders now come in the four real page sizes, not only 3×3. Plain pages take all '
-          + 'four; Michi layouts come on 3×3 and 3×4. Pick the size and the page count follows. '
-          + 'The filter chips also follow the game now: One Piece filters by Color, Lorcana by Ink, '
-          + 'and Characters only replaces Pokémon only.',
+          'All four real page sizes. Plain pages take any of them; Michi layouts come on 3×3 and 3×4. '
+          + 'Filter chips follow the game: Color for One Piece, Ink for Lorcana, Characters only.',
       },
       {
         products: ['michi'],
@@ -162,13 +157,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         body:
-          'Set Binders now offers One character beside Complete set for One Piece, Lorcana, '
-          + 'Riftbound, Digimon, Magic, Yu-Gi-Oh! and Cyberpunk: type a name, pick it, and every '
-          + 'card of that character comes back oldest first. The most-printed names rank first, '
-          + 'so luffy finds Monkey.D.Luffy before an event that mentions him; events, items and '
-          + 'locations stay out. Magic asks for one card and gives every printing of it. One of '
-          + 'everything is the living dex for a game without one: one card for every name, '
-          + 'events and items included, in order of debut, with your choice of newest or oldest print.',
+          'For every game beside Pokémon: One character gives every card of a name, oldest first. One '
+          + 'of everything, for One Piece, Lorcana, Digimon and Riftbound, is one card per name in the '
+          + 'game, in order of debut.',
       },
       {
         products: ['michi'],
@@ -176,9 +167,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'account',
         body:
-          'Make, Explore, Learn and Account, in the order you reach for them: My Binders is first, '
-          + 'and the vote and feedback pages close the list. Home is the wordmark now, Plans and My '
-          + 'Purchases share one line, and Collector Binders is called Set Binders in the menu. The phone drawer has the same groups.',
+          'Make, Explore, Learn and Account, in the order you reach for them. Home is the wordmark, '
+          + 'Plans and Purchases share a line, and the phone drawer matches.',
       },
       {
         products: ['michi'],
@@ -186,9 +176,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'sharing',
         body:
-          'Q and F used to draw the picture at once in the soft style. Now a small step comes first: '
-          + 'soft or clean, and whether the cards follow the binder\u2019s art views or show as whole '
-          + 'cards. The Share panel has the same two choices.',
+          'Q and F now ask two things before drawing: soft or clean, and the binder’s art views or '
+          + 'whole cards. The Share panel has the same choices.',
       },
       {
         products: ['michi'],
@@ -205,9 +194,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'Arrange (G) now offers every take it finds, not three, and a Shuffle button adds three '
-          + 'fresh ones each press. In a double-sided binder the bar also offers Spread: both facing '
-          + 'pages seated as one, with the spread layouts, and a card may cross to the facing page.',
+          'Arrange (G) offers every take it finds, Shuffle adds three more, and a double-sided binder '
+          + 'gets Spread: both facing pages seated as one.',
       },
       {
         products: ['michi'],
@@ -216,12 +204,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'binders',
         pinned: true,
         body:
-          'The art view used to be set page by page. Now the binder has one setting behind the gear, '
-          + 'under Pockets, and every page follows it; a page can still say otherwise, and so can '
-          + 'a single pocket or every selected pocket at once, the way sleeves work. A pocket '
-          + 'chooses the full card or the art window; connected art stays a page’s shape. '
-          + 'Mats and shared pictures follow the same choices. A collector binder made with an '
-          + 'art window sets it once for the binder.',
+          'One setting for the binder, behind the gear under Pockets, with a page or a pocket free to '
+          + 'say otherwise, the way sleeves work. Mats and shared pictures follow.',
       },
       {
         products: ['michi'],
@@ -229,10 +213,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         body:
-          'Collect now starts with the game: Pokémon, One Piece, Disney Lorcana, Riftbound, Digimon, '
-          + 'Magic and the rest the card picker offers. Pick a game, search its set, and the '
-          + 'complete set becomes a binder the same way, plain pages or michi layouts. The '
-          + 'Pokémon-only shapes stay with Pokémon.',
+          'Collect starts with the game: Pokémon, One Piece, Lorcana, Riftbound, Digimon, Magic and '
+          + 'the rest. Pick a set and the complete set becomes a binder, plain pages or michi layouts.',
       },
       {
         products: ['michi'],
@@ -240,11 +222,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'The In order and Curated switch and the Michi layouts box were two controls that read '
-          + 'alike. They are now one choice of three: Plain pages, nine cards a page in your sort '
-          + 'order; Michi layouts, art panels on every page with your cards in sort order around '
-          + 'them; or Curated, one idea a page and the rest in michi layouts after. Your sort '
-          + 'always decides the sequence. A line under the choice says what it does.',
+          'One choice of three for the pages: Plain, nine a page in your sort; Michi layouts, art '
+          + 'panels on every page; or Curated, one idea a page. Your sort decides the sequence.',
       },
       {
         products: ['michi'],
@@ -252,12 +231,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'The print sheet now lists the download before you take it: each PDF by name, with its '
-          + 'sheet count and the paper it wants, placeholders on plain paper, art on matte '
-          + 'cardstock, mats on photo paper or white cardstock, and a read-me, all in one zip. '
-          + 'And a binder bought at checkout no longer needs four more taps: coming back from '
-          + 'Stripe, the print sheet opens, the files download and the unlock locks to this '
-          + 'version by itself.',
+          'The print sheet lists every PDF with its sheet count and paper before you download. Coming '
+          + 'back from checkout, it opens and the files download by themselves.',
       },
       {
         products: ['michi'],
@@ -268,20 +243,11 @@ export const CHANGELOG: ChangelogEntry[] = [
         pinned: true,
         featured: true,
         body:
-          'A new page under Make, Set Binders. A complete set in number order, a master set with a reverse '
-          + 'holo pocket for every card printed that way, every card of one Pokémon, an evolution '
-          + 'line, or the living Pokédex, 1 to 1025. The other games get a complete set, one character '
-          + 'and, for One Piece, Lorcana, Digimon and Riftbound, one of everything. Choose English, Japanese or both, keep or drop '
-          + 'the secret rares, put the reverse holos after the run or beside each card, and add the '
-          + 'cameo cards of a Pokémon. Print the placeholders free with no account, or make it a '
-          + 'binder of your own: the michi layouts option draws a different composition for every '
-          + 'page, with art panels ready for your pictures. Curated pages build the binder the way '
-          + 'a story binder is built, one idea a page, pass after pass, with the rest following in '
-          + 'order on pages named by what they hold. Every shape sorts and filters, the art panels '
-          + 'can be filled with stock photos in the mood of each page (the sea for a Water page, '
-          + 'embers for Fire), and an art window choice shows the pages '
-          + 'in the art view with mats ready to print. With the '
-          + 'Owned view it says how many you already have.',
+          'A new page under Make. A complete set, a master set with its reverse holos, one Pokémon, '
+          + 'an evolution line, or the living Pokédex, 1 to 1025; the other games get a complete set, '
+          + 'one character and one of everything. Print the placeholders free, or make it a binder: '
+          + 'plain pages, michi layouts with art panels, or curated pages one idea at a time. Every '
+          + 'shape sorts and filters, and the Owned view says how many you already have.',
       },
       {
         products: ['michi'],
@@ -289,10 +255,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'Add art now opens with Find art already open: the page’s Pokémon named, every art '
-          + 'site one chip away, then the free photos. On the screen and on the printed mat the '
-          + 'line under a stock card leads with the dex number, which also sits large and faint '
-          + 'in the corner.',
+          'Add art opens with Find art ready: the page’s Pokémon named, every art site one chip away, '
+          + 'then free photos. Stock cards lead with the dex number, on screen and on the mat.',
       },
       {
         products: ['michi'],
@@ -300,13 +264,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         body:
-          'A page set to the art window or connected art now shares that way too: the share '
-          + 'picture, the quick look and the full-size download draw the stock cards and the '
-          + 'connected sheet. And on the print sheet, those pages can print as mats, black or '
-          + 'white: cardstock with the art window cut out, the card slides in behind, and the '
-          + 'name, set, number, illustrator and year sit under the window, and the Pokédex number '
-          + 'leads the line and sits large and faint in the corner. No card art is printed. '
-          + 'The mats come as their own file, with the paper to print them on named on its page.',
+          'Pages set to the art window or connected art share that way too. On the print sheet they '
+          + 'print as black or white mats, with the window cut out and the card details under it. No '
+          + 'card art is printed.',
       },
       {
         products: ['michi'],
@@ -315,9 +275,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'binders',
         big: true,
         body:
-          'With the Owned view on, every card pocket carries a tick: green when you own the card, '
-          + 'a hollow ring when you do not. Tap it to flip. Signed in only. A card you scanned or '
-          + 'imported stays owned until you remove it from that portfolio, and the toast says so.',
+          'With the Owned view on, every card pocket carries a tick: green when yours, hollow when '
+          + 'not. Tap it to flip. Signed in only.',
       },
       {
         products: ['michi'],
@@ -326,9 +285,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'sharing',
         big: true,
         body:
-          'Soft or Clean, in the Share sheet. Clean leaves your backdrop exactly as it is, no wash '
-          + 'over it, the page as large as the frame allows, and the michi-maker mark centred under '
-          + 'it. Works on a single page and on a two-page spread. Link previews stay Soft.',
+          'Soft or Clean in the Share sheet. Clean keeps your backdrop as it is, the page as large as '
+          + 'the frame allows, and the mark centred under it.',
       },
       {
         products: ['michi'],
@@ -336,9 +294,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'sharing',
         body:
-          'The share picture is one block in the Share sheet: its style, then Quick look beside '
-          + 'Download full-size image. The quick look itself has a download button, so what you '
-          + 'are looking at is one tap from being the file.',
+          'The share picture is one block in the Share sheet: its style, Quick look and Download '
+          + 'full-size image together. The quick look has its own download button.',
       },
       {
         products: ['michi'],
@@ -346,9 +303,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'fix',
         area: 'browse',
         body:
-          'A search that said 217 results could stop at the first page when the list was already '
-          + 'scrolled to the bottom as more arrived. It now carries on, and a Load more row at the '
-          + 'foot is there for any list that cannot tell.',
+          'A search could stop at the first page when the list was already at the bottom. It carries '
+          + 'on now, with a Load more row at the foot.',
       },
       {
         products: ['tcgscan'],
@@ -390,9 +346,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'A right word hops the cards one after the other, pops its chip in and stamps YES over the '
-          + 'page. A wrong one shakes the guess box and stamps NOPE. Solving it brings the big version '
-          + 'with a longer shower of confetti. Off when your device asks for reduced motion.',
+          'A right word hops the cards and stamps YES; a wrong one shakes the box and stamps NOPE. '
+          + 'Solving it brings confetti. Off under reduced motion.',
       },
       {
         products: ['michi'],
@@ -400,10 +355,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'The game is one dropdown beside Color and Theme instead of three rows of chips, the '
-          + 'search tools sit beside the search box, the series count shares a row with Collection '
-          + 'and size, and the tray explainer waits behind its header until a card lands there. '
-          + 'About 200 pixels less before the first card on a phone.',
+          'The game is a dropdown beside Color and Theme, and the search tools sit beside the search '
+          + 'box. About 200 pixels less before the first card on a phone.',
       },
     ],
   },
@@ -418,11 +371,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'binders',
         big: true,
         body:
-          'A page setting: the Art view chip on the page bar, or the page fields. The picture is cut from the card and set at full '
-          + 'width with its name, set, number and illustrator under it, so a page of cards from '
-          + 'different eras reads as one set of pictures instead of five frame designs. Full-art '
-          + 'cards stay as they are. Needs PRO to switch on; a page already set stays visible to '
-          + 'everyone.',
+          'A page setting: each card’s picture at full width on a black stock card with its name, '
+          + 'set, number and illustrator, so mixed eras read as one set of pictures. Full-art cards '
+          + 'stay whole. PRO to set, visible to everyone.',
       },
       {
         products: ['michi'],
@@ -430,10 +381,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         body:
-          'The same page setting. Every card is cut to its art window and the windows sit with no '
-          + 'pockets and no gaps between them, so a run of connecting artwork reads as the picture '
-          + 'it was drawn as. A page of full-art cards is cut inside the border instead, whole, so '
-          + 'connecting full arts meet too. Pokémon only for now.',
+          'The same page setting: every art window butted with no pockets or gaps, so connecting '
+          + 'artwork reads as the picture it was drawn as. A page of full arts is cut inside the border '
+          + 'instead. Pokémon only for now.',
       },
       {
         products: ['michi'],
@@ -472,9 +422,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'fix',
         area: 'binders',
         body:
-          'Opening the preview on a binder that held cards from more than one game loaded each '
-          + 'game in turn, and every arrival threw away the sheets being drawn. The preview now '
-          + 'builds once and shows up. Pokémon-only binders were never affected.',
+          'A binder with cards from more than one game loaded each game in turn and threw the preview '
+          + 'away each time. It now builds once.',
       },
     ],
   },
@@ -489,12 +438,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'binders',
         big: true,
         body:
-          'Add art asks one thing: Card art, Upload, or Find art (free photos, and where else to '
-          + 'look). The picture lands on the page as one pocket. Drag it where you like and drag its '
-          + 'corner to make it as big as you like. Zoom, rotate, flip and cutting into pieces are '
-          + 'behind Advanced editing, which now opens on one whole piece with a Place on page button. '
-          + 'A placed picture keeps the whole image, so Edit on its pocket reopens it exactly as '
-          + 'framed and Apply puts the new framing back in the same pocket. Just the art is retired.',
+          'Add art asks one thing: Card art, Upload or Find art, and the picture lands on the page as '
+          + 'one pocket. Drag it, resize it from the corner, and Advanced editing has the rest. Just '
+          + 'the art is retired.',
       },
       {
         products: ['michi'],
@@ -502,10 +448,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         body:
-          'The Artwork panel now knows which pieces are in a binder, any of your binders. Filter it '
-          + 'to the ones that are not, or press Tidy up: every unused piece is shown, grouped by the '
-          + 'picture it was cut from, ticked for deletion; untick what you want to keep and delete the '
-          + 'rest in one go. Removed pieces can be restored until you leave the editor.',
+          'The Artwork panel knows which pieces are in a binder. Tidy up shows every unused piece, '
+          + 'grouped by picture and ticked for deletion; untick what to keep and delete the rest in one '
+          + 'go.',
       },
       {
         products: ['michi'],
@@ -513,10 +458,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'Find art and Slice new art were two doors to the same room. The Artwork panel now has one, '
-          + 'Add art, which opens the Slice Studio; Find art lives inside it, beside Card art and Upload. '
-          + 'The free-photo search and the Find art searches start from your last search in the card '
-          + 'browser, or the last card you placed, before falling back to what the page is about.',
+          'One Add art button opens the Slice Studio, with Find art inside it. Art searches start '
+          + 'from your last card browser search or the last card you placed.',
       },
       {
         products: ['michi'],
@@ -524,9 +467,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'browse',
         body:
-          'A right word throws confetti, and the last word turns the whole thing loose. The guess '
-          + 'box and the line under it go green for a hit and red for a miss, so the verdict reads '
-          + 'at a glance. Devices set to reduce motion get the colours and skip the confetti.',
+          'A right word throws confetti, and the guess box goes green for a hit and red for a miss. '
+          + 'Reduced motion keeps the colours and skips the confetti.',
       },
     ],
   },
@@ -543,12 +485,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         featured: true,
         pinned: true,
         body:
-          'In the page tools, Arrange reads the cards on a page and proposes one seating, with two '
-          + 'other takes: rows by depth (sky, ground, underground), evolution lines in order, frame '
-          + 'colours grouped on windowed cards, lookalikes side by side, connected art joined. It '
-          + 'offers the art layouts that fit. Each take shows on the page itself, full size: step '
-          + 'through them with the arrows, Keep the one that reads, and one Undo brings the old order '
-          + 'back. Press G in the editor; C completes a page (the Cards dock moved to D). Single pages only.',
+          'In the page tools, Arrange reads a page’s cards and proposes seatings: rows by depth, '
+          + 'evolution lines in order, frame colours grouped, lookalikes side by side, connected art '
+          + 'joined. Step through them on the page, Keep one, Undo brings the old order back. Press G.',
       },
       {
         products: ['michi'],
@@ -557,9 +496,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'binders',
         big: true,
         body:
-          'Take a card off a page with the Tray button on its bar, or drag it onto the tray at the '
-          + 'top of the Cards side. Drag it back into any pocket on any page, or tap it then tap a '
-          + 'pocket, or Clear tray to empty it. Cards an Arrange layout displaces go there too, never lost.',
+          'Take a card off a page with the Tray button, or drag it to the tray at the top of the '
+          + 'Cards side. Drag or tap it back into any pocket on any page.',
       },
     ],
   },
@@ -577,10 +515,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         big: true,
         body:
           'Riftbound, Digimon, Magic: The Gathering, Yu-Gi-Oh! and Cyberpunk TCG join Pokémon, One '
-          + 'Piece and Disney Lorcana in the card picker, with names, art and prices, and each new game '
-          + 'has the foundations of theme search, colour search and More like this (colour and '
-          + 'similarity on PRO). Magic and Yu-Gi-Oh! start with about 13,000 cards each, and theme '
-          + 'tags cover a few hundred artworks per new game; more cards and deeper tags are planned.',
+          + 'Piece and Disney Lorcana, with names, art and prices, and the foundations of theme and '
+          + 'colour search. Deeper tags are planned.',
       },
       {
         products: ['michi'],
@@ -649,11 +585,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         pinned: true,
         featured: true,
         body:
-          'Searching by what is in the picture now reaches more than 20,000 Pokemon cards and works '
-          + 'in Disney Lorcana and the One Piece Card Game. A toolbar over every theme search narrows '
-          + 'to Full art or Windowed and to the energy, ink or colour you want. And in a binder, Fill '
-          + 'page with Same scene lays a page out in that same order, with an Only row so a page of '
-          + 'windowed Fire scenes is one tap.',
+          'Searching by what is in the picture reaches more than 20,000 Pokémon cards and works in '
+          + 'Lorcana and One Piece. A toolbar narrows to Full art or Windowed and a type, and Fill page '
+          + 'with Same scene lays a page out in that order.',
       },
       {
         products: ['michi'],
@@ -663,10 +597,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         big: true,
         pinned: true,
         body:
-          'Theme search now works in Disney Lorcana and the One Piece Card Game. Type theme: and a '
-          + 'word, or press the Theme button, and the cards whose art shows it come up: a storm, a '
-          + 'castle, a crew laughing. A toolbar over the results narrows by ink or colour, and by '
-          + 'Full art or Windowed.',
+          'Type theme: and a word, or press Theme, and the Lorcana and One Piece cards whose art '
+          + 'shows it come up. The toolbar narrows by ink or colour, and by Full art or Windowed.',
       },
       {
         products: ['michi'],
@@ -675,9 +607,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'browse',
         pinned: true,
         body:
-          'Every theme search has a toolbar: All art, Full art or Windowed, plus the energy, ink '
-          + 'or colour you want. A page of windowed Fire scenes, or only the edge-to-edge art, is '
-          + 'one tap on the results.',
+          'Every theme search has a toolbar: All art, Full art or Windowed, plus the energy, ink or '
+          + 'colour you want.',
       },
       {
         products: ['michi'],
@@ -705,9 +636,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         big: true,
         body:
           'The Fill page sheet has an Only row: Any art, Full art, Illustration rares or Windowed, '
-          + 'and any energy types you tap. Every method honours it, so an evolution line of windowed '
-          + 'cards, or a same-scene page of Fire illustration rares, is one tap. The choice sticks '
-          + 'while you fill page after page.',
+          + 'plus energy types. Every method honours it, and it sticks from page to page.',
       },
       {
         products: ['michi'],
@@ -715,9 +644,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'Same scene used to draw at random from the closest matches. It now lays the page out '
-          + 'the way a theme search lists them: closest first, artwork cards leading, windowed cards '
-          + 'only when the scene runs short.',
+          'Same scene lays the page out the way a theme search lists them: closest first, artwork '
+          + 'cards leading.',
       },
       {
         products: ['michi'],
@@ -726,7 +654,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'binders',
         body:
           'In your binder, P opens the Print sheet with the preview of your fill sheets already '
-          + 'drawing: every page laid out as it will print, watermarked. It joins the shortcuts card.',
+          + 'drawing.',
       },
       {
         products: ['michi'],
@@ -734,9 +662,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'You can build as a guest, but a public binder carries its maker’s name, so the Share '
-          + 'panel now asks a guest to create an account first. Everything you made as a guest comes '
-          + 'with you.',
+          'A public binder carries its maker’s name, so the Share panel asks a guest to create an '
+          + 'account first. Everything you made as a guest comes with you.',
       },
       {
         products: ['michi'],
@@ -744,9 +671,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         body:
-          'F downloads your public binder’s share picture at poster size, the same file as the Share '
-          + 'panel’s Download full-size image button, without opening the panel. A private binder '
-          + 'opens the Share panel instead so you can make it public first.',
+          'F downloads your public binder’s share picture at poster size. A private binder opens the '
+          + 'Share panel instead.',
       },
       {
         products: ['michi'],
@@ -763,9 +689,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'browse',
         body:
-          'Five guesses in, a Reveal the answer link appears under the guess box. It shows the '
-          + 'words and a link to every card that matches. A revealed day is not a win, so your '
-          + 'streak is what it was.',
+          'Five guesses in, Reveal the answer shows the words and every card that matches. A revealed '
+          + 'day is not a win.',
       },
       {
         products: ['michi'],
@@ -773,9 +698,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'browse',
         body:
-          'A smaller heading, the countdown on the same line as the lead, and the found words in '
-          + 'the guess row: the guess box and the hint are much nearer the cards. The cards are the '
-          + 'same size.',
+          'A smaller heading, the countdown beside the lead, and the found words in the guess row, so '
+          + 'the guess box sits nearer the cards.',
       },
     ],
   },
@@ -791,10 +715,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         big: true,
         pinned: true,
         body:
-          'Paste or pick a file and the rows draw as a grid under the box, header pinned. Over every '
-          + 'column a green tick says how we read it (Product ID, Quantity, Name, Set, Number) or a '
-          + 'red cross says it is not used. Rows that will be skipped are marked, with the reason on '
-          + 'the row.',
+          'Paste or pick a file and the rows draw as a grid, header pinned. A green tick over each '
+          + 'column says how we read it, a red cross says it is not used, and skipped rows say why.',
       },
       {
         products: ['michi'],
@@ -811,9 +733,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'collection',
         body:
-          'The ? beside the importer lists every column we read, the header words we know it by and '
-          + 'what it does. A file that cannot name a card gets a plain warning with the three ways to '
-          + 'fix it, instead of a quiet zero.',
+          'The ? beside the importer lists every column we read and what it does. A file that cannot '
+          + 'name a card gets a plain warning with three ways to fix it.',
       },
       {
         products: ['michi'],
@@ -821,11 +742,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'fix',
         area: 'collection',
         body:
-          'A made-up product id beside a real name used to import the card by name as if the id were '
-          + 'fine. Now an id must be in the catalog and must agree with the name, set and number on its '
-          + 'row. Without an id, all three are needed and all three must match, but loosely: "Evolving '
-          + 'Skies" finds SWSH07: Evolving Skies, "Rayquaza V" with its number finds the alternate art, '
-          + 'and 044 is 44. Every skipped row says which check it failed and what the catalog has there.',
+          'An id must be in the catalog and agree with its row’s name, set and number. Without an id, '
+          + 'all three are needed, matched loosely. Every skipped row says which check failed.',
       },
       {
         products: ['michi'],
@@ -833,9 +751,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'fix',
         area: 'binders',
         body:
-          'A Free account with locked binders and room under its limit, after deleting a binder or '
-          + 'after losing more than it should have, stayed locked out of its own work. Now any room '
-          + 'under the limit pulls the newest locked binders back on sign-in, on every plan.',
+          'Room under your limit, after a delete or a plan change, pulls the newest locked binders '
+          + 'back on sign-in, on every plan.',
       },
     ],
   },
@@ -850,11 +767,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'binders',
         big: true,
         body:
-          'Open Settings while editing and the new Soundtrack group offers seventeen stock tracks on '
-          + 'a carousel: calm, cheerful, playful, jazzy, spooky and more, each with its length. Press '
-          + 'play to hear one, tap it and the binder has music. No file to find and no rights box to '
-          + 'tick; the tracks are by Kevin MacLeod and the credit stays in the name. Your own upload '
-          + 'still works underneath. PRO.',
+          'Settings in the editor offers seventeen stock tracks on a carousel, each with its length. '
+          + 'Press play to hear one, tap it and the binder has music. Your own upload still works. PRO.',
       },
       {
         products: ['michi'],
@@ -862,9 +776,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'A binder has one track and it plays from the first page to the last. It moved out of the '
-          + 'dialog behind the title, which is for naming, into Settings with the rest of how the '
-          + 'binder looks. The page dialog no longer offers a track of its own.',
+          'A binder has one track, from the first page to the last, set in Settings with the rest of '
+          + 'how the binder looks.',
       },
       {
         products: ['michi'],
@@ -881,9 +794,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'browse',
         body:
-          'In Search by color the eyedropper is now a proper button above the mix bar, with an '
-          + 'eyedropper icon and a line on where to tap next: any card on screen, in your binder, the '
-          + 'dock or the results. Mixing colours by hand sits underneath as the second path.',
+          'In Search by color the eyedropper is a proper button above the mix bar, with a line on '
+          + 'where to tap next. Mixing by hand sits underneath.',
       },
     ],
   },
@@ -906,9 +818,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'The artist and source of an art pocket now sit across the bottom of the picture, on by '
-          + 'default as the Art label. They used to hide under the pocket and only appear when a '
-          + 'rarity code, stage, or release date label was on.',
+          'The artist and source of an art pocket sit across the bottom of the picture, on by default '
+          + 'as the Art label.',
       },
       {
         products: ['michi'],
@@ -916,9 +827,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         body:
-          'A page of Pikachu now gets Pikachu searches. Press Find art in the Artwork panel and each '
-          + 'art site opens on what the page is about: Art of Pokémon, Bulbagarden, DeviantArt, Pixiv, '
-          + 'Bluesky and more. Bring back what you choose, as your own art, the same way as before.',
+          'Press Find art and each art site opens on what the page is about: Art of Pokémon, '
+          + 'Bulbagarden, DeviantArt, Pixiv, Bluesky and more.',
       },
       {
         products: ['michi'],
@@ -927,9 +837,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'binders',
         big: true,
         body:
-          'Press Picture on a sleeve or art backing and ten textures are waiting: rainbow, gold, '
-          + 'silver, marble, wood, leather, linen, carbon and more. Tap one and every pocket wears it. '
-          + 'Pasting your own picture link still works.',
+          'Press Picture on a sleeve or art backing and ten textures wait: rainbow, gold, silver, '
+          + 'marble, wood, leather, linen, carbon and more.',
       },
       {
         products: ['michi'],
@@ -937,8 +846,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'sharing',
         body:
-          'The picture behind your share image now has twenty themes to tap, from water, fire and '
-          + 'forest to city, space and sunset. Arrows, the mouse wheel or a swipe page through them.',
+          'Twenty themes behind your share image, from water, fire and forest to city, space and '
+          + 'sunset. Arrows, wheel or a swipe page through them.',
       },
       {
         products: ['michi'],
@@ -946,8 +855,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'Choosing a binder now turns on "Show cover" by itself, and the switch is easier to see. '
-          + 'The cover list also starts with "No binder cover", which removes a cover you no longer want.',
+          'Choosing a binder turns on Show cover by itself, and the list starts with No binder cover.',
       },
       {
         products: ['michi'],
@@ -964,8 +872,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'browse',
         body:
-          'Most puzzles had no hint to show. Every one, past and scheduled, now has a plain one that '
-          + 'points at both answers without naming either. Tap "Show the hint" when you are stuck.',
+          'Every puzzle, past and scheduled, has a plain hint that points at both answers without '
+          + 'naming either.',
       },
     ],
   },
@@ -979,8 +887,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'binders',
         body:
-          'In the editor, N adds a page at the end, the same as the + Page button. The separate '
-          + 'insert-after-this-page arrow is gone; it was the same thing with a harder-to-read icon.',
+          'In the editor, N adds a page at the end, the same as the + Page button.',
       },
       {
         products: ['tcgscan'],
@@ -1004,9 +911,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'account',
         body:
-          'The free trial now starts when you pick a plan: checkout shows 3 days free, your card is '
-          + 'not charged until they end, and you can cancel before then. Every PRO button says so for '
-          + 'accounts that have not tried PRO yet. The one-press trial button is gone.',
+          'The trial starts at checkout: 3 days free, no charge until they end, cancel before then. '
+          + 'Every PRO button says so for accounts that have not tried it.',
       },
       {
         products: ['michi'],
@@ -1016,9 +922,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'account',
         big: true,
         body:
-          'Every PRO plan is 50% less than before, as the regular price, not a sale. Yearly was '
-          + '$49.99 and monthly was $5.99. Anyone already subscribed moves to the new price at their '
-          + 'next renewal with nothing to do. Founder stays $119.99 once.',
+          'Every PRO plan is 50% less, as the regular price. Subscribers move to the new price at '
+          + 'their next renewal. Founder stays $119.99 once.',
       },
       {
         products: ['michi'],
@@ -1026,9 +931,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'account',
         body:
-          'Best Aesthetic took home LIFETIME PRO and Best 2x2 took home a year of PRO. Both winners '
-          + 'wear a trophy on their public profile, and the contest page is now the Hall of Fame. A '
-          + 'bigger contest with game-specific categories comes once more collectors have found the site.',
+          'Best Aesthetic won lifetime PRO and Best 2x2 a year of PRO. Both wear a trophy on their '
+          + 'profile, and the contest page is the Hall of Fame.',
       },
       {
         products: ['tcgscan'],
@@ -1060,8 +964,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'fix',
         area: 'account',
         body:
-          'The feedback form prefilled your address, so it was stored even when you had not agreed '
-          + 'to be contacted. It is now kept only with the consent box ticked, as the page always said.',
+          'The feedback form stored your address even without consent. It is kept only with the box '
+          + 'ticked, as the page always said.',
       },
     ],
   },
@@ -1084,8 +988,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'better',
         area: 'browse',
         body:
-          'Open a binder from the fourth shelf page and come back to the fourth shelf page, not the '
-          + 'first. The ordering and the page are in the address, so a reload or a new tab keeps them.',
+          'Open a binder from the fourth shelf page and come back to it. The ordering and page are in '
+          + 'the address.',
       },
       {
         products: ['michi'],

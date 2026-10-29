@@ -29,6 +29,12 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
 
 ## Pending items this session may pick up
 
+00. **Art frames: a frame class per card and a rectangle per class (2026-10-29).** The whole
+   brief is `docs/ART-FRAMES-HANDOFF.md`: `cards_en.frame` in the catalog bundle plus a
+   `frames.json` beside it, measured in tcgscan-data-science (Pokémon first, ~30 classes;
+   Magic from Scryfall's frame fields; the rest from `card_type`). michi's art views cut every
+   card with one uniform window today and the other games have none.
+
 0. **Two handoffs from michi's Arrange and Complete page work (2026-10-22).** (a) Ship
    `cards_en.full_art` (the boolean the theme toolbar's Full art filter uses) in the browse
    `catalog.json` / `CatalogCard`, so michi reads a page's art class the way the filter does

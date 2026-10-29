@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
+  affiliateConfigured,
   productUrl,
   sealedLanguageOf,
   releaseTag,
@@ -29,6 +30,7 @@ import {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
+import { trackAffiliateClick } from '@/lib/analytics';
 import { PagedCarousel } from '@/components/PagedCarousel';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
@@ -231,7 +233,11 @@ function SealedTile({
   return (
     <Pressable
       style={{ width }}
-      onPress={() => Linking.openURL(productUrl(product.id)).catch(() => {})}
+      onPress={() => {
+        // Recorded before the open, never after (lib/analytics trackAffiliateClick).
+        trackAffiliateClick('tcgplayer', 'home_sealed', 'sealed', product.id, affiliateConfigured('tcgplayer'));
+        void Linking.openURL(productUrl(product.id)).catch(() => {});
+      }}
       accessibilityRole="link">
       <View style={styles.imageWrap}>
         {product.imageSmall ? (

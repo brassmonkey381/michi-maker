@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode, Fragment } from 'react';
 import { useRouter } from 'expo-router';
 import { Linking, Pressable, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
-import { productUrl, sendBrowseCommand } from 'tcgscan-browse';
+import { affiliateConfigured, productUrl, sendBrowseCommand } from 'tcgscan-browse';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -39,6 +39,7 @@ import { insideEdgePairStarts } from '@/data/binderPhysics';
 import { cutBoundaries } from '@/data/printFit';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
+import { trackAffiliateClick } from '@/lib/analytics';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { usePriceSummaryWhen, type PriceSummary } from '@/lib/prices';
@@ -389,6 +390,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const openLabel = useCallback(
     (key: CaptionFieldKey, card: LinkableCard) => {
       if (labelIsProductLink(key)) {
+        // Recorded before the open, never after (lib/analytics trackAffiliateClick).
+        trackAffiliateClick('tcgplayer', 'binder_label', 'card', card.id, affiliateConfigured('tcgplayer'));
         void Linking.openURL(productUrl(card.id)).catch(() => {});
         return;
       }

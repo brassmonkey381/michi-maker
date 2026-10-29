@@ -10,11 +10,12 @@
  * the pending command lands the moment this page's CatalogBrowser subscribes.
  */
 import { useRouter, type Href } from 'expo-router';
-import { productUrl, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
+import { affiliateConfigured, productUrl, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { trackAffiliateClick } from '@/lib/analytics';
 import { ebayCardQuery, ebaySearchLink } from '@/lib/ebay';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
@@ -88,18 +89,26 @@ export default function BrowseScreen() {
     };
     // Both affiliate destinations, every card: TCGPlayer (affiliate-deeplinked via
     // productUrl) for market/NM buying, eBay for singles + deals.
+    // The click is recorded BEFORE the URL opens (lib/analytics trackAffiliateClick): afterwards the
+    // app may already be in the background. The eBay campaign id is a constant in lib/ebay, so
+    // every eBay link here is an affiliate link; TCGPlayer's depends on the deep-link template.
     const viewOnTcgplayer: CardAction = {
       key: 'tcgplayer',
       label: 'View on TCGPlayer ↗',
-      onPress: (c) => void Linking.openURL(productUrl(c.id)).catch(() => {}),
+      onPress: (c) => {
+        trackAffiliateClick('tcgplayer', 'browse', 'card', c.id, affiliateConfigured('tcgplayer'));
+        void Linking.openURL(productUrl(c.id)).catch(() => {});
+      },
     };
     const findOnEbay: CardAction = {
       key: 'ebay',
       label: 'Find on eBay ↗',
-      onPress: (c) =>
+      onPress: (c) => {
+        trackAffiliateClick('ebay', 'browse', 'card', c.id, true);
         void Linking.openURL(
           ebaySearchLink(ebayCardQuery(c.name, c.setName, c.number), 'michi-browse'),
-        ).catch(() => {}),
+        ).catch(() => {});
+      },
     };
     // FIND SIMILAR IS PRO (see TierLimits.findSimilar), and the action stays in this list at
     // every tier. The lock is the kit's (CardBrowse passes `findSimilar` in lockedFeatures), which

@@ -823,6 +823,40 @@ export function trackTrialStartFailed(surface: string, reason: 'refused' | 'rpc_
   track('trial.start_failed', { surface, reason });
 }
 
+/** The store an outbound link opens. One vocabulary with tcgscan-app and the kit. */
+export type AffiliateNetwork = 'tcgplayer' | 'ebay';
+/**
+ * Where the click came from. A FIXED enum shared by BOTH apps, never free text and never the eBay
+ * customid (which repeats the app name the `app` column already carries): michi uses browse,
+ * binder_label, home_sealed and recent_feed; tcgscan uses browse, portfolio, scan and recent_feed.
+ * A seventh value is a studio taxonomy change first (config/events.json).
+ */
+export type AffiliateSurface = 'browse' | 'binder_label' | 'home_sealed' | 'recent_feed' | 'portfolio' | 'scan';
+/** What the link is about. */
+export type AffiliateItem = 'card' | 'sealed' | 'set';
+
+/**
+ * Somebody clicked out to a store. Fire IMMEDIATELY BEFORE opening the URL, never after: the app may
+ * be backgrounded, or a web tab gone, by the time the browser returns.
+ *
+ * Until 2026-10-29 no outbound TCGplayer or eBay click was recorded anywhere the studio could read.
+ * The networks (Impact, eBay Partner Network) count clicks and sales on their side by subId /
+ * customid, never by user; this is the studio-side half: who, which card, which surface, in which
+ * session. `id` is the catalog id, never a name or a typed query (a query can carry anything).
+ * `affiliate` is false when this build carries no tracking for that network (no deep-link
+ * template), so a click we are not paid for is still a click, and a build that shipped without the
+ * template is exactly what the flag catches. Conversions stay the network's knowledge.
+ */
+export function trackAffiliateClick(
+  network: AffiliateNetwork,
+  surface: AffiliateSurface,
+  item: AffiliateItem,
+  id: string | null | undefined,
+  affiliate: boolean,
+): void {
+  track('affiliate.click', { network, surface, item, id: id ?? '', affiliate });
+}
+
 /**
  * Insert one event now. `ts` overrides the server `now()` default so a buffered event keeps the
  * time it actually happened. Assumes an identity is present. Fire-and-forget; never throws.

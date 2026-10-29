@@ -25,6 +25,7 @@ import {
 } from 'tcgscan-browse';
 
 import { FREE_THEME } from '@/data/freeTheme';
+import { trackAffiliateClick } from '@/lib/analytics';
 import { PUBLISHED_SECONDARY_GAMES } from '@/lib/otherGameKeys';
 import { freshToken, gatedCatalogSource } from '@/lib/catalogSource';
 import { supabaseUrl } from '@/lib/env';
@@ -61,6 +62,10 @@ configureBrowse({
   // Upcoming feed's "Find on eBay" links. Powers the kit's ebaySearchUrl (RecentProducts).
   ebayCampaignId: '5339173456',
   ebayCustomId: 'michi-recent',
+  // The kit tells us before it opens one of those links (kit >= 0.9.35); it does not know which
+  // surface it is mounted on, and in this app it is only ever the Recent & Upcoming feed. The URL
+  // stays out of the event: it carries the query and the tracking tail (lib/analytics).
+  onOutboundClick: (c) => trackAffiliateClick(c.network, 'recent_feed', c.item, c.id, c.affiliate),
   // Device-local persistence for the shared EN/JP preference. The kit holds the value (so it can
   // pass it to every search RPC); this supplies the storage and the EN-only default. The signed-in
   // account layer is added on top in store/languagePref.tsx.

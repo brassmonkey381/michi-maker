@@ -31,8 +31,13 @@ export function shouldShowLanding(): boolean {
  */
 const SKIP_LANDING_SOURCES = new Set(['reddit']);
 
-/** Where a skipped arrival goes: the page where a binder gets made. */
-export const LANDING_SKIP_TARGET = '/my-binders';
+/**
+ * Where a skipped arrival goes: My Binders with `open=new`, which presses "+ New binder" for them
+ * (my-binders.tsx) - a fresh binder, straight into the editor. Owner, 2026-10-29: "maximize the
+ * chances of them building something". Every such visitor is a brand-new guest, so this creates
+ * one empty guest binder per ad click; binder.add { isDemo } fires for it like any other.
+ */
+export const LANDING_SKIP_TARGET = '/my-binders?open=new';
 
 /**
  * The route a FIRST-TIME tagged visitor should land on instead of /welcome, or null to show the

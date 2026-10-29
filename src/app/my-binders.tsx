@@ -71,12 +71,16 @@ export default function MyBindersScreen() {
   const { curate, from, open } = useLocalSearchParams<{ curate?: string; from?: string; open?: string }>();
   // `/my-binders?open=slice` (the slice guide's button): straight into a binder of theirs, editing,
   // with the Slice Studio open. The newest binder they have, or a fresh one if the shelf is empty.
+  // `/my-binders?open=new` (lib/landing, a paid/social arrival that skipped /welcome): the same, but
+  // into the plain editor - "+ New binder" pressed for them, so the first thing an ad click sees is
+  // an empty binder to fill. If the store refuses (cap, or this tab cannot save) they simply land
+  // on the shelf, where the button is.
   const openedStudio = useRef(false);
   useEffect(() => {
-    if (open !== 'slice' || openedStudio.current || store.loading) return;
+    if ((open !== 'slice' && open !== 'new') || openedStudio.current || store.loading) return;
     openedStudio.current = true;
     const target = store.userBinders[0] ?? store.createBinder({ title: 'New binder' });
-    if (target) router.replace(`/binder/${target.id}?slice=1` as Href);
+    if (target) router.replace(`/binder/${target.id}?${open === 'slice' ? 'slice=1' : 'edit=1'}` as Href);
   }, [open, store, router]);
 
   const [binderQuery, setBinderQuery] = useState('');

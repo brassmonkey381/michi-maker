@@ -33,6 +33,10 @@ comment on table public.michi_nine_plays is
   'One row per Reddit player per puzzle, written only by the michi_nine_* functions. '
   'player is the Reddit t2 id. Streaks are derived, never stored.';
 
+-- The return columns changed after the first apply (found is PL/pgSQL's own FOUND): drop first.
+drop function if exists public.michi_nine_play(text, text, uuid);
+drop function if exists public.michi_nine_guess(text, text, uuid, text);
+
 /** Is this the key the michi-nine server holds? False, never an error, when Vault has no key yet. */
 create or replace function public.michi_nine_key_ok(p_key text)
 returns boolean
@@ -49,7 +53,7 @@ $$;
  * the current puzzle day, where today not yet solved does not break it (dailyPuzzleLogic.ts).
  */
 create or replace function public.michi_nine_play(p_key text, p_player text, p_puzzle_id uuid)
-returns table (found text[], attempts integer, solved boolean, revealed boolean, streak integer)
+returns table (found_words text[], attempts integer, solved boolean, revealed boolean, streak integer)
 language plpgsql security definer set search_path = public as $$
 declare
   v_day  date := public.puzzle_today();
@@ -59,11 +63,11 @@ begin
     raise exception 'michi nine key' using errcode = '42501';
   end if;
   select coalesce(pp.found, '{}'), pp.attempts, pp.solved, pp.revealed_at is not null
-    into found, attempts, solved, revealed
+    into found_words, attempts, solved, revealed
     from public.michi_nine_plays pp
    where pp.player = p_player and pp.puzzle_id = p_puzzle_id;
-  if found is null then
-    found := '{}'; attempts := 0; solved := false; revealed := false;
+  if found_words is null then
+    found_words := '{}'; attempts := 0; solved := false; revealed := false;
   end if;
   select array_agg(d.publish_on) into v_won
     from public.michi_nine_plays pp
@@ -82,7 +86,7 @@ $$;
 
 /** One guess at one theme, as guess_puzzle_word, for a Reddit player. */
 create or replace function public.michi_nine_guess(p_key text, p_player text, p_puzzle_id uuid, p_word text)
-returns table (hit boolean, matched_word text, found text[], attempts integer, total integer, solved boolean)
+returns table (hit boolean, matched_word text, found_words text[], attempts integer, total integer, solved boolean)
 language plpgsql security definer set search_path = public as $$
 declare
   v_answer text[];
@@ -110,27 +114,27 @@ begin
    where pp.player = p_player and pp.puzzle_id = p_puzzle_id;
   if v_play.solved then
     -- A solved play is frozen: say so and change nothing.
-    hit := false; matched_word := null; found := v_play.found; attempts := v_play.attempts;
+    hit := false; matched_word := null; found_words := v_play.found; attempts := v_play.attempts;
     total := cardinality(v_answer); solved := true;
     return next; return;
   end if;
-  found := coalesce(v_play.found, '{}');
+  found_words := coalesce(v_play.found, '{}');
   select t into v_hit
     from unnest(v_answer) as t
-   where not (t = any (found))
+   where not (t = any (found_words))
      and public.puzzle_words_match(p_word, t)
    limit 1;
   if v_hit is not null then
-    found := found || v_hit;
+    found_words := found_words || v_hit;
   end if;
   total        := cardinality(v_answer);
-  solved       := cardinality(found) = total;
+  solved       := cardinality(found_words) = total;
   hit          := v_hit is not null;
   matched_word := v_hit;
   -- A guess after the reveal still counts as a guess, but the reveal stays open.
   attempts     := coalesce(v_play.attempts, 0) + 1;
   insert into public.michi_nine_plays as pp (player, puzzle_id, found, attempts, solved, solved_at)
-  values (p_player, p_puzzle_id, found, attempts, solved, case when solved then now() else null end)
+  values (p_player, p_puzzle_id, found_words, attempts, solved, case when solved then now() else null end)
   on conflict (player, puzzle_id) do update
     set found     = excluded.found,
         attempts  = excluded.attempts,

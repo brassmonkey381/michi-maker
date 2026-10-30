@@ -253,7 +253,8 @@ export function AutoFillSheet({
     if (!enrichedSeed || !seedCatalog || busy) return;
     // A guest's first fill takes the taste here, on the method tap, and the editor says so. If the
     // record refuses (another tab took it), the list is already the wall on the next render.
-    if (guest && !taste.active('fillPage')) {
+    if (guest) {
+      // Spent by the run itself (a per-use taste, TASTE_KIND); none left means the wall is up.
       if (!taste.use('fillPage', 'fill_sheet')) return;
       onTasted?.('fillPage');
     }

@@ -194,9 +194,10 @@ export interface TierLimits {
 export const TIER_LIMITS: Record<Tier, TierLimits> = {
   // Guest is NOT an advertised plan — a taste before the sign-in prompt (SignInPerk, not
   // UpgradePerk): 1 binder, 6 pages (3 double-sided sheets), 10 artworks (owner set 2026-07-17).
+  // 3 pages since 2026-10-30 (owner: "make guests 3 pages binder cap"); 6 before.
   guest: {
     binders: 1,
-    pagesPerBinder: 6,
+    pagesPerBinder: 3,
     composerPagesPerMonth: 0,
     artUploads: 10,
     fullPrint: false,

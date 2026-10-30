@@ -3,11 +3,15 @@
  * for most of the PRO features, printing excluded"; 2026-10-30: three, and one for guests on the
  * server-lookup features, see TASTE_CAP).
  *
- * WHAT A TASTE IS. The first time a free account taps a locked PRO control, the lock lifts for the
- * rest of that visit (until the page is left or reloaded), the moment is recorded on the device and
- * on the profile, and taste.used { feature, surface } is tracked. The next visit meets the normal
- * wall. One taste per feature per account, ever; the record is monotone, so a second device learns
- * of a taste taken on the first and never hands out another.
+ * WHAT A TASTE IS (TASTE_KIND, owner 2026-10-30: "why is it constrained to visits and not
+ * individual uses?"). Two kinds:
+ *   use    the feature is an action (Find similar, a Fill or Complete run): one taste is ONE USE,
+ *          and the lock never lifts. Each tap spends a sample until the cap, then the wall.
+ *   visit  the feature is a switch (covers, soundtracks, art views, advanced search filters): one
+ *          taste lifts the lock for the rest of that visit (until the page is left or reloaded).
+ * Either way the moment is recorded on the device and on the profile and taste.used { feature,
+ * surface } is tracked. The record is monotone, so a second device learns of a taste taken on the
+ * first and never hands out another.
  *
  * WHICH FEATURES, AND WHICH NOT.
  *   findSimilar     ≈ Find similar, everywhere it appears (home, shelf, browser, editor, sheets).
@@ -16,9 +20,11 @@
  *   binderTracks    binder and page soundtracks.
  *   artViews        art views on a binder, a page or a pocket.
  *   fillPage        Fill page AND Complete page, one feature (owner, 2026-10-30: "Fill is the same as
- *                   complete so make sure they are both on the same taste caps"). For a free account
- *                   both already run on the catalogue, so only a guest ever takes this taste: their
- *                   one fill runs on a server slice (data/guestFill), then the free-account wall.
+ *                   complete so make sure they are both on the same taste caps"). A guest's one
+ *                   fill runs on a server slice (data/guestFill), then the free-account wall. A
+ *                   free account runs the catalogue fills freely and spends this on Complete's
+ *                   server lookups, Same theme and Like the whole page (owner: "3 free uses max").
+ *                   The Fill sheet's similarity methods spend findSimilar, as everywhere else.
  *   -- themeSearch: NOT here. Free accounts already run every theme query and get the top matches;
  *      the rest is withheld by the data server's meter, which this device cannot lift. A taste of
  *      the full result set is a server change (my_cap_tier), not a client one.
@@ -48,12 +54,25 @@ export const TASTE_LABEL: Record<TasteFeature, string> = {
   fillPage: 'Fill page',
 };
 
+/** Which features are counted per use and which lift for a visit (see the header). */
+export const TASTE_KIND: Record<TasteFeature, 'use' | 'visit'> = {
+  findSimilar: 'use',
+  fillPage: 'use',
+  advancedSearch: 'visit',
+  binderCovers: 'visit',
+  binderTracks: 'visit',
+  artViews: 'visit',
+};
+
 /**
- * HOW MANY TASTES (owner, 2026-10-30: "give them a cap of 3 per feature instead of 1", and guests
- * "a one shot taste" of the features that are server lookups). A taste is still one visit's unlock;
- * the cap is how many visits may take one.
+ * HOW MANY TASTES (owner, 2026-10-30): a guest gets 1 of each server lookup; a free account gets 3
+ * uses of each action feature ("3 fills or searches for free accounts", and Complete's theme and
+ * similar fills "need 3 free uses max too") and ONE visit-long unlock of each switch feature.
  */
-export const TASTE_CAP: Partial<Record<Tier, number>> = { guest: 1, free: 3 };
+export const TASTE_CAP: Record<'use' | 'visit', Partial<Record<Tier, number>>> = {
+  use: { guest: 1, free: 3 },
+  visit: { free: 1 },
+};
 
 /**
  * WHAT A GUEST MAY TASTE: only what runs as a server lookup, because a guest never receives the
@@ -111,7 +130,7 @@ export function tastesTaken(record: TasteRecord, feature: TasteFeature): number 
 
 /** How many tastes of `feature` this tier may still take; 0 for a tier that never tastes. */
 export function tastesLeft(tier: Tier, record: TasteRecord, feature: TasteFeature): number {
-  const cap = TASTE_CAP[tier] ?? 0;
+  const cap = TASTE_CAP[TASTE_KIND[feature]][tier] ?? 0;
   if (tier === 'guest' && !GUEST_TASTE_FEATURES.includes(feature)) return 0;
   return Math.max(0, cap - tastesTaken(record, feature));
 }

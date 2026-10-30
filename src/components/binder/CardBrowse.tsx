@@ -508,9 +508,10 @@ export function CardBrowse({
         // its own richer path (the tri-colour upsell below), so it is deliberately not sent to
         // the plans page — a live demo converts better than a price table.
         onLockedFeature={(f) => {
-          // The free taste first (store.taste): a free account's first tap on a locked control
-          // unlocks that feature for the rest of this visit instead of showing the wall.
-          if (f === 'findSimilar' && taste.use('findSimilar', 'browser')) return;
+          // The free taste first (store.taste). Find similar is counted per use: spend a sample
+          // and return true so the kit runs this very search. Advanced search is one visit: the
+          // unlock lands through lockedFeatures and this tap is refused as before.
+          if (f === 'findSimilar' && taste.use('findSimilar', 'browser')) return true;
           if ((f === 'sortByValue' || f === 'priceFilter' || f === 'similarRefine' || f === 'colorSearch') && taste.use('advancedSearch', 'browser')) return;
           if (f === 'colorSearch') setEnergyOpen(true);
           else if (f === 'findSimilar' && onSimilarLocked) onSimilarLocked();

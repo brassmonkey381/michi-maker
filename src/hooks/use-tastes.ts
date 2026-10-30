@@ -17,7 +17,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { EMPTY_TASTES, mergeTastes, normalizeTastes, takeTaste, tasteOffered, tastesLeft, tastesTaken, type TasteFeature, type TasteRecord } from '@/data/tastes';
+import { EMPTY_TASTES, mergeTastes, normalizeTastes, takeTaste, TASTE_KIND, tasteOffered, tastesLeft, tastesTaken, type TasteFeature, type TasteRecord } from '@/data/tastes';
 import type { Tier } from '@/data/tiers';
 import { trackTasteUsed } from '@/lib/analytics';
 import { hydrateTastes, readTastes, writeTastes } from '@/lib/tasteSeen';
@@ -75,7 +75,9 @@ export function useTastes(tier: Tier): TasteApi {
       const next: TasteRecord = takeTaste(record, f);
       writeTastes(userId, next);
       setDevice({ userId, rec: next });
-      setActiveFor((prev) => ({ userId, set: new Set([...(prev.userId === userId ? prev.set : []), f]) }));
+      // Only a visit-kind taste opens the control; a per-use one is spent by this very tap
+      // (TASTE_KIND), so the next tap asks again and the cap, not the visit, ends it.
+      if (TASTE_KIND[f] === 'visit') setActiveFor((prev) => ({ userId, set: new Set([...(prev.userId === userId ? prev.set : []), f]) }));
       // A guest's record is the device's alone: a cleared browser is a new guest, and that is the
       // honest price of a taste that asks for nothing.
       if (userId && !isGuest) {

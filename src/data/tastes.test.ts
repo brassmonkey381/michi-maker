@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import {
   EMPTY_TASTES, GUEST_TASTE_FEATURES, guestTasteWall, mergeTastes, normalizeTastes, takeTaste, TASTE_CAP, TASTE_FEATURES,
-  tasteOffered, tastesLeft, tasteToast,
+  TASTE_KIND, tasteOffered, tastesLeft, tasteToast,
 } from './tastes.ts';
 
 const T = (n: number) => `2026-10-30T0${n}:00:00Z`;
@@ -26,12 +26,16 @@ describe('tastes', () => {
     assert.deepEqual(mergeTastes(b, a).used, mergeTastes(a, b).used);
   });
 
-  it('offers a free account three of each, a guest one of the server lookups, paid tiers none', () => {
-    assert.equal(TASTE_CAP.free, 3);
-    assert.equal(TASTE_CAP.guest, 1);
+  it('offers a free account three uses of each action, one visit of each switch, a guest one of the server lookups, paid tiers none', () => {
+    assert.equal(TASTE_CAP.use.free, 3);
+    assert.equal(TASTE_CAP.use.guest, 1);
+    assert.equal(TASTE_CAP.visit.free, 1, 'owner, 2026-10-30: covers, soundtracks, art views, advanced search are one visit');
+    assert.equal(TASTE_KIND.findSimilar, 'use');
+    assert.equal(TASTE_KIND.fillPage, 'use');
+    assert.equal(TASTE_KIND.binderCovers, 'visit');
     for (const f of TASTE_FEATURES) {
       assert.equal(tasteOffered('free', EMPTY_TASTES, f), true, f);
-      assert.equal(tastesLeft('free', EMPTY_TASTES, f), 3, f);
+      assert.equal(tastesLeft('free', EMPTY_TASTES, f), TASTE_KIND[f] === 'use' ? 3 : 1, f);
       assert.equal(tasteOffered('guest', EMPTY_TASTES, f), GUEST_TASTE_FEATURES.includes(f), f);
       assert.equal(tasteOffered('pro', EMPTY_TASTES, f), false, f);
       assert.equal(tasteOffered('vip', EMPTY_TASTES, f), false, f);
@@ -43,6 +47,7 @@ describe('tastes', () => {
     r = takeTaste(takeTaste(r, 'findSimilar', T(2)), 'findSimilar', T(3));
     assert.equal(tasteOffered('free', r, 'findSimilar'), false);
     assert.equal(tasteOffered('free', r, 'artViews'), true, 'per feature');
+    assert.equal(tasteOffered('free', takeTaste(r, 'artViews', T(4)), 'artViews'), false, 'one visit of a switch');
   });
 
   it('names the feature in the toast, never PRO to a guest, and counts what is left for a free account', () => {

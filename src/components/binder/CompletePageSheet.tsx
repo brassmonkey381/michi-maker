@@ -61,9 +61,12 @@ export function CompletePageSheet({
   // The auth-based gate, not the tier, which reads 'guest' for a beat while a member's entitlements load.
   const guest = guestGated;
   const { hasFindSimilar: tierFindSimilar } = useTier();
-  // Open by tier or by this visit's free taste (store.taste), the same answer the Fill sheet gives.
   const { taste } = useBinders();
-  const hasFindSimilar = tierFindSimilar || taste.active('findSimilar');
+  // THE SERVER FILLS, Same theme and Like the whole page, are PRO for a member; a free account
+  // spends a fillPage sample on each pick (owner, 2026-10-30: "3 free uses max too for theme
+  // complete and similar complete"). Previews run while a sample is left; none left locks both.
+  const SERVER: readonly CompleteMethod[] = ['theme', 'similar'];
+  const serverFills = tierFindSimilar || taste.offer('fillPage');
   const [languages] = useLanguagePref();
   const pageKey = `${page.id}:${page.slots.map((s) => `${s.id}@${s.row},${s.col}`).join('|')}`;
   // A guest's catalogue: the page's cards by id, then each fill's candidates as they are fetched.
@@ -98,7 +101,7 @@ export function CompletePageSheet({
     const learn = (cards: readonly CatalogCard[]) => (cat as CardStore).add?.(cards);
     const onPage = guest ? cardsOnPage(page, cat) : [];
     for (const m of methods) {
-      if (m === 'similar' && !hasFindSimilar && !guest) continue;
+      if (SERVER.includes(m) && !serverFills && !guest) continue;
       const base = {
         similar: (ids: string[], limit: number) => findSimilarToMany(ids, limit, { languages }),
         theme: (ids: string[], limit: number, fullArt: boolean | undefined) => themeFill(ids, limit, { fullArt }),
@@ -126,12 +129,13 @@ export function CompletePageSheet({
     };
     // The page key stands in for the page object: a page edited while the sheet was closed is read again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, cat, pageKey, methods, hasFindSimilar, languages, guest, guestFillOpen]);
+  }, [visible, cat, pageKey, methods, serverFills, languages, guest, guestFillOpen]);
   const shown = previews && previews.key === pageKey ? previews.byMethod : null;
 
   const pick = (m: CompleteMethod, placements: ComposePlacement[]) => {
-    // A guest's one fill is taken by the tap that places it; the editor shows the toast.
-    if (guest && !taste.active('fillPage')) {
+    // The tap that places a fill spends the sample (a per-use taste): a guest's one fill, or a
+    // free account's server fill. The editor shows the toast on the placement.
+    if (guest || (SERVER.includes(m) && !tierFindSimilar)) {
       if (!taste.use('fillPage', 'complete_sheet')) return;
       onTasted?.('fillPage');
     }
@@ -161,15 +165,15 @@ export function CompletePageSheet({
         <ScrollView style={styles.scroll} contentContainerStyle={styles.grid}>
           {COMPLETE_METHODS.filter((m) => methods.includes(m.key)).map((m) => {
             const p = shown?.get(m.key);
-            // A guest's one fill covers the ranked fill too: no lock, no pill, no PRO.
-            const locked = m.paid === 'similarity' && !hasFindSimilar && !guest;
+            // A guest's one fill covers the server fills too: no lock, no pill, no PRO.
+            const locked = SERVER.includes(m.key) && !serverFills && !guest;
             const ready = !!p?.placements;
             const none = ready && p!.placements!.length === 0 && !locked;
             return (
               <Pressable
                 key={m.key}
                 disabled={!ready && !locked}
-                onPress={() => (locked ? (taste.use('findSimilar', 'complete_sheet') ? undefined : onSimilarLocked?.()) : none ? undefined : pick(m.key, p!.placements!))}
+                onPress={() => (locked ? onSimilarLocked?.() : none ? undefined : pick(m.key, p!.placements!))}
                 accessibilityRole="button"
                 accessibilityLabel={`${m.label}. ${m.description}`}
                 style={({ pressed }) => [styles.card, pressed && styles.pressed, none && styles.dimmed]}>
@@ -185,7 +189,7 @@ export function CompletePageSheet({
                   ) : null}
                 </View>
                 <ThemedText type="small" themeColor="textSecondary" numberOfLines={2} style={styles.cardDesc}>
-                  {locked ? 'Find Similar, for the whole page at once.' : none ? (p?.failed ? 'Could not reach the server.' : m.key === 'theme' ? 'No scene two of these cards share, or the server does not have theme fill yet.' : 'Nothing found for this page.') : m.description}
+                  {locked ? (m.key === 'theme' ? 'The scene these cards share, for the whole page.' : 'Find Similar, for the whole page at once.') : none ? (p?.failed ? 'Could not reach the server.' : m.key === 'theme' ? 'No scene two of these cards share, or the server does not have theme fill yet.' : 'Nothing found for this page.') : m.description}
                 </ThemedText>
                 {ready && p!.placements!.length > 0 && p!.placements!.length < empties ? (
                   <ThemedText type="small" themeColor="textSecondary" style={styles.cardDesc}>

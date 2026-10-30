@@ -70,22 +70,31 @@ export function ResultStrip({
   };
 
   if (compact) {
-    // Three cards at the hook's card size, side by side: the guide's subject is the pictures,
-    // so they get the room a single card hook would take, three times over.
+    // A FAN, NOT A ROW (owner, 2026-10-29, phone screenshot): three card-sized thumbs side by side
+    // were three hook widths across, and on a phone that pushed the guide's words into a one-letter
+    // column off the edge. Three cards fanned behind one another take the hook's width plus two
+    // small steps, the same footprint as every other hook.
     const size = { width, height: Math.round((width * 88) / 63) };
+    const step = Math.round(width * 0.16);
     const shown = (page?.cards ?? []).slice(0, 3);
+    const stack = [
+      ...shown.map((c) => ({ key: c.id, uri: cardThumbUrl(c.id, 245) as string | null })),
+      ...Array.from({ length: 3 - shown.length }, (_, i) => ({ key: `empty-${i}`, uri: null as string | null })),
+    ];
     return (
-      <View style={styles.compactRow}>
-        {shown.map((c) => (
-          <Image key={c.id} source={{ uri: cardThumbUrl(c.id, 245) }} style={[styles.compactThumb, size]} contentFit="cover" transition={150} accessibilityLabel="" />
-        ))}
-        {Array.from({ length: 3 - shown.length }, (_, i) => (
-          <View key={`empty-${i}`} style={[styles.compactThumb, styles.thumbEmpty, size]} />
-        ))}
+      <View style={[styles.compactFan, { width: width + 2 * step, height: size.height + step }]}>
+        {stack.map((t, i) => {
+          // The last drawn sits in front, lowest and rightmost, so the first thumb peeks out above.
+          const at = { position: 'absolute' as const, left: i * step, top: (2 - i) * (step / 2), zIndex: i + 1 };
+          return t.uri ? (
+            <Image key={t.key} source={{ uri: t.uri }} style={[styles.compactThumb, size, at]} contentFit="cover" transition={150} accessibilityLabel="" />
+          ) : (
+            <View key={t.key} style={[styles.compactThumb, styles.thumbEmpty, size, at]} />
+          );
+        })}
       </View>
     );
   }
-
   const hidden = page ? Math.max(0, page.total - page.cards.length) : 0;
   return (
     <View style={styles.wrap}>
@@ -157,6 +166,6 @@ const styles = StyleSheet.create({
   loading: { height: THUMB_H, justifyContent: 'center' },
   caption: { lineHeight: 18 },
   pressed: { opacity: 0.7 },
-  compactRow: { flexDirection: 'row', gap: Spacing.two },
+  compactFan: { position: 'relative' },
   compactThumb: { borderRadius: Radius.sm, backgroundColor: Palette.panelAlt },
 });

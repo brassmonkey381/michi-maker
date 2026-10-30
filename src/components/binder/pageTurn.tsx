@@ -172,7 +172,11 @@ export function SingleTurnLeaf({
   return (
     <Animated.View
       pointerEvents="none"
-      style={[styles.leaf, { left: hingeLeft, width, transformOrigin: 'left center' }, leaf]}>
+      // AGAINST THE PAGE, NOT THE MIDDLE OF THE WRAP (owner, 2026-10-29, phone screenshot): the
+      // single-page overlay fills the page wrap, and on a phone the wrap carries the header's
+      // height above the page, so a centred leaf sat half a header too high. The page is the last
+      // thing in the wrap, so the leaf hugs its bottom edge and lands exactly on it.
+      style={[styles.leaf, styles.leafSingle, { left: hingeLeft, width, transformOrigin: 'left center' }, leaf]}>
       <View>
         {page}
         <Animated.View style={[StyleSheet.absoluteFill, styles.shade, shade]} pointerEvents="none" />
@@ -185,6 +189,7 @@ const styles = StyleSheet.create({
   // Stretched to the stage height but CENTRED like the static pages beside it: without this the
   // turning page rides high and jumps into line the moment it lands.
   leaf: { position: 'absolute', top: 0, bottom: 0, justifyContent: 'center', zIndex: 40 },
+  leafSingle: { justifyContent: 'flex-end' },
   backFace: {
     position: 'absolute',
     top: 0,

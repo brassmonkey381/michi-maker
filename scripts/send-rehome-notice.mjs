@@ -2,6 +2,11 @@
  * Tell the people whose guest binder came back (2026-10-30) that it is back.
  *
  *   node scripts/send-rehome-notice.mjs state/orphans_full.moved-2026-10-30.json [--to email] [--send]
+ *   node scripts/send-rehome-notice.mjs <ledger> --test you@example.com --send
+ *
+ * `--test <address>` sends ONE real message, the first recipient's text with a [TEST] subject, to
+ * that address instead of to anyone in the ledger. It is how the Resend key, the sending domain
+ * and the rendering get checked before the 32 go out.
  *
  * WITHOUT `--send` it is a dry run: it resolves every recipient from the ledger, prints each message,
  * and sends nothing. Run it that way first.
@@ -44,6 +49,9 @@ try {
   const live = args.includes('--send');
   const toIdx = args.indexOf('--to');
   const only = toIdx >= 0 ? args[toIdx + 1] : null;
+  const testIdx = args.indexOf('--test');
+  const testTo = testIdx >= 0 ? args[testIdx + 1] : null;
+  if (testTo && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(testTo)) fail('--test needs an email address');
   if (!file) fail('give the moved ledger json');
 
   const pat = secret('SUPABASE_ACCESS_TOKEN');
@@ -127,6 +135,12 @@ ${POSTAL}
     return body;
   }
 
+  if (testTo) {
+    // One message, to the tester, with the first recipient's text; the ledger is otherwise untouched.
+    targets = [{ ...targets[0], email: testTo }];
+    console.log(`  TEST: sending only the first message, to ${testTo}`);
+  }
+  const subject = testTo ? `[TEST] ${SUBJECT}` : SUBJECT;
   for (const r of targets) {
     const body = build(r);
     const headers = {
@@ -134,13 +148,13 @@ ${POSTAL}
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     };
     if (!live) {
-      console.log(`\n--- DRY RUN, nothing sent -> ${r.email} ---\nSubject: ${SUBJECT}\n\n${body}`);
+      console.log(`\n--- DRY RUN, nothing sent -> ${r.email} ---\nSubject: ${subject}\n\n${body}`);
       continue;
     }
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: FROM, to: [r.email], reply_to: REPLY_TO, subject: SUBJECT, text: body, headers }),
+      body: JSON.stringify({ from: FROM, to: [r.email], reply_to: REPLY_TO, subject, text: body, headers }),
     });
     const out = await res.text();
     if (!res.ok) fail(`Resend rejected the send to ${r.email}: ${res.status} ${out.slice(0, 300)}`, 7);

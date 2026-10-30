@@ -26,7 +26,10 @@ export function similarityWall(tier: Tier, surface: CapSurface) {
     limit: SIMILARITY_LIMIT_KEY,
     surface,
     isGuest,
-    title: 'Find similar is a PRO feature',
+    // A guest is never told what PRO holds (owner, 2026-10-29); and a guest never sees the dialog
+    // anyway (never: the toast's one line is the better answer, owner 2026-10-30).
+    title: isGuest ? 'Find similar' : 'Find similar is a PRO feature',
+    never: isGuest,
     message: similarityGateMessage(tier),
     // No trial line for a guest: they cannot start one (start_pro_trial refuses anons), and the
     // dialog gives them the free account instead.

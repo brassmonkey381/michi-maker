@@ -43,6 +43,14 @@ export interface CapHit extends CapWall {
    * the user asked to see the offer.
    */
   always?: boolean;
+  /**
+   * ALWAYS THE TOAST, never the dialog (owner, 2026-10-30, Find similar as a guest: "the first
+   * time I click similar I get a different pop up than when I click again; I like the second one
+   * better"). For a guest the dialog can only say "create an account", which the toast's one line
+   * already says without stopping them; the modal is the right answer only where there is an
+   * offer to draw.
+   */
+  never?: boolean;
 }
 
 export function useCapGate(onToast: (message: string) => void) {
@@ -70,8 +78,8 @@ export function useCapGate(onToast: (message: string) => void) {
 
   const hit = useCallback(
     (h: CapHit) => {
-      const { tier, used, cap, always, ...w } = h;
-      const asDialog = always === true || shouldPromptCap(w.limit);
+      const { tier, used, cap, always, never, ...w } = h;
+      const asDialog = always === true || (never !== true && shouldPromptCap(w.limit));
       if (asDialog) {
         markCapPrompted(w.limit);
         offeredTrialRef.current = !w.isGuest && offersTrial && w.offersTrial !== false;

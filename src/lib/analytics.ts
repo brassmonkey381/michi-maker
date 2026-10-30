@@ -13,7 +13,7 @@
  * NO PII: only ids and counts belong in props — never emails, tokens, or full card lists.
  */
 import Constants from 'expo-constants';
-import { AppState, type AppStateStatus, Platform } from 'react-native';
+import { AppState, type AppStateStatus, Dimensions, Platform } from 'react-native';
 
 import type { PromptId, PromptSurface } from '@/data/prompts';
 import { supabasePublishableKey, supabaseUrl } from '@/lib/env';
@@ -331,6 +331,10 @@ async function ensureSession(): Promise<string | null> {
             // so a paid arrival is one filter on the events table, not a parse of landing_route.
             props: {
               is_guest: user.isGuest,
+              // The window at session start (analytics-studio, 2026-10-29): only walkthrough.shown
+              // carried a width, so phone versus desk was known for the sessions that saw it alone.
+              viewport_w: Math.round(Dimensions.get('window').width),
+              viewport_h: Math.round(Dimensions.get('window').height),
               ...(landingCampaign?.params ?? {}),
               ...(landingCampaign?.referrer ? { referrer: landingCampaign.referrer } : {}),
             } as Json,

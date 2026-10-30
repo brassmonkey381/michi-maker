@@ -395,6 +395,11 @@ export function BinderScreen({
   const [moving, setMoving] = useState<{ pageId: string | null; slotId: string } | null>(null);
   // "✨ Fill page" sheet (auto-curate around the selected card).
   const [autoFillOpen, setAutoFillOpen] = useState(!!fillResume);
+  // The sheet opening on the way back from a sign-in is an open too (analytics-studio, 2026-10-29).
+  useEffect(() => {
+    if (fillResume) track('autofill.open', { guest: store.tier === 'guest', source: 'auth_return' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, for the arrival
+  }, []);
   // Complete page: the empty pockets filled from what the page already holds (owner, 2026-10-22).
   const [completeOpen, setCompleteOpen] = useState(false);
   // Arrange: several finished seatings of the cards this page already has, stepped through ON
@@ -2371,7 +2376,10 @@ export function BinderScreen({
         onSplitSlot={selectedSlot && canSplitSlice(selectedSlot) ? splitSelected : undefined}
         onSimilarSlot={similarAvailable() ? findSimilarToSelected : undefined}
         onColorsSlot={findColorsOfSelected}
-        onAutoFillSlot={() => setAutoFillOpen(true)}
+        onAutoFillSlot={() => {
+          track('autofill.open', { guest: store.tier === 'guest', source: 'card_bar' });
+          setAutoFillOpen(true);
+        }}
         onPickCopySlot={pickCopyForSelected}
         dropTargets={p.id === page.id ? dropTargets : undefined}
         {...(role === 'current'

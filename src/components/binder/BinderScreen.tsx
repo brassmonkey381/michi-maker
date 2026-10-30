@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   Modal,
   Platform,
@@ -303,21 +302,11 @@ export function BinderScreen({
   const [quick, setQuick] = useState<ShareImageOptions | null>(null);
   const quickOpen = quick !== null;
   const [movePageOpen, setMovePageOpen] = useState(false);
-  /**
-   * WHETHER THE PHONE'S TOOLS ROW HAS MORE OFF EITHER EDGE (owner, 2026-09-15). The row scrolls
-   * sideways, and nothing said so: at 390pt "Settings" was cut to "Se" at the right edge and read
-   * as broken. A fade over each edge that has more behind it is the cue. Measured, not assumed,
-   * so a row that fits shows no fade at all.
-   */
-  const [toolMore, setToolMore] = useState({ left: false, right: false });
-  const toolRowW = useRef(0);
-  const toolContentW = useRef(0);
-  const toolScrollX = useRef(0);
-  const updateToolMore = () => {
-    const left = toolScrollX.current > 2;
-    const right = toolContentW.current - toolRowW.current - toolScrollX.current > 2;
-    setToolMore((m) => (m.left === left && m.right === right ? m : { left, right }));
-  };
+  /*
+    THE PHONE TOOL ROW WRAPS (owner, 2026-10-29). It scrolled sideways with a fade at the cut-off
+    edge, and the fade was not read as "more": tools past it were never found. Two rows show
+    every tool at once, at the cost of one row's height.
+  */
   /**
    * WHICH BINDER COVER IS BEING DECORATED — FC, IFC, IBC or BC — and which sticker on it.
    *
@@ -2756,46 +2745,8 @@ export function BinderScreen({
                 {primaryAction}
               </View>
               {toolItems ? (
-                <View style={styles.phoneToolWrap}>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.phoneToolRow}
-                    onLayout={(e) => {
-                      toolRowW.current = e.nativeEvent.layout.width;
-                      updateToolMore();
-                    }}
-                    onContentSizeChange={(w) => {
-                      toolContentW.current = w;
-                      updateToolMore();
-                    }}
-                    onScroll={(e) => {
-                      toolScrollX.current = e.nativeEvent.contentOffset.x;
-                      updateToolMore();
-                    }}
-                    scrollEventThrottle={32}
-                    testID="binder-tool-row">
-                    {toolItems}
-                  </ScrollView>
-                  {toolMore.left ? (
-                    <LinearGradient
-                      pointerEvents="none"
-                      colors={[theme.background, `${theme.background}00`]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.phoneToolFade, styles.phoneToolFadeLeft]}
-                    />
-                  ) : null}
-                  {toolMore.right ? (
-                    <LinearGradient
-                      pointerEvents="none"
-                      colors={[`${theme.background}00`, theme.background]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.phoneToolFade, styles.phoneToolFadeRight]}
-                      testID="binder-tool-row-more"
-                    />
-                  ) : null}
+                <View style={[styles.phoneToolRow, styles.phoneToolRows]} testID="binder-tool-row">
+                  {toolItems}
                 </View>
               ) : null}
             </View>
@@ -4014,11 +3965,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.two,
   },
-  phoneToolWrap: { position: 'relative' },
-  /** Over the edge that has more tools behind it: the page colour fading in, so the cut-off reads as a scroll. */
-  phoneToolFade: { position: 'absolute', top: 0, bottom: Spacing.two, width: 28 },
-  phoneToolFadeLeft: { left: 0 },
-  phoneToolFadeRight: { right: 0 },
+  phoneToolRows: { flexWrap: 'wrap', justifyContent: 'center', rowGap: Spacing.two },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',

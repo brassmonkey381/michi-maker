@@ -123,6 +123,14 @@
       "destination": "/auto-fill-methods.html"
     },
     {
+      "source": "/nine/db/rest/:path*",
+      "destination": "https://piikwvntldytjejxmcla.supabase.co/rest/:path*"
+    },
+    {
+      "source": "/nine/cards/storage/:path*",
+      "destination": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/:path*"
+    },
+    {
       "source": "/:path*",
       "destination": "/"
     }

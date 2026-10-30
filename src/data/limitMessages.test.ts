@@ -34,6 +34,8 @@ test('every tier that can pay is sent to plans', () => {
   for (const tier of PAID) {
     assert.deepEqual(limitCta(tier), { kind: 'plans', label: 'See plans' });
   }
+  assert.deepEqual(limitCta('free', true), { kind: 'plans', label: 'PRO Free Trial' });
+  assert.deepEqual(limitCta('pro', true), { kind: 'plans', label: 'See plans' });
 });
 
 test('all three cap messages point guests at signing in, not at upgrading', () => {

@@ -920,7 +920,7 @@ export function PrintPlaceholdersSheet({
                     {/* Eligible free users see the trial first, start it and the sheet re-renders
                         to the subscriber Download button. Renders null when not eligible. */}
                     <TrialCta
-                      message="New here? Try PRO free and print this binder."
+                      message="New here? Start the PRO Free Trial and print this binder."
                       surface="print_gate"
                       onImpression={markOfferShown}
                       onBeforeStart={markTrialStarted}

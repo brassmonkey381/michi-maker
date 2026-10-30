@@ -36,6 +36,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
+import { useTrial } from '@/hooks/use-trial';
 
 import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
@@ -130,9 +131,10 @@ export default function BrowseScreen() {
   // prominent tone and a button out. Which way out depends on the tier (see limitCta): the plans
   // page for accounts that can pay, the auth sheet for guests, whose cap is lifted by the free
   // tier rather than by a plan.
+  const trial = useTrial();
   const showLimitToast = (message: string) => {
     toastId.current += 1;
-    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
+    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier, trial.state === 'eligible') });
   };
   // One wall, one report: a dialog on its first hit today, the toast after that.
   const capGate = useCapGate(showLimitToast);

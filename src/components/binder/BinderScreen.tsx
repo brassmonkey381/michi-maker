@@ -118,6 +118,7 @@ import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
 import { usedSliceSignatures } from '@/data/sliceTidy';
 import { artLimitMessage, artTrialMessage, binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
+import { useTrial } from '@/hooks/use-trial';
 
 import { SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
@@ -680,9 +681,10 @@ export function BinderScreen({
   // prominent tone and a button out. Which way out depends on the tier (see limitCta): the plans
   // page for accounts that can pay, the auth sheet for guests, whose cap is lifted by the free
   // tier rather than by a plan.
+  const trial = useTrial();
   const showLimitToast = (message: string) => {
     toastId.current += 1;
-    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
+    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier, trial.state === 'eligible') });
   };
   // ONE FREE TASTE (store.taste, data/tastes): a free account's first tap on a locked PRO control
   // lifts that lock for the rest of the visit, says so, and the next tap works. Every lock flag

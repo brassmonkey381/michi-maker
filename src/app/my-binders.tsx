@@ -46,6 +46,7 @@ import { pillChip } from '@/constants/ui';
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { fillerName, sortByRecentEdit, type DemoPage } from '@/data/binderTypes';
 import { binderLimitMessage, binderTrialMessage, limitCta } from '@/data/limitMessages';
+import { useTrial } from '@/hooks/use-trial';
 import { track } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
@@ -113,9 +114,10 @@ export default function MyBindersScreen() {
   // prominent tone and a button out. Which way out depends on the tier (see limitCta): the plans
   // page for accounts that can pay, the auth sheet for guests, whose cap is lifted by the free
   // tier rather than by a plan. Passed to MyCollection too, which reaches the same binder cap.
+  const trial = useTrial();
   const showLimitToast = (message: string) => {
     toastId.current += 1;
-    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
+    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier, trial.state === 'eligible') });
   };
   // One wall, one report: a dialog on its first hit today, the toast after that.
   const capGate = useCapGate(showLimitToast);

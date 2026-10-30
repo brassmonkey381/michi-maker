@@ -50,10 +50,11 @@ export type LimitCta =
   | { kind: 'plans'; label: string }
   | { kind: 'signin'; label: string };
 
-export function limitCta(tier: Tier): LimitCta {
-  return tier === 'guest'
-    ? { kind: 'signin', label: 'Create account (free)' }
-    : { kind: 'plans', label: 'See plans' };
+export function limitCta(tier: Tier, trialEligible = false): LimitCta {
+  if (tier === 'guest') return { kind: 'signin', label: 'Create account (free)' };
+  // A free account that can still take the trial is offered it by name (owner, 2026-10-29); one
+  // that has used it, or a paid tier at a higher cap, is shown the plans.
+  return { kind: 'plans', label: tier === 'free' && trialEligible ? 'PRO Free Trial' : 'See plans' };
 }
 
 /**

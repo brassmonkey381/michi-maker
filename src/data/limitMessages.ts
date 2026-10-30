@@ -86,14 +86,13 @@ export function artTrialMessage(limits: TierLimits): string {
  * never have seen a result from it, and "Find similar is a PRO feature" alone tells them nothing
  * about what they are being sold.
  *
- * Guests are the delicate half. Every other gate can tell a guest "sign in, the free tier lifts
- * this", and here it does not: the free tier does not open Find Similar either. So the guest line
- * says PRO outright and offers the account as the first step rather than as the fix — a sentence
- * that implied signing in would unlock it would be a lie the very next tap exposes.
+ * GUESTS ARE NOT TOLD WHAT IS PRO (owner, 2026-10-29): a guest's one next step is the free
+ * account, and a free account gets one free taste of Find similar, so "create a free account to
+ * try it" is true. Which features are PRO is something they find out as a member, not at the door.
  */
 export function similarityGateMessage(tier: Tier): string {
   return tier === 'guest'
-    ? 'Find similar matches a card against the whole catalogue by its artwork. It is part of PRO — a free account is the first step.'
+    ? 'Find similar matches a card against the whole catalogue by its artwork. Create a free account to try it.'
     : 'Find similar matches a card against the whole catalogue by its artwork. It is part of PRO.';
 }
 

@@ -83,5 +83,6 @@ export function tasteOffered(tier: Tier, record: TasteRecord, feature: TasteFeat
 
 /** What the toast says the moment a taste is taken. Names the feature and the terms, once. */
 export function tasteToast(feature: TasteFeature): string {
-  return `Free taste: ${TASTE_LABEL[feature]} is unlocked until you leave. PRO keeps it.`;
+  // Plain words for a one-visit unlock (owner, 2026-10-29: "until I leave" read as a riddle).
+  return `${TASTE_LABEL[feature]} is yours free for this visit. Try PRO for FREE to keep it.`;
 }

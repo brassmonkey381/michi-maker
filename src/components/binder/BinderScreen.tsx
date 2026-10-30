@@ -682,23 +682,30 @@ export function BinderScreen({
     toastId.current += 1;
     setToast({ id: toastId.current, message: tasteToast(f) });
   };
+  // A GUEST IS NOT TOLD WHAT IS PRO (owner, 2026-10-29): at a wall a guest is asked for the free
+  // account and nothing else; which features are PRO is learned as a member.
+  const guestWall = store.tier === 'guest';
   const tracksLocked = !hasBinderTracks(store.tier) && !store.taste.active('binderTracks');
   const onTracksLocked = () => {
     if (store.taste.use('binderTracks', 'binder_editor')) showTasteToast('binderTracks');
-    else showLimitToast('Binder soundtracks are a PRO feature: your own track on a binder or a page, played on open and on every turn.');
+    else showLimitToast(guestWall
+      ? 'Binder soundtracks: your own track on a binder or a page, played on open and on every turn. Create a free account to use them.'
+      : 'Binder soundtracks are a PRO feature: your own track on a binder or a page, played on open and on every turn.');
   };
   const artViewsLocked = !hasArtViews(store.tier) && !store.taste.active('artViews');
   const onArtViewsLocked = () => {
     if (store.taste.use('artViews', 'binder_editor')) showTasteToast('artViews');
-    else showLimitToast('Art views are a PRO feature: a page that shows its cards as their artwork, on a stock card or edge to edge.');
+    else showLimitToast(guestWall
+      ? 'Art views: a page that shows its cards as their artwork, on a stock card or edge to edge. Create a free account to use them.'
+      : 'Art views are a PRO feature: a page that shows its cards as their artwork, on a stock card or edge to edge.');
   };
   const coversLocked = !hasBinderCovers(store.tier) && !store.taste.active('binderCovers');
   const coversWall = (wall: string) => {
     if (store.taste.use('binderCovers', 'binder_editor')) showTasteToast('binderCovers');
     else showLimitToast(wall);
   };
-  const onBinderLocked = () => coversWall('Named binders, hardware and covers are a PRO feature.');
-  const onCoversLocked = () => coversWall('Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.');
+  const onBinderLocked = () => coversWall(guestWall ? 'Named binders, hardware and covers need an account. Create a free account to use them.' : 'Named binders, hardware and covers are a PRO feature.');
+  const onCoversLocked = () => coversWall(guestWall ? 'Binder covers: dress the binder and decorate all four cover surfaces. Create a free account to use them.' : 'Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.');
   // One wall, one report: a dialog on its first hit today, the toast after that.
   const capGate = useCapGate(showLimitToast);
 

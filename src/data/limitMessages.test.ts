@@ -82,18 +82,15 @@ test('free hits the documented 9-page cap, and a legacy account its 16', () => {
 /**
  * FIND SIMILAR breaks this module's usual guest rule, and the break has to be deliberate.
  *
- * Every other cap here can honestly tell a guest that signing in lifts it, because the free tier
- * does. This one it does not: Find Similar is PRO, so a guest who signs in still cannot run it.
- * The line therefore has to name PRO to a guest as well — the one place in this file where the
- * guest branch is not "sign in and this goes away".
+ * A GUEST IS NOT TOLD WHICH FEATURES ARE PRO (owner, 2026-10-29): the account is the one next
+ * step, and a free account gets a free taste of Find similar, so "create a free account to try
+ * it" is true. A signed-in free account, past its taste, is told PRO.
  */
-test('the similarity gate tells a guest the truth, which is PRO', () => {
+test('the similarity gate asks a guest for an account and names PRO only to a member', () => {
   const guest = similarityGateMessage('guest');
-  assert.ok(guest.includes('PRO'), 'a guest must be told what actually opens it');
-  assert.ok(
-    !/Sign in \(free\) to (see|get|unlock)/i.test(guest),
-    'must not imply the free account opens it',
-  );
+  assert.ok(!/\bPRO\b/.test(guest), 'a guest is not sold PRO at the door');
+  assert.ok(/create a free account/i.test(guest), 'the account is the next step');
+  assert.ok(/\bPRO\b/.test(similarityGateMessage('free')), 'a member is told what opens it');
 });
 
 test('no similarity gate line quotes a number, because there is nothing to count', () => {

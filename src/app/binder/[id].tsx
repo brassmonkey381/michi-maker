@@ -412,11 +412,11 @@ function Viewer({
                 const n = binder.pages.length;
                 setCopyHint(
                   result.refused === 'pages'
-                    ? `This binder has ${n} pages. ${store.tier === 'guest' ? 'Guests get 6 per binder; sign in (free) for 16.' : `Your plan allows ${store.limits.pagesPerBinder} per binder.`}`
+                    ? `This binder has ${n} pages. ${store.tier === 'guest' ? 'Guests get 6 per binder; a free account gets 16.' : `Your plan allows ${store.limits.pagesPerBinder} per binder.`}`
                     : result.refused === 'binders'
                       ? 'You are at your binder limit, so there is no room for a copy.'
                       : result.refused === 'save'
-                        ? 'Sign in to duplicate this binder into your own account.'
+                        ? 'Create an account to duplicate this binder into it.'
                         : 'This binder cannot be copied.',
                 );
               }}

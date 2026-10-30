@@ -205,5 +205,5 @@ export const WALKTHROUGH_COPY = {
  */
 export const WALKTHROUGH_COPY_GUEST_PLACED: WalkthroughCopy = {
   ...WALKTHROUGH_COPY.placed,
-  body: 'Tap the card you just placed and choose Fill page. Sign in free, and Michi builds the rest of the page to match it.',
+  body: 'Tap the card you just placed and choose Fill page. Create a free account, and Michi builds the rest of the page to match it.',
 };

@@ -50,7 +50,7 @@ export function AccountButton() {
         ) : (
           <View style={styles.pill}>
             <ThemedText type="smallBold" style={styles.pillText}>
-              Sign in
+              {auth.isGuest ? 'Create account' : 'Sign in'}
             </ThemedText>
           </View>
         )}

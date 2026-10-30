@@ -8,7 +8,7 @@
  * launch it — this component doesn't change.
  */
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
@@ -30,10 +30,13 @@ export function UpgradePerk({
   const router = useRouter();
   const trial = useTrial();
   const label = cta ?? (!trial.loading && trial.state === 'eligible' ? TRIAL_CTA_LABEL : 'Upgrade to PRO');
+  // STACKED ON A PHONE (owner, 2026-10-29, Fill page screenshot): side by side, the sentence
+  // became a column two words wide beside the button. Under 500pt the button sits below it.
+  const narrow = useWindowDimensions().width < 500;
   return (
     <View style={styles.wrap}>
-      <View style={styles.note}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.text}>
+      <View style={[styles.note, narrow && styles.noteStacked]}>
+        <ThemedText type="small" themeColor="textSecondary" style={[styles.text, narrow && styles.textStacked]}>
           {message}
         </ThemedText>
         <Pressable
@@ -66,6 +69,8 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.panel,
   },
   text: { flex: 1, lineHeight: 18 },
+  noteStacked: { flexDirection: 'column', alignItems: 'flex-start', gap: Spacing.two },
+  textStacked: { flex: 0 },
   btn: {
     backgroundColor: Palette.accent,
     paddingVertical: Spacing.one,

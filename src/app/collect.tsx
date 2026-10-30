@@ -448,7 +448,7 @@ export default function CollectScreen() {
   const makeBinder = async () => {
     if (!result || building) return;
     if (!isSignedIn) {
-      setNote('Sign in to keep a binder.');
+      setNote('Create a free account to keep a binder.');
       return;
     }
     if (overPageCap) {
@@ -639,7 +639,7 @@ export default function CollectScreen() {
               </>
             ) : null}
             {guestGated ? (
-              <ThemedText type="small" style={styles.note}>Sign in free to build. Guests see nothing here.</ThemedText>
+              <ThemedText type="small" style={styles.note}>Create a free account to build. Guests see nothing here.</ThemedText>
             ) : null}
             {(loading && !catalog) || (wantPrices && !priced) || (wantCameos && !cameoReady) ? <ActivityIndicator style={styles.loading} /> : null}
             {noSetMatch && !set ? (

@@ -65,7 +65,7 @@ export function OfferCards() {
     if (busy) return;
     setNote(null);
     if (!CHECKOUT_OPEN) return setNote('Checkout opens shortly. Nothing has been charged.');
-    if (!isSignedIn) return setNote('Sign in first, so the membership lands on your account.');
+    if (!isSignedIn) return setNote('Create an account first, so the membership lands on it.');
     setBusy(lookupKey);
     try {
       // startCheckout emits offer.checkout_start / offer.checkout_failed itself.

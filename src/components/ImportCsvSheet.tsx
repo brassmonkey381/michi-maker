@@ -183,7 +183,7 @@ export function ImportCsvSheet({
                 short window, and a dialog that cannot scroll hides its own Import button. */}
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
             {guestGated ? (
-              <SignInPerk message="Importing reads the full card catalog to match your rows. Sign in (free) to use it." />
+              <SignInPerk message="Importing reads the full card catalog to match your rows. Create a free account to use it." />
             ) : (
               <>
                 {intro ? (

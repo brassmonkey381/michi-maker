@@ -256,7 +256,7 @@ export function AutoFillSheet({
             {guestGated ? (
               // The composer scans the full catalog, which is a signed-in perk — say so instead
               // of showing a spinner that would never resolve for a guest.
-              <SignInPerk message="Auto-fill curates pages from the full card catalog. Sign in (free) to use it." returnTo={returnTo} />
+              <SignInPerk message="Auto-fill curates pages from the full card catalog. Create a free account to use it." returnTo={returnTo} />
             ) : !ready ? (
               <View style={styles.center}>
                 <LogoLoader label="Loading the card catalog…" />

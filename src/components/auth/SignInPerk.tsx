@@ -9,6 +9,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/store/auth';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 import { forgetAuthReturn, rememberAuthReturn } from '@/lib/authReturn';
 
@@ -24,6 +25,9 @@ export function SignInPerk({
    */
   returnTo?: string;
 }) {
+  // A GUEST IS ASKED TO CREATE AN ACCOUNT, NOT TO SIGN IN (owner, 2026-10-29): a guest has no
+  // account to sign in to, and the word sent people looking for a password they never set.
+  const auth = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
   const open = () => {
     if (returnTo) rememberAuthReturn(returnTo, true);
@@ -44,7 +48,7 @@ export function SignInPerk({
           hitSlop={6}
           style={({ pressed }) => [styles.btn, pressed && styles.pressed]}>
           <ThemedText type="smallBold" style={styles.btnText}>
-            Sign in
+            {auth.isGuest ? 'Create account' : 'Sign in'}
           </ThemedText>
         </Pressable>
       </View>

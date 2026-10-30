@@ -355,7 +355,7 @@ export async function castFinalsVote(binderId: string): Promise<void> {
   const supabase = requireSupabase();
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth.user?.id;
-  if (!uid) throw new Error('Sign in to vote.');
+  if (!uid) throw new Error('Create an account to vote.');
   const { error } = await supabase
     .from('contest_finals_votes')
     .insert({ contest: CONTEST.id, binder_id: binderId, voter_id: uid });
@@ -375,7 +375,7 @@ export async function withdrawFinalsVote(binderId: string): Promise<void> {
   const supabase = requireSupabase();
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth.user?.id;
-  if (!uid) throw new Error('Sign in to vote.');
+  if (!uid) throw new Error('Create an account to vote.');
   const { data, error } = await supabase
     .from('contest_finals_votes')
     .delete()

@@ -224,7 +224,7 @@ export function BuildBinderSheet({
             </View>
 
             {guestGated ? (
-              <SignInPerk message="Building from your collection reads the full card catalog. Sign in (free) to use it." />
+              <SignInPerk message="Building from your collection reads the full card catalog. Create a free account to use it." />
             ) : !plan ? (
               <View style={styles.center}>
                 <LogoLoader label="Reading your collection…" />

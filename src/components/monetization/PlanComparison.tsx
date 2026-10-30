@@ -165,7 +165,7 @@ export function PlanComparison() {
     }
     if (!lookupKey || busyKey) return;
     if (!isSignedIn) {
-      setNote({ tier: plan.tier, text: 'Sign in (free) first, plans attach to your account.' });
+      setNote({ tier: plan.tier, text: 'Create a free account first, plans attach to it.' });
       return;
     }
     setNote(null);
@@ -349,7 +349,7 @@ export function PlanComparison() {
           accessibilityRole="button"
           testID="plans-free-signin"
           style={({ pressed }) => [styles.btnOutline, pressed && styles.dim]}>
-          <Text style={styles.btnOutlineText}>Sign in free to start</Text>
+          <Text style={styles.btnOutlineText}>Create a free account</Text>
         </Pressable>
       );
     }

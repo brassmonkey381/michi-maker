@@ -12,14 +12,14 @@ import { TRIAL_DAYS_TEXT } from './trialLength.ts';
 export function binderLimitMessage(tier: Tier, limits: TierLimits): string {
   if (tier === 'guest') {
     const n = limits.binders;
-    return `Guests can keep ${n} binder${n === 1 ? '' : 's'}. Sign in (free) to make up to ${TIER_LIMITS.free.binders}.`;
+    return `Guests can keep ${n} binder${n === 1 ? '' : 's'}. Create a free account to make up to ${TIER_LIMITS.free.binders}.`;
   }
   return `You’ve reached your ${limits.binders}-binder limit. Your binders stay as they are. PRO has no binder limit.`;
 }
 
 export function pageLimitMessage(tier: Tier, limits: TierLimits): string {
   if (tier === 'guest') {
-    return `Guests get ${limits.pagesPerBinder} pages per binder. Sign in (free) for ${TIER_LIMITS.free.pagesPerBinder}.`;
+    return `Guests get ${limits.pagesPerBinder} pages per binder. Create a free account for ${TIER_LIMITS.free.pagesPerBinder}.`;
   }
   return `You’ve reached the ${limits.pagesPerBinder}-page limit. Every page you have stays. PRO has no page limit.`;
 }
@@ -32,7 +32,7 @@ export function pageLimitMessage(tier: Tier, limits: TierLimits): string {
  */
 export function artLimitMessage(tier: Tier, limits: TierLimits): string {
   if (tier === 'guest') {
-    return `Guests can keep ${limits.artUploads} artworks. Sign in (free) to keep up to ${TIER_LIMITS.free.artUploads}.`;
+    return `Guests can keep ${limits.artUploads} artworks. Create a free account to keep up to ${TIER_LIMITS.free.artUploads}.`;
   }
   return `You’ve reached your ${limits.artUploads}-artwork limit. Everything you’ve saved stays. Delete one to add another, or PRO keeps as many as you like.`;
 }
@@ -52,7 +52,7 @@ export type LimitCta =
 
 export function limitCta(tier: Tier): LimitCta {
   return tier === 'guest'
-    ? { kind: 'signin', label: 'Sign in (free)' }
+    ? { kind: 'signin', label: 'Create account (free)' }
     : { kind: 'plans', label: 'See plans' };
 }
 

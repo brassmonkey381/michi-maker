@@ -72,7 +72,8 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
   const theme = useTheme();
 
   const [method, setMethod] = useState<Method>('password');
-  const [isCreate, setIsCreate] = useState(false);
+  // A guest opens on Create account: that is the step they are at (owner, 2026-10-29).
+  const [isCreate, setIsCreate] = useState(isGuest);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');

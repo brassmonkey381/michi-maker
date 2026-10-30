@@ -107,7 +107,11 @@ async function getDeviceId(): Promise<string | null> {
 // utm_content (the subreddit) and utm_term (the ad name) added 2026-10-30 for the Reddit lane: audience and
 // creative stop being one question. Free text, capped at 64 chars below like the rest; the code shape
 // check stays on `code` only.
-const CAMPAIGN_PARAMS = ['code', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
+// rdt_cid (2026-10-30): the click id Reddit appends to an ad's landing URL. Kept with the campaign so
+// the server-side SignUp (lib/redditCapi, the reddit-capi function) can hand it back to Reddit and
+// the conversion attributes to the click. Longer than our codes, hence its own cap below.
+const CAMPAIGN_PARAMS = ['code', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'rdt_cid'] as const;
+const PARAM_MAX: Partial<Record<(typeof CAMPAIGN_PARAMS)[number], number>> = { rdt_cid: 128 };
 /**
  * What a campaign code looks like: our own short labels (oakland_cardshow, rd_lidi_image). Anything
  * else on `?code=` is NOT ours - the OAuth provider returns to `/auth-callback?code=<uuid>` and that
@@ -129,7 +133,7 @@ const urlCampaign = (() => {
     const kept = new URLSearchParams();
     for (const k of CAMPAIGN_PARAMS) {
       const v = q.get(k);
-      if (!v || v.length > 64) continue; // printed codes are short; anything huge is not ours
+      if (!v || v.length > (PARAM_MAX[k] ?? 64)) continue; // printed codes are short; anything huge is not ours
       if (k === 'code' && !CAMPAIGN_CODE.test(v)) continue; // an OAuth code, not a campaign
       kept.append(k, v);
     }

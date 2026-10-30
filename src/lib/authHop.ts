@@ -49,7 +49,7 @@ export function parseHop(raw: string | null, now = Date.now()): AuthHop | null {
     const params: Record<string, string> = {};
     if (n.params && typeof n.params === 'object') {
       for (const [k, v] of Object.entries(n.params)) {
-        if (typeof v === 'string' && v.length <= 64 && /^[a-z0-9_]{1,32}$/i.test(k)) params[k] = v;
+        if (typeof v === 'string' && v.length <= (k === 'rdt_cid' ? 128 : 64) && /^[a-z0-9_]{1,32}$/i.test(k)) params[k] = v;
       }
     }
     return {

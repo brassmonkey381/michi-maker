@@ -34,6 +34,7 @@ import { Platform } from 'react-native';
 
 import { track, startSession, resetSessionUser, endSession, hopOrigin, hopPayload } from '@/lib/analytics';
 import { freshIdentity } from '@/data/freshIdentity';
+import { recentlyCreated, sendRedditSignUp } from '@/lib/redditCapi';
 import { forgetAuthHop, rememberAuthHop } from '@/lib/authHop';
 import { authRedirectUrl } from '@/lib/authRedirect';
 import { rememberAuthReturn } from '@/lib/authReturn';
@@ -205,6 +206,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           createdFor.current = uid;
           track('account.created', { via: fresh.via, provider: fresh.provider, ...hopOrigin() });
         }
+        // THE SERVER-SIDE REDDIT SIGNUP (lib/redditCapi): asked for on every fresh non-anonymous
+        // sign-in, a password account's first confirmed sign-in included (the row is young); the
+        // function sends once per account, so asking again is free.
+        if (uid && next.user && !next.user.is_anonymous && (fresh || recentlyCreated(next.user))) sendRedditSignUp(uid);
         if (uid && uid !== prevUid) {
           analyticsUid.current = uid;
           startSession();

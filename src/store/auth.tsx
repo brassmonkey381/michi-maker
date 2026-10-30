@@ -33,6 +33,7 @@ import {
 import { Platform } from 'react-native';
 
 import { track, startSession, resetSessionUser, endSession } from '@/lib/analytics';
+import { freshIdentity } from '@/data/freshIdentity';
 import { authRedirectUrl } from '@/lib/authRedirect';
 import { rememberAuthReturn } from '@/lib/authReturn';
 import { handoffPending, redeemHandoffHashFromLocation } from '@/data/handoff';
@@ -153,6 +154,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // HOW the user is signing in (set just before a sign-in call) so auth.login can carry a method.
   const analyticsUid = useRef<string | null>(null);
   const loginMethod = useRef<'password' | 'otp' | 'oauth' | null>(null);
+  // The uid whose account.created this page has already recorded, so a token refresh or a second
+  // auth event on the same return never doubles it.
+  const createdFor = useRef<string | null>(null);
 
   const user = session?.user ?? null;
 
@@ -191,10 +195,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // auth.login; the uid-change guard keeps token refreshes (same uid) from re-emitting it.
         const prevUid = analyticsUid.current;
         const uid = next.user?.id ?? null;
+        // ACCOUNT.CREATED ON THE RETURN, NOT THE TAP (analytics-studio, 2026-10-29). A provider
+        // identity minted in the last few minutes is a sign-up or a guest upgrade; it is read from
+        // the session the provider handed back, so an abandoned hop records nothing. A guest
+        // upgrade keeps its uid, which is why this sits outside the uid-change guard below.
+        const fresh = (event === 'SIGNED_IN' || event === 'USER_UPDATED') && next.user ? freshIdentity(next.user) : null;
+        if (fresh && uid && createdFor.current !== uid) {
+          createdFor.current = uid;
+          track('account.created', { via: fresh.via, provider: fresh.provider });
+        }
         if (uid && uid !== prevUid) {
           analyticsUid.current = uid;
           startSession();
-          if (event === 'SIGNED_IN' && next.user && !next.user.is_anonymous) {
+          if (event === 'SIGNED_IN' && next.user && !next.user.is_anonymous && !fresh) {
             track('auth.login', loginMethod.current ? { method: loginMethod.current } : {});
           }
         }
@@ -341,10 +354,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : await supabase.auth.signInWithOAuth({ provider, options });
       if (error) return { error: msg(error) };
 
-      // account.created for the OAuth signup / guest-upgrade path. This also fires for a RETURNING
-      // OAuth user (we can't distinguish fresh vs returning here); the studio treats min(ts) of
-      // account.created as the signup moment, so the extra rows are harmless.
-      track('account.created', { via: link ? 'guest_upgrade' : 'oauth', provider });
+      // THE TAP, NOT THE ACCOUNT. On web the page leaves for the provider right after this, and
+      // many never come back; account.created is recorded on the return (onAuthStateChange, from
+      // the identity the provider minted), so this is only the start of the hop.
+      track('auth.oauth_start', { provider, guest: link });
 
       // On web the call above navigates the page to the provider; nothing more to do here.
       if (Platform.OS === 'web' || !data?.url) return OK;

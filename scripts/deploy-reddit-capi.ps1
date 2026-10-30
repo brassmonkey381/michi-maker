@@ -44,8 +44,10 @@ try {
   if ($LASTEXITCODE -ne 0) { Write-Host "FAILED: supabase db query exited $LASTEXITCODE. Paste $sql into the SQL editor instead, then rerun this script."; exit 3 }
 
   Write-Host "[3/4] Setting function secrets"
-  $args = @("REDDIT_CAPI_TOKEN=$token", "REDDIT_PIXEL_ID=$pixel", "REDDIT_CAPI_HASH_EMAIL=$(if ($hashEmail -eq '1') { '1' } else { '0' })", "REDDIT_CAPI_TEST_MODE=$(if ($testMode -eq '1') { '1' } else { '0' })")
-  & npx supabase secrets set --project-ref piikwvntldytjejxmcla @args
+  # Not `$args`: that is PowerShell's automatic variable for unbound arguments, and splatting it
+  # handed the CLI an empty list ("No arguments found", 2026-10-30).
+  $secretArgs = @("REDDIT_CAPI_TOKEN=$token", "REDDIT_PIXEL_ID=$pixel", "REDDIT_CAPI_HASH_EMAIL=$(if ($hashEmail -eq '1') { '1' } else { '0' })", "REDDIT_CAPI_TEST_MODE=$(if ($testMode -eq '1') { '1' } else { '0' })")
+  & npx supabase secrets set --project-ref piikwvntldytjejxmcla @secretArgs
   if ($LASTEXITCODE -ne 0) { Write-Host "FAILED: supabase secrets set exited $LASTEXITCODE"; exit 4 }
 
   Write-Host "[4/4] Deploying reddit-capi (verify_jwt stays on)"

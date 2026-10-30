@@ -51,8 +51,11 @@ describe('tastes', () => {
     assert.match(tasteToast('findSimilar', 'free', 1), /1 sample remaining/);
     assert.doesNotMatch(tasteToast('findSimilar', 'free', 0), /remaining/);
     const guest = tasteToast('findSimilar', 'guest');
-    assert.match(guest, /Create a free account/);
+    assert.equal(guest, 'Find similar is free this visit. Keep it with a free account.');
     assert.doesNotMatch(guest, /PRO/);
+    // The fill toast already says "Filled 8 pockets · Same Pokemon", so its tail skips the name.
+    assert.equal(tasteToast('fillPage', 'guest', 0, 'none'), 'Free this visit. Keep it with a free account.');
+    assert.ok(tasteToast('findSimilar', 'free', 2).length <= 80, 'a pill is read in 5 seconds');
     assert.equal(guestTasteWall('findSimilar'), 'Create a free account to keep using Find similar.');
     assert.equal(guestTasteWall('fillPage'), 'Create a free account to keep using Fill page.');
     assert.ok(GUEST_TASTE_FEATURES.includes('fillPage'), 'a guest gets one fill (owner, 2026-10-30)');

@@ -131,13 +131,20 @@ export function takeTaste(record: TasteRecord, feature: TasteFeature, at = new D
  * is never told what PRO holds (owner, 2026-10-29): their line is the free account. `left` is how
  * many tastes remain AFTER this one.
  */
-export function tasteToast(feature: TasteFeature, tier: Tier = 'free', left = 0): string {
+export function tasteToast(
+  feature: TasteFeature,
+  tier: Tier = 'free',
+  left = 0,
+  /** `'none'` when the toast already names the feature (the fill toast carries this as a tail). */
+  lead: 'feature' | 'none' = 'feature',
+): string {
+  // SHORT. A pill lives 5 seconds (owner, 2026-10-30: "too much to read, for how short they last").
   // Plain words for a one-visit unlock (owner, 2026-10-29: "until I leave" read as a riddle).
-  const head = `${TASTE_LABEL[feature]} is yours free for this visit`;
-  if (tier === 'guest') return `${head}. Create a free account to keep using it.`;
+  const head = lead === 'feature' ? `${TASTE_LABEL[feature]} is free this visit` : 'Free this visit';
+  if (tier === 'guest') return `${head}. Keep it with a free account.`;
   // "samples remaining", never "tastes" in anything a person reads (owner, 2026-10-30).
   const count = left > 0 ? ` (${left} ${left === 1 ? 'sample' : 'samples'} remaining)` : '';
-  return `${head}${count}. Try PRO for FREE to keep it.`;
+  return `${head}${count}. Try PRO for FREE.`;
 }
 
 /** The wall a GUEST meets once their taste is gone (owner, 2026-10-30): the free account, and nothing about plans. */

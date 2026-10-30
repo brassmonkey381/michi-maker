@@ -693,7 +693,7 @@ export function BinderScreen({
   // the free account is asked for. So the note waits here and lands on the placement toast.
   const fillTasteNote = useRef<string | null>(null);
   const onSheetTasted = (f: TasteFeature) => {
-    if (f === 'fillPage') fillTasteNote.current = tasteToast(f, store.tier, store.taste.left(f));
+    if (f === 'fillPage') fillTasteNote.current = tasteToast(f, store.tier, store.taste.left(f), 'none');
     else showTasteToast(f);
   };
   // A GUEST IS NOT TOLD WHAT IS PRO (owner, 2026-10-29): at a wall a guest is asked for the free
@@ -1485,9 +1485,11 @@ export function BinderScreen({
     if (phone || note) {
       const name = cardName ?? resolveCard(cardId)?.name ?? 'Card';
       const pocket = (r: number, c: number) => r * page.cols + c + 1;
-      const verb = swapped ? 'swapped into' : 'added to';
-      const where = next ? `Next: pocket ${pocket(next.row, next.col)}` : 'Page full';
-      showToast(phone ? `${name} ${verb} pocket ${pocket(row, col)}. ${where}${note ? `. ${note}` : ''}` : note!, true);
+      // Short (owner, 2026-10-30: "too much to read, for how short they last"): the card, the
+      // pocket, one word for a swap, the next pocket as a number.
+      const verb = swapped ? 'swapped into' : 'in';
+      const where = next ? `next ${pocket(next.row, next.col)}` : 'page full';
+      showToast(phone ? `${name} ${verb} pocket ${pocket(row, col)} · ${where}${note ?? ''}` : note!, true);
     }
   };
 

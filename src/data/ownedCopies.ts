@@ -146,6 +146,7 @@ export function assignCopies(
 export function catalogArtNote(shortfall: number, total: number): string {
   if (shortfall <= 0) return '';
   // The FACT leads and the reason trails, so a clipped tail loses the why, never the what.
-  if (total === 1) return ' · this one shows catalogue art since your copies are all in pockets';
-  return ` · ${shortfall} show${shortfall === 1 ? 's' : ''} catalogue art (no free copies left)`;
+  // Short: a toast pill lives 5 seconds (owner, 2026-10-30).
+  if (total === 1) return ' · catalogue art, your copies are all placed';
+  return ` · ${shortfall} in catalogue art (no free copies)`;
 }

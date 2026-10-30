@@ -135,12 +135,17 @@ export function CompletePageSheet({
   const pick = (m: CompleteMethod, placements: ComposePlacement[]) => {
     // The tap that places a fill spends the sample (a per-use taste): a guest's one fill, or a
     // free account's server fill. The editor shows the toast on the placement.
-    if (guest || (SERVER.includes(m) && !tierFindSimilar)) {
+    const tasted = guest || (SERVER.includes(m) && !tierFindSimilar);
+    if (tasted) {
       if (!taste.use('fillPage', 'complete_sheet')) return;
       onTasted?.('fillPage');
     }
     const label = COMPLETE_METHODS.find((x) => x.key === m)!.label;
     track('complete_pick', { method: m, placed: placements.length, empties, guest });
+    // THE SAME ROW THE FILL SHEET SENDS (analytics-studio, 2026-10-30: the seeded flow's Complete
+    // left the Reddit lane's "composed" read blind). source: a guest and the ranked fills run on
+    // the server, the scanned fills on the catalogue. sheet tells the two apart.
+    track('autofill.run', { method: m, placed: placements.length, guest, taste: tasted, source: guest || SERVER.includes(m) ? 'server' : 'catalog', sheet: 'complete' });
     onPlaced(placements, label);
     onClose();
   };

@@ -140,7 +140,7 @@ export function PlanComparison() {
   const monthlyPercentOff = bundleEligible ? BUNDLE_PERCENT_OFF : PERCENT_OFF;
   // Footnotes start folded; see the block that renders them.
   const [notesOpen, setNotesOpen] = useState(false);
-  // The Free column's "Sign in free to start" opens the account sheet in place.
+  // The Free column's "Create a free account" opens the account sheet in place.
   const [authOpen, setAuthOpen] = useState(false);
   // THE TABLE IS AS WIDE AS ITS BLOCK, never wider. Inside a horizontal ScrollView a child is
   // sized to its content, and a cell's content is the longest unbroken line its text could be,

@@ -13,7 +13,7 @@
  * A drawer holds them all, costs one tap, and reuses the rail's own list (nav/navItems).
  *
  * WHY THE BUTTON IS BOTTOM-RIGHT and not a top bar. Every route already owns its top row and each
- * one differently: a back link and a wordmark on the document pages, a "Sign in" pill on My
+ * one differently: a back link and a wordmark on the document pages, an account pill on My
  * Binders, a three-line title plus a Cheatsheet button on Browse. Anything pinned to the top
  * collides with one of them. The bottom-right corner is empty on every route, it is where a thumb
  * already rests, and it means this component changes no page's layout at all.

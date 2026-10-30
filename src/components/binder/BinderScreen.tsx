@@ -732,7 +732,6 @@ export function BinderScreen({
     editing,
     studio: !!studio,
     pickerOpen: pickerCell !== null,
-    pageCount: binder?.pages.length ?? 1,
     width,
     tier: store.tier,
   });
@@ -776,9 +775,6 @@ export function BinderScreen({
    * row whose width is the window's and whose contents come and go (the like chip, the select
    * toggle). A hard-coded offset would be right on one screen and wrong on the next.
    */
-  const pageToolsRef = useRef<View>(null);
-  const [pageToolsRect, setPageToolsRect] = useState<PocketRect | null>(null);
-  const wantPageTools = walkthrough.step === 'page';
   const wantRing = walkthrough.step === 'ring';
   // Step three points at the card that just landed, so the same measurement serves both: an EMPTY
   // pocket to ring, or the FIRST FILLED one to point at.
@@ -814,18 +810,6 @@ export function BinderScreen({
     // adding a page brings in the page strip, which shifts the binder sideways and left a ring
     // hanging over empty space. Page count and index are in here for exactly that.
   }, [wantRing, wantPlaced, ringPage, binder?.pages.length, pageIndex, width, artworkOpen, cardsCollapsed]);
-
-  // The same shape as the ring's measurement, and for the same reasons: inside a timer so the box
-  // is read after layout has settled, and never straight from an effect body.
-  useEffect(() => {
-    if (!wantPageTools) return;
-    const t = setTimeout(() => {
-      pageToolsRef.current?.measureInWindow((x, y, w, h) => {
-        if (w > 0 && h > 0) setPageToolsRect({ x, y, width: w, height: h });
-      });
-    }, 60);
-    return () => clearTimeout(t);
-  }, [wantPageTools, width, binder?.pages.length]);
 
   if (!binder) {
     return (
@@ -2464,7 +2448,7 @@ export function BinderScreen({
       <IconBtn glyph="↶" label="Undo" onPress={store.undo} disabled={!store.canUndo} testID="tool-undo" />
       <IconBtn glyph="↷" label="Redo" onPress={store.redo} disabled={!store.canRedo} testID="tool-redo" />
       <View style={styles.groupRule} />
-      <View ref={pageToolsRef} style={styles.pageGroup}>
+      <View style={styles.pageGroup}>
         {/* Tapping it opens the page's details — the same dialog the title above the page opens —
             so a page's name sits at the head of the page's own tools as well as over its art.
             Not an IconBtn (it is a counter, not a 30px square), so it carries its own tip. */}
@@ -3510,24 +3494,6 @@ export function BinderScreen({
               {
                 top: ringRect.y + ringRect.height + 8,
                 left: Math.max(Spacing.three, Math.min(ringRect.x - 40, width - 340)),
-              },
-            ]}>
-            <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
-          </View>
-        ) : null}
-        {/* STEP FOUR hangs under the page tools it names, arrow up, right-aligned to them: that
-            group sits at the right-hand end of the header, so anchoring the card's LEFT edge to it
-            would push most of the card off-screen. Clamped to the window at both ends. */}
-        {wantPageTools && pageToolsRect && walkthrough.copy ? (
-          <View
-            style={[
-              styles.walkthroughFloat,
-              {
-                top: pageToolsRect.y + pageToolsRect.height + 8,
-                left: Math.max(
-                  Spacing.three,
-                  Math.min(pageToolsRect.x + pageToolsRect.width - 300, width - 340),
-                ),
               },
             ]}>
             <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />

@@ -20,7 +20,6 @@ const live = {
   editing: true,
   studio: false,
   pickerOpen: false,
-  pageAdded: false,
 };
 
 test('a binder that already held cards retires it silently, before anything is drawn', () => {
@@ -29,34 +28,20 @@ test('a binder that already held cards retires it silently, before anything is d
   assert.equal(s.show === false && s.retire, 'not-needed');
 });
 
-test('the first card landing earns the closing line, and closing the browser hands off to the page step', () => {
+test('the first card landing earns the closing line, and closing the browser ends it as placed', () => {
   const justPlaced = resolveState({ ...live, hasCard: true, pickerOpen: true });
   assert.equal(justPlaced.show === true && justPlaced.step, 'placed');
   const closed = resolveState({ ...live, hasCard: true, pickerOpen: false });
-  assert.equal(closed.show === true && closed.step, 'page');
+  assert.equal(closed.show, false);
+  assert.equal(closed.show === false && closed.retire, 'placed');
 });
 
-test('the page step ends when a page is actually added, and not before', () => {
-  const done = resolveState({ ...live, hasCard: true, pageAdded: true });
-  assert.equal(done.show, false);
-  assert.equal(done.show === false && done.retire, 'paged');
-});
-
-/** The step exists to be ignorable: nothing about it may gate the reader. */
-test('the page step never outlives the session it was shown in', () => {
-  // Walking away closes the editor, which draws and retires nothing...
+test('walking away draws and retires nothing; coming back to a binder with a card retires it in silence', () => {
   const away = resolveState({ ...live, hasCard: true, editing: false });
   assert.equal(away.show, false);
   assert.equal(away.show === false && away.retire, null);
-  // ...and coming back to a binder that now holds a card retires it in silence, so a reader who
-  // did not want a fourth step is never shown it twice.
   const back = resolveState({ ...live, hasCard: true, hadCardOnArrival: true });
   assert.equal(back.show === false && back.retire, 'not-needed');
-});
-
-test('a page added before a card is placed does not skip the earlier steps', () => {
-  const s = resolveState({ ...live, pageAdded: true });
-  assert.equal(s.show === true && s.step, 'ring');
 });
 
 test('an already-retired record draws nothing and writes nothing', () => {
@@ -126,11 +111,3 @@ test('every callout is numbered, short, em-dash free, and points somewhere', () 
   assert.ok(!WALKTHROUGH_COPY.ring.body.includes('＋'));
 });
 
-/**
- * The last step names the add-page button by the words PRINTED ON IT (BinderScreen's `word="Page"`
- * on tool-add-page). If that label is ever changed back to a bare glyph, this copy sends people
- * looking for text that is not on the screen.
- */
-test('the page step quotes the button label rather than describing a symbol', () => {
-  assert.ok(WALKTHROUGH_COPY.page.body.includes('"+ Page"'));
-});

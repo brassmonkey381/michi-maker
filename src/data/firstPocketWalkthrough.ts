@@ -11,9 +11,11 @@
  * INSIDE the card browser's own head, where the person is looking when they stall. It advances on
  * what they actually do, never on a Next button, and one press of its ✕ ends it for good.
  *
- * THE SECOND STALL (2026-09-12) is the same failure one screen later: the binder has a page, and
- * the control that adds another is a bare `+` among five other symbols in the header. So the last
- * step points at it, once, after a card has landed. See `pageAdded` below.
+ * THREE STEPS, NOT FOUR (owner, 2026-10-29, walking the Reddit-ad funnel). A fourth step once
+ * pointed at the add-page button after the first card landed; the ad arrival lands two taps from
+ * a filled page and the fourth callout was one more thing in the way. The walkthrough ends when
+ * the card is placed. `paged` stays in WalkthroughEnding because it was emitted historically;
+ * nothing produces it now.
  *
  * PURE, and importing nothing from react-native, so `node --test` can reach all of it. The hook
  * that owns the timing is src/hooks/use-first-pocket-walkthrough.ts; the two views are
@@ -21,7 +23,7 @@
  */
 
 /** The step a reader is on. Fixed ids, never an array index: they are analytics values. */
-export type WalkthroughStep = 'ring' | 'card' | 'placed' | 'page';
+export type WalkthroughStep = 'ring' | 'card' | 'placed';
 
 /** Why it will never show again. */
 export type WalkthroughEnding = 'not-needed' | 'placed' | 'dismissed' | 'ignored' | 'paged';
@@ -91,16 +93,6 @@ export interface WalkthroughInputs {
   studio: boolean;
   /** Is the card browser open on a pocket? Decides which line the banner carries. */
   pickerOpen: boolean;
-  /**
-   * Has a page been added since this editor session began?
-   *
-   * THE FOURTH THING NOBODY FINDS (owner, 2026-09-12). A binder that stays one page long is the
-   * second stall after the empty pocket, and the reason is the control: adding a page is a bare
-   * `+` in a row of five other symbols in the header, with its words only in a tooltip. The glyph
-   * now carries the word "Page" beside it, and this step points at it once, at the only moment it
-   * is obviously the next thing to do: a page with a card on it and nowhere else to put the next.
-   */
-  pageAdded: boolean;
 }
 
 export type WalkthroughState =
@@ -121,19 +113,15 @@ export function resolveState({
   editing,
   studio,
   pickerOpen,
-  pageAdded,
 }: WalkthroughInputs): WalkthroughState {
   if (record.retiredAt) return { show: false, retire: null };
   if (hadCardOnArrival) return { show: false, retire: 'not-needed' };
   if (!editing || studio) return { show: false, retire: null };
   if (record.opens > MAX_EDITOR_OPENS) return { show: false, retire: 'ignored' };
   if (hasCard) {
-    // It worked. One closing line while the browser they did it in is still open...
+    // The closing line while the browser is still up, then it is over: the card is placed.
     if (pickerOpen) return { show: true, step: 'placed' };
-    // ...then one pointer at the page tools, which is where the next stall is. It ends the instant
-    // a page is added and NEVER blocks anything: the reader can ignore it, close the editor, and
-    // `hadCardOnArrival` retires it silently on their next visit, so it cannot become a nag.
-    return pageAdded ? { show: false, retire: 'paged' } : { show: true, step: 'page' };
+    return { show: false, retire: 'placed' };
   }
   return { show: true, step: pickerOpen ? 'card' : 'ring' };
 }
@@ -159,7 +147,7 @@ export interface WalkthroughCopy {
   arrow: 'down' | 'up';
 }
 
-export const WALKTHROUGH_TOTAL = 4;
+export const WALKTHROUGH_TOTAL = 3;
 
 export const WALKTHROUGH_COPY = {
   /** The browser is shut and the ring is doing the pointing; this names what the ring means. */
@@ -185,22 +173,12 @@ export const WALKTHROUGH_COPY = {
     body: 'Tap the card you just placed and choose Fill page. Michi builds the rest of the page to match it.',
     arrow: 'up',
   },
-  /**
-   * Under the header's page tools, pointing up at them. Names the button by the words now printed
-   * ON it, so the reader is matching text to text rather than a description to a symbol.
-   */
-  page: {
-    index: 4,
-    title: 'Add your next page',
-    body: 'Press "+ Page" in the tools row above to add one at the end. The tools next to it duplicate, move and delete the page you are on.',
-    arrow: 'up',
-  },
 } as const satisfies Record<WalkthroughStep, WalkthroughCopy>;
 
 /**
  * Step three for a GUEST. Fill page runs on the full catalog, which is a signed-in perk (free), so
- * for a guest the tap it names ends at a Sign in note. Say so up front: the step is still true,
- * and "sign in free" is the next action rather than a surprise. A Reddit ad click lands here as a
+ * for a guest the tap it names ends at a Create account note. Say so up front: the step is still
+ * true, and "create a free account" is the next action rather than a surprise. A Reddit ad click lands here as a
  * guest, two taps in (owner, 2026-10-29).
  */
 export const WALKTHROUGH_COPY_GUEST_PLACED: WalkthroughCopy = {

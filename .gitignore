@@ -98,3 +98,6 @@ state/social/*.jpg
 state/social/*.png
 state/set-drop.json
 state/set-drop.log
+
+# One-off ledgers and probe inputs (orphans_full*.json etc). Tracked apply-*.ps1 scripts stay tracked.
+state/

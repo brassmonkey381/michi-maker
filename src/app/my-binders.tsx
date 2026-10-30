@@ -22,6 +22,7 @@ import { BinderCoverSheet } from '@/components/binder/BinderCoverSheet';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { EditLockBanner } from '@/components/binder/EditLockBanner';
+import { ReturnedBinderBanner } from '@/components/binder/ReturnedBinderBanner';
 import { SaveErrorBanner } from '@/components/binder/SaveErrorBanner';
 import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
@@ -291,6 +292,8 @@ export default function MyBindersScreen() {
               much as in the binder: adding a card from the collection saves too. */}
           <EditLockBanner />
           <SaveErrorBanner />
+          {/* The guest binder that came back after the Sign in tab bug (2026-10-30): once, to its owner. */}
+          <ReturnedBinderBanner />
           {/* No page title, the "My binders" section header is the top of the page. The account
               button (Sign in for anyone without an account) sits top right as it does on Home.
               Where the rail is hidden (native / narrow web), keep a way back Home on the left. */}

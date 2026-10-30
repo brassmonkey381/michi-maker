@@ -1183,7 +1183,10 @@ function SlotToolbar({
         const { width, height } = e.nativeEvent.layout;
         setSize((s) => (s.w === width && s.h === height ? s : { w: width, h: height }));
       }}
-      style={[styles.slotToolbar, hint && styles.slotToolbarHint, { left, top, opacity: size.w ? 1 : 0 }]}>
+      // WRAPS INSIDE THE PAGE (owner, 2026-10-29, phone screenshot): on a narrow page the row of
+      // actions ran off the right edge, Move and Remove with it. Capped at the page's width it
+      // folds onto a second line, and `top` already moves up to make room.
+      style={[styles.slotToolbar, hint && styles.slotToolbarHint, { left, top, maxWidth: innerW, flexWrap: 'wrap', justifyContent: 'center', opacity: size.w ? 1 : 0 }]}>
       {twoFaces && more ? (
         <ToolButton label="‹" onPress={() => setMore(false)} accessibilityLabel="Back to the main actions" />
       ) : (

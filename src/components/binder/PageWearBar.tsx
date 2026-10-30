@@ -14,7 +14,7 @@
  */
 import { Image } from 'expo-image';
 import { useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions, type View as ViewType } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type View as ViewType } from 'react-native';
 
 import { ColorBox, PillButton, Row, Seg, WearRow } from '@/components/binder/inspector/controls';
 import { ThemedText } from '@/components/themed-text';
@@ -117,6 +117,10 @@ export function PageWearBar({
     <>
       <View style={styles.bar} pointerEvents="box-none" testID="page-bar">
         {hint ? <View pointerEvents="none" style={styles.hintRing} /> : null}
+        {/* SCROLLS ON A PHONE, CENTRED ON A DESK (owner, 2026-10-29): a centred row wider than the
+            window lost a chip off each side. The content grows to fill and centres when it fits,
+            and scrolls from its first chip when it does not. */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.barContent} keyboardShouldPersistTaps="handled">
         {chip('background', 'Background', background)}
         {chip('sleeve', 'Sleeves', sleeve)}
         {chip('artBacking', 'Art backing', backing)}
@@ -160,6 +164,7 @@ export function PageWearBar({
             ) : null}
           </Pressable>
         ) : null}
+        </ScrollView>
       </View>
       {open ? (
         <Modal visible transparent animationType="none" onRequestClose={() => setOpen(null)}>
@@ -260,10 +265,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 61,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
   },
+  barContent: { flexGrow: 1, flexDirection: 'row', justifyContent: 'center', gap: 6, paddingHorizontal: 8 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

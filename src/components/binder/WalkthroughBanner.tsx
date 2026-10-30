@@ -15,7 +15,7 @@
  * The ✕ is a real target with a label, because one press ending this for good is the promise that
  * makes an in-your-face callout acceptable at all.
  */
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { WALKTHROUGH_TOTAL, type WalkthroughCopy } from '@/data/firstPocketWalkthrough';
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
@@ -31,6 +31,10 @@ export function WalkthroughBanner({
   onShown?: () => void;
 }) {
   const pointsDown = copy.arrow === 'down';
+  // ON A PHONE THE CARD IS ITS TITLE (owner, 2026-10-29): in the bottom sheet the full card
+  // and its arrow took a third of the screen above the search box. The step, the title and the
+  // arrow still say where to look; the sentence is the part a phone can spare.
+  const narrow = useWindowDimensions().width < 500;
   return (
     <View
       style={styles.wrap}
@@ -59,9 +63,9 @@ export function WalkthroughBanner({
             <Text style={styles.closeGlyph}>✕</Text>
           </Pressable>
         </View>
-        <Text style={styles.body}>{copy.body}</Text>
+        {narrow ? null : <Text style={styles.body}>{copy.body}</Text>}
       </View>
-      {pointsDown ? <Text style={[styles.arrow, styles.arrowDown]}>▼</Text> : null}
+      {pointsDown && !narrow ? <Text style={[styles.arrow, styles.arrowDown]}>▼</Text> : null}
     </View>
   );
 }

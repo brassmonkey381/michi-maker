@@ -14,7 +14,7 @@
  */
 import { Image } from 'expo-image';
 import { memo, useMemo, useState, type RefObject } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS, type SharedValue } from 'react-native-reanimated';
 
@@ -62,6 +62,11 @@ export function CardTray({
     setOpen(true);
   }
   const ordered = useMemo(() => [...slots].sort((a, b) => a.col - b.col), [slots]);
+  // AN EMPTY TRAY TAKES NO ROW ON A PHONE (owner, 2026-10-29): it has nothing to show, and the
+  // row sat between the sheet's title and the search box. It appears the moment a card lands in
+  // it, from the Tray button on a card's bar. Wide windows keep the row as the tray's handle.
+  const narrow = useWindowDimensions().width < 500;
+  if (narrow && ordered.length === 0) return <View ref={trayRef} collapsable={false} />;
   return (
     <View ref={trayRef} style={styles.tray} collapsable={false}>
       <Pressable

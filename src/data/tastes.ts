@@ -129,7 +129,8 @@ export function tasteToast(feature: TasteFeature, tier: Tier = 'free', left = 0)
   // Plain words for a one-visit unlock (owner, 2026-10-29: "until I leave" read as a riddle).
   const head = `${TASTE_LABEL[feature]} is yours free for this visit`;
   if (tier === 'guest') return `${head}. Create a free account to keep using it.`;
-  const count = left > 0 ? ` (${left} more ${left === 1 ? 'taste' : 'tastes'} after this)` : '';
+  // "samples remaining", never "tastes" in anything a person reads (owner, 2026-10-30).
+  const count = left > 0 ? ` (${left} ${left === 1 ? 'sample' : 'samples'} remaining)` : '';
   return `${head}${count}. Try PRO for FREE to keep it.`;
 }
 

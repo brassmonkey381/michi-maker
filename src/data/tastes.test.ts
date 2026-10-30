@@ -47,9 +47,9 @@ describe('tastes', () => {
 
   it('names the feature in the toast, never PRO to a guest, and counts what is left for a free account', () => {
     assert.match(tasteToast('binderTracks'), /Binder soundtracks/);
-    assert.match(tasteToast('findSimilar', 'free', 2), /2 more tastes/);
+    assert.match(tasteToast('findSimilar', 'free', 2), /2 samples remaining/);
     assert.match(tasteToast('findSimilar', 'free', 1), /1 more taste\b/);
-    assert.doesNotMatch(tasteToast('findSimilar', 'free', 0), /more taste/);
+    assert.doesNotMatch(tasteToast('findSimilar', 'free', 0), /remaining/);
     const guest = tasteToast('findSimilar', 'guest');
     assert.match(guest, /Create a free account/);
     assert.doesNotMatch(guest, /PRO/);

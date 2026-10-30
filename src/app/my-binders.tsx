@@ -365,7 +365,12 @@ export default function MyBindersScreen() {
               </ThemedView>
             ) : (
               <>
-                {store.atBinderLimit ? (
+                {/* NOT ON ARRIVAL (analytics-studio, 2026-10-30): a guest's cap is one binder and
+                    /my-binders?open=new makes it, so every Reddit arrival read "you are at your
+                    binder limit, create an account" a second after landing, before the editor
+                    opened. The first binder is not a wall; a second + New binder tap meets the
+                    cap gate (handleNew) and says so then. */}
+                {store.atBinderLimit && !(store.tier === 'guest' && store.binderCount <= 1) ? (
                   <View style={styles.upgradeRow}>
                     {store.tier === 'guest' ? (
                       <SignInPerk surface="binder_cap" message={binderLimitMessage(store.tier, store.limits)} />

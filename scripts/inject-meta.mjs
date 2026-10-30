@@ -73,6 +73,13 @@ if (html.includes('property="og:title"')) {
 if (!/<title>/.test(html)) {
   html = html.replace('</head>', `    <title>${TITLE}</title>\n  </head>`);
 }
+// NO SAFARI ZOOM ON A TAPPED INPUT (owner, 2026-10-29). The web build is `output: single`, so
+// Expo's own template writes the viewport and app/+html.tsx is never consulted; this is the one
+// place the shell can be changed. maximum-scale=1 stops mobile Safari zooming the page into a
+// focused input, and iOS still allows a pinch zoom with it set.
+const VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, viewport-fit=cover" />';
+html = html.replace(/<meta name="viewport" content="[^"]*" \/>/, VIEWPORT);
+if (!html.includes('maximum-scale=1')) throw new Error('inject-meta: the viewport meta was not found in dist/index.html');
 html = html.replace('</head>', `${META}\n  </head>`);
 fs.writeFileSync(shell, html);
 console.log('inject-meta: og/twitter meta written to dist/index.html');

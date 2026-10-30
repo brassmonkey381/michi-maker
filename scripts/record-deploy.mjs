@@ -17,7 +17,10 @@ if (!/^[0-9a-f]{7,40}$/.test(sha)) {
   process.exit(2);
 }
 const props = JSON.stringify({ commit: sha, short: sha.slice(0, 7), by: 'promote-to-production.ps1' });
-const sql = `insert into public.analytics_events (app, name, props) values ('michi', 'deploy.live', ${q(props)}::jsonb);`;
+// analytics_events.user_id is NOT NULL, so the marker is filed under the owner's account: the
+// studio drops deploy.live from the behavioural stream, so it never counts as a person.
+const OWNER = '689143c4-5d32-4905-991e-c894f9cf2620';
+const sql = `insert into public.analytics_events (user_id, app, name, props) values (${q(OWNER)}::uuid, 'michi', 'deploy.live', ${q(props)}::jsonb);`;
 if (dry) {
   console.log(sql);
   process.exit(0);

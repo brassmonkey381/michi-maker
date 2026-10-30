@@ -691,9 +691,9 @@ export function BinderScreen({
   // on the tap and then compose for a few seconds; a taste toast shown on the tap was replaced by
   // "Filled 8 pockets" before anyone read it, and for a guest that first toast is the only place
   // the free account is asked for. So the note waits here and lands on the placement toast.
-  const fillTasteNote = useRef<string | null>(null);
+  const fillTasteNote = useRef<{ left: number } | null>(null);
   const onSheetTasted = (f: TasteFeature) => {
-    if (f === 'fillPage') fillTasteNote.current = tasteToast(f, store.tier, store.taste.left(f), 'none');
+    if (f === 'fillPage') fillTasteNote.current = { left: store.taste.left(f) };
     else showTasteToast(f);
   };
   // A GUEST IS NOT TOLD WHAT IS PRO (owner, 2026-10-29): at a wall a guest is asked for the free
@@ -1484,12 +1484,9 @@ export function BinderScreen({
     // The name comes from the caller: a guest has no catalog, so resolveCard misses for them.
     if (phone || note) {
       const name = cardName ?? resolveCard(cardId)?.name ?? 'Card';
-      const pocket = (r: number, c: number) => r * page.cols + c + 1;
-      // Short (owner, 2026-10-30: "too much to read, for how short they last"): the card, the
-      // pocket, one word for a swap, the next pocket as a number.
-      const verb = swapped ? 'swapped into' : 'in';
-      const where = next ? `next ${pocket(next.row, next.col)}` : 'page full';
-      showToast(phone ? `${name} ${verb} pocket ${pocket(row, col)} · ${where}${note ?? ''}` : note!, true);
+      // Two words (owner, 2026-10-30: "on phone just: Pikachu added"). The pocket number and the
+      // next pocket went: the sheet already advances to the next pocket on its own.
+      showToast(phone ? `${name} ${swapped ? 'swapped' : 'added'}${note ?? ''}` : note!, true);
     }
   };
 
@@ -1821,12 +1818,12 @@ export function BinderScreen({
     // assigner ran dry (copies already placed elsewhere) or the store's guard refused a stale
     // claim. placedUnclaimed is counted by the store over pockets actually CREATED, so a
     // placement skipped for an occupied cell never inflates the note.
-    showToast(
-      placed > 0
-        ? `Filled ${placed} pocket${placed === 1 ? '' : 's'} · ${methodLabel}${catalogArtNote(placedUnclaimed, placed)}${tasteNote ? `. ${tasteNote}` : ''}`
-        : 'Nothing placed',
-      placed > 0,
-    );
+    // A tasted fill's toast is the owner's line (2026-10-30): "Filled 8 pockets · Keep using Fill
+    // Same Pokemon with a free account". The method rides inside the ask instead of before it.
+    const tail = tasteNote
+      ? tasteToast('fillPage', store.tier, tasteNote.left, `Fill ${methodLabel}`)
+      : `${methodLabel}${catalogArtNote(placedUnclaimed, placed)}`;
+    showToast(placed > 0 ? `Filled ${placed} pocket${placed === 1 ? '' : 's'} · ${tail}` : 'Nothing placed', placed > 0);
   };
 
   // --- Bulk actions on the Ctrl/Cmd multi-selection ---

@@ -66,8 +66,8 @@ let toastSeen = '';
 for (let i = 0; i < 16 && !/Filled \d+ pocket/.test(toastSeen); i += 1) { await wait(500); toastSeen = await text(); }
 await wait(1500);
 await shot('07-filled');
-log('TOAST taste?', toastSeen.includes('Free this visit. Keep it with a free account'), 'filled?', /Filled \d+ pocket/.test(toastSeen), 'PRO?', PRO.test(toastSeen));
-log('toast text:', (toastSeen.match(/Free this visit[^.]*\.[^.]*\./) ?? [''])[0], '|', (toastSeen.match(/Filled \d+ pockets?[^A-Z]*/) ?? [''])[0]);
+log('TOAST taste?', toastSeen.includes('Keep using Fill Same Pok'), 'filled?', /Filled \d+ pocket/.test(toastSeen), 'PRO?', PRO.test(toastSeen));
+log('toast text:', (toastSeen.match(/Keep using Fill[^·]*account/) ?? [''])[0], '|', (toastSeen.match(/Filled \d+ pockets?[^A-Z]*/) ?? [''])[0]);
 
 // Same visit: the taste is open, so Complete shows its previews (Undo the fill first for empties).
 await page.keyboard.press('Control+z');

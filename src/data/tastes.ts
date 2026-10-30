@@ -135,16 +135,16 @@ export function tasteToast(
   feature: TasteFeature,
   tier: Tier = 'free',
   left = 0,
-  /** `'none'` when the toast already names the feature (the fill toast carries this as a tail). */
-  lead: 'feature' | 'none' = 'feature',
+  /** What to call the feature; the fill toast passes "Fill Same Pokemon" (owner, 2026-10-30). */
+  label: string = TASTE_LABEL[feature],
 ): string {
   // SHORT. A pill lives 5 seconds (owner, 2026-10-30: "too much to read, for how short they last").
-  // Plain words for a one-visit unlock (owner, 2026-10-29: "until I leave" read as a riddle).
-  const head = lead === 'feature' ? `${TASTE_LABEL[feature]} is free this visit` : 'Free this visit';
-  if (tier === 'guest') return `${head}. Keep it with a free account.`;
-  // "samples remaining", never "tastes" in anything a person reads (owner, 2026-10-30).
+  // The guest line is the owner's own words: "Keep using Find similar with a free account".
+  if (tier === 'guest') return `Keep using ${label} with a free account`;
+  // Same shape for a free account (owner, 2026-10-30: never "is free this visit"), with the PRO
+  // trial as the way to keep it. "samples remaining", never "tastes" in anything a person reads.
   const count = left > 0 ? ` (${left} ${left === 1 ? 'sample' : 'samples'} remaining)` : '';
-  return `${head}${count}. Try PRO for FREE.`;
+  return `Try PRO for FREE to keep using ${label}${count}`;
 }
 
 /** The wall a GUEST meets once their taste is gone (owner, 2026-10-30): the free account, and nothing about plans. */

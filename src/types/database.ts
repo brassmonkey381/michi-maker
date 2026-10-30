@@ -755,6 +755,7 @@ export type Database = {
       binders: {
         Row: {
           hidden_from_feeds: boolean
+          cap_exempt: boolean
           cover: Json | null
           page_style: Json | null
           track: Json | null
@@ -776,6 +777,7 @@ export type Database = {
         }
         Insert: {
           hidden_from_feeds?: boolean
+          cap_exempt?: boolean
           cover?: Json | null
           page_style?: Json | null
           track?: Json | null
@@ -797,6 +799,7 @@ export type Database = {
         }
         Update: {
           hidden_from_feeds?: boolean
+          cap_exempt?: boolean
           cover?: Json | null
           page_style?: Json | null
           track?: Json | null

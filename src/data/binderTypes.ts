@@ -403,6 +403,11 @@ export interface DemoBinder {
    */
   hiddenFromFeeds?: boolean;
   /**
+   * Mirrors binders.cap_exempt: outside the owner's binder cap. Set server-side only, for the
+   * guest binders re-homed onto the accounts their owners created (2026-10-30).
+   */
+  capExempt?: boolean;
+  /**
    * A picture behind the share image (owner, 2026-09-15): a hotlinked image address drawn edge to
    * edge under the page in place of the blurred page art. A share setting, set in the Share sheet.
    * Persisted to binders.share_backdrop; read by api/og-image-binder.js.

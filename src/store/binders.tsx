@@ -492,7 +492,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const binders = history.present;
 
   // Demo binders (the "Try it out!" showcase) are free of the cap, like bundled examples.
-  const binderCount = binders.filter((b) => !b.isExample && !b.isDemo && !b.hiddenFromFeeds).length;
+  // cap_exempt: a guest binder returned to this account (2026-10-30) sits outside the cap, as the
+  // server's enforce_binder_cap also counts it.
+  const binderCount = binders.filter((b) => !b.isExample && !b.isDemo && !b.hiddenFromFeeds && !b.capExempt).length;
   const atBinderLimit = LIMITS_ENFORCED && binderCount >= limits.binders;
   const pageLimitReached = useCallback(
     (binderId: string) => {

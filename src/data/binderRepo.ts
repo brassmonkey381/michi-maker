@@ -175,6 +175,7 @@ interface BinderRowIn {
   is_public: boolean;
   is_demo: boolean | null;
   hidden_from_feeds?: boolean | null;
+  cap_exempt?: boolean | null;
   share_page_ids: string[] | null;
   share_backdrop?: string | null;
   allow_copies?: boolean | null;
@@ -276,6 +277,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     track: trackOf(row.track),
     isPublic: row.is_public,
     hiddenFromFeeds: row.hidden_from_feeds === true,
+    capExempt: row.cap_exempt === true,
     sharePageIds: row.share_page_ids ?? undefined,
     shareBackdrop: isImageRef(row.share_backdrop) ? row.share_backdrop : undefined,
     allowCopies: row.allow_copies === true,

@@ -1,6 +1,8 @@
 # Guest Fill page plan
 
-Status: scoped 2026-10-30, not started. Owner: "Guest fill should just be scoped out. Don't code anything for now." Planned by a 9-agent workflow (3 readers, 3 designs, 2 judges, 1 synthesis); both judges ranked this approach first.
+Status: scoped 2026-10-30, build approved the same day. Planned by a 9-agent workflow (3 readers, 3 designs, 2 judges, 1 synthesis); both judges ranked this approach first.
+
+Owner decisions, 2026-10-30: guest pages may lack the full-art flag; guests get 1 fill (and 1 Find similar), free accounts 3; Fill page and Complete page are the same feature and share one taste cap (`fillPage`).
 
 ## 1. Decision
 
@@ -12,7 +14,7 @@ Ship the guest Fill page taste from michi-maker alone, as a web OTA, with no tcg
 2. Sheet opens. One GET resolves the seed plus page ids (~200 ms). Header is unchanged: "Curate this page around Charizard: fills the 8 empty pockets".
 3. Method rows, wow first: Same Pokemon, Evolution line (when the seed has one), Same artist, Same type, Trainer page (when `trainerFor` matches), More like this, Same scene (when tagged). No Only row, no Fill from my collection, no language chips, no lock pills, no PRO word. One folded line under the list: "Create a free account to unlock 3 more ways to fill" (count computed from the hidden methods).
 4. First tap: `taste.use('fillPage','fill_sheet')`, the page fills, toast "Fill page is yours free for this visit. Create a free account to keep using it." then "Filled 8 pockets · Same Pokemon". Undo reverses the fill as today.
-5. Same visit: up to 3 fills. After the first, each row shows "(2 samples remaining)". The 4th tap, or any later visit on this device, replaces the list with the existing wall component: "Create a free account to keep using Fill page." and a Create account button (`src/components/auth/SignInPerk.tsx:32-61`, surface `fill_wall`, same `returnTo`).
+5. One fill per guest, ever on this device (`TASTE_CAP guest 1`); a free account gets 3 and sees "(2 samples remaining)". A second Fill or Complete tap as a guest replaces the list with the existing wall component: "Create a free account to keep using Fill page." and a Create account button (`src/components/auth/SignInPerk.tsx:32-61`, surface `fill_wall`, same `returnTo`).
 6. Create account: Google sign-up via `linkIdentity` keeps the uid (`src/store/auth.tsx:363`), the binder survives, `?fill=<page>.<pocket>` reopens the sheet (`BinderScreen.tsx:327-331, 393-401`) now with the catalog and all 10 methods.
 7. Empty result or 404/429 from the server: existing "nothing found this time" line. Never a wall on a server error.
 
@@ -38,7 +40,7 @@ michi wires it the day it lands in `src/lib/composeServer.ts` by swapping the ca
 1. `src/data/tastes.ts` (0.5 h): add `fillPage` to `TASTE_FEATURES` (:35), `TASTE_LABEL` `fillPage: 'Fill page'` (:38), `GUEST_TASTE_FEATURES = ['findSimilar','fillPage']` (:59). `src/data/tastes.test.ts` covers the key automatically; add one label assertion.
 2. `src/data/pageComposer.ts` (3 h): export `catalogFromCards(cards): Catalog` stub (getCard/listAll over a Map, cast). In moreLikeThis (:673-692) and sameScene (:651-671) replace `hits.map(h => catalog.getCard(h.id))` with `resolveHits(ids, catalog)`: catalog first, `fetchCardsByIds` for misses. Unit test: a full stub never calls `fetchCardsByIds`, so PRO fills are untouched.
 3. `src/data/guestFill.ts` (4 h, new): `guestSeed(seedId, page)` = `fetchCardsByIds([seedId, ...idsOnPage(page)])`; read `evolution_line` from the row, fall back to `fetchCardDetail` only when empty (replaces `AutoFillSheet.tsx:168-191` for guests). `guestCandidates(method, seed, pageIds, languages)` = one GET `/cards?select=CARD_COLS&jumbo=is.false&browse_visible=is.true&id=not.in.(...)&limit=200` plus the method predicate: `illustrator=ilike.<x>`, `types=cs.{<type>}`, `name=ilike.*<species>*` (species from `speciesOf`, :326-337), `or=(name.ilike.*A*,name.ilike.*B*)` for evolution line and trainer tokens (`src/data/trainerPartners.ts:43-46`), curated partners from `src/data/pokemonPartners.ts` (`curatedPartners`, no catalog). Two windows per scan (`order=release_date.desc` limit 120 and `.asc` limit 80) approximate variety for `varietyRank`/`varied` (:434-457, 598-601). Fails soft to `[]` on !ok including 404/429. Returns `catalogFromCards(seedRows + candidates)` so `composePage` runs unchanged with `idsOnPage` exclusion (:395-399) working. `GUEST_FILL_METHODS` ordered wow first; colorTheme, pokemonFriends parsed partners and fullPageSpread excluded for guests. Fetch on method press, not on sheet open.
-4. `src/components/binder/AutoFillSheet.tsx` (5 h): three-state guest branch at :254 keyed on `store.tier === 'guest'`: (a) `taste.offer('fillPage') || taste.active('fillPage')` and runs < 3: normal body with `guestSeed`, `ready = !!guestSeed`, methods from `GUEST_FILL_METHODS` filtered by `availableMethods` with the stub, locked computation at :360-361 bypassed (no pills), Only row and pool toggle hidden, `loadPartnerData` (:124) skipped except trainer tokens, folded unlock line; (b) taste spent or runs exhausted: `<SignInPerk surface="fill_wall" message={guestTasteWall('fillPage')} returnTo={returnTo}/>`; (c) seed unresolved: existing :262-265 line. First run calls `taste.use` then `run`; `BinderScreen.tsx:688` `showTasteToast` prints the guest copy.
+4. `src/components/binder/AutoFillSheet.tsx` (5 h): three-state guest branch at :254 keyed on `store.tier === 'guest'`: (a) `taste.offer('fillPage') || taste.active('fillPage')`: normal body with `guestSeed`, `ready = !!guestSeed`, methods from `GUEST_FILL_METHODS` filtered by `availableMethods` with the stub, locked computation at :360-361 bypassed (no pills), Only row and pool toggle hidden, `loadPartnerData` (:124) skipped except trainer tokens, folded unlock line; (b) taste spent or runs exhausted: `<SignInPerk surface="fill_wall" message={guestTasteWall('fillPage')} returnTo={returnTo}/>`; (c) seed unresolved: existing :262-265 line. First run calls `taste.use` then `run`; `BinderScreen.tsx:688` `showTasteToast` prints the guest copy.
 5. `src/lib/analytics.ts` and the sheet (1 h): events in section 6; document surfaces at :1005-1008.
 6. `src/data/tiers.ts` (0.25 h): reword the `composerPagesPerMonth 0` comment at :90 and :200 ("guest fills run under the fillPage taste"); nothing else reads it (grep confirmed).
 7. Docs (1.5 h): `docs/FILL-METHODS.md` rewrite of the data-source table (stale tonal inserts :31-32, missing sameScene and Only row) with a Guests column; `docs/DATA-SERVER.md` item 000 from section 3; memory note update to guest-tastes-rules.
@@ -48,8 +50,8 @@ Total michi: about 18 h; 22 h with slippage. Phase 2 Complete page: +4 h (`src/d
 
 ## 5. Phasing
 
-- Week 1 (michi only, OTA): Fill page taste with Same Pokemon, Evolution line, Same artist, Same type, Trainer page, More like this, Same scene (when tagged). Hidden for guests: Color theme (on-device blob, paid triColor), Friends (parsed partners need the catalog), Color sheet (an SVG sheet is not the card page a visitor came for). Complete page stays signed-in only.
-- Week 2: Complete page theme and similar for guests under the same label, after an owner probe that `theme_fill` 85/86 is live on prod (michi fails soft to "nothing found" on 404, `src/lib/themeFill.ts:21-36`).
+- Week 1 (michi only, OTA): Fill page taste with Same Pokemon, Evolution line, Same artist, Same type, Trainer page, More like this, Same scene (when tagged). Hidden for guests: Color theme (on-device blob, paid triColor), Friends (parsed partners need the catalog), Color sheet (an SVG sheet is not the card page a visitor came for). Complete page shares the `fillPage` taste from day one (owner: "Fill is the same as complete").
+- Week 1 also: Complete page theme and similar for guests under the same label; owner probe that `theme_fill` 85/86 is live on prod (michi fails soft to "nothing found" on 404, `src/lib/themeFill.ts:21-36`).
 - Later, only if the metric in section 6 clears: `compose_candidates` in tcgscan-data (section 3), then a michi edge function cloned from `supabase/functions/theme-search/index.ts:84-195` (APP JWT, anonymous allowed, `x-rl-identity user:<uid>`) if guest `find_similar` and `/cards` traffic outgrows the device-local cap.
 
 ## 6. Analytics and success metric
@@ -60,10 +62,10 @@ Success metric, read after 14 days of Reddit-ad traffic: guest `autofill.run` to
 
 ## 7. Risks and open questions (ranked)
 
-1. Owner decision: one visit with 3 fills (recommended, a dud first fill should not end the sample) or exactly 1 fill? `TASTE_CAP guest 1` (`tastes.ts:52`) means one visit today; the run counter is in-memory in `guestFill.ts`.
-2. Guest pages lack `full_art_kind` (`CARD_COLS` omits it), so the Only row, `promoteArtCards` and Complete art ordering are hidden or degraded for guests. Accept in week 1, or file `compose_candidates` now to get the column (widens a documented private column, `87:19-22`)?
+1. Decided: 1 fill for guests, 3 for free accounts, no in-sheet run counter beyond the taste record.
+2. Guest pages lack `full_art_kind` (`CARD_COLS` omits it), so the Only row, `promoteArtCards` and Complete art ordering are hidden or degraded for guests. Decided: accepted; `compose_candidates` stays optional.
 3. No server meter exists on `find_similar` or `/cards` GETs (pre_request dropped, `20260912_68:1519`); the per-guest cap is device-local and a cleared browser is a new guest. Same posture Find similar has had since 2026-09-11. Escalation is the michi edge function, not the data project, which cannot see michi users (`20260907_43:49-52`).
 4. The `resolveHits` change touches moreLikeThis and sameScene for paying users. Guard: the unit test that a full stub never reaches the network, plus a signed-in Playwright fill before deploy.
-5. Should Complete page join the `fillPage` taste in week 2 (one label, one wall), or stay signed-in only until the week 1 metric reads?
+5. Decided: Complete page joins the `fillPage` taste now, one label, one wall.
 
 Next: owner answers 1 and 2; michi starts step 1 of section 4.

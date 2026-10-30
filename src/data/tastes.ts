@@ -24,7 +24,8 @@
  *                   fill runs on a server slice (data/guestFill), then the free-account wall. A
  *                   free account runs the catalogue fills freely and spends this on Complete's
  *                   server lookups, Same theme and Like the whole page (owner: "3 free uses max").
- *                   The Fill sheet's similarity methods spend findSimilar, as everywhere else.
+ *                   The Fill sheet's server methods, Same scene and More like this, spend this too
+ *                   (owner: "Complete and Fill page should be treated like the same thing").
  *   -- themeSearch: NOT here. Free accounts already run every theme query and get the top matches;
  *      the rest is withheld by the data server's meter, which this device cannot lift. A taste of
  *      the full result set is a server change (my_cap_tier), not a client one.

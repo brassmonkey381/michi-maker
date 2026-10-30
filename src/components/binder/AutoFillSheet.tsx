@@ -101,7 +101,13 @@ export function AutoFillSheet({
   // Open by tier or by this visit's free taste (store.taste); a locked similarity method's first
   // press takes the taste and runs.
   const { taste } = useBinders();
-  const hasFindSimilar = tierFindSimilar || taste.active('findSimilar');
+  // THE SERVER METHODS, Same scene (theme) and More like this (similarity), are PRO for a member;
+  // a free account spends a fillPage sample on each run, the same key and cap Complete page uses
+  // (owner, 2026-10-30: "Complete and Fill page should be treated like the same thing"). Same scene
+  // used to slip through: its `paid: 'theme'` matched no lock, so a free account ran it without
+  // limit. A member with the tier runs both freely.
+  const serverMethod = (paid: string | undefined) => paid === 'theme' || paid === 'similarity';
+  const serverFills = tierFindSimilar || taste.offer('fillPage');
   // VIP's upgraded composer (tiers.ts multiPageCompose). Free/PRO see the sell instead.
   // EN/JP bound, shared with the browse surfaces (persisted, account-synced). Passed INTO the
   // composer's ranking RPCs (p_lang) + local scans, so a fill honours the chosen printing language.
@@ -253,8 +259,10 @@ export function AutoFillSheet({
     if (!enrichedSeed || !seedCatalog || busy) return;
     // A guest's first fill takes the taste here, on the method tap, and the editor says so. If the
     // record refuses (another tab took it), the list is already the wall on the next render.
-    if (guest) {
-      // Spent by the run itself (a per-use taste, TASTE_KIND); none left means the wall is up.
+    // Spent by the run itself (a per-use taste, TASTE_KIND): a guest's one fill of any method, or a
+    // free account's server method. None left means the list already shows the wall or the lock.
+    const paid = COMPOSE_METHODS.find((m) => m.key === method)?.paid;
+    if (guest || (serverMethod(paid) && !tierFindSimilar)) {
       if (!taste.use('fillPage', 'fill_sheet')) return;
       onTasted?.('fillPage');
     }
@@ -414,13 +422,12 @@ export function AutoFillSheet({
                     // so no lock and no pill: a guest is never told what PRO is.
                     const locked = guest
                       ? false
-                      : m.paid === 'similarity' ? !hasFindSimilar : m.paid === 'triColor' ? !isPaid : false;
+                      : serverMethod(m.paid) ? !serverFills : m.paid === 'triColor' ? !isPaid : false;
                     // And each to its own sell. Tri-colour gets a live demo, which converts better
                     // than a price table; similarity gets the same wall it shows everywhere else,
                     // so a user refused in the browser meets one rule here rather than a second.
                     const refuse = () => {
-                      if (m.paid === 'similarity' && taste.use('findSimilar', 'fill_sheet')) return void run(m.key);
-                      if (m.paid === 'similarity' && onSimilarLocked) onSimilarLocked();
+                      if (serverMethod(m.paid) && onSimilarLocked) onSimilarLocked();
                       else setUpsell(true);
                     };
                     return (

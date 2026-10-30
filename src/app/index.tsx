@@ -110,7 +110,8 @@ export default function HomeScreen() {
   // action, so the tap is answered where it was made instead of navigating to /browse to be
   // refused on arrival.
   const driveSimilar = (cardId: string) => {
-    if (!hasFindSimilar(store.tier)) {
+    // One free taste (store.taste): a free account's first Find similar goes through.
+    if (!store.taste.pass('findSimilar', hasFindSimilar(store.tier), 'home')) {
       capGate.hit(similarityWall(store.tier, 'home'));
       return;
     }

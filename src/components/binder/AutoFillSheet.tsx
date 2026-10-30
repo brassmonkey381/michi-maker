@@ -43,6 +43,7 @@ import type { CatalogCard } from '@/lib/catalog';
 import { useCatalog } from '@/hooks/use-catalog';
 import { loadOtherGameSimilar, otherGameCatalogFor, otherGameColorUrl, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { useTier } from '@/hooks/use-tier';
+import { useBinders } from '@/store/binders';
 import { useBrowseTheme } from '@/lib/browseTheme';
 import { isSupabaseConfigured } from '@/lib/env';
 import { hasSceneTags } from '@/lib/themeScores';
@@ -80,7 +81,11 @@ export function AutoFillSheet({
   onSimilarLocked?: () => void;
 }) {
   const { catalog, guestGated } = useCatalog(visible);
-  const { isPaid, hasFindSimilar, limits } = useTier();
+  const { isPaid, hasFindSimilar: tierFindSimilar, limits } = useTier();
+  // Open by tier or by this visit's free taste (store.taste); a locked similarity method's first
+  // press takes the taste and runs.
+  const { taste } = useBinders();
+  const hasFindSimilar = tierFindSimilar || taste.active('findSimilar');
   // VIP's upgraded composer (tiers.ts multiPageCompose). Free/PRO see the sell instead.
   const vipCompose = limits.multiPageCompose && !!onComposeAll;
   // EN/JP bound, shared with the browse surfaces (persisted, account-synced). Passed INTO the
@@ -386,8 +391,11 @@ export function AutoFillSheet({
                     // And each to its own sell. Tri-colour gets a live demo, which converts better
                     // than a price table; similarity gets the same wall it shows everywhere else,
                     // so a user refused in the browser meets one rule here rather than a second.
-                    const refuse = () =>
-                      m.paid === 'similarity' && onSimilarLocked ? onSimilarLocked() : setUpsell(true);
+                    const refuse = () => {
+                      if (m.paid === 'similarity' && taste.use('findSimilar', 'fill_sheet')) return void run(m.key);
+                      if (m.paid === 'similarity' && onSimilarLocked) onSimilarLocked();
+                      else setUpsell(true);
+                    };
                     return (
                       <Pressable
                         key={m.key}

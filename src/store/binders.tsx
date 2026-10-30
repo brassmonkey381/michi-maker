@@ -68,6 +68,7 @@ import { loadOwnedEntriesShared } from '@/data/collectionRepo';
 import { track, type CardAddVia } from '@/lib/analytics';
 import { LIMITS_ENFORCED, type Tier, type TierLimits } from '@/data/tiers';
 import { useEditLock, type EditLockStatus } from '@/hooks/use-edit-lock';
+import { useTastes, type TasteApi } from '@/hooks/use-tastes';
 import { useTier } from '@/hooks/use-tier';
 import { isSupabaseConfigured } from '@/lib/env';
 import { defaultBinderPublic } from '@/data/sharingDefaults';
@@ -193,6 +194,8 @@ interface BinderStore {
   tier: Tier;
   /** Active capability limits for that tier (permissive/unlimited while LIMITS_ENFORCED is off). */
   limits: TierLimits;
+  /** One free taste of each PRO feature for a free account (data/tastes, hooks/use-tastes). */
+  taste: TasteApi;
   /** Count of the user's own (non-example) binders. */
   binderCount: number;
   /** True when creating another binder would exceed the tier limit (always false while the flag is off). */
@@ -484,6 +487,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   // Effective tier + limits gate binder/page creation. While LIMITS_ENFORCED is off, `limits`
   // reads unlimited, so every guard below is a no-op and behaviour is unchanged.
   const { tier, limits } = useTier();
+  const taste = useTastes(tier);
 
   const binders = history.present;
 
@@ -2880,6 +2884,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       takeOverEditing: editLock.takeOver,
       tier,
       limits,
+      taste,
       binderCount,
       atBinderLimit,
       pageLimitReached,
@@ -2947,6 +2952,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       editLock,
       tier,
       limits,
+      taste,
       binderCount,
       atBinderLimit,
       pageLimitReached,

@@ -954,6 +954,16 @@ export function trackLandingCta(cta: LandingCta, binder?: string): void {
   track('landing.cta', { cta, ...(binder ? { binder } : {}), ...(landingCampaign?.params ?? {}) });
 }
 
+/**
+ * taste.used { feature, surface } - a free account took its one free taste of a PRO feature
+ * (data/tastes): the lock lifted for the rest of that visit. `feature` is the TasteFeature key,
+ * `surface` where the tap happened (binder_editor, inspector, my_binders, home, browser, fill_sheet,
+ * complete_sheet). Read against trial.start_click and offer.checkout_start: which taste converts.
+ */
+export function trackTasteUsed(feature: string, surface: string): void {
+  track('taste.used', { feature, surface });
+}
+
 /** Where a puzzle moment happened. `home_card` is the invitation, `daily` the page. */
 export type PuzzleSurface = 'home_card' | 'daily';
 

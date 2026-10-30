@@ -25,6 +25,7 @@ import { runThemeDemo } from '@/data/themeDemo';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
 import { searchesArtworkUnmetered } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
+import { useBinders } from '@/store/binders';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
 import { gameLabel, PICKER_GAMES, type GameId } from '@/lib/games';
@@ -121,6 +122,9 @@ export function CardBrowse({
   // tier-agnostic and just fires onColorSearch; we branch on the tier here. This single site covers
   // both kit entry points (the Tri-Color button + the Color facet chip) on every surface.
   const { tier, isPaid, hasAdvancedSearch, hasFindSimilar, hasTcgscanPro, loading: tierUnknown } = useTier();
+  // ONE FREE TASTE (store.taste, data/tastes). A lock here is a kit feature flag, so the taste is
+  // taken in onLockedFeature below: the lock lifts in place and the next tap works.
+  const { taste } = useBinders();
   // Whether this account already searches artwork unmetered: PRO and VIP (an active trial
   // included, since a trial resolves to the tier it grants) AND a paid TCGScan membership, which
   // the theme-search function honours from the shared ledger but which grants no michi tier at
@@ -358,7 +362,7 @@ export function CardBrowse({
           key: 'otherGameSimilar',
           label: '≈ Find similar',
           onPress: (c) => {
-            if (!hasFindSimilar && !tierUnknown) onSimilarLocked?.();
+            if (!hasFindSimilar && !tierUnknown && !taste.pass('findSimilar', false, 'browser')) onSimilarLocked?.();
             else void showOtherGameSimilar([c.id]);
           },
         };
@@ -400,15 +404,15 @@ export function CardBrowse({
       locked.push(...(gameThemed ? [] : (['themeSearch'] as BrowseFeature[])), 'findSimilar', 'similarRefine');
       return locked;
     }
-    if (!hasFindSimilar) locked.push('findSimilar');
-    if (!hasAdvancedSearch) locked.push('sortByValue', 'priceFilter', 'similarRefine', 'colorSearch');
+    if (!hasFindSimilar && !taste.active('findSimilar')) locked.push('findSimilar');
+    if (!hasAdvancedSearch && !taste.active('advancedSearch')) locked.push('sortByValue', 'priceFilter', 'similarRefine', 'colorSearch');
     // THEME SEARCH IS NEVER LOCKED HERE (owner decision 2026-09-07). A locked theme: is stripped
     // by the kit before the query leaves the device, which is exactly what the server's meter
     // must not be bypassed by. Every tier runs any theme query; the data project hands a free or
     // guest caller the top few rows and the true total, and the kit draws the "+N more matches"
     // row under them. That row's tap comes back through onLockedFeature('themeSearch') below.
     return locked.length ? locked : undefined;
-  }, [hasAdvancedSearch, hasFindSimilar, tierUnknown, secondary, gameThemed]);
+  }, [hasAdvancedSearch, hasFindSimilar, tierUnknown, secondary, gameThemed, taste]);
   // A phone, not merely a narrow window: at 375px this page spent 59% of the screen on chrome
   // before the first card, and every label on it is competing for the same row.
   const phone = width < Breakpoints.phone;
@@ -504,6 +508,10 @@ export function CardBrowse({
         // its own richer path (the tri-colour upsell below), so it is deliberately not sent to
         // the plans page — a live demo converts better than a price table.
         onLockedFeature={(f) => {
+          // The free taste first (store.taste): a free account's first tap on a locked control
+          // unlocks that feature for the rest of this visit instead of showing the wall.
+          if (f === 'findSimilar' && taste.use('findSimilar', 'browser')) return;
+          if ((f === 'sortByValue' || f === 'priceFilter' || f === 'similarRefine' || f === 'colorSearch') && taste.use('advancedSearch', 'browser')) return;
           if (f === 'colorSearch') setEnergyOpen(true);
           else if (f === 'findSimilar' && onSimilarLocked) onSimilarLocked();
           // A theme on a game that has none (or whose registry read has not landed): say so here,

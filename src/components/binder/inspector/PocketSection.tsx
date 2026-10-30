@@ -22,7 +22,9 @@ import { useBinders } from '@/store/binders';
  */
 function PocketArtViewRow({ binder, page, slots, own, testID }: { binder: DemoBinder; page: DemoPage; slots: DemoSlot[]; own: PocketArtView | null | undefined; testID: string }) {
   const store = useBinders();
-  const locked = !hasArtViews(store.tier);
+  // Locked by tier unless this visit's free taste is running (store.taste); the first change on a
+  // locked row takes the taste and goes through.
+  const locked = !hasArtViews(store.tier) && !store.taste.active('artViews');
   const pageView = resolveArtView(page.artView, binder.pageStyle?.artView);
   if (pageView === 'connected') {
     return <Row label="Art view" testID={testID}><ThemedText type="small" themeColor="textSecondary">Connected art: the whole page is one sheet.</ThemedText></Row>;
@@ -34,7 +36,7 @@ function PocketArtViewRow({ binder, page, slots, own, testID }: { binder: DemoBi
           options={POCKET_ART_VIEWS}
           value={own ?? 'inherit'}
           onChange={(id) => {
-            if (locked) return;
+            if (locked && !store.taste.use('artViews', 'inspector')) return;
             store.setSlotsStyle(binder.id, page.id, slots.map((s) => s.id), { artView: id === 'inherit' ? null : id });
           }}
         />

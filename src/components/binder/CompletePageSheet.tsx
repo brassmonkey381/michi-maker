@@ -22,6 +22,7 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import { COMPLETE_METHODS, completeMethodsFor, completePage, emptyPockets, type CompleteMethod } from '@/data/pageCompleter';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTier } from '@/hooks/use-tier';
+import { useBinders } from '@/store/binders';
 import { track } from '@/lib/analytics';
 import { themeFill } from '@/lib/themeFill';
 import { useLanguagePref } from '@/store/languagePref';
@@ -44,7 +45,10 @@ export function CompletePageSheet({
   onSimilarLocked?: () => void;
 }) {
   const { catalog, guestGated } = useCatalog(visible);
-  const { hasFindSimilar } = useTier();
+  const { hasFindSimilar: tierFindSimilar } = useTier();
+  // Open by tier or by this visit's free taste (store.taste), the same answer the Fill sheet gives.
+  const { taste } = useBinders();
+  const hasFindSimilar = tierFindSimilar || taste.active('findSimilar');
   const [languages] = useLanguagePref();
   const methods = useMemo(() => (catalog ? completeMethodsFor(page, catalog) : []), [catalog, page]);
   const empties = useMemo(() => emptyPockets(page).length, [page]);
@@ -122,7 +126,7 @@ export function CompletePageSheet({
               <Pressable
                 key={m.key}
                 disabled={!ready && !locked}
-                onPress={() => (locked ? onSimilarLocked?.() : none ? undefined : pick(m.key, p!.placements!))}
+                onPress={() => (locked ? (taste.use('findSimilar', 'complete_sheet') ? undefined : onSimilarLocked?.()) : none ? undefined : pick(m.key, p!.placements!))}
                 accessibilityRole="button"
                 accessibilityLabel={`${m.label}. ${m.description}`}
                 style={({ pressed }) => [styles.card, pressed && styles.pressed, none && styles.dimmed]}>

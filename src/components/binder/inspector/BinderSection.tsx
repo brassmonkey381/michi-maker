@@ -261,13 +261,14 @@ export function BinderLook({
         />
         {/* THE ART VIEW FOR THE WHOLE BINDER (owner, 2026-10-27; artView.ts): every page shows
             its cards this way unless a page or a pocket says otherwise. PRO's, like the page's. */}
-        <Row label={hasArtViews(store.tier) ? 'Art view' : 'Art view \u00b7 PRO'} testID="binder-art-view">
-          <View style={hasArtViews(store.tier) ? undefined : local.locked}>
+        <Row label={hasArtViews(store.tier) || store.taste.active('artViews') ? 'Art view' : 'Art view \u00b7 PRO'} testID="binder-art-view">
+          <View style={hasArtViews(store.tier) || store.taste.active('artViews') ? undefined : local.locked}>
             <Seg
               options={ART_VIEWS}
               value={ps?.artView ?? 'card'}
               onChange={(id) => {
-                if (!hasArtViews(store.tier)) return;
+                // One free taste for a free account (store.taste): the first change goes through.
+                if (!store.taste.pass('artViews', hasArtViews(store.tier), 'inspector')) return;
                 store.setPageStyle(binder.id, { artView: id === 'card' ? null : id });
               }}
             />

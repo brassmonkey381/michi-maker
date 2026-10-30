@@ -70,6 +70,7 @@ import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
 import { themeSearchWall } from '@/data/themeGate';
+import { tasteToast, type TasteFeature } from '@/data/tastes';
 import { hasArtViews, hasBinderCovers, hasBinderTracks, hasFindSimilar } from '@/data/tiers';
 import { TrackPill } from '@/components/binder/TrackPill';
 import { setTrack, stopPlayer } from '@/lib/binderAudio';
@@ -683,12 +684,30 @@ export function BinderScreen({
     toastId.current += 1;
     setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
   };
-  const tracksLocked = !hasBinderTracks(store.tier);
-  const onTracksLocked = () =>
-    showLimitToast('Binder soundtracks are a PRO feature: your own track on a binder or a page, played on open and on every turn.');
-  const artViewsLocked = !hasArtViews(store.tier);
-  const onArtViewsLocked = () =>
-    showLimitToast('Art views are a PRO feature: a page that shows its cards as their artwork, on a stock card or edge to edge.');
+  // ONE FREE TASTE (store.taste, data/tastes): a free account's first tap on a locked PRO control
+  // lifts that lock for the rest of the visit, says so, and the next tap works. Every lock flag
+  // below reads the taste; every locked handler offers it before it shows the wall.
+  const showTasteToast = (f: TasteFeature) => {
+    toastId.current += 1;
+    setToast({ id: toastId.current, message: tasteToast(f) });
+  };
+  const tracksLocked = !hasBinderTracks(store.tier) && !store.taste.active('binderTracks');
+  const onTracksLocked = () => {
+    if (store.taste.use('binderTracks', 'binder_editor')) showTasteToast('binderTracks');
+    else showLimitToast('Binder soundtracks are a PRO feature: your own track on a binder or a page, played on open and on every turn.');
+  };
+  const artViewsLocked = !hasArtViews(store.tier) && !store.taste.active('artViews');
+  const onArtViewsLocked = () => {
+    if (store.taste.use('artViews', 'binder_editor')) showTasteToast('artViews');
+    else showLimitToast('Art views are a PRO feature: a page that shows its cards as their artwork, on a stock card or edge to edge.');
+  };
+  const coversLocked = !hasBinderCovers(store.tier) && !store.taste.active('binderCovers');
+  const coversWall = (wall: string) => {
+    if (store.taste.use('binderCovers', 'binder_editor')) showTasteToast('binderCovers');
+    else showLimitToast(wall);
+  };
+  const onBinderLocked = () => coversWall('Named binders, hardware and covers are a PRO feature.');
+  const onCoversLocked = () => coversWall('Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.');
   // One wall, one report: a dialog on its first hit today, the toast after that.
   const capGate = useCapGate(showLimitToast);
 
@@ -1987,10 +2006,12 @@ export function BinderScreen({
   const findSimilarToSelected = () => {
     const cardId = selectedSlot?.cardId;
     if (!cardId || !selectedSlot) return;
-    if (!hasFindSimilar(store.tier)) {
+    const open = store.taste.pass('findSimilar', hasFindSimilar(store.tier), 'binder_editor');
+    if (!open) {
       capGate.hit(similarityWall(store.tier, 'binder_editor'));
       return;
     }
+    if (open === 'tasted') showTasteToast('findSimilar');
     track('card.search', { kind: 'similar', count: 1, surface: 'binder_editor' });
     setSimilarSeed([cardId]);
     const cell = firstFreePlacement(page, 1, 1) ?? { row: selectedSlot.row, col: selectedSlot.col };
@@ -2016,11 +2037,13 @@ export function BinderScreen({
     if (cardIds.length === 0) return;
     // PRO and above (see TierLimits.findSimilar). The action stays on the multi-select bar at
     // every tier and answers the tap here, rather than opening the picker and refusing inside it.
-    if (!hasFindSimilar(store.tier)) {
+    const open = store.taste.pass('findSimilar', hasFindSimilar(store.tier), 'binder_editor');
+    if (!open) {
       setMultiActionsOpen(false);
       capGate.hit(similarityWall(store.tier, 'binder_editor'));
       return;
     }
+    if (open === 'tasted') showTasteToast('findSimilar');
     const chosen0 = page.slots.find((s) => multiIds.has(s.id));
     // Hand the seed to the picker as an explicit prop, then open it: the picker's CatalogBrowser
     // runs the multi-similar search on mount. A fresh array each call re-triggers it (kit
@@ -2528,8 +2551,8 @@ export function BinderScreen({
       binder={binder}
       page={page}
       showToast={showToast}
-      binderLocked={!hasBinderCovers(store.tier)}
-      onBinderLocked={() => showLimitToast('Named binders, hardware and covers are a PRO feature.')}
+      binderLocked={coversLocked}
+      onBinderLocked={onBinderLocked}
       tracksLocked={tracksLocked}
       onTracksLocked={onTracksLocked}
     /> : null;
@@ -2892,8 +2915,8 @@ export function BinderScreen({
               pageIndex={idx}
               openTo={initialPageIndex}
               onPageChange={changePage}
-              coversLocked={!hasBinderCovers(store.tier)}
-              onCoversLocked={() => showLimitToast('Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.')}
+              coversLocked={coversLocked}
+              onCoversLocked={onCoversLocked}
               availableWidth={available}
               // The header, plus the title fields and tools card that edit mode stacks above the
               // art. Until those move beside the page (audit A3) they are simply a cost the page

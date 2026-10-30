@@ -29,6 +29,7 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
+import { tasteToast } from '@/data/tastes';
 import { hasBinderCovers, hasFindSimilar } from '@/data/tiers';
 import { AccountButton } from '@/components/auth/AccountButton';
 import { SignInPerk } from '@/components/auth/SignInPerk';
@@ -128,10 +129,12 @@ export default function MyBindersScreen() {
     if (cardIds.length === 0) return;
     // PRO and above (see TierLimits.findSimilar). Answered here rather than after the jump to
     // /browse, so the refusal lands on the screen where the tap happened.
-    if (!hasFindSimilar(store.tier)) {
+    const open = store.taste.pass('findSimilar', hasFindSimilar(store.tier), 'my_binders');
+    if (!open) {
       capGate.hit(similarityWall(store.tier, 'my_binders'));
       return;
     }
+    if (open === 'tasted') showToast(tasteToast('findSimilar'));
     track('card.search', { kind: 'similar', count: cardIds.length });
     if (cardIds.length === 1) sendBrowseCommand({ type: 'similar', cardId: cardIds[0] });
     else sendBrowseCommand({ type: 'similarMany', cardIds });
@@ -244,7 +247,10 @@ export default function MyBindersScreen() {
   const coverFromMenu = () => {
     setMenuId(null);
     if (!menuBinder) return;
-    if (hasBinderCovers(store.tier)) setCoverId(menuBinder.id);
+    // One free taste (store.taste): a free account's first cover goes through, with a word on why.
+    const open = store.taste.pass('binderCovers', hasBinderCovers(store.tier), 'my_binders');
+    if (open === 'tasted') showToast(tasteToast('binderCovers'));
+    if (open) setCoverId(menuBinder.id);
     else showLimitToast('Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.');
   };
   const deleteFromMenu = () => {
@@ -428,7 +434,7 @@ export default function MyBindersScreen() {
                         {binder.isDemo ? null : (
                           <Pressable
                             onPress={() =>
-                              hasBinderCovers(store.tier)
+                              store.taste.pass('binderCovers', hasBinderCovers(store.tier), 'my_binders')
                                 ? setCoverId(binder.id)
                                 : showLimitToast('Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.')
                             }

@@ -23,7 +23,7 @@ const labelOf = (c: 'free' | 'pro' | 'vip', viewer: Tier) => {
 
 test('guest: Free is a sign-up, paid plans are purchases', () => {
   assert.equal(kindOf('free', 'guest'), 'signIn');
-  assert.equal(labelOf('pro', 'guest'), 'Choose PRO');
+  assert.equal(labelOf('pro', 'guest'), 'Try PRO for FREE');
   assert.equal(labelOf('vip', 'guest'), 'Choose VIP');
 });
 

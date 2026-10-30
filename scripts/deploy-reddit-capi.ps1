@@ -37,7 +37,7 @@ Write-Host "[2/4] Creating the reddit_conversions table (the one SQL file, not d
 # NOT `db push`: the app project is shared with the tcgscan repos, whose migration history lives in
 # the remote table and not in this repo, so push stops on ~50 remote versions it cannot see
 # (analytics-studio, 2026-10-30). The file is `create table if not exists`, so a rerun is safe.
-$sql = Join-Path $repo 'supabase\migrations61030160000_reddit_conversions.sql'
+$sql = Join-Path $repo 'supabase\migrations\20261030160000_reddit_conversions.sql'
 Push-Location $repo
 try {
   & npx supabase db query --linked --project-ref piikwvntldytjejxmcla -f $sql

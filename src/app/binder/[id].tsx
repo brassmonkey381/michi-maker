@@ -59,10 +59,12 @@ function pageParam(page: string | string[] | undefined): number {
 }
 
 export default function BinderRoute() {
-  const { id, print, edit, slice, fill, page, back, resume } = useLocalSearchParams<{
+  const { id, print, edit, slice, fill, page, back, resume, seeded } = useLocalSearchParams<{
     id: string;
     print?: string;
     edit?: string;
+    /** `1` when my-binders just made this binder for a tagged ad arrival (data/seedPages). */
+    seeded?: string;
     slice?: string;
     /** `<page>.<pocket>` (zero-based): reopen the Fill page sheet there - the way back from a sign-in (lib/authReturn). */
     fill?: string;
@@ -89,7 +91,7 @@ export default function BinderRoute() {
   useEffect(() => {
     if (migrated) {
       const q = new URLSearchParams();
-      for (const [k, v] of Object.entries({ print, edit, slice, fill, page, back })) if (v) q.set(k, v);
+      for (const [k, v] of Object.entries({ print, edit, slice, fill, page, back, seeded })) if (v) q.set(k, v);
       const qs = q.toString();
       router.replace(`/binder/${migrated}${qs ? `?${qs}` : ''}` as Href);
     } else if (strandedResume) {
@@ -104,6 +106,7 @@ export default function BinderRoute() {
         binderId={local.id}
         initialPrintOpen={print === '1'}
         initialEditing={edit === '1' || slice === '1' || !!fill}
+        seeded={seeded === '1'}
         initialStudioOpen={slice === '1'}
         initialFillAt={fill || null}
         initialPageIndex={openAt}

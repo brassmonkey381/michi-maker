@@ -16,15 +16,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   EMPTY_RECORD,
+  SEEDED_COPY,
   WALKTHROUGH_COPY,
   WALKTHROUGH_COPY_GUEST_PLACED,
   mergeRecord,
   normalizeRecord,
+  resolveSeededState,
   resolveState,
+  type SeededStep,
   type WalkthroughCopy,
   type WalkthroughEnding,
   type WalkthroughRecord,
   type WalkthroughStep,
+  type WalkthroughVariant,
 } from '@/data/firstPocketWalkthrough';
 import { track } from '@/lib/analytics';
 import { hydrateWalkthroughSeen, readWalkthroughSeen, writeWalkthroughSeen } from '@/lib/walkthroughSeen';
@@ -33,8 +37,10 @@ import { useAuth } from '@/store/auth';
 const PREF_KEY = 'firstPocketWalkthrough';
 
 export interface FirstPocketWalkthrough {
+  /** Which walkthrough this is (the id on its events). */
+  variant: WalkthroughVariant;
   /** The step being shown, or null when nothing is. */
-  step: WalkthroughStep | null;
+  step: WalkthroughStep | SeededStep | null;
   /** The callout for that step, or null. */
   copy: WalkthroughCopy | null;
   /** One press: over for good. */
@@ -49,6 +55,9 @@ export function useFirstPocketWalkthrough({
   fillOpen,
   width,
   tier,
+  variant = 'first-pocket',
+  completed = false,
+  pageFull = false,
 }: {
   hasCard: boolean;
   editing: boolean;
@@ -59,6 +68,12 @@ export function useFirstPocketWalkthrough({
   /** The window's width, so the report can tell a docked browser from a bottom sheet. */
   width: number;
   tier: string;
+  /** `seeded` for a binder that arrived with its three themed cards (data/seedPages). */
+  variant?: WalkthroughVariant;
+  /** Seeded only: a fill placed cards this session. */
+  completed?: boolean;
+  /** Seeded only: the page being edited has no empty pocket. */
+  pageFull?: boolean;
 }): FirstPocketWalkthrough {
   const { user, profile, updateProfile } = useAuth();
   const userId = user?.id ?? null;
@@ -120,23 +135,29 @@ export function useFirstPocketWalkthrough({
   // sheet is gone: it stays until Fill page opens. On a wide window the browser is docked beside
   // the page, the line was seen as the card landed, and closing the browser ends it, as before.
   const narrow = width < 500;
-  const state = resolveState({ hasCard, hadCardOnArrival, record, editing, studio, pickerOpen, filled: fillSeen || fillOpen || (!narrow && !pickerOpen) });
+  // The seeded variant latches its own arrival fact the same way: a page already full when the
+  // editor opened is a second visit, and there is nothing left to show.
+  const [arrivedFull] = useState(pageFull);
+  const state =
+    variant === 'seeded'
+      ? resolveSeededState({ record, editing, studio, completed, pageFull, arrivedFull })
+      : resolveState({ hasCard, hadCardOnArrival, record, editing, studio, pickerOpen, filled: fillSeen || fillOpen || (!narrow && !pickerOpen) });
   const step = state.show ? state.step : null;
 
   /** The furthest step this session actually reached, for the ending event. Written in the effect
    *  that reports each step, never during render. */
-  const lastStep = useRef<WalkthroughStep | null>(null);
+  const lastStep = useRef<WalkthroughStep | SeededStep | null>(null);
 
   const retire = useCallback(
     (via: WalkthroughEnding) => {
       if (record.retiredAt) return;
       // `not-needed` is silent: nothing was shown, so there is nothing to report an ending for.
       if (via !== 'not-needed' && lastStep.current) {
-        track('walkthrough.done', { walkthrough: 'first-pocket', via, last_step: lastStep.current });
+        track('walkthrough.done', { walkthrough: variant, via, last_step: lastStep.current });
       }
       write({ ...record, retiredAt: new Date().toISOString() });
     },
-    [record, write],
+    [record, write, variant],
   );
 
   // THE SILENT ENDINGS. A binder that already held a card (the wizard's, the story builder's, or
@@ -171,23 +192,29 @@ export function useFirstPocketWalkthrough({
   useEffect(() => {
     if (announced.current || !step) return;
     announced.current = true;
-    track('walkthrough.shown', { walkthrough: 'first-pocket', width, tier });
+    track('walkthrough.shown', { walkthrough: variant, width, tier });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the first step only
   }, [step]);
 
   // Each step it reaches, once, and the record of how far it got.
-  const seenSteps = useRef(new Set<WalkthroughStep>());
+  const seenSteps = useRef(new Set<WalkthroughStep | SeededStep>());
   useEffect(() => {
     if (!step) return;
     lastStep.current = step;
     if (seenSteps.current.has(step)) return;
     seenSteps.current.add(step);
-    track('walkthrough.step', { walkthrough: 'first-pocket', step });
-  }, [step]);
+    track('walkthrough.step', { walkthrough: variant, step });
+  }, [step, variant]);
 
+  const copy = (): WalkthroughCopy | null => {
+    if (!step) return null;
+    if (step === 'complete' || step === 'filled') return SEEDED_COPY[step];
+    return step === 'placed' && isGuest ? WALKTHROUGH_COPY_GUEST_PLACED : WALKTHROUGH_COPY[step];
+  };
   return {
+    variant,
     step,
-    copy: step ? (step === 'placed' && isGuest ? WALKTHROUGH_COPY_GUEST_PLACED : WALKTHROUGH_COPY[step]) : null,
+    copy: copy(),
     dismiss: useCallback(() => retireRef.current('dismissed'), []),
   };
 }

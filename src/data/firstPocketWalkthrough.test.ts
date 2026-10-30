@@ -5,9 +5,12 @@ import {
   EMPTY_RECORD,
   MAX_EDITOR_OPENS,
   WALKTHROUGH_COPY,
+  SEEDED_COPY,
+  SEEDED_TOTAL,
   WALKTHROUGH_TOTAL,
   mergeRecord,
   normalizeRecord,
+  resolveSeededState,
   resolveState,
   type WalkthroughRecord,
 } from './firstPocketWalkthrough.ts';
@@ -114,3 +117,34 @@ test('every callout is numbered, short, em-dash free, and points somewhere', () 
   assert.ok(!WALKTHROUGH_COPY.ring.body.includes('＋'));
 });
 
+
+// --- the seeded variant (data/seedPages arrivals) -----------------------------------------------
+const seededLive = { record: EMPTY_RECORD, editing: true, studio: false, completed: false, pageFull: false, arrivedFull: false };
+
+test('seeded: step one points at Complete, the payoff follows a fill or a full page, and it stays up', () => {
+  assert.deepEqual(resolveSeededState(seededLive), { show: true, step: 'complete' });
+  assert.deepEqual(resolveSeededState({ ...seededLive, completed: true }), { show: true, step: 'filled' });
+  assert.deepEqual(resolveSeededState({ ...seededLive, pageFull: true }), { show: true, step: 'filled' });
+  assert.deepEqual(resolveSeededState({ ...seededLive, completed: true, pageFull: true }), { show: true, step: 'filled' });
+});
+
+test('seeded: the same endings as the first-pocket walkthrough', () => {
+  assert.deepEqual(resolveSeededState({ ...seededLive, record: rec({ retiredAt: 't' }) }), { show: false, retire: null });
+  assert.deepEqual(resolveSeededState({ ...seededLive, arrivedFull: true, pageFull: true }), { show: false, retire: 'not-needed' });
+  assert.deepEqual(resolveSeededState({ ...seededLive, editing: false }), { show: false, retire: null });
+  assert.deepEqual(resolveSeededState({ ...seededLive, studio: true }), { show: false, retire: null });
+  assert.deepEqual(resolveSeededState({ ...seededLive, record: rec({ opens: MAX_EDITOR_OPENS + 1 }) }), { show: false, retire: 'ignored' });
+});
+
+test('seeded copy: two steps, numbered, short, no em-dashes, never PRO, the account ask on the payoff', () => {
+  assert.equal(SEEDED_TOTAL, 2);
+  assert.equal(SEEDED_COPY.complete.index, 1);
+  assert.equal(SEEDED_COPY.filled.index, 2);
+  for (const c of Object.values(SEEDED_COPY)) {
+    assert.equal(c.total, SEEDED_TOTAL);
+    assert.doesNotMatch(c.title + c.body, /—|\bPRO\b/);
+    assert.ok(c.title.length <= 40, c.title);
+  }
+  assert.match(SEEDED_COPY.complete.title, /Complete/);
+  assert.match(SEEDED_COPY.filled.body, /Create a free account/);
+});

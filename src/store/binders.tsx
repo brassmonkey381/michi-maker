@@ -65,6 +65,7 @@ import {
 import { mergeSlices, splitSlice, type MergeResult } from '@/data/sliceMerge';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
 import { loadOwnedEntriesShared } from '@/data/collectionRepo';
+import { seedCount } from '@/data/seedPages';
 import { track, type CardAddVia } from '@/lib/analytics';
 import { LIMITS_ENFORCED, type Tier, type TierLimits } from '@/data/tiers';
 import { useEditLock, type EditLockStatus } from '@/hooks/use-edit-lock';
@@ -211,7 +212,11 @@ interface BinderStore {
   migratedBinderId: (oldId: string) => string | undefined;
   /** Create a binder. Returns undefined when the tier's binder cap refuses it (callers show the
    *  upgrade note), same contract as duplicateBinder. Demo/example binders are free of the cap. */
-  createBinder: (init?: Partial<DemoBinder>) => DemoBinder | undefined;
+  /**
+   * `opts.seed` says the pages came from data/seedPages for a tagged ad arrival: binder.add carries
+   * { seeded: true, theme } and the cards fire one card.add { kind: 'seed' }, never as adds.
+   */
+  createBinder: (init?: Partial<DemoBinder>, opts?: { seed?: { theme: string } }) => DemoBinder | undefined;
   /** Create a fresh binder seeded with one card in its first pocket (atomic). Undefined at the cap. */
   createBinderWithCard: (cardId: string) => DemoBinder | undefined;
   duplicateBinder: (id: string) => DemoBinder | undefined;
@@ -886,7 +891,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   const createBinder = useCallback(
-    (init?: Partial<DemoBinder>) => {
+    (init?: Partial<DemoBinder>, opts?: { seed?: { theme: string } }) => {
       // Creating adds a binder — refuse past the tier limit (UI shows the upgrade note), exactly
       // as duplicateBinder does. Demo/example binders sit outside the cap (see binderCount), so
       // the "Try it out!" showcase still builds for a user who is already at their limit.
@@ -955,7 +960,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         commit((prev) => [...prev, binder]);
       }
       persist(() => repo.insertBinder(binder));
-      track('binder.add', { isDemo: !!binder.isDemo });
+      track('binder.add', { isDemo: !!binder.isDemo, ...(opts?.seed ? { seeded: true, theme: opts.seed.theme } : {}) });
+      // THE SEEDS ARE NOT ADDS (analytics-studio, 2026-10-30): one row, kind 'seed', so an arrival
+      // that only looked never reads as "placed a card".
+      if (opts?.seed) track('card.add', { source: 'seed', count: seedCount(pages), via: 'seed', kind: 'seed', theme: opts.seed.theme });
       return binder;
     },
     [

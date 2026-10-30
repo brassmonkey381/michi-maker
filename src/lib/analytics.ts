@@ -599,7 +599,7 @@ export function track(name: string, props?: Record<string, unknown>): void {
     // page sends). SignUp: account.created, conversionId = the uid. ViewContent: the first card
     // placed on this page load. No-ops without EXPO_PUBLIC_REDDIT_PIXEL_ID or off the web.
     if (name === 'account.created') redditSignUp(cachedUser?.id);
-    else if (name === 'card.add' && props?.kind !== 'swap') redditFirstCardPlaced();
+    else if (name === 'card.add' && props?.kind !== 'swap' && props?.kind !== 'seed') redditFirstCardPlaced();
     if (!supabase) return;
     if (!cachedUser) {
       // No identity yet. Buffer rather than drop (the trial.start hole), keeping the real time so a
@@ -639,6 +639,8 @@ export function track(name: string, props?: Record<string, unknown>): void {
  *   fill           Auto fill or Complete page
  *   vunion         a V-UNION placed as four pieces
  *   duplicate      Duplicate pocket(s)
+ *   seed           the three themed cards a tagged ad arrival's binder is born with (data/seedPages);
+ *                  always kind:'seed', never counted as a placement
  */
 export type CardAddVia =
   | 'pocket'
@@ -652,7 +654,8 @@ export type CardAddVia =
   | 'add_to_binder'
   | 'fill'
   | 'vunion'
-  | 'duplicate';
+  | 'duplicate'
+  | 'seed';
 
 export type CapSurface =
   | 'home'

@@ -49,7 +49,7 @@ export function WalkthroughBanner({
         <View style={styles.head}>
           <View style={styles.step}>
             <Text style={styles.stepText}>
-              {copy.index} of {WALKTHROUGH_TOTAL}
+              {copy.index} of {copy.total ?? WALKTHROUGH_TOTAL}
             </Text>
           </View>
           <Text style={styles.title}>{copy.title}</Text>

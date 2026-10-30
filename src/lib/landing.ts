@@ -32,12 +32,15 @@ export function shouldShowLanding(): boolean {
 const SKIP_LANDING_SOURCES = new Set(['reddit']);
 
 /**
- * Where a skipped arrival goes: My Binders with `open=new`, which presses "+ New binder" for them
- * (my-binders.tsx) - a fresh binder, straight into the editor. Owner, 2026-10-29: "maximize the
- * chances of them building something". Every such visitor is a brand-new guest, so this creates
- * one empty guest binder per ad click; binder.add { isDemo } fires for it like any other.
+ * Where a skipped arrival goes: My Binders with `open=seeded`, which presses "+ New binder" for
+ * them (my-binders.tsx) and lands them in the editor on a page that already holds three themed
+ * cards picked by the ad's creative code (data/seedPages), with the walkthrough pointing at
+ * Complete. Owner, 2026-10-29: "maximize the chances of them building something"; 2026-10-30:
+ * start with three themed cards, because nine empty pockets lost 387 of 435 arrivals. Every such
+ * visitor is a brand-new guest; binder.add { seeded: true, theme } fires for the binder.
+ * `open=new` (an empty binder) still works for links that carry it.
  */
-export const LANDING_SKIP_TARGET = '/my-binders?open=new';
+export const LANDING_SKIP_TARGET = '/my-binders?open=seeded';
 
 /**
  * The route a FIRST-TIME tagged visitor should land on instead of /welcome, or null to show the

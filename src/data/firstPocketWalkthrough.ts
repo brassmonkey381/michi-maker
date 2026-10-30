@@ -25,6 +25,17 @@
 /** The step a reader is on. Fixed ids, never an array index: they are analytics values. */
 export type WalkthroughStep = 'ring' | 'card' | 'placed';
 
+/**
+ * WHICH WALKTHROUGH. `first-pocket` is the three steps above, for an empty binder. `seeded` is the
+ * two steps below, for a tagged ad arrival whose binder already holds three themed cards
+ * (data/seedPages): the walkthrough id on every walkthrough.shown / .step / .done row, so the two
+ * never mix in the stream.
+ */
+export type WalkthroughVariant = 'first-pocket' | 'seeded';
+
+/** The seeded variant's steps: tap Complete, then the payoff over the filled page. */
+export type SeededStep = 'complete' | 'filled';
+
 /** Why it will never show again. */
 export type WalkthroughEnding = 'not-needed' | 'placed' | 'dismissed' | 'ignored' | 'paged';
 
@@ -147,8 +158,10 @@ export function resolveState({
  * pocket's own ＋ glyph is not drawn under a 220px page, so no line here mentions one.
  */
 export interface WalkthroughCopy {
-  /** Which of the three, for the counter. */
+  /** Which of the steps, for the counter. */
   index: number;
+  /** How many steps the counter is out of; WALKTHROUGH_TOTAL when absent. */
+  total?: number;
   title: string;
   body: string;
   /** Where the arrow on the callout points, toward the control the body names. */
@@ -194,3 +207,56 @@ export const WALKTHROUGH_COPY_GUEST_PLACED: WalkthroughCopy = {
   ...WALKTHROUGH_COPY.placed,
   body: 'Tap the card you just placed and choose Fill page. Michi builds the rest of the page to match it. Your first fill is free.',
 };
+
+/**
+ * THE SEEDED VARIANT (owner, 2026-10-30, via analytics-studio). A Reddit-ad arrival used to meet
+ * nine empty pockets and a ring; 387 of 435 never opened the browser and most left within three
+ * seconds of the ring. Now the page already holds three themed cards (data/seedPages) and the
+ * first step points at Complete: one tap, a choice of fill, a full page. That tap is the guest's
+ * one fillPage sample, exactly as the Fill sheet spends it. The second step is the payoff over the
+ * finished page and asks for the free account; it stays until its cross.
+ */
+export const SEEDED_TOTAL = 2;
+
+export const SEEDED_COPY = {
+  /** Under the Complete tool in the page bar, ringed, arrow up at it. */
+  complete: {
+    index: 1,
+    total: SEEDED_TOTAL,
+    title: 'Tap Complete to fill this page',
+    body: 'Pick how the rest of the page is filled. Or tap an empty pocket to add a card of your own.',
+    arrow: 'up',
+  },
+  /** The same place, once the page is full. */
+  filled: {
+    index: 2,
+    total: SEEDED_TOTAL,
+    title: 'This is your binder',
+    body: 'Create a free account to keep it and add a page.',
+    arrow: 'up',
+  },
+} as const satisfies Record<SeededStep, WalkthroughCopy>;
+
+export interface SeededInputs {
+  /** The merged record, shared with the first-pocket variant: one walkthrough per person. */
+  record: WalkthroughRecord;
+  editing: boolean;
+  studio: boolean;
+  /** Has a Fill or Complete run placed cards this session? The payoff step. */
+  completed: boolean;
+  /** Is the page being edited full? Also the payoff: a hand-placed last card counts. */
+  pageFull: boolean;
+  /** Was it already full when this editor session began? Nothing to teach, retire in silence. */
+  arrivedFull: boolean;
+}
+
+export type SeededState = { show: false; retire: WalkthroughEnding | null } | { show: true; step: SeededStep };
+
+/** The seeded variant's resolveState: the same endings, two steps. */
+export function resolveSeededState({ record, editing, studio, completed, pageFull, arrivedFull }: SeededInputs): SeededState {
+  if (record.retiredAt) return { show: false, retire: null };
+  if (arrivedFull) return { show: false, retire: 'not-needed' };
+  if (!editing || studio) return { show: false, retire: null };
+  if (record.opens > MAX_EDITOR_OPENS) return { show: false, retire: 'ignored' };
+  return { show: true, step: completed || pageFull ? 'filled' : 'complete' };
+}

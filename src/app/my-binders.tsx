@@ -46,9 +46,10 @@ import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { pillChip } from '@/constants/ui';
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { fillerName, sortByRecentEdit, type DemoPage } from '@/data/binderTypes';
+import { seedPages, seedSetFor } from '@/data/seedPages';
 import { binderLimitMessage, binderTrialMessage, limitCta } from '@/data/limitMessages';
 import { useTrial } from '@/hooks/use-trial';
-import { track } from '@/lib/analytics';
+import { landingCampaignParams, track } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
@@ -78,12 +79,18 @@ export default function MyBindersScreen() {
   // into the plain editor - "+ New binder" pressed for them, so the first thing an ad click sees is
   // an empty binder to fill. If the store refuses (cap, or this tab cannot save) they simply land
   // on the shelf, where the button is.
+  // `/my-binders?open=seeded` (lib/landing, since 2026-10-30): the same, but the new binder's first
+  // page already holds three themed cards picked by the ad's creative code (data/seedPages), and
+  // the editor runs the seeded walkthrough (?seeded=1) that points at Complete. A returning guest
+  // who already has a binder is sent back into it instead; nothing is seeded twice.
   const openedStudio = useRef(false);
   useEffect(() => {
-    if ((open !== 'slice' && open !== 'new') || openedStudio.current || store.loading) return;
+    if ((open !== 'slice' && open !== 'new' && open !== 'seeded') || openedStudio.current || store.loading) return;
     openedStudio.current = true;
-    const target = store.userBinders[0] ?? store.createBinder({ title: 'New binder' });
-    if (target) router.replace(`/binder/${target.id}?${open === 'slice' ? 'slice=1' : 'edit=1'}` as Href);
+    const existing = store.userBinders[0];
+    const seed = open === 'seeded' && !existing ? seedSetFor(landingCampaignParams()?.code) : null;
+    const target = existing ?? (seed ? store.createBinder({ title: 'New binder', pages: seedPages(seed) }, { seed }) : store.createBinder({ title: 'New binder' }));
+    if (target) router.replace(`/binder/${target.id}?${open === 'slice' ? 'slice=1' : seed ? 'edit=1&seeded=1' : 'edit=1'}` as Href);
   }, [open, store, router]);
 
   const [binderQuery, setBinderQuery] = useState('');

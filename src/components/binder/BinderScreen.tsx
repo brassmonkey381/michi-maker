@@ -157,6 +157,13 @@ interface BinderScreenProps {
   initialPrintOpen?: boolean;
   /** Arrive in edit mode (`?edit=1`). */
   initialEditing?: boolean;
+  /**
+   * This binder was just made for a tagged ad arrival with three themed cards on page one
+   * (`?seeded=1`, my-binders open=seeded, data/seedPages): the walkthrough is the seeded variant,
+   * pointing at Complete. Only the creating navigation sets it; a later open from the shelf meets
+   * the ordinary rules.
+   */
+  seeded?: boolean;
   /** Arrive with the Slice Studio open on the current page (`?slice=1`, from the slice guide). */
   initialStudioOpen?: boolean;
   /**
@@ -187,6 +194,7 @@ export function BinderScreen({
   onOpenBinder,
   initialPrintOpen = false,
   initialEditing = false,
+  seeded = false,
   initialStudioOpen = false,
   initialFillAt = null,
   initialPageIndex = 0,
@@ -738,6 +746,11 @@ export function BinderScreen({
    * THE FIRST-POCKET WALKTHROUGH. Above the `if (!binder)` return below, like every other hook
    * here, so its order can never vary with a binder that has not loaded yet.
    */
+  // Seeded only: has a Fill or Complete placed cards this session (the payoff step)? Latched by
+  // handleAutoFillPlaced. And is the page being edited full?
+  const [fillPlaced, setFillPlaced] = useState(false);
+  const wtPage = binder?.pages[Math.max(0, Math.min(pageIndex, (binder?.pages.length ?? 1) - 1))];
+  const wtPageFull = !!wtPage && wtPage.slots.reduce((n, s) => n + s.rowSpan * s.colSpan, 0) >= wtPage.rows * wtPage.cols;
   const walkthrough = useFirstPocketWalkthrough({
     hasCard,
     editing,
@@ -746,6 +759,9 @@ export function BinderScreen({
     fillOpen: autoFillOpen,
     width,
     tier: store.tier,
+    variant: seeded ? 'seeded' : 'first-pocket',
+    completed: fillPlaced,
+    pageFull: wtPageFull,
   });
   // THE TWO ONE-TIME HINTS that follow the walkthrough (data/editorHints): what the bar over a
   // selected card does, and that the bar along the page's bottom edge dresses it. Here with the
@@ -766,7 +782,9 @@ export function BinderScreen({
   // screen. Above the early returns with the other hooks, so hook order cannot vary. Deferred a
   // beat so it arrives after the editor has drawn, not in the same frame as the mode switch.
   useEffect(() => {
-    if (Platform.OS !== 'web' || !editing || width < PHONE_MAX_WIDTH) return;
+    // Not over a seeded arrival's walkthrough: an ad click on a wide screen was meeting the
+    // shortcuts card and the Complete callout in the same second.
+    if (Platform.OS !== 'web' || !editing || width < PHONE_MAX_WIDTH || seeded) return;
     try {
       if (typeof localStorage === 'undefined' || localStorage.getItem(SHORTCUTS_SEEN_KEY)) return;
     } catch {
@@ -774,7 +792,7 @@ export function BinderScreen({
     }
     const t = setTimeout(() => setShortcutsOpen(true), 400);
     return () => clearTimeout(t);
-  }, [editing, width]);
+  }, [editing, width, seeded]);
   /**
    * WHERE THE RING GOES: the first empty pocket in reading order on the page being edited, in
    * window coords. Re-measured on everything that moves that grid - the window's width, either
@@ -790,6 +808,21 @@ export function BinderScreen({
    * toggle). A hard-coded offset would be right on one screen and wrong on the next.
    */
   const wantRing = walkthrough.step === 'ring';
+  /**
+   * THE SEEDED VARIANT'S ANCHOR: the Complete tool in the page bar, ringed for step one and the
+   * place both callouts hang under. Measured in window coordinates like the pocket ring, a frame
+   * late for the same reason, and re-measured on everything that moves the bar.
+   */
+  const completeRef = useRef<View>(null);
+  const [completeRect, setCompleteRect] = useState<PocketRect | null>(null);
+  const wantComplete = walkthrough.variant === 'seeded' && walkthrough.step !== null;
+  useEffect(() => {
+    if (!wantComplete) return;
+    const t = setTimeout(() => {
+      completeRef.current?.measureInWindow((x, y, w, h) => setCompleteRect(w > 0 ? { x, y, width: w, height: h } : null));
+    }, 60);
+    return () => clearTimeout(t);
+  }, [wantComplete, walkthrough.step, width, binder?.pages.length, pageIndex, artworkOpen, cardsCollapsed]);
   // Step three points at the card that just landed, so the same measurement serves both: an EMPTY
   // pocket to ring, or the FIRST FILLED one to point at.
   const wantPlaced = walkthrough.step === 'placed';
@@ -1813,6 +1846,7 @@ export function BinderScreen({
     );
     const { placed, placedUnclaimed } = store.placeCards(binder.id, page.id, withCopies);
     setSelectedSlotId(null);
+    if (placed > 0) setFillPlaced(true);
     const tasteNote = fillTasteNote.current;
     fillTasteNote.current = null;
     // A fill FROM the owned pool that could not claim a copy for every pocket says so: either the
@@ -2514,15 +2548,19 @@ export function BinderScreen({
         {/* Arrange: the cards this page has, seated several ways (docs/ARRANGE.md). Carries its
             word like "+ Page" does: a bare glyph for a feature nobody has seen yet is a riddle. */}
         <IconBtn glyph="☷" word="Arrange" label="Arrange the cards on this page (G)" onPress={() => setArrangeOpen(true)} testID="tool-arrange" />
-        {/* Complete: fill the empty pockets from what the page holds. C on a keyboard. */}
-        <IconBtn
-          glyph="✦"
-          word="Complete"
-          label="Complete this page: fill the empty pockets from the cards already here (C)"
-          onPress={() => setCompleteOpen(true)}
-          disabled={!page.slots.some((s) => s.cardId) || page.slots.length >= page.rows * page.cols}
-          testID="tool-complete"
-        />
+        {/* Complete: fill the empty pockets from what the page holds. C on a keyboard. Wrapped so
+            the seeded walkthrough can measure it (completeRef); collapsable={false} keeps the
+            wrapper a real view on Android. */}
+        <View ref={completeRef} collapsable={false}>
+          <IconBtn
+            glyph="✦"
+            word="Complete"
+            label="Complete this page: fill the empty pockets from the cards already here (C)"
+            onPress={() => setCompleteOpen(true)}
+            disabled={!page.slots.some((s) => s.cardId) || page.slots.length >= page.rows * page.cols}
+            testID="tool-complete"
+          />
+        </View>
         {/* Duplicate sits after the two page-filling tools (owner, 2026-10-22). */}
         <IconBtn glyph="⧉" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
         {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
@@ -3481,7 +3519,21 @@ export function BinderScreen({
           </View>
         ) : null}
 
-        <PocketRing rect={wantRing ? ringRect : null} />
+        <PocketRing rect={wantRing ? ringRect : walkthrough.step === 'complete' ? completeRect : null} />
+        {/* THE SEEDED VARIANT: both steps hang under the Complete tool, step one with the ring on
+            it. Clamped to the window like the pocket callouts. */}
+        {wantComplete && completeRect && walkthrough.copy ? (
+          <View
+            style={[
+              styles.walkthroughFloat,
+              {
+                top: completeRect.y + completeRect.height + 8,
+                left: Math.max(Spacing.three, Math.min(completeRect.x - 120, width - 340)),
+              },
+            ]}>
+            <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
+          </View>
+        ) : null}
         {/* STEPS ONE AND THREE float over the binder rather than in the browser, because both name
             something ON the binder: the pocket to tap, then the card that landed in it. Placed
             UNDER the pocket they point at, arrow up, and clamped to the window so a pocket near

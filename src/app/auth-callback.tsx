@@ -18,11 +18,33 @@ import { ActivityIndicator, StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { track } from '@/lib/analytics';
 import { consumeAuthReturn } from '@/lib/authReturn';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/store/auth';
+
+/**
+ * The provider's refusal, when there is one, from the query or the hash. A guest who taps "Continue
+ * with Google" is LINKED onto their anonymous account (keeps the binder, keeps the uid); when that
+ * Google account already belongs to a michi account, GoTrue refuses the link and sends the browser
+ * back with error_code=identity_already_exists and no session change. That person wanted in, and
+ * they have an account: sign them into it (one more hop, which Google remembers) instead of
+ * leaving them a guest on the shelf with no word of what happened.
+ */
+function callbackError(): { code: string; description: string } | null {
+  if (typeof window === 'undefined') return null;
+  const read = (s: string) => new URLSearchParams(s.replace(/^[?#]/, ''));
+  for (const p of [read(window.location.search), read(window.location.hash)]) {
+    const code = p.get('error_code') ?? p.get('error');
+    if (code) return { code, description: p.get('error_description') ?? '' };
+  }
+  return null;
+}
+const RETRY_KEY = 'michi.auth.callbackRetried';
 
 export default function AuthCallback() {
   const router = useRouter();
+  const auth = useAuth();
   const { code } = useLocalSearchParams<{ code?: string }>();
 
   useEffect(() => {
@@ -39,6 +61,29 @@ export default function AuthCallback() {
     };
     (async () => {
       try {
+        const refused = callbackError();
+        if (refused?.code === 'identity_already_exists' && supabase) {
+          let retried = false;
+          try {
+            retried = sessionStorage.getItem(RETRY_KEY) === '1';
+            sessionStorage.setItem(RETRY_KEY, '1');
+          } catch {
+            // no storage: still try once; a loop needs the flag to be missing twice in a row
+          }
+          if (!retried) {
+            track('auth.link_exists', { provider: 'google' });
+            const r = await auth.signInWithOAuth('google');
+            if (!r.error) {
+              done = true; // the page is leaving for the provider again
+              return;
+            }
+          }
+        }
+        try {
+          sessionStorage.removeItem(RETRY_KEY);
+        } catch {
+          // ignore
+        }
         // `detectSessionInUrl` usually already consumed the code by mount; if it survived here,
         // exchange it ourselves. A used/absent code just rejects — harmless, we still go home.
         if (supabase && typeof code === 'string' && code) {
@@ -50,6 +95,7 @@ export default function AuthCallback() {
     })();
     const safety = setTimeout(goHome, 4000); // never strand on this screen
     return () => clearTimeout(safety);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auth is read once at mount
   }, [code, router]);
 
   return (

@@ -32,8 +32,9 @@ import {
 } from 'react';
 import { Platform } from 'react-native';
 
-import { track, startSession, resetSessionUser, endSession } from '@/lib/analytics';
+import { track, startSession, resetSessionUser, endSession, hopOrigin, hopPayload } from '@/lib/analytics';
 import { freshIdentity } from '@/data/freshIdentity';
+import { forgetAuthHop, rememberAuthHop } from '@/lib/authHop';
 import { authRedirectUrl } from '@/lib/authRedirect';
 import { rememberAuthReturn } from '@/lib/authReturn';
 import { handoffPending, redeemHandoffHashFromLocation } from '@/data/handoff';
@@ -202,15 +203,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const fresh = (event === 'SIGNED_IN' || event === 'USER_UPDATED') && next.user ? freshIdentity(next.user) : null;
         if (fresh && uid && createdFor.current !== uid) {
           createdFor.current = uid;
-          track('account.created', { via: fresh.via, provider: fresh.provider });
+          track('account.created', { via: fresh.via, provider: fresh.provider, ...hopOrigin() });
         }
         if (uid && uid !== prevUid) {
           analyticsUid.current = uid;
           startSession();
           if (event === 'SIGNED_IN' && next.user && !next.user.is_anonymous && !fresh) {
-            track('auth.login', loginMethod.current ? { method: loginMethod.current } : {});
+            track('auth.login', { ...(loginMethod.current ? { method: loginMethod.current } : {}), ...hopOrigin() });
           }
         }
+        // The round trip is over once a non-anonymous session has been seen on this page load.
+        if (uid && next.user && !next.user.is_anonymous) forgetAuthHop();
         loginMethod.current = null;
       } else {
         endSession();
@@ -347,7 +350,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const options = { redirectTo, skipBrowserRedirect: Platform.OS !== 'web' };
       // Web leaves the page here. Note where to come back to (lib/authReturn) unless the surface
       // that opened the sheet already pinned a better answer; /auth-callback reads it once.
-      if (Platform.OS === 'web') rememberAuthReturn();
+      if (Platform.OS === 'web') {
+        rememberAuthReturn();
+        // And what this page knew (lib/authHop): the campaign, the guest uid and the session, which
+        // the return page has no other way to learn when the provider mints a new user.
+        const { params, referrer, sessionId } = hopPayload();
+        const current = (await supabase.auth.getSession()).data.session?.user?.id ?? null;
+        rememberAuthHop({ uid: current, sessionId, params, referrer });
+      }
 
       const { data, error } = link
         ? await supabase.auth.linkIdentity({ provider, options })

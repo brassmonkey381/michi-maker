@@ -19,6 +19,7 @@ import type { PromptId, PromptSurface } from '@/data/prompts';
 import { supabasePublishableKey, supabaseUrl } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { Json } from '@/types/database';
+import { readAuthHop } from '@/lib/authHop';
 
 /** This app always reports as 'michi' (tcgscan-app shares the same tables under 'tcgscan'). */
 const APP = 'michi' as const;
@@ -117,7 +118,7 @@ const CAMPAIGN_CODE = /^[a-z0-9_]{1,64}$/i;
  * SPA may already have navigated. `suffix` is the sanitized query for landing_route; `code` rides
  * on account.created.
  */
-const landingCampaign = (() => {
+const urlCampaign = (() => {
   try {
     if (typeof window === 'undefined' || !window.location?.search) return null;
     const q = new URLSearchParams(window.location.search);
@@ -151,6 +152,44 @@ const landingCampaign = (() => {
     return null; // never throw at module load
   }
 })();
+
+/**
+ * THE OTHER HALF OF A SIGN-IN ROUND TRIP (lib/authHop). The page that comes back from Google is a
+ * fresh module load at /auth-callback?code=<token>: no campaign in the URL, and when the provider
+ * minted a new user, a new uid and a new session too. The tap left a note; this load adopts its
+ * campaign as the landing campaign and stamps the guest's uid and session on session.start and
+ * account.created as from_uid / from_session, so the studio can stitch the halves
+ * (analytics-studio, 2026-10-29: three Reddit sign-ups, zero attributable).
+ */
+const hop = (() => {
+  try {
+    return typeof window === 'undefined' ? null : readAuthHop();
+  } catch {
+    return null;
+  }
+})();
+const landingCampaign = urlCampaign
+  ?? (hop && (Object.keys(hop.params).length || hop.referrer)
+    ? {
+        suffix: Object.keys(hop.params).length ? `?${new URLSearchParams(hop.params).toString()}` : '',
+        code: hop.params.code ?? null,
+        params: hop.params,
+        referrer: hop.referrer,
+      }
+    : null);
+
+/** The guest uid and session that tapped the provider, when this page load is their return. */
+export function hopOrigin(): Readonly<Record<string, string>> {
+  return {
+    ...(hop?.uid ? { from_uid: hop.uid } : {}),
+    ...(hop?.sessionId ? { from_session: hop.sessionId } : {}),
+  };
+}
+
+/** What the tap should carry across the round trip: this page load's campaign, referrer and session. */
+export function hopPayload(): { params: Record<string, string>; referrer: string | null; sessionId: string | null } {
+  return { params: { ...(landingCampaign?.params ?? {}) }, referrer: landingCampaign?.referrer ?? null, sessionId };
+}
 
 /** The campaign code a signup attributes to: this page load's landing code, or one persisted with
  *  the reused web session (a reload loses the query string but must not lose the attribution). */
@@ -337,6 +376,7 @@ async function ensureSession(): Promise<string | null> {
               viewport_h: Math.round(Dimensions.get('window').height),
               ...(landingCampaign?.params ?? {}),
               ...(landingCampaign?.referrer ? { referrer: landingCampaign.referrer } : {}),
+              ...hopOrigin(),
             } as Json,
             session_id: sessionId,
           });

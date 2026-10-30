@@ -203,7 +203,9 @@ export function planCta(column: PlanHeader, current: Tier, onTrial = false, tria
   if (currentRank >= TIER_RANK.pro) return { kind: 'switch', label };
   // A new subscription. Someone who has never held PRO gets the free days at checkout, and the
   // button says so; a guest is asked to choose first (checkout needs an account either way).
-  if (current === 'guest') return { kind: 'buy', label: `Choose ${column.name}` };
+  // A guest has never held PRO, so the PRO column says the trial by name for them too (owner,
+  // 2026-10-29); the press still goes through account creation first. Other columns keep Choose.
+  if (current === 'guest') return { kind: 'buy', label: column.tier === 'pro' ? TRIAL_CTA_LABEL : `Choose ${column.name}` };
   return { kind: 'buy', label: trialEligible && column.tier === 'pro' ? TRIAL_CTA_LABEL : label };
 }
 

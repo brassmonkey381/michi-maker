@@ -60,7 +60,8 @@ test('THE PRO BUTTON NAMES THE FREE DAYS for an account that can still have them
   // Used or ineligible: an ordinary purchase, and it says so.
   assert.deepEqual(planCta(pro, 'free', false, false), { kind: 'buy', label: 'Upgrade to PRO' });
   // A guest chooses first: checkout needs an account, so the free days are not promised yet.
-  assert.deepEqual(planCta(pro, 'guest', false, true), { kind: 'buy', label: 'Choose PRO' });
+  assert.deepEqual(planCta(pro, 'guest', false, true), { kind: 'buy', label: TRIAL_CTA_LABEL });
+  assert.deepEqual(planCta(pro, 'guest', false, false), { kind: 'buy', label: TRIAL_CTA_LABEL });
   // Mid-trial and already-paid cases are untouched by the flag.
   assert.deepEqual(planCta(pro, 'pro', true, true), { kind: 'buy', label: 'Subscribe to PRO' });
   assert.deepEqual(planCta(pro, 'pro', false, true), { kind: 'current' });

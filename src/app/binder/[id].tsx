@@ -59,11 +59,13 @@ function pageParam(page: string | string[] | undefined): number {
 }
 
 export default function BinderRoute() {
-  const { id, print, edit, slice, page, back } = useLocalSearchParams<{
+  const { id, print, edit, slice, fill, page, back } = useLocalSearchParams<{
     id: string;
     print?: string;
     edit?: string;
     slice?: string;
+    /** A pocket id: reopen the Fill page sheet on it (the way back from a sign-in, lib/authReturn). */
+    fill?: string;
     page?: string;
     /** Where "‹ Michi-Maker" goes, put here by whichever feed opened this binder. */
     back?: string;
@@ -80,8 +82,9 @@ export default function BinderRoute() {
       <BinderScreen
         binderId={local.id}
         initialPrintOpen={print === '1'}
-        initialEditing={edit === '1' || slice === '1'}
+        initialEditing={edit === '1' || slice === '1' || !!fill}
         initialStudioOpen={slice === '1'}
+        initialFillSlotId={fill || null}
         initialPageIndex={openAt}
         onClose={goHome}
         onOpenBinder={(bid) => router.replace(`/binder/${bid}`)}

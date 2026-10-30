@@ -11,13 +11,14 @@
  * Native never lands here — its providers return to the `pokemichi://auth-callback` deep link,
  * handled by the listener in `store/auth.tsx`. If somehow reached on native, this just goes home.
  */
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { consumeAuthReturn } from '@/lib/authReturn';
 import { supabase } from '@/lib/supabase';
 
 export default function AuthCallback() {
@@ -26,10 +27,12 @@ export default function AuthCallback() {
 
   useEffect(() => {
     let done = false;
+    // Back to where the sign-in started when a note says so (lib/authReturn: the binder a guest
+    // was building, with the sheet that asked for the account), else home as before.
     const goHome = () => {
       if (done) return;
       done = true;
-      router.replace('/');
+      router.replace((consumeAuthReturn() ?? '/') as Href);
     };
     (async () => {
       try {

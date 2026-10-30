@@ -34,6 +34,7 @@ import { Platform } from 'react-native';
 
 import { track, startSession, resetSessionUser, endSession } from '@/lib/analytics';
 import { authRedirectUrl } from '@/lib/authRedirect';
+import { rememberAuthReturn } from '@/lib/authReturn';
 import { handoffPending, redeemHandoffHashFromLocation } from '@/data/handoff';
 import { isSupabaseConfigured } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
@@ -331,6 +332,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!link) loginMethod.current = 'oauth'; // hint for auth.login (onAuthStateChange)
       const redirectTo = authRedirectUrl();
       const options = { redirectTo, skipBrowserRedirect: Platform.OS !== 'web' };
+      // Web leaves the page here. Note where to come back to (lib/authReturn) unless the surface
+      // that opened the sheet already pinned a better answer; /auth-callback reads it once.
+      if (Platform.OS === 'web') rememberAuthReturn();
 
       const { data, error } = link
         ? await supabase.auth.linkIdentity({ provider, options })

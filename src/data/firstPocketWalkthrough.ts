@@ -196,3 +196,14 @@ export const WALKTHROUGH_COPY = {
     arrow: 'up',
   },
 } as const satisfies Record<WalkthroughStep, WalkthroughCopy>;
+
+/**
+ * Step three for a GUEST. Fill page runs on the full catalog, which is a signed-in perk (free), so
+ * for a guest the tap it names ends at a Sign in note. Say so up front: the step is still true,
+ * and "sign in free" is the next action rather than a surprise. A Reddit ad click lands here as a
+ * guest, two taps in (owner, 2026-10-29).
+ */
+export const WALKTHROUGH_COPY_GUEST_PLACED: WalkthroughCopy = {
+  ...WALKTHROUGH_COPY.placed,
+  body: 'Tap the card you just placed and choose Fill page. Sign in free, and Michi builds the rest of the page to match it.',
+};

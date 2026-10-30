@@ -62,11 +62,14 @@ export function AutoFillSheet({
   onPlaced,
   onComposeAll,
   onSimilarLocked,
+  returnTo,
 }: {
   visible: boolean;
   seedCardId: string | null;
   page: DemoPage;
   onClose: () => void;
+  /** For the guest gate's Sign in: where a web OAuth round trip comes back to (this binder, this sheet). */
+  returnTo?: string;
   /** Deliver the composed placements (the parent owns the store write + toast). */
   onPlaced: (placements: ComposePlacement[], methodLabel: string) => void;
   /** VIP "Pages around this card": hand the seed up so the parent can open ComposeAllSheet. */
@@ -248,7 +251,7 @@ export function AutoFillSheet({
             {guestGated ? (
               // The composer scans the full catalog, which is a signed-in perk — say so instead
               // of showing a spinner that would never resolve for a guest.
-              <SignInPerk message="Auto-fill curates pages from the full card catalog. Sign in (free) to use it." />
+              <SignInPerk message="Auto-fill curates pages from the full card catalog. Sign in (free) to use it." returnTo={returnTo} />
             ) : !ready ? (
               <View style={styles.center}>
                 <LogoLoader label="Loading the card catalog…" />

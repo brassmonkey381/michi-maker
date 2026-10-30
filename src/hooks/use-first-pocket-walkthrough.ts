@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   EMPTY_RECORD,
   WALKTHROUGH_COPY,
+  WALKTHROUGH_COPY_GUEST_PLACED,
   mergeRecord,
   normalizeRecord,
   resolveState,
@@ -185,7 +186,7 @@ export function useFirstPocketWalkthrough({
 
   return {
     step,
-    copy: step ? WALKTHROUGH_COPY[step] : null,
+    copy: step ? (step === 'placed' && isGuest ? WALKTHROUGH_COPY_GUEST_PLACED : WALKTHROUGH_COPY[step]) : null,
     dismiss: useCallback(() => retireRef.current('dismissed'), []),
   };
 }

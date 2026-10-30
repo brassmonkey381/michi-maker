@@ -159,6 +159,12 @@ interface BinderScreenProps {
   /** Arrive with the Slice Studio open on the current page (`?slice=1`, from the slice guide). */
   initialStudioOpen?: boolean;
   /**
+   * Arrive with THIS pocket selected and the Fill page sheet open (`?fill=<slotId>`): the way back
+   * from a web sign-in a guest started inside that sheet (lib/authReturn). The page holding the
+   * pocket is found here, so the link needs no page number.
+   */
+  initialFillSlotId?: string | null;
+  /**
    * Which page the binder opens on, zero-based (`?page=N` in the link is one-based; the route
    * converts). Only the starting value, and it is clamped by the render, so past the end is the
    * last page rather than an error.
@@ -180,6 +186,7 @@ export function BinderScreen({
   initialPrintOpen = false,
   initialEditing = false,
   initialStudioOpen = false,
+  initialFillSlotId = null,
   initialPageIndex = 0,
 }: BinderScreenProps) {
   const store = useBinders();
@@ -325,7 +332,17 @@ export function BinderScreen({
    */
   const onCoverContext = useCallback((ctx: CoverToolsContext | null) => setCoverCtx(ctx), []);
   const editing = editingWanted && store.canEdit && !contestLocked;
-  const [pageIndex, setPageIndex] = useState(0);
+  // `?fill=<slotId>`: the way back from a web sign-in a guest started inside the Fill page sheet
+  // (lib/authReturn). Resolved ONCE, at mount, from the binder the route already found in the
+  // store: which page holds the pocket, so pageIndex, selectedSlotId and autoFillOpen below start
+  // there and the sheet reopens showing the catalog loading for the new account instead of the
+  // guest gate the person left from. Initial state rather than an effect: nothing to flicker.
+  const [fillResume] = useState(() => {
+    if (!initialFillSlotId) return null;
+    const at = store.getBinder(binderId)?.pages.findIndex((p) => p.slots.some((s) => s.id === initialFillSlotId)) ?? -1;
+    return at >= 0 ? { at, slotId: initialFillSlotId } : null;
+  });
+  const [pageIndex, setPageIndex] = useState(fillResume?.at ?? 0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
   // A placement waiting on "which copy?" - held whole, because the answer arrives from a sheet
   // that does not know the pocket, the footprint, or whether we are still adding.
@@ -377,13 +394,13 @@ export function BinderScreen({
     | null
   >(null);
   // The pocket selected for quick actions (action bar + resize handle); distinct from pickerCell.
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(fillResume?.slotId ?? null);
   // A pocket armed by Move, waiting for the tap that says where it goes (see armMove below).
   // A move in progress: a pocket armed from its bar (pageId set) or a card armed in the tray
   // (pageId null). The next pocket tapped, on any page, receives it.
   const [moving, setMoving] = useState<{ pageId: string | null; slotId: string } | null>(null);
   // "✨ Fill page" sheet (auto-curate around the selected card).
-  const [autoFillOpen, setAutoFillOpen] = useState(false);
+  const [autoFillOpen, setAutoFillOpen] = useState(!!fillResume);
   // Complete page: the empty pockets filled from what the page already holds (owner, 2026-10-22).
   const [completeOpen, setCompleteOpen] = useState(false);
   // Arrange: several finished seatings of the cards this page already has, stepped through ON
@@ -3177,6 +3194,7 @@ export function BinderScreen({
           seedCardId={selectedSlot?.cardId ?? null}
           page={page}
           onClose={() => setAutoFillOpen(false)}
+          returnTo={selectedSlotId ? `/binder/${binderId}?edit=1&fill=${selectedSlotId}` : undefined}
           onPlaced={handleAutoFillPlaced}
           onComposeAll={handleComposeAll}
           onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}

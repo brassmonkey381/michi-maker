@@ -10,9 +10,29 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { forgetAuthReturn, rememberAuthReturn } from '@/lib/authReturn';
 
-export function SignInPerk({ message }: { message: string }) {
+export function SignInPerk({
+  message,
+  returnTo,
+}: {
+  message: string;
+  /**
+   * Where a web OAuth round trip should land afterwards - this surface, with whatever query
+   * reopens it (e.g. the binder with `fill=<slot>`). Pinned on press, dropped if the sheet closes
+   * without leaving the page. See lib/authReturn.
+   */
+  returnTo?: string;
+}) {
   const [authOpen, setAuthOpen] = useState(false);
+  const open = () => {
+    if (returnTo) rememberAuthReturn(returnTo, true);
+    setAuthOpen(true);
+  };
+  const close = () => {
+    if (returnTo) forgetAuthReturn();
+    setAuthOpen(false);
+  };
   return (
     <>
       <View style={styles.note}>
@@ -20,7 +40,7 @@ export function SignInPerk({ message }: { message: string }) {
           {message}
         </ThemedText>
         <Pressable
-          onPress={() => setAuthOpen(true)}
+          onPress={open}
           hitSlop={6}
           style={({ pressed }) => [styles.btn, pressed && styles.pressed]}>
           <ThemedText type="smallBold" style={styles.btnText}>
@@ -28,7 +48,7 @@ export function SignInPerk({ message }: { message: string }) {
           </ThemedText>
         </Pressable>
       </View>
-      <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
+      <AuthSheet visible={authOpen} onClose={close} />
     </>
   );
 }

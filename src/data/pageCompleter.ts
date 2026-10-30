@@ -128,7 +128,7 @@ export function completeMethodsFor(page: DemoPage, catalog: CompleteCatalog): Co
 }
 
 /** The (line, species) stages a page's lines are missing, with the set the line is in here. */
-function missingStages(cards: readonly CatalogCard[]): { species: string; setId: string }[] {
+export function missingStages(cards: readonly CatalogCard[]): { species: string; setId: string }[] {
   const out: { species: string; setId: string }[] = [];
   const seenLine = new Set<string>();
   for (const c of cards) {

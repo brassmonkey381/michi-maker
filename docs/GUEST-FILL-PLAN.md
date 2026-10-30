@@ -1,6 +1,6 @@
 # Guest Fill page plan
 
-Status: scoped 2026-10-30, build approved the same day. Planned by a 9-agent workflow (3 readers, 3 designs, 2 judges, 1 synthesis); both judges ranked this approach first.
+Status: scoped 2026-10-30, built and verified the same day (desktop and phone, headless guest run: scripts/lab/zz-guest-fill-run.mjs); the Guests section of docs/FILL-METHODS.md is the living description. Planned by a 9-agent workflow (3 readers, 3 designs, 2 judges, 1 synthesis); both judges ranked this approach first.
 
 Owner decisions, 2026-10-30: guest pages may lack the full-art flag; guests get 1 fill (and 1 Find similar), free accounts 3; Fill page and Complete page are the same feature and share one taste cap (`fillPage`).
 

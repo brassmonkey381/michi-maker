@@ -54,5 +54,7 @@ describe('tastes', () => {
     assert.match(guest, /Create a free account/);
     assert.doesNotMatch(guest, /PRO/);
     assert.equal(guestTasteWall('findSimilar'), 'Create a free account to keep using Find similar.');
+    assert.equal(guestTasteWall('fillPage'), 'Create a free account to keep using Fill page.');
+    assert.ok(GUEST_TASTE_FEATURES.includes('fillPage'), 'a guest gets one fill (owner, 2026-10-30)');
   });
 });

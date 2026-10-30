@@ -5,6 +5,12 @@
  * leaving everything already placed untouched. One store commit → one Undo.
  *
  * Forces the catalog load on open (like the CardPicker) — composition scans real metadata.
+ *
+ * A GUEST FILLS ONCE WITHOUT THE CATALOG (docs/GUEST-FILL-PLAN.md, owner 2026-10-30). The seed, the
+ * page's cards and one method's candidates come from the data server as a few hundred rows
+ * (data/guestFill), a stub catalogue is built from them (data/stubCatalog), and the same composer
+ * runs. One fill per guest, the `fillPage` taste, shared with Complete page; then the wall asks for
+ * the free account and says nothing about PRO.
  */
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -38,8 +44,13 @@ import {
   type ComposeMethod,
   type ComposePlacement,
 } from '@/data/pageComposer';
+import { fetchFillCandidates, fetchPageCards } from '@/data/guestFill';
+import { GUEST_FILL_METHODS } from '@/data/guestFillQuery';
+import { catalogFromCards } from '@/data/stubCatalog';
+import { guestTasteWall, type TasteFeature } from '@/data/tastes';
 import { resolveCatalogCardWith } from '@/data/cardResolver';
 import type { CatalogCard } from '@/lib/catalog';
+import { track } from '@/lib/analytics';
 import { useCatalog } from '@/hooks/use-catalog';
 import { loadOtherGameSimilar, otherGameCatalogFor, otherGameColorUrl, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { useTier } from '@/hooks/use-tier';
@@ -62,12 +73,15 @@ export function AutoFillSheet({
   onClose,
   onPlaced,
   onSimilarLocked,
+  onTasted,
   returnTo,
 }: {
   visible: boolean;
   seedCardId: string | null;
   page: DemoPage;
   onClose: () => void;
+  /** A free taste was just taken by a tap in here; the editor shows its toast. */
+  onTasted?: (feature: TasteFeature) => void;
   /** For the guest gate's Sign in: where a web OAuth round trip comes back to (this binder, this sheet). */
   returnTo?: string;
   /** Deliver the composed placements (the parent owns the store write + toast). */
@@ -80,6 +94,9 @@ export function AutoFillSheet({
   onSimilarLocked?: () => void;
 }) {
   const { catalog, guestGated } = useCatalog(visible);
+  // THE GUEST PATH is the auth-based gate, not the tier: the tier reads 'guest' for a beat while a
+  // signed-in account's entitlements load, and that beat must not run a member's fill on a slice.
+  const guest = guestGated;
   const { isPaid, hasFindSimilar: tierFindSimilar, limits } = useTier();
   // Open by tier or by this visit's free taste (store.taste); a locked similarity method's first
   // press takes the taste and runs.
@@ -138,8 +155,29 @@ export function AutoFillSheet({
     };
   }, [visible]);
 
-  const ready = !!catalog && partnersReady;
-  const seed = catalog && seedCardId ? resolveCatalogCardWith(catalog, seedCardId) : undefined;
+  // A guest's catalogue: the seed and the page's cards, by id, the moment the sheet opens. Keyed by
+  // what was asked so a seed switched mid-flight never shows another card's methods.
+  const guestKey = `${seedCardId ?? ''}|${page.slots.map((s) => s.cardId ?? '').join(',')}`;
+  const [guestCards, setGuestCards] = useState<{ key: string; cards: CatalogCard[] } | null>(null);
+  useEffect(() => {
+    if (!visible || !guest || !seedCardId || guestCards?.key === guestKey) return;
+    let live = true;
+    fetchPageCards(page, [seedCardId])
+      .then((cards) => { if (live) setGuestCards({ key: guestKey, cards }); })
+      .catch(() => { if (live) setGuestCards({ key: guestKey, cards: [] }); });
+    return () => { live = false; };
+  }, [visible, guest, seedCardId, guestKey, guestCards?.key, page]);
+  const guestCatalog = useMemo(
+    () => (guest && guestCards?.key === guestKey ? catalogFromCards(guestCards.cards) : null),
+    [guest, guestCards, guestKey],
+  );
+  // One fill for a guest, ever on this device: open this visit, or still on offer.
+  const guestFillOpen = guest && (taste.active('fillPage') || taste.offer('fillPage'));
+
+  const ready = guest ? !!guestCatalog && partnersReady : !!catalog && partnersReady;
+  const seed = guest
+    ? (guestCatalog && seedCardId ? guestCatalog.getCard(seedCardId) : undefined)
+    : catalog && seedCardId ? resolveCatalogCardWith(catalog, seedCardId) : undefined;
   /**
    * COMPOSE AGAINST THE SEED'S OWN GAME. `useCatalog` is Pokémon's, and a One Piece seed composed
    * against it scanned 20,000 cards that share nothing with it — every method came back empty,
@@ -148,7 +186,7 @@ export function AutoFillSheet({
    */
   useSyncExternalStore(subscribeOtherGame, otherGameVersion, otherGameVersion);
   const other = catalog && seedCardId && !catalog.getCard(seedCardId) ? otherGameCatalogFor(seedCardId) : null;
-  const seedCatalog = other?.catalog ?? catalog;
+  const seedCatalog = guest ? guestCatalog : (other?.catalog ?? catalog);
   const seedGame = other?.game ?? 'pokemon';
   // Secondary games publish no art kinds and no energy types, so the Only row would filter to
   // nothing; it is withheld for them and the fill runs unfiltered.
@@ -205,27 +243,39 @@ export function AutoFillSheet({
     return () => { live = false; };
   }, [visible, seedId, tagged?.id]);
   const taggedSeed = !!tagged && tagged.id === seedId && tagged.yes;
-  const methods =
-    enrichedSeed && seedCatalog && ready ? availableMethods(enrichedSeed, seedCatalog, taggedSeed, seedGame) : [];
+  const methods = (
+    enrichedSeed && seedCatalog && ready ? availableMethods(enrichedSeed, seedCatalog, taggedSeed, seedGame) : []
+  ).filter((m) => !guest || GUEST_FILL_METHODS.includes(m));
   const emptyCount = page.rows * page.cols - occupiedCells(page).size;
 
   const poolActive = fromCollection && !!ownedIds && ownedIds.size > 0;
   const run = async (method: ComposeMethod) => {
     if (!enrichedSeed || !seedCatalog || busy) return;
+    // A guest's first fill takes the taste here, on the method tap, and the editor says so. If the
+    // record refuses (another tab took it), the list is already the wall on the next render.
+    if (guest && !taste.active('fillPage')) {
+      if (!taste.use('fillPage', 'fill_sheet')) return;
+      onTasted?.('fillPage');
+    }
     setBusy(method);
     setError(null);
     try {
+      // A guest's catalogue for THIS method: the page's cards plus what the server found for it.
+      const runCatalog = guest
+        ? catalogFromCards([...seedCatalog.listAll(), ...(await fetchFillCandidates(method, enrichedSeed, page, languages))])
+        : seedCatalog;
       let placements = await composePage(
         method,
         enrichedSeed,
         // The seed's own game (see seedCatalog above) — a One Piece page is filled from One Piece.
-        seedCatalog,
+        runCatalog,
         page,
         poolActive ? ownedIds : null,
         languages,
         seedGame,
-        filterApplies ? filter : null,
+        filterApplies && !guest ? filter : null,
       );
+      track('autofill.run', { method, placed: placements.length, guest, taste: guest, source: guest ? 'server' : 'catalog' });
       // Pool fills consume owned copies — tag card pockets with collection provenance so the
       // (free/owned) inventory accounting and Reclaim see them.
       if (poolActive) {
@@ -251,10 +301,9 @@ export function AutoFillSheet({
   return (
     <>
     <DialogCard visible={visible} onClose={onClose} maxWidth={420} title="Fill page">
-            {guestGated ? (
-              // The composer scans the full catalog, which is a signed-in perk — say so instead
-              // of showing a spinner that would never resolve for a guest.
-              <SignInPerk surface="fill_sheet" message="Auto-fill curates pages from the full card catalog. Create a free account to use it." returnTo={returnTo} />
+            {guest && !guestFillOpen ? (
+              // The guest's one fill is spent: the free account, and nothing about PRO.
+              <SignInPerk surface="fill_wall" message={guestTasteWall('fillPage')} returnTo={returnTo} />
             ) : !ready ? (
               <View style={styles.center}>
                 <LogoLoader label="Loading the card catalog…" />
@@ -270,6 +319,8 @@ export function AutoFillSheet({
                   already placed. Undo reverses the whole fill.
                 </ThemedText>
 
+                {/* A guest's fill has no pool, no language bound and no Only row: one tap, one page. */}
+                {guest ? null : (
                 <View style={styles.controls}>
                   {/* Restrict every method to cards the user owns (the tcgscan-fed inventory). */}
                   {ownedIds && ownedIds.size > 0 ? (
@@ -289,11 +340,12 @@ export function AutoFillSheet({
                     <LanguageToggle value={languages} onChange={setLanguages} theme={browseTheme} />
                   </View>
                 </View>
+                )}
 
                 {/* THE ONLY ROW (owner, 2026-10-16): a frame and types that every method below
                     honours, so "evolution line, windowed only" or "same scene, Fire illustration
                     rares" is one tap on the method, not a second dialog. Sticks for the session. */}
-                {filterApplies ? (
+                {filterApplies && !guest ? (
                   <View style={styles.only} testID="fill-only">
                     <View style={styles.onlyRow}>
                       <ThemedText type="small" themeColor="textSecondary" style={styles.onlyLabel}>
@@ -344,7 +396,7 @@ export function AutoFillSheet({
                 {/* "Pages around this card" and its PRO note were here. Deprecated (owner,
                     2026-10-29: "no one will use that for now"); ComposeAllSheet stays in the
                     tree, unreached, until the day it is wanted back. */}
-                <SimilarityModelPicker compact />
+                {guest ? null : <SimilarityModelPicker compact />}
 
                 {emptyCount === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">
@@ -357,8 +409,11 @@ export function AutoFillSheet({
                     // Each paid method against ITS OWN capability, not a shared isPaid: they
                     // line up today, and writing it this way is what stops a future split from
                     // silently locking the wrong one.
-                    const locked =
-                      m.paid === 'similarity' ? !hasFindSimilar : m.paid === 'triColor' ? !isPaid : false;
+                    // A guest's one fill covers every method on their list, the ranked ones too,
+                    // so no lock and no pill: a guest is never told what PRO is.
+                    const locked = guest
+                      ? false
+                      : m.paid === 'similarity' ? !hasFindSimilar : m.paid === 'triColor' ? !isPaid : false;
                     // And each to its own sell. Tri-colour gets a live demo, which converts better
                     // than a price table; similarity gets the same wall it shows everywhere else,
                     // so a user refused in the browser meets one rule here rather than a second.

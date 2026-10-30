@@ -32,6 +32,28 @@ series/eras so a page samples styles instead of dumping one set's run).
 | `colorTheme` | Color match · tri-color | **(Paid — PRO/VIP)** Cards whose **palette** is closest to the seed (nearest-first, order kept — no variety re-rank), with scattered tonal inserts for the michi negative-space look. Free users see it locked with an upsell (`TriColorUpsell`). | **Tri-Color Search** — `findSimilarByColor(seed.id, 'noborder')` (kit, hybrid on-device/server) + `TYPE_STYLES` tones for inserts | `colorSearchAvailable()` |
 | `fullPageSpread` | Full-page spread | One owned **color sheet** flows across every empty pocket (each shows its crop window); cards read as accents. Sheet family from the seed's type, palette + arrangement seeded by the card id. | **`themeBackgrounds`** — our procedural sheets (3 palettes × 18 families = 54), fully owned | always |
 
+### Guests: one fill without the catalog (2026-10-30)
+
+A guest never receives the catalog, so Fill page and Complete page used to stop at the account
+wall. Since 2026-10-30 (`docs/GUEST-FILL-PLAN.md`) a guest gets **one** fill, from either sheet,
+under the shared `fillPage` taste (`src/data/tastes.ts`, `GUEST_TASTE_FEATURES`); the next tap on
+either sheet is the wall "Create a free account to keep using Fill page." Nothing says PRO.
+
+How it runs: the seed and the page's cards come by id (the kit's `fetchCardsByIds`), the method's
+candidates come from one anonymous filter on the public `cards` view (`src/data/guestFillQuery.ts`:
+name, illustrator, types, evolution line; two windows, newest 120 and oldest 80, so `varietyRank`
+still sees several eras), and `src/data/stubCatalog.ts` wraps the ~200 rows as the `Catalog` the
+UNCHANGED `composePage` / `completePage` read. The ranked methods (`moreLikeThis`, `sameScene`,
+Complete's `theme` and `similar`) call the same anon RPCs they always did; their hits are fetched
+by id into the stub first. Network side: `src/data/guestFill.ts`.
+
+Offered to a guest (`GUEST_FILL_METHODS`, wow first): Same Pokémon, Evolution line, Same artist,
+Color by type, Trainer page, ≈ More like this, Same scene. Not offered: tri-color (paid, sells
+PRO), Friends & partners (`partnersFor` scans the whole catalog), Full-page spread. Complete page
+offers everything but `palette` (the on-device colour index is never loaded for a guest). The Only
+row, the collection pool and the language toggle are hidden for guests. Guest rows lack
+`full_art_kind` (not an anon column), so art promotion is a no-op for them; the owner accepted that.
+
 ### "Fill from my collection" (pool)
 
 `composePage`'s optional `pool` arg restricts every **card** candidate to ids the user owns

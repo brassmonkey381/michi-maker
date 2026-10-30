@@ -1005,7 +1005,8 @@ export function trackLandingCta(cta: LandingCta, binder?: string): void {
  * taste.used { feature, surface } - a free account took its one free taste of a PRO feature
  * (data/tastes): the lock lifted for the rest of that visit. `feature` is the TasteFeature key,
  * `surface` where the tap happened (binder_editor, inspector, my_binders, home, browser, fill_sheet,
- * complete_sheet). Read against trial.start_click and offer.checkout_start: which taste converts.
+ * complete_sheet). A guest's fill taste is taken in fill_sheet or complete_sheet (feature fillPage);
+ * the walls after it report as signin.perk_shown {surface: fill_wall | complete_wall}. Read against trial.start_click and offer.checkout_start: which taste converts.
  */
 /** `tier` and the counts (analytics-studio, 2026-10-30): a guest's taste is a funnel step between Placed a card and Became an account. */
 export function trackTasteUsed(feature: string, surface: string, tier: string, taken: number, left: number): void {

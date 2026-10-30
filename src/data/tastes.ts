@@ -15,6 +15,10 @@
  *   binderCovers    named binders, hardware and covers (the inspector's binder section, the shelf).
  *   binderTracks    binder and page soundtracks.
  *   artViews        art views on a binder, a page or a pocket.
+ *   fillPage        Fill page AND Complete page, one feature (owner, 2026-10-30: "Fill is the same as
+ *                   complete so make sure they are both on the same taste caps"). For a free account
+ *                   both already run on the catalogue, so only a guest ever takes this taste: their
+ *                   one fill runs on a server slice (data/guestFill), then the free-account wall.
  *   -- themeSearch: NOT here. Free accounts already run every theme query and get the top matches;
  *      the rest is withheld by the data server's meter, which this device cannot lift. A taste of
  *      the full result set is a server change (my_cap_tier), not a client one.
@@ -23,8 +27,8 @@
  *   -- the binder, page and artwork caps: counts, not switches; a taste of "one more" is a cap.
  *
  * GUESTS TASTE ONLY SERVER LOOKUPS (GUEST_TASTE_FEATURES, owner 2026-10-30): one of each, so the
- * walkthrough can show Find similar working before the account ask. Everything else needs the
- * signed-in catalogue and waits for the free account. Paid tiers never see a taste because they are
+ * walkthrough can show Find similar and a filled page working before the account ask. Everything
+ * else needs the signed-in catalogue and waits for the free account. Paid tiers never see a taste because they are
  * never locked.
  *
  * Pure: no React, no storage. The hook (hooks/use-tastes) and the device copy (lib/tasteSeen) sit
@@ -32,7 +36,7 @@
  */
 import type { Tier } from './tiers';
 
-export const TASTE_FEATURES = ['findSimilar', 'advancedSearch', 'binderCovers', 'binderTracks', 'artViews'] as const;
+export const TASTE_FEATURES = ['findSimilar', 'advancedSearch', 'binderCovers', 'binderTracks', 'artViews', 'fillPage'] as const;
 export type TasteFeature = (typeof TASTE_FEATURES)[number];
 
 export const TASTE_LABEL: Record<TasteFeature, string> = {
@@ -41,6 +45,7 @@ export const TASTE_LABEL: Record<TasteFeature, string> = {
   binderCovers: 'Binder covers',
   binderTracks: 'Binder soundtracks',
   artViews: 'Art views',
+  fillPage: 'Fill page',
 };
 
 /**
@@ -53,10 +58,11 @@ export const TASTE_CAP: Partial<Record<Tier, number>> = { guest: 1, free: 3 };
 /**
  * WHAT A GUEST MAY TASTE: only what runs as a server lookup, because a guest never receives the
  * catalogue (DATA-PROTECTION-PLAN; use-catalog guestGated). Find similar is a data-server RPC that
- * returns ids, so it qualifies; covers, soundtracks, art views and the advanced search filters
- * all need the signed-in catalogue or the account, and stay behind the free account.
+ * returns ids, so it qualifies, and so does a fill since 2026-10-30, run over a slice the server
+ * hands back (data/guestFill); covers, soundtracks, art views and the advanced search filters all
+ * need the signed-in catalogue or the account, and stay behind the free account.
  */
-export const GUEST_TASTE_FEATURES: readonly TasteFeature[] = ['findSimilar'];
+export const GUEST_TASTE_FEATURES: readonly TasteFeature[] = ['findSimilar', 'fillPage'];
 
 /**
  * The persisted shape: when each taste was taken, every time, oldest first. Version 2 (2026-10-30)

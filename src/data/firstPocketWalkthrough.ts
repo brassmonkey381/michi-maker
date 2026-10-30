@@ -184,12 +184,13 @@ export const WALKTHROUGH_COPY = {
 } as const satisfies Record<WalkthroughStep, WalkthroughCopy>;
 
 /**
- * Step three for a GUEST. Fill page runs on the full catalog, which is a signed-in perk (free), so
- * for a guest the tap it names ends at a Create account note. Say so up front: the step is still
- * true, and "create a free account" is the next action rather than a surprise. A Reddit ad click lands here as a
- * guest, two taps in (owner, 2026-10-29).
+ * Step three for a GUEST. Until 2026-10-30 this said "Create a free account, and Michi builds the
+ * rest", because Fill page ran on the signed-in catalog. A guest now gets one fill without it
+ * (docs/GUEST-FILL-PLAN.md), so the step promises the page and says the first one is free; the
+ * account ask comes after, in the toast and the wall. A Reddit ad click lands here as a guest, two
+ * taps in (owner, 2026-10-29).
  */
 export const WALKTHROUGH_COPY_GUEST_PLACED: WalkthroughCopy = {
   ...WALKTHROUGH_COPY.placed,
-  body: 'Tap the card you just placed and choose Fill page. Create a free account, and Michi builds the rest of the page to match it.',
+  body: 'Tap the card you just placed and choose Fill page. Michi builds the rest of the page to match it. Your first fill is free.',
 };

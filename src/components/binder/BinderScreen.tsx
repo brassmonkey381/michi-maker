@@ -687,6 +687,15 @@ export function BinderScreen({
     toastId.current += 1;
     setToast({ id: toastId.current, message: tasteToast(f, store.tier, store.taste.left(f)) });
   };
+  // A FILL'S TASTE RIDES THE FILL'S OWN TOAST. The Fill and Complete sheets take the fillPage taste
+  // on the tap and then compose for a few seconds; a taste toast shown on the tap was replaced by
+  // "Filled 8 pockets" before anyone read it, and for a guest that first toast is the only place
+  // the free account is asked for. So the note waits here and lands on the placement toast.
+  const fillTasteNote = useRef<string | null>(null);
+  const onSheetTasted = (f: TasteFeature) => {
+    if (f === 'fillPage') fillTasteNote.current = tasteToast(f, store.tier, store.taste.left(f));
+    else showTasteToast(f);
+  };
   // A GUEST IS NOT TOLD WHAT IS PRO (owner, 2026-10-29): at a wall a guest is asked for the free
   // account and nothing else; which features are PRO is learned as a member.
   const guestWall = store.tier === 'guest';
@@ -1804,13 +1813,15 @@ export function BinderScreen({
     );
     const { placed, placedUnclaimed } = store.placeCards(binder.id, page.id, withCopies);
     setSelectedSlotId(null);
+    const tasteNote = fillTasteNote.current;
+    fillTasteNote.current = null;
     // A fill FROM the owned pool that could not claim a copy for every pocket says so: either the
     // assigner ran dry (copies already placed elsewhere) or the store's guard refused a stale
     // claim. placedUnclaimed is counted by the store over pockets actually CREATED, so a
     // placement skipped for an occupied cell never inflates the note.
     showToast(
       placed > 0
-        ? `Filled ${placed} pocket${placed === 1 ? '' : 's'} · ${methodLabel}${catalogArtNote(placedUnclaimed, placed)}`
+        ? `Filled ${placed} pocket${placed === 1 ? '' : 's'} · ${methodLabel}${catalogArtNote(placedUnclaimed, placed)}${tasteNote ? `. ${tasteNote}` : ''}`
         : 'Nothing placed',
       placed > 0,
     );
@@ -3182,6 +3193,7 @@ export function BinderScreen({
           onClose={() => setCompleteOpen(false)}
           onPlaced={handleAutoFillPlaced}
           onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
+          onTasted={onSheetTasted}
         />
 
         <AutoFillSheet
@@ -3193,6 +3205,7 @@ export function BinderScreen({
           onPlaced={handleAutoFillPlaced}
           onComposeAll={handleComposeAll}
           onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
+          onTasted={onSheetTasted}
         />
 
         {/* Mounted only while open, keyed by seed: each invocation gets fresh state, so the

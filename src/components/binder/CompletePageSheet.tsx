@@ -6,6 +6,11 @@
  *
  * The similarity fill is Find Similar under another name, so it carries the same PRO wall the
  * browser shows; every other fill is free and runs on the device.
+ *
+ * A GUEST COMPLETES ONCE WITHOUT THE CATALOG (docs/GUEST-FILL-PLAN.md, owner 2026-10-30: "Fill is
+ * the same as complete"). The page's cards come by id, each fill's candidates from the server
+ * (data/guestFill), into a stub catalogue the unchanged completer reads. The tap that places a fill
+ * takes the one `fillPage` taste the Fill sheet shares; after it, the free-account wall.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -18,8 +23,13 @@ import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
+import { fetchCompleteCandidates, fetchPageCards, guestProviders } from '@/data/guestFill';
+import { GUEST_COMPLETE_METHODS } from '@/data/guestFillQuery';
 import type { ComposePlacement } from '@/data/pageComposer';
-import { COMPLETE_METHODS, completeMethodsFor, completePage, emptyPockets, type CompleteMethod } from '@/data/pageCompleter';
+import { cardsOnPage, COMPLETE_METHODS, completeMethodsFor, completePage, emptyPockets, type CompleteMethod } from '@/data/pageCompleter';
+import { catalogFromCards, type CardStore } from '@/data/stubCatalog';
+import { guestTasteWall, type TasteFeature } from '@/data/tastes';
+import type { CatalogCard } from '@/lib/catalog';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTier } from '@/hooks/use-tier';
 import { useBinders } from '@/store/binders';
@@ -35,6 +45,7 @@ export function CompletePageSheet({
   onClose,
   onPlaced,
   onSimilarLocked,
+  onTasted,
 }: {
   visible: boolean;
   page: DemoPage;
@@ -43,34 +54,61 @@ export function CompletePageSheet({
   onPlaced: (placements: ComposePlacement[], methodLabel: string) => void;
   /** A free or guest user tapped the similarity fill: the same wall Find Similar shows. */
   onSimilarLocked?: () => void;
+  /** A free taste was just taken by a tap in here; the editor shows its toast. */
+  onTasted?: (feature: TasteFeature) => void;
 }) {
   const { catalog, guestGated } = useCatalog(visible);
+  // The auth-based gate, not the tier, which reads 'guest' for a beat while a member's entitlements load.
+  const guest = guestGated;
   const { hasFindSimilar: tierFindSimilar } = useTier();
   // Open by tier or by this visit's free taste (store.taste), the same answer the Fill sheet gives.
   const { taste } = useBinders();
   const hasFindSimilar = tierFindSimilar || taste.active('findSimilar');
   const [languages] = useLanguagePref();
-  const methods = useMemo(() => (catalog ? completeMethodsFor(page, catalog) : []), [catalog, page]);
-  const empties = useMemo(() => emptyPockets(page).length, [page]);
   const pageKey = `${page.id}:${page.slots.map((s) => `${s.id}@${s.row},${s.col}`).join('|')}`;
+  // A guest's catalogue: the page's cards by id, then each fill's candidates as they are fetched.
+  const [guestStore, setGuestStore] = useState<{ key: string; store: CardStore } | null>(null);
+  useEffect(() => {
+    if (!visible || !guest || guestStore?.key === pageKey) return;
+    let live = true;
+    fetchPageCards(page)
+      .then((cards) => { if (live) setGuestStore({ key: pageKey, store: catalogFromCards(cards) }); })
+      .catch(() => { if (live) setGuestStore({ key: pageKey, store: catalogFromCards([]) }); });
+    return () => { live = false; };
+  }, [visible, guest, pageKey, guestStore?.key, page]);
+  const cat = guest ? (guestStore?.key === pageKey ? guestStore.store : null) : catalog;
+  // One fill for a guest, ever on this device: open this visit, or still on offer.
+  const guestFillOpen = guest && (taste.active('fillPage') || taste.offer('fillPage'));
+  const methods = useMemo(
+    () => (cat ? completeMethodsFor(page, cat).filter((m) => !guest || GUEST_COMPLETE_METHODS.includes(m)) : []),
+    [cat, page, guest],
+  );
+  const empties = useMemo(() => emptyPockets(page).length, [page]);
   // A fill with no entry yet is pending; entries land one by one as the fills answer.
   const [previews, setPreviews] = useState<{ key: string; byMethod: Map<CompleteMethod, FillPreview> } | null>(null);
 
   // Every fill runs as soon as the sheet opens, independently, and lands as it arrives.
   useEffect(() => {
-    if (!visible || !catalog || !methods.length) return;
+    if (!visible || !cat || !methods.length || (guest && !guestFillOpen)) return;
     let active = true;
-    track('complete_open', { pockets: page.slots.length, empties, methods: methods.length });
+    track('complete_open', { pockets: page.slots.length, empties, methods: methods.length, guest });
     const byMethod = new Map<CompleteMethod, FillPreview>();
+    // A guest's store learns the ranked fills' cards from their answers (guestProviders) and the
+    // scanned fills' candidates from one filter each, before the completer looks anything up.
+    const learn = (cards: readonly CatalogCard[]) => (cat as CardStore).add?.(cards);
+    const onPage = guest ? cardsOnPage(page, cat) : [];
     for (const m of methods) {
-      if (m === 'similar' && !hasFindSimilar) continue;
-      const providers = {
+      if (m === 'similar' && !hasFindSimilar && !guest) continue;
+      const base = {
         similar: (ids: string[], limit: number) => findSimilarToMany(ids, limit, { languages }),
         theme: (ids: string[], limit: number, fullArt: boolean | undefined) => themeFill(ids, limit, { fullArt }),
       };
+      const providers = guest ? guestProviders(base, learn) : base;
       const run = m === 'palette'
-        ? loadColorIndex().then((index) => completePage(m, page, catalog, { ...providers, palette: index ?? undefined }))
-        : completePage(m, page, catalog, providers);
+        ? loadColorIndex().then((index) => completePage(m, page, cat, { ...providers, palette: index ?? undefined }))
+        : guest
+          ? fetchCompleteCandidates(m, onPage, languages).then((cards) => { learn(cards); return completePage(m, page, cat, providers); })
+          : completePage(m, page, cat, providers);
       run
         .then((placements) => {
           if (!active) return;
@@ -88,12 +126,17 @@ export function CompletePageSheet({
     };
     // The page key stands in for the page object: a page edited while the sheet was closed is read again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, catalog, pageKey, methods, hasFindSimilar, languages]);
+  }, [visible, cat, pageKey, methods, hasFindSimilar, languages, guest, guestFillOpen]);
   const shown = previews && previews.key === pageKey ? previews.byMethod : null;
 
   const pick = (m: CompleteMethod, placements: ComposePlacement[]) => {
+    // A guest's one fill is taken by the tap that places it; the editor shows the toast.
+    if (guest && !taste.active('fillPage')) {
+      if (!taste.use('fillPage', 'complete_sheet')) return;
+      onTasted?.('fillPage');
+    }
     const label = COMPLETE_METHODS.find((x) => x.key === m)!.label;
-    track('complete_pick', { method: m, placed: placements.length, empties });
+    track('complete_pick', { method: m, placed: placements.length, empties, guest });
     onPlaced(placements, label);
     onClose();
   };
@@ -103,11 +146,10 @@ export function CompletePageSheet({
       <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
         The cards already here say what the empty pockets should hold. Tap a fill to place it; the placed cards stay where they are, and Undo takes the new ones out.
       </ThemedText>
-      {guestGated ? (
-        // Every fill reads the full card catalog, a signed-in perk: say so instead of a spinner
-        // that never resolves for a guest (the catalog is never requested for one).
-        <SignInPerk surface="complete_sheet" message="Complete page fills from the full card catalog. Create a free account to use it." />
-      ) : !catalog ? (
+      {guest && !guestFillOpen ? (
+        // The guest's one fill is spent: the free account, and nothing about PRO.
+        <SignInPerk surface="complete_wall" message={guestTasteWall('fillPage')} />
+      ) : !cat ? (
         <View style={styles.loading}>
           <LogoLoader />
         </View>
@@ -119,7 +161,8 @@ export function CompletePageSheet({
         <ScrollView style={styles.scroll} contentContainerStyle={styles.grid}>
           {COMPLETE_METHODS.filter((m) => methods.includes(m.key)).map((m) => {
             const p = shown?.get(m.key);
-            const locked = m.paid === 'similarity' && !hasFindSimilar;
+            // A guest's one fill covers the ranked fill too: no lock, no pill, no PRO.
+            const locked = m.paid === 'similarity' && !hasFindSimilar && !guest;
             const ready = !!p?.placements;
             const none = ready && p!.placements!.length === 0 && !locked;
             return (

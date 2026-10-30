@@ -7,6 +7,7 @@
  *
  *   pocket-bar  the first time a card is selected: what the bar over it does.
  *   page-bar    the first time a page is about half full: the bar along its bottom edge dresses it.
+ *               Wide screens only (owner, 2026-10-30): on a phone the card and the bar are a screen apart.
  *
  * Each hint rings the control it names and says one sentence about it. Pure, so `node --test` can
  * hold the copy to the house rules (short, no em-dashes). The hook is hooks/use-editor-hint.ts.

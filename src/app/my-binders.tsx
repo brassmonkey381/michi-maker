@@ -137,7 +137,7 @@ export default function MyBindersScreen() {
       capGate.hit(similarityWall(store.tier, 'my_binders'));
       return;
     }
-    if (open === 'tasted') showToast(tasteToast('findSimilar', store.tier, store.taste.left('findSimilar')));
+    if (open === 'tasted') showLimitToast(tasteToast('findSimilar', store.tier, store.taste.left('findSimilar')));
     track('card.search', { kind: 'similar', count: cardIds.length });
     if (cardIds.length === 1) sendBrowseCommand({ type: 'similar', cardId: cardIds[0] });
     else sendBrowseCommand({ type: 'similarMany', cardIds });
@@ -252,7 +252,7 @@ export default function MyBindersScreen() {
     if (!menuBinder) return;
     // One free taste (store.taste): a free account's first cover goes through, with a word on why.
     const open = store.taste.pass('binderCovers', hasBinderCovers(store.tier), 'my_binders');
-    if (open === 'tasted') showToast(tasteToast('binderCovers', store.tier, store.taste.left('binderCovers')));
+    if (open === 'tasted') showLimitToast(tasteToast('binderCovers', store.tier, store.taste.left('binderCovers')));
     if (open) setCoverId(menuBinder.id);
     else showLimitToast('Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.');
   };

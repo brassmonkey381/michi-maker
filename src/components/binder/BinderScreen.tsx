@@ -683,10 +683,9 @@ export function BinderScreen({
   // ONE FREE TASTE (store.taste, data/tastes): a free account's first tap on a locked PRO control
   // lifts that lock for the rest of the visit, says so, and the next tap works. Every lock flag
   // below reads the taste; every locked handler offers it before it shows the wall.
-  const showTasteToast = (f: TasteFeature) => {
-    toastId.current += 1;
-    setToast({ id: toastId.current, message: tasteToast(f, store.tier, store.taste.left(f)) });
-  };
+  // ONE FORMAT FOR EVERY ASK (owner, 2026-10-30: "one centralized toast format"): a taste toast
+  // is the limit card, the same card as a cap hit, with the tier's button out (limitCta).
+  const showTasteToast = (f: TasteFeature) => showLimitToast(tasteToast(f, store.tier, store.taste.left(f)));
   // A FILL'S TASTE RIDES THE FILL'S OWN TOAST. The Fill and Complete sheets take the fillPage taste
   // on the tap and then compose for a few seconds; a taste toast shown on the tap was replaced by
   // "Filled 8 pockets" before anyone read it, and for a guest that first toast is the only place
@@ -755,9 +754,11 @@ export function BinderScreen({
   const hintPage = binder?.pages[Math.max(0, Math.min(pageIndex, (binder?.pages.length ?? 1) - 1))];
   const hintSlot = selectedSlotId ? hintPage?.slots.find((s) => s.id === selectedSlotId) : undefined;
   const pocketHint = useEditorHint('pocket-bar', editing && !studio && !walkthrough.copy && !moving && !!hintSlot?.cardId);
+  // NOT ON A PHONE (owner, 2026-10-30): the card sits at the top while the bar it names is at
+  // the bottom, and the ring is lost on a small screen. Wide screens only.
   const pageHint = useEditorHint(
     'page-bar',
-    editing && !studio && !walkthrough.copy && !moving && !selectedSlotId && pickerCell === null && !!hintPage && pageHalfFull(hintPage),
+    editing && !studio && !walkthrough.copy && !moving && !selectedSlotId && pickerCell === null && !!hintPage && pageHalfFull(hintPage) && width >= PHONE_MAX_WIDTH,
   );
   const editorHint = pocketHint.copy ? pocketHint : pageHint.copy ? pageHint : null;
 
@@ -1820,10 +1821,12 @@ export function BinderScreen({
     // placement skipped for an occupied cell never inflates the note.
     // A tasted fill's toast is the owner's line (2026-10-30): "Filled 8 pockets · Keep using Fill
     // Same Pokemon with a free account". The method rides inside the ask instead of before it.
-    const tail = tasteNote
-      ? tasteToast('fillPage', store.tier, tasteNote.left, `Fill ${methodLabel}`)
-      : `${methodLabel}${catalogArtNote(placedUnclaimed, placed)}`;
-    showToast(placed > 0 ? `Filled ${placed} pocket${placed === 1 ? '' : 's'} · ${tail}` : 'Nothing placed', placed > 0);
+    // A tasted fill's toast is the LIMIT CARD, like every other ask (one format, owner 2026-10-30):
+    // the message carries the count, the button carries the way out.
+    if (placed === 0) return showToast('Nothing placed');
+    const filled = `Filled ${placed} pocket${placed === 1 ? '' : 's'}`;
+    if (tasteNote) showLimitToast(`${filled} · ${tasteToast('fillPage', store.tier, tasteNote.left, `Fill ${methodLabel}`)}`);
+    else showToast(`${filled} · ${methodLabel}${catalogArtNote(placedUnclaimed, placed)}`, true);
   };
 
   // --- Bulk actions on the Ctrl/Cmd multi-selection ---

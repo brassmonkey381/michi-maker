@@ -685,7 +685,7 @@ export function BinderScreen({
   // below reads the taste; every locked handler offers it before it shows the wall.
   const showTasteToast = (f: TasteFeature) => {
     toastId.current += 1;
-    setToast({ id: toastId.current, message: tasteToast(f) });
+    setToast({ id: toastId.current, message: tasteToast(f, store.tier, store.taste.left(f)) });
   };
   // A GUEST IS NOT TOLD WHAT IS PRO (owner, 2026-10-29): at a wall a guest is asked for the free
   // account and nothing else; which features are PRO is learned as a member.

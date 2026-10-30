@@ -1007,8 +1007,9 @@ export function trackLandingCta(cta: LandingCta, binder?: string): void {
  * `surface` where the tap happened (binder_editor, inspector, my_binders, home, browser, fill_sheet,
  * complete_sheet). Read against trial.start_click and offer.checkout_start: which taste converts.
  */
-export function trackTasteUsed(feature: string, surface: string): void {
-  track('taste.used', { feature, surface });
+/** `tier` and the counts (analytics-studio, 2026-10-30): a guest's taste is a funnel step between Placed a card and Became an account. */
+export function trackTasteUsed(feature: string, surface: string, tier: string, taken: number, left: number): void {
+  track('taste.used', { feature, surface, tier, taken, left });
 }
 
 /** Where a puzzle moment happened. `home_card` is the invitation, `daily` the page. */

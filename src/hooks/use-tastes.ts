@@ -17,7 +17,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { EMPTY_TASTES, mergeTastes, normalizeTastes, tasteOffered, type TasteFeature, type TasteRecord } from '@/data/tastes';
+import { EMPTY_TASTES, mergeTastes, normalizeTastes, takeTaste, tasteOffered, tastesLeft, tastesTaken, type TasteFeature, type TasteRecord } from '@/data/tastes';
 import type { Tier } from '@/data/tiers';
 import { trackTasteUsed } from '@/lib/analytics';
 import { hydrateTastes, readTastes, writeTastes } from '@/lib/tasteSeen';
@@ -30,6 +30,8 @@ export interface TasteApi {
   offer: (feature: TasteFeature) => boolean;
   use: (feature: TasteFeature, surface: string) => boolean;
   pass: (feature: TasteFeature, has: boolean, surface: string) => 'has' | 'tasted' | false;
+  /** How many tastes of `feature` remain for this tier and record. */
+  left: (feature: TasteFeature) => number;
 }
 
 export function useTastes(tier: Tier): TasteApi {
@@ -65,25 +67,27 @@ export function useTastes(tier: Tier): TasteApi {
   const activeSet = useMemo(() => (activeFor.userId === userId ? activeFor.set : new Set<TasteFeature>()), [activeFor, userId]);
 
   const active = useCallback((f: TasteFeature) => activeSet.has(f), [activeSet]);
-  const offer = useCallback((f: TasteFeature) => !isGuest && tasteOffered(tier, record, f), [isGuest, tier, record]);
+  const offer = useCallback((f: TasteFeature) => tasteOffered(tier, record, f), [tier, record]);
 
   const use = useCallback(
     (f: TasteFeature, surface: string): boolean => {
       if (!offer(f)) return false;
-      const next: TasteRecord = { v: 1, used: { ...record.used, [f]: new Date().toISOString() } };
+      const next: TasteRecord = takeTaste(record, f);
       writeTastes(userId, next);
       setDevice({ userId, rec: next });
       setActiveFor((prev) => ({ userId, set: new Set([...(prev.userId === userId ? prev.set : []), f]) }));
-      if (userId) {
+      // A guest's record is the device's alone: a cleared browser is a new guest, and that is the
+      // honest price of a taste that asks for nothing.
+      if (userId && !isGuest) {
         const bag = (profile?.preferences as Record<string, unknown> | null | undefined) ?? {};
         // Fire and forget, like the walkthrough record: a failed account write costs one extra
         // taste on another device, never anything this tap can see.
-        void updateProfile({ preferences: { ...bag, [PREF_KEY]: { v: 1, used: next.used } } }).catch(() => {});
+        void updateProfile({ preferences: { ...bag, [PREF_KEY]: { v: 2, used: next.used } } }).catch(() => {});
       }
-      trackTasteUsed(f, surface);
+      trackTasteUsed(f, surface, tier, tastesTaken(next, f), tastesLeft(tier, next, f));
       return true;
     },
-    [offer, record, userId, profile?.preferences, updateProfile],
+    [offer, record, userId, isGuest, tier, profile?.preferences, updateProfile],
   );
 
   const pass = useCallback(
@@ -94,5 +98,7 @@ export function useTastes(tier: Tier): TasteApi {
     [active, use],
   );
 
-  return useMemo(() => ({ active, offer, use, pass }), [active, offer, use, pass]);
+  const left = useCallback((f: TasteFeature) => tastesLeft(tier, record, f), [tier, record]);
+
+  return useMemo(() => ({ active, offer, use, pass, left }), [active, offer, use, pass, left]);
 }

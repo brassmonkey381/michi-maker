@@ -91,8 +91,9 @@ export function artTrialMessage(limits: TierLimits): string {
  * try it" is true. Which features are PRO is something they find out as a member, not at the door.
  */
 export function similarityGateMessage(tier: Tier): string {
+  // A guest has had their taste by the time they meet this (data/tastes GUEST_TASTE_FEATURES).
   return tier === 'guest'
-    ? 'Find similar matches a card against the whole catalogue by its artwork. Create a free account to try it.'
+    ? 'Create a free account to keep using Find similar.'
     : 'Find similar matches a card against the whole catalogue by its artwork. It is part of PRO.';
 }
 

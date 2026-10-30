@@ -32,7 +32,10 @@ export default function AuthCallback() {
     const goHome = () => {
       if (done) return;
       done = true;
-      router.replace((consumeAuthReturn() ?? '/') as Href);
+      const back = consumeAuthReturn();
+      // `resume=1` tells the binder route this is a return, so a binder that is gone (a sign-in to
+      // a different account leaves a guest's binders behind) falls back to the shelf, not to 404.
+      router.replace((back ? `${back}${back.includes('?') ? '&' : '?'}resume=1` : '/') as Href);
     };
     (async () => {
       try {

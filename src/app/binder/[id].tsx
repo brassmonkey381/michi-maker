@@ -59,13 +59,15 @@ function pageParam(page: string | string[] | undefined): number {
 }
 
 export default function BinderRoute() {
-  const { id, print, edit, slice, fill, page, back } = useLocalSearchParams<{
+  const { id, print, edit, slice, fill, page, back, resume } = useLocalSearchParams<{
     id: string;
     print?: string;
     edit?: string;
     slice?: string;
-    /** A pocket id: reopen the Fill page sheet on it (the way back from a sign-in, lib/authReturn). */
+    /** `<page>.<pocket>` (zero-based): reopen the Fill page sheet there - the way back from a sign-in (lib/authReturn). */
     fill?: string;
+    /** `1` when this link is the way back from a sign-in: a binder that is gone falls back to the shelf. */
+    resume?: string;
     page?: string;
     /** Where "‹ Michi-Maker" goes, put here by whichever feed opened this binder. */
     back?: string;
@@ -76,6 +78,25 @@ export default function BinderRoute() {
   const openAt = pageParam(page);
 
   const local = id ? store.getBinder(id) : undefined;
+  // THE WAY BACK FROM A SIGN-IN, when the binder moved under the link. A guest who creates an
+  // account keeps their binders under BRAND-NEW ids (store.migrateOwnBindersToFreshIds), so the
+  // remembered /binder/<old> names nothing the moment the upgrade lands: follow the move, same
+  // query. A guest who instead signed in to a DIFFERENT existing account left the guest's binders
+  // behind by design; with `resume=1` that lands on their own shelf rather than on a stranger's
+  // read-only view of an id that no longer exists.
+  const migrated = !local && id ? store.migratedBinderId(id) : undefined;
+  const strandedResume = !local && !migrated && !store.loading && resume === '1';
+  useEffect(() => {
+    if (migrated) {
+      const q = new URLSearchParams();
+      for (const [k, v] of Object.entries({ print, edit, slice, fill, page, back })) if (v) q.set(k, v);
+      const qs = q.toString();
+      router.replace(`/binder/${migrated}${qs ? `?${qs}` : ''}` as Href);
+    } else if (strandedResume) {
+      router.replace('/my-binders' as Href);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the params are read when the move is seen
+  }, [migrated, strandedResume]);
   if (local) {
     // Your binder → editable; an example → read-only + Duplicate (BinderScreen handles both).
     return (
@@ -84,7 +105,7 @@ export default function BinderRoute() {
         initialPrintOpen={print === '1'}
         initialEditing={edit === '1' || slice === '1' || !!fill}
         initialStudioOpen={slice === '1'}
-        initialFillSlotId={fill || null}
+        initialFillAt={fill || null}
         initialPageIndex={openAt}
         onClose={goHome}
         onOpenBinder={(bid) => router.replace(`/binder/${bid}`)}

@@ -200,6 +200,12 @@ interface BinderStore {
   /** True when adding a page to this binder would exceed the tier limit (always false while the flag is off). */
   pageLimitReached: (binderId: string) => boolean;
   getBinder: (id: string) => DemoBinder | undefined;
+  /**
+   * The id a binder was re-minted under by this session's guest-to-account upgrade
+   * (migrateOwnBindersToFreshIds), or undefined. For a link that named the OLD id - the way back
+   * from a web sign-in (lib/authReturn) is exactly such a link - so the route can follow the move.
+   */
+  migratedBinderId: (oldId: string) => string | undefined;
   /** Create a binder. Returns undefined when the tier's binder cap refuses it (callers show the
    *  upgrade note), same contract as duplicateBinder. Demo/example binders are free of the cap. */
   createBinder: (init?: Partial<DemoBinder>) => DemoBinder | undefined;
@@ -734,6 +740,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       migrateOwnBindersToFreshIds();
     }
   }, [user, authReady, migrateOwnBindersToFreshIds]);
+  // Reads the re-mint cache the migration filled (old id -> fresh binder). A ref read, not state:
+  // the migration also replaces `binders`, so every consumer re-renders at the moment it matters.
+  const migratedBinderId = useCallback((oldId: string) => remintCache.current.get(oldId)?.id, []);
 
   /**
    * Re-sync Supabase after an undo/redo. Incremental writers persist forward edits, but a
@@ -2875,6 +2884,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       atBinderLimit,
       pageLimitReached,
       getBinder,
+      migratedBinderId,
       createBinder,
       createBinderWithCard,
       duplicateBinder,
@@ -2941,6 +2951,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       atBinderLimit,
       pageLimitReached,
       getBinder,
+      migratedBinderId,
       createBinder,
       createBinderWithCard,
       duplicateBinder,

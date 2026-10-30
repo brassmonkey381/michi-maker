@@ -159,11 +159,12 @@ interface BinderScreenProps {
   /** Arrive with the Slice Studio open on the current page (`?slice=1`, from the slice guide). */
   initialStudioOpen?: boolean;
   /**
-   * Arrive with THIS pocket selected and the Fill page sheet open (`?fill=<slotId>`): the way back
-   * from a web sign-in a guest started inside that sheet (lib/authReturn). The page holding the
-   * pocket is found here, so the link needs no page number.
+   * Arrive with a pocket selected and the Fill page sheet open (`?fill=<page>.<pocket>`, both
+   * zero-based): the way back from a web sign-in a guest started inside that sheet (lib/authReturn).
+   * A POSITION, not a slot id: the guest-to-account upgrade re-mints every id but keeps every pocket
+   * where it was, so the position is the one thing that survives the round trip.
    */
-  initialFillSlotId?: string | null;
+  initialFillAt?: string | null;
   /**
    * Which page the binder opens on, zero-based (`?page=N` in the link is one-based; the route
    * converts). Only the starting value, and it is clamped by the render, so past the end is the
@@ -186,7 +187,7 @@ export function BinderScreen({
   initialPrintOpen = false,
   initialEditing = false,
   initialStudioOpen = false,
-  initialFillSlotId = null,
+  initialFillAt = null,
   initialPageIndex = 0,
 }: BinderScreenProps) {
   const store = useBinders();
@@ -338,9 +339,11 @@ export function BinderScreen({
   // there and the sheet reopens showing the catalog loading for the new account instead of the
   // guest gate the person left from. Initial state rather than an effect: nothing to flicker.
   const [fillResume] = useState(() => {
-    if (!initialFillSlotId) return null;
-    const at = store.getBinder(binderId)?.pages.findIndex((p) => p.slots.some((s) => s.id === initialFillSlotId)) ?? -1;
-    return at >= 0 ? { at, slotId: initialFillSlotId } : null;
+    const m = initialFillAt ? /^(\d+)\.(\d+)$/.exec(initialFillAt) : null;
+    if (!m) return null;
+    const at = Number(m[1]);
+    const slotId = store.getBinder(binderId)?.pages[at]?.slots[Number(m[2])]?.id;
+    return slotId ? { at, slotId } : null;
   });
   const [pageIndex, setPageIndex] = useState(fillResume?.at ?? 0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
@@ -3194,7 +3197,7 @@ export function BinderScreen({
           seedCardId={selectedSlot?.cardId ?? null}
           page={page}
           onClose={() => setAutoFillOpen(false)}
-          returnTo={selectedSlotId ? `/binder/${binderId}?edit=1&fill=${selectedSlotId}` : undefined}
+          returnTo={selectedSlot ? `/binder/${binderId}?edit=1&fill=${idx}.${page.slots.indexOf(selectedSlot)}` : undefined}
           onPlaced={handleAutoFillPlaced}
           onComposeAll={handleComposeAll}
           onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}

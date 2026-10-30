@@ -28,6 +28,7 @@ import type { CatalogCard } from 'tcgscan-browse';
 
 import { artClassOf } from './arrange.ts';
 import { occupiedCells, type DemoPage } from './binderTypes.ts';
+import { rarityBoost } from './storyBinder.ts';
 
 /**
  * PURE, like pageComposer's rules but without its imports: the kit's bundle does not load under
@@ -171,6 +172,21 @@ function dedupe(candidates: readonly CatalogCard[], page: DemoPage, catalog: Com
 const place = (cells: readonly { row: number; col: number }[], cards: readonly CatalogCard[]): CompletePlacement[] =>
   cards.slice(0, cells.length).map((c, i) => ({ row: cells[i].row, col: cells[i].col, cardId: c.id }));
 
+/**
+ * THE PICTURE PRINTS FIRST (owner, 2026-10-30: "it would be better if complete filled in
+ * illustration rares first"). TWO BANDS, not a ladder: the picture printings (Illustration Rare,
+ * Special Illustration Rare, full arts, rarityBoost's upper bands) and then the plain prints. A
+ * STABLE sort, so inside each band the method's own order holds: a theme fill's best scene match
+ * still leads, an artist fill still runs newest first. A ladder (SIR over IR) was tried first and
+ * put a weakly matching Special Illustration Rare ahead of the lava-scene Illustration Rares a
+ * volcano page wanted. Exported so the test can pin the order.
+ */
+export const PICTURE_BAND = 0.45;
+export function artFirst(cards: readonly CatalogCard[]): CatalogCard[] {
+  const picture = (c: CatalogCard) => (rarityBoost(c.rarity ?? '') >= PICTURE_BAND ? 0 : 1);
+  return [...cards].sort((a, b) => picture(a) - picture(b));
+}
+
 /** Fill the page's empty pockets by `method`. Returns nothing when the method has nothing to say. */
 export async function completePage(
   method: CompleteMethod,
@@ -184,7 +200,13 @@ export async function completePage(
   const want = cells.length;
   // The page's art class decides which prints are offered first: a windowed page gets windowed
   // cards, a full-art page full arts, so the page stays one class (docs/ARRANGE.md scope).
-  const isFull = (c: CatalogCard) => artClassOf(c.fullArtKind, c.fullArt) === 'full';
+  // A GUEST'S CARDS CARRY NO ART FLAGS: the anonymous cards view exposes rarity but not full_art
+  // or full_art_kind, so a cold-loaded Illustration Rare read as windowed, the theme fill was asked
+  // for windowed prints, and a page of full arts filled with plain ones (owner, 2026-10-30: "same
+  // theme is using windowed cards"). When the flags are absent the rarity decides: the picture
+  // rarities (rarityBoost's top bands) are full art.
+  const isFull = (c: CatalogCard) =>
+    artClassOf(c.fullArtKind, c.fullArt) === 'full' || (!c.fullArtKind && c.fullArt == null && rarityBoost(c.rarity ?? '') >= PICTURE_BAND);
   const full = cards.filter(isFull).length * 2 > cards.length;
   const sameClass = (xs: CatalogCard[]) => [...xs.filter((c) => isFull(c) === full), ...xs.filter((c) => isFull(c) !== full)];
 
@@ -195,13 +217,13 @@ export async function completePage(
     const allWindowed = cards.every((c) => !isFull(c));
     const hits = await providers.theme(cards.map((c) => c.id), want * 6 + 24, allFull ? true : allWindowed ? false : undefined);
     const found = hits.map((h) => catalog.getCard(h.id)).filter((c): c is CatalogCard => !!c);
-    return place(cells, dedupe(found, page, catalog));
+    return place(cells, artFirst(dedupe(found, page, catalog)));
   }
   if (method === 'similar') {
     if (!providers.similar) return [];
     const hits = await providers.similar(cards.map((c) => c.id), want * 6 + 24);
     const found = hits.map((h) => catalog.getCard(h.id)).filter((c): c is CatalogCard => !!c);
-    return place(cells, dedupe(found, page, catalog));
+    return place(cells, artFirst(dedupe(found, page, catalog)));
   }
   if (method === 'palette') {
     const index = providers.palette;
@@ -211,19 +233,19 @@ export async function completePage(
     if (!query.length) return [];
     const hits = index.searchByColors(query, 'art', want * 8 + 40);
     const found = hits.map((h) => catalog.getCard(h.id)).filter((c): c is CatalogCard => !!c);
-    return place(cells, dedupe(sameClass(found), page, catalog));
+    return place(cells, artFirst(dedupe(sameClass(found), page, catalog)));
   }
   if (method === 'type') {
     const t = mode(cards.map((c) => c.types[0] ?? ''));
     if (!t) return [];
     const found = catalog.listAll().filter((c) => c.types[0] === t).sort((a, b) => hash(a.id) - hash(b.id));
-    return place(cells, dedupe(sameClass(found), page, catalog));
+    return place(cells, artFirst(dedupe(sameClass(found), page, catalog)));
   }
   if (method === 'artist') {
     const who = mode(cards.map((c) => c.illustrator.trim()));
     if (!who) return [];
     const found = catalog.listAll().filter((c) => c.illustrator.trim() === who).sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || ''));
-    return place(cells, dedupe(sameClass(found), page, catalog));
+    return place(cells, artFirst(dedupe(sameClass(found), page, catalog)));
   }
   // lines: each missing stage, from the line's own set when it has one, else the newest print.
   const all = catalog.listAll();
@@ -232,7 +254,8 @@ export async function completePage(
     const prints = all.filter((c) => c.kind === 'standard' && speciesOf(c) === m.species);
     if (!prints.length) continue;
     const sameSet = prints.find((c) => c.setId === m.setId);
-    picks.push(sameSet ?? [...prints].sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || ''))[0]);
+    // No print in the line's own set: the best picture print of the species, newest among equals.
+    picks.push(sameSet ?? artFirst([...prints].sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || '')))[0]);
   }
   return place(cells, dedupe(picks, page, catalog));
 }

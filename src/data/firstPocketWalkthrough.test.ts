@@ -143,8 +143,8 @@ test('seeded copy: two steps, numbered, short, no em-dashes, never PRO, the acco
   for (const c of Object.values(SEEDED_COPY)) {
     assert.equal(c.total, SEEDED_TOTAL);
     assert.doesNotMatch(c.title + c.body, /—|\bPRO\b/);
-    assert.ok(c.title.length <= 40, c.title);
+    assert.ok(c.title.length <= 60, c.title);
   }
   assert.match(SEEDED_COPY.complete.title, /Complete/);
-  assert.match(SEEDED_COPY.filled.body, /Create a free account/);
+  assert.equal(SEEDED_COPY.filled.title, 'Create an account to save your binder and keep working');
 });

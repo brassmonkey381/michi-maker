@@ -227,12 +227,12 @@ export const SEEDED_COPY = {
     body: 'Pick how the rest of the page is filled. Or tap an empty pocket to add a card of your own.',
     arrow: 'up',
   },
-  /** The same place, once the page is full. */
+  /** The same place, once the page is full. The owner's line (2026-10-30). */
   filled: {
     index: 2,
     total: SEEDED_TOTAL,
-    title: 'This is your binder',
-    body: 'Create a free account to keep it and add a page.',
+    title: 'Create an account to save your binder and keep working',
+    body: 'It is free, and this page comes with you.',
     arrow: 'up',
   },
 } as const satisfies Record<SeededStep, WalkthroughCopy>;

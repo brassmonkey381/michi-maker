@@ -6,8 +6,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import type { CatalogCard } from 'tcgscan-browse';
+
 import type { DemoPage } from './binderTypes.ts';
-import { type CompleteCatalog, cardsOnPage, completeMethodsFor, completePage, emptyPockets } from './pageCompleter.ts';
+import { type CompleteCatalog, artFirst, cardsOnPage, completeMethodsFor, completePage, emptyPockets } from './pageCompleter.ts';
 
 const card = (id: string, over: Record<string, unknown> = {}) => ({
   id, name: id, number: '1', rarity: 'Common', cardType: ['Pokemon'], setId: 'set-a', setName: 'A', setCode: 'A', seriesId: 's', releaseDate: '2025-01-01', image: '', kind: 'standard',
@@ -68,4 +70,26 @@ test('same type and same artist: more of the page, never what is on it, one per 
   const artist = await completePage('artist', p, catalog);
   assert.ok(artist.every((x) => catalog.getCard(x.cardId)!.illustrator === 'Ann'));
   assert.ok(!artist.some((x) => x.cardId === 'vulpix'));
+});
+
+test('the picture prints come first as one band, the method order kept inside it (owner: illustration rares first)', async () => {
+  const plain = card('a-plain');
+  const ir = card('b-ir', { rarity: 'Illustration Rare' });
+  const sir = card('c-sir', { rarity: 'Special Illustration Rare' });
+  const fa = card('d-fa', { rarity: 'Full Art Ultra Rare' });
+  const plain2 = card('e-plain');
+  assert.deepEqual(artFirst([plain, ir, plain2, fa, sir] as unknown as CatalogCard[]).map((c) => c.id), ['b-ir', 'd-fa', 'c-sir', 'a-plain', 'e-plain']);
+  // Same type: the Illustration Rare lands before the plain prints the hash order would have led with.
+  const fire = [card('x1', { types: ['Fire'] }), card('x2', { types: ['Fire'] }), card('x3', { types: ['Fire'], rarity: 'Illustration Rare' })];
+  const cat = { getCard: (id: string) => [...CARDS, ...fire].find((c) => c.id === id), listAll: () => [...CARDS, ...fire] } as unknown as CompleteCatalog;
+  const out = await completePage('type', page(['charmander', null, null, null]), cat);
+  assert.equal(out[0]?.cardId, 'x3');
+});
+
+test('a page of Illustration Rares with no art flags (a guest) still asks the theme fill for full art', async () => {
+  const irs = ['m', 'n', 'g'].map((id) => card(id, { rarity: 'Illustration Rare' }));
+  const cat = { getCard: (id: string) => [...CARDS, ...irs].find((c) => c.id === id), listAll: () => [...CARDS, ...irs] } as unknown as CompleteCatalog;
+  let asked: boolean | undefined = false;
+  await completePage('theme', page(['m', 'n', 'g', null]), cat, { theme: async (_ids, _limit, fullArt) => { asked = fullArt; return []; } });
+  assert.equal(asked, true);
 });

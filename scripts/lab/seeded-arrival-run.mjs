@@ -42,8 +42,9 @@ if (pick) { await page.getByText(pick, { exact: false }).first().click({ timeout
 let t3 = '';
 for (let i = 0; i < 20 && !/Filled \d+ pocket/.test(t3); i += 1) { await wait(500); t3 = await text(); }
 await wait(1500);
+t3 = await text();
 await shot('03-filled');
-log('FILL toast:', (t3.match(/Filled \d+ pockets?[^|]{0,80}/) ?? ['(none)'])[0], '| payoff?', t3.includes('This is your binder'), '| 2 of 2?', t3.includes('2 of 2'), '| PRO?', PRO.test(t3));
+log('FILL toast:', (t3.match(/Filled \d+ pockets?[^|]{0,80}/) ?? ['(none)'])[0], '| payoff?', t3.includes('Create an account to save your binder'), '| 2 of 2?', t3.includes('2 of 2'), '| PRO?', PRO.test(t3));
 
 // A second Complete: the page is full, so the tool is disabled; the Fill route is the wall.
 await page.keyboard.press('Escape'); await wait(800);

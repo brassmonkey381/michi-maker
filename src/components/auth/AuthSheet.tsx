@@ -204,6 +204,17 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
           : 'Sign in to sync your michi binders across devices.'}
       </ThemedText>
 
+      {/* GOOGLE FIRST (owner, 2026-10-29): on a phone the button sat below the email form and
+          needed a scroll to find, and it is the one-tap path. The form follows under "or". */}
+      <OAuthButton label="Continue with Google" onPress={() => oauth('google')} disabled={busy} />
+      <View style={styles.dividerRow}>
+        <View style={[styles.divider, { backgroundColor: theme.backgroundSelected }]} />
+        <ThemedText type="small" themeColor="textSecondary">
+          or with email
+        </ThemedText>
+        <View style={[styles.divider, { backgroundColor: theme.backgroundSelected }]} />
+      </View>
+
       {/* Method switch */}
       {allowCode && (
         <View style={[styles.segment, { borderColor: theme.backgroundSelected }]}>
@@ -310,17 +321,6 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
           )}
         </>
       )}
-
-      {/* Divider */}
-      <View style={styles.dividerRow}>
-        <View style={[styles.divider, { backgroundColor: theme.backgroundSelected }]} />
-        <ThemedText type="small" themeColor="textSecondary">
-          or
-        </ThemedText>
-        <View style={[styles.divider, { backgroundColor: theme.backgroundSelected }]} />
-      </View>
-
-      <OAuthButton label="Continue with Google" onPress={() => oauth('google')} disabled={busy} />
 
       {/* When there's no session at all (signed out), let the user keep building without an
           account. Guests are already in a session, so they don't need this. */}

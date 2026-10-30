@@ -563,7 +563,7 @@ export function PrintPlaceholdersSheet({
   return (
     <DialogCard title="Print fill sheets" onClose={closeWithDecline}>
             {guestGated ? (
-              <SignInPerk message="Placeholder labels read the full card catalog. Create a free account to print them." />
+              <SignInPerk surface="print_sheet" message="Placeholder labels read the full card catalog. Create a free account to print them." />
             ) : Platform.OS !== 'web' ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                 PDF download is available on the web app for now. Open michi-maker.com to print

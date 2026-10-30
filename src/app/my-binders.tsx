@@ -365,7 +365,7 @@ export default function MyBindersScreen() {
                 {store.atBinderLimit ? (
                   <View style={styles.upgradeRow}>
                     {store.tier === 'guest' ? (
-                      <SignInPerk message={binderLimitMessage(store.tier, store.limits)} />
+                      <SignInPerk surface="binder_cap" message={binderLimitMessage(store.tier, store.limits)} />
                     ) : (
                       <CapGateOffer
                         message={binderLimitMessage(store.tier, store.limits)}

@@ -106,7 +106,7 @@ export function CompletePageSheet({
       {guestGated ? (
         // Every fill reads the full card catalog, a signed-in perk: say so instead of a spinner
         // that never resolves for a guest (the catalog is never requested for one).
-        <SignInPerk message="Complete page fills from the full card catalog. Create a free account to use it." />
+        <SignInPerk surface="complete_sheet" message="Complete page fills from the full card catalog. Create a free account to use it." />
       ) : !catalog ? (
         <View style={styles.loading}>
           <LogoLoader />

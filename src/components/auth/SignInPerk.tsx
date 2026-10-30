@@ -4,11 +4,12 @@
  * A short message plus a Sign in link that opens the auth sheet in place, so upgrading is one
  * tap away from the feature that needed it.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { ThemedText } from '@/components/themed-text';
+import { track } from '@/lib/analytics';
 import { useAuth } from '@/store/auth';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 import { forgetAuthReturn, rememberAuthReturn } from '@/lib/authReturn';
@@ -16,6 +17,7 @@ import { forgetAuthReturn, rememberAuthReturn } from '@/lib/authReturn';
 export function SignInPerk({
   message,
   returnTo,
+  surface = 'unknown',
 }: {
   message: string;
   /**
@@ -24,12 +26,20 @@ export function SignInPerk({
    * without leaving the page. See lib/authReturn.
    */
   returnTo?: string;
+  /** Where this wall stands, for signin.perk_shown and signin.perk_click (analytics-studio, 2026-10-29). */
+  surface?: string;
 }) {
   // A GUEST IS ASKED TO CREATE AN ACCOUNT, NOT TO SIGN IN (owner, 2026-10-29): a guest has no
   // account to sign in to, and the word sent people looking for a password they never set.
   const auth = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
+  // Seen once per mount: a guest wall used to leave no trace, so "hit a wall" was invisible.
+  useEffect(() => {
+    track('signin.perk_shown', { surface, guest: auth.isGuest });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one impression per mount
+  }, []);
   const open = () => {
+    track('signin.perk_click', { surface, guest: auth.isGuest });
     if (returnTo) rememberAuthReturn(returnTo, true);
     setAuthOpen(true);
   };

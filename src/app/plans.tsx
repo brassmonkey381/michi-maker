@@ -141,7 +141,7 @@ export default function PlansScreen() {
           <ThemedText type="smallBold" style={styles.bannerTitle}>
             Arriving from TCGScan?
           </ThemedText>
-          <SignInPerk message="Sign in with the same account and your TCGScan membership takes 60% off PRO or VIP at checkout." />
+          <SignInPerk surface="plans" message="Sign in with the same account and your TCGScan membership takes 60% off PRO or VIP at checkout." />
         </View>
       ) : null}
 

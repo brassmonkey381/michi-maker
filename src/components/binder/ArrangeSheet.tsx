@@ -377,7 +377,7 @@ export function ArrangeSheet({
         // Arrange reads the cards from the full catalog, a signed-in perk; without this a guest
         // waits on "Reading the cards…" forever.
         <>
-          <SignInPerk message="Arrange reads the cards from the full card catalog. Create a free account to use it." />
+          <SignInPerk surface="arrange_sheet" message="Arrange reads the cards from the full card catalog. Create a free account to use it." />
           <Btn text="Close" onPress={onClose} />
         </>
       ) : !candidates || !cand ? (

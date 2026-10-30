@@ -224,7 +224,7 @@ export function BuildBinderSheet({
             </View>
 
             {guestGated ? (
-              <SignInPerk message="Building from your collection reads the full card catalog. Create a free account to use it." />
+              <SignInPerk surface="build_sheet" message="Building from your collection reads the full card catalog. Create a free account to use it." />
             ) : !plan ? (
               <View style={styles.center}>
                 <LogoLoader label="Reading your collection…" />
@@ -332,7 +332,7 @@ export function BuildBinderSheet({
 
                 {atBinderLimit ? (
                   store.tier === 'guest' ? (
-                    <SignInPerk message={binderLimitMessage(store.tier, store.limits)} />
+                    <SignInPerk surface="binder_cap" message={binderLimitMessage(store.tier, store.limits)} />
                   ) : (
                     <CapGateOffer
                       message={binderLimitMessage(store.tier, store.limits)}

@@ -94,7 +94,7 @@ export function CapGateDialog({
   return (
     <DialogCard visible title={<WallTitle text={wall.title} />} onClose={() => onDismiss('close')} maxWidth={420}>
       {wall.isGuest ? (
-        <SignInPerk message={wall.message} />
+        <SignInPerk surface="cap_gate" message={wall.message} />
       ) : (
         <CapGateOffer
           message={wall.message}

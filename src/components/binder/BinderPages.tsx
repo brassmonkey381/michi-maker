@@ -1633,7 +1633,8 @@ export function BinderPages({
           </View>
         </View>
       ) : null}
-      <GestureDetector gesture={swipe}>
+      {/* WEB: let the page scroll vertically under a finger; the swipe only wants the horizontal. */}
+      <GestureDetector gesture={swipe} touchAction="pan-y">
       <View
         ref={pageWrapRef}
         style={[styles.pageWrap, railLeft && styles.pageWrapRailed]}

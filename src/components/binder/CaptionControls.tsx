@@ -72,7 +72,7 @@ export function CaptionFieldRow({
   if (!enabled) return null;
   if (guestGated) {
     return (
-      <SignInPerk message="Card labels read live card data. Create a free account to see set, rarity, price and more under each card." />
+      <SignInPerk surface="card_labels" message="Card labels read live card data. Create a free account to see set, rarity, price and more under each card." />
     );
   }
   return (

@@ -1176,6 +1176,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           <View style={styles.capNote}>
             {guest ? (
               <SignInPerk
+                surface="slice_studio"
                 message={`You’re keeping ${trayCount} of ${trayLimit} guest artworks. Create a free account to keep up to ${TIER_LIMITS.free.artUploads}.`}
               />
             ) : (

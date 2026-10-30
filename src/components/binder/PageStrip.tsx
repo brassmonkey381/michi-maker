@@ -175,7 +175,11 @@ function PageThumb({ page, pageStyle, index, count, current, onSelect, onReorder
   }));
 
   return (
-    <GestureDetector gesture={gesture}>
+    // WEB: the detector sets touch-action none on its view, which stops the browser's own pan
+    // scrolling from starting on a thumb, so the dock resisted a finger and snapped back (owner,
+    // 2026-10-29, phone). Let the strip's axis pan natively; the tap and the long-press lift
+    // still arrive.
+    <GestureDetector gesture={gesture} touchAction={vertical ? 'pan-y' : 'pan-x'}>
       {/* testID becomes data-testid on web: scripts/export-instagram.mjs turns pages by clicking these. */}
       <Animated.View
         testID={`binder-strip-page-${index + 1}`}

@@ -344,7 +344,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // account.created for the OAuth signup / guest-upgrade path. This also fires for a RETURNING
       // OAuth user (we can't distinguish fresh vs returning here); the studio treats min(ts) of
       // account.created as the signup moment, so the extra rows are harmless.
-      track('account.created', { via: link ? 'guest_upgrade' : 'oauth' });
+      track('account.created', { via: link ? 'guest_upgrade' : 'oauth', provider });
 
       // On web the call above navigates the page to the provider; nothing more to do here.
       if (Platform.OS === 'web' || !data?.url) return OK;

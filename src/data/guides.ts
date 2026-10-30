@@ -116,7 +116,7 @@ export const GUIDE_LIST: Guide[] = [
         body: 'A fill only writes into empty pockets, so nothing you placed moves. It is one step, so one Undo reverses the whole fill and you can try another method.',
       },
     ],
-    tip: 'Turn on From my collection and every method draws only from cards you own. PRO adds Pages around this card: every method at once, and you keep the ones you like.',
+    tip: 'Turn on From my collection and every method draws only from cards you own.',
     relatedSlugs: ['slice-studio', 'print-binder'],
   },
   {

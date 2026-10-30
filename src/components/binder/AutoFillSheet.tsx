@@ -61,7 +61,6 @@ export function AutoFillSheet({
   page,
   onClose,
   onPlaced,
-  onComposeAll,
   onSimilarLocked,
   returnTo,
 }: {
@@ -87,7 +86,6 @@ export function AutoFillSheet({
   const { taste } = useBinders();
   const hasFindSimilar = tierFindSimilar || taste.active('findSimilar');
   // VIP's upgraded composer (tiers.ts multiPageCompose). Free/PRO see the sell instead.
-  const vipCompose = limits.multiPageCompose && !!onComposeAll;
   // EN/JP bound, shared with the browse surfaces (persisted, account-synced). Passed INTO the
   // composer's ranking RPCs (p_lang) + local scans, so a fill honours the chosen printing language.
   const [languages, setLanguages] = useLanguagePref();
@@ -343,36 +341,9 @@ export function AutoFillSheet({
                   </View>
                 ) : null}
 
-                {/* VIP: run every method at once and choose between finished pages, instead of
-                    committing to one method against the page you are standing on. */}
-                {methods.length > 1 && enrichedSeed ? (
-                  vipCompose ? (
-                    <Pressable
-                      onPress={() => onComposeAll?.(enrichedSeed, poolActive ? ownedIds : null)}
-                      disabled={busy !== null}
-                      style={({ pressed }) => [styles.allBtn, pressed && styles.pressed]}>
-                      <View style={styles.methodText}>
-                        <View style={styles.methodTitleRow}>
-                          <ThemedText type="smallBold" style={styles.allTitle}>
-                            Pages around this card
-                          </ThemedText>
-                          <View style={styles.vipPill}>
-                            <Text style={styles.proPillText}>PRO</Text>
-                          </View>
-                        </View>
-                        <ThemedText type="small" style={styles.allSub}>
-                          Build all {methods.length} as separate pages, then keep the ones you like.
-                        </ThemedText>
-                      </View>
-                    </Pressable>
-                  ) : (
-                    <UpgradePerk
-                      message={`PRO builds all ${methods.length} of these as finished pages at once, so you can pick between them instead of choosing blind.`}
-                      onBeforePress={onClose}
-                    />
-                  )
-                ) : null}
-
+                {/* "Pages around this card" and its PRO note were here. Deprecated (owner,
+                    2026-10-29: "no one will use that for now"); ComposeAllSheet stays in the
+                    tree, unreached, until the day it is wanted back. */}
                 <SimilarityModelPicker compact />
 
                 {emptyCount === 0 ? (

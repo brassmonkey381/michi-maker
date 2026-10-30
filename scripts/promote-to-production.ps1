@@ -111,5 +111,19 @@ if ($LASTEXITCODE -ne 0) {
   Fail 'vercel --prod failed' $LASTEXITCODE
 }
 
+# THE DEPLOY LINE (analytics-studio, 2026-10-29): one deploy.live event with the commit, written
+# the moment the deploy returned, so a before/after funnel cuts on the real time and not on the
+# commit's. Best effort: the deploy is done by now, and a missed line is a warning, not a failure.
+$secrets = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'tcgscan.secrets'
+if (Test-Path $secrets) {
+  foreach ($line in Get-Content $secrets) {
+    if ($line -match '^\s*SUPABASE_ACCESS_TOKEN\s*=\s*(.+)\s*$') { $env:SUPABASE_ACCESS_TOKEN = $Matches[1].Trim() }
+  }
+  & node (Join-Path $PSScriptRoot 'record-deploy.mjs') $head
+  if ($LASTEXITCODE -ne 0) { Write-Host 'WARNING: the deploy.live line was not written (the deploy itself is done).' }
+} else {
+  Write-Host 'WARNING: tcgscan.secrets not found; no deploy.live line written.'
+}
+
 Write-Host ''
 Write-Host "DONE: https://michi-maker.com is deploying $($head.Substring(0,7))."

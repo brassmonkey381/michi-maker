@@ -3534,7 +3534,11 @@ export function BinderScreen({
                 left: Math.max(Spacing.three, Math.min(completeRect.x - 120, width - 340)),
               },
             ]}>
-            <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
+            <WalkthroughBanner
+              copy={walkthrough.copy}
+              onDismiss={walkthrough.dismiss}
+              onPress={walkthrough.step === 'filled' ? () => setWalkthroughAuthOpen(true) : undefined}
+            />
           </View>
         ) : null}
         {/* STEPS ONE AND THREE float over the binder rather than in the browser, because both name
@@ -3551,11 +3555,7 @@ export function BinderScreen({
                 left: Math.max(Spacing.three, Math.min(ringRect.x - 40, width - 340)),
               },
             ]}>
-            <WalkthroughBanner
-              copy={walkthrough.copy}
-              onDismiss={walkthrough.dismiss}
-              onPress={walkthrough.step === 'filled' ? () => setWalkthroughAuthOpen(true) : undefined}
-            />
+            <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
           </View>
         ) : null}
         <AuthSheet visible={walkthroughAuthOpen} onClose={() => setWalkthroughAuthOpen(false)} />

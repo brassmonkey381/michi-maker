@@ -51,19 +51,34 @@ export function WalkthroughBanner({
       }}>
       {/* Above the card when it points up, so card and arrow read as one object either way. */}
       {pointsDown ? null : <Text style={[styles.arrow, styles.arrowUp]}>▲</Text>}
-      <Pressable
-        style={({ pressed }) => [styles.card, onPress && pressed && styles.pressed]}
-        onPress={onPress}
-        disabled={!onPress}
-        accessibilityRole={onPress ? 'button' : undefined}
-        accessibilityLabel={onPress ? copy.title : undefined}>
+      {/* THE CARD IS A VIEW and the BUTTON IS INSIDE IT, beside the cross: a button cannot hold
+          another button (the HTML rule React enforces with a console warning), so the pressable
+          part is the pill, the title and the sentence, and the dismiss stays a sibling. */}
+      <View style={styles.card}>
         <View style={styles.head}>
-          <View style={styles.step}>
-            <Text style={styles.stepText}>
-              {copy.index} of {copy.total ?? WALKTHROUGH_TOTAL}
+          <Pressable
+            style={({ pressed }) => [styles.pressArea, onPress && pressed && styles.pressed]}
+            onPress={onPress}
+            disabled={!onPress}
+            accessibilityRole={onPress ? 'button' : undefined}
+            accessibilityLabel={onPress ? copy.title : undefined}>
+            <View style={styles.step}>
+              <Text style={styles.stepText}>
+                {copy.index} of {copy.total ?? WALKTHROUGH_TOTAL}
+              </Text>
+            </View>
+            <Text style={styles.title}>
+              {/* The highlighted phrase leads the title in the accent colour; the rest stays plain. */}
+              {copy.highlight && copy.title.startsWith(copy.highlight) ? (
+                <>
+                  <Text style={styles.highlight}>{copy.highlight}</Text>
+                  {copy.title.slice(copy.highlight.length)}
+                </>
+              ) : (
+                copy.title
+              )}
             </Text>
-          </View>
-          <Text style={styles.title}>{copy.title}</Text>
+          </Pressable>
           <Pressable
             onPress={onDismiss}
             hitSlop={12}
@@ -74,8 +89,12 @@ export function WalkthroughBanner({
             <Text style={styles.closeGlyph}>✕</Text>
           </Pressable>
         </View>
-        {narrow ? null : <Text style={styles.body}>{copy.body}</Text>}
-      </Pressable>
+        {narrow ? null : (
+          <Text style={styles.body} onPress={onPress}>
+            {copy.body}
+          </Text>
+        )}
+      </View>
       {pointsDown && !narrow ? <Text style={[styles.arrow, styles.arrowDown]}>▼</Text> : null}
     </View>
   );
@@ -94,6 +113,7 @@ const styles = StyleSheet.create({
     ...Shadows.page,
   },
   head: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  pressArea: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   step: {
     paddingHorizontal: Spacing.two,
     paddingVertical: 2,
@@ -110,4 +130,5 @@ const styles = StyleSheet.create({
   arrowDown: { marginTop: -2 },
   arrowUp: { marginBottom: -2 },
   pressed: { opacity: 0.6 },
+  highlight: { color: Palette.accent, fontWeight: Weight.bold },
 });

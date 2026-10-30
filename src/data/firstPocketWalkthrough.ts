@@ -166,6 +166,8 @@ export interface WalkthroughCopy {
   body: string;
   /** Where the arrow on the callout points, toward the control the body names. */
   arrow: 'down' | 'up';
+  /** A phrase of the title drawn in the accent colour (owner, 2026-10-30: "bold / highlight CREATE AN ACCOUNT"). */
+  highlight?: string;
 }
 
 export const WALKTHROUGH_TOTAL = 3;
@@ -232,6 +234,7 @@ export const SEEDED_COPY = {
     index: 2,
     total: SEEDED_TOTAL,
     title: 'Create an account to save your binder and keep working',
+    highlight: 'Create an account',
     body: 'It is free, and this page comes with you.',
     arrow: 'up',
   },

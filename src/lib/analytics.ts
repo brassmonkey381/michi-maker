@@ -103,7 +103,10 @@ async function getDeviceId(): Promise<string | null> {
  * is the narrow campaign-code carve-out — general referrer capture stays deferred
  * (config/events.json → gaps.referrer in the studio).
  */
-const CAMPAIGN_PARAMS = ['code', 'utm_source', 'utm_medium', 'utm_campaign'] as const;
+// utm_content (the subreddit) and utm_term (the ad name) added 2026-10-30 for the Reddit lane: audience and
+// creative stop being one question. Free text, capped at 64 chars below like the rest; the code shape
+// check stays on `code` only.
+const CAMPAIGN_PARAMS = ['code', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
 /**
  * What a campaign code looks like: our own short labels (oakland_cardshow, rd_lidi_image). Anything
  * else on `?code=` is NOT ours - the OAuth provider returns to `/auth-callback?code=<uuid>` and that

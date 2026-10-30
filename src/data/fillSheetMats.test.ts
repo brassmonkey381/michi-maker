@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { DemoBinder, DemoSlot } from './binderTypes.ts';
+import { ART_FULL_RECT, ART_WINDOW } from './artView.ts';
 import { type CardMeta, collectFillTiles, describeDownload, describeFiles, type MatTile } from './placeholderPdf.ts';
 
 const META: Record<string, CardMeta> = {
@@ -30,7 +31,7 @@ test('mats are off unless asked for, and print nothing for a page in the card vi
   assert.equal(counts.matColor, 'black');
   assert.equal(counts.cards, 3, 'the placeholders still print for every pocket');
   const mats = tiles.filter((t): t is MatTile => t.kind === 'mat');
-  assert.deepEqual(mats.map((m) => [m.page, m.row, m.col, m.cut, m.color]), [[1, 1, 1, 'window', 'black'], [1, 1, 2, 'window', 'black']]);
+  assert.deepEqual(mats.map((m) => [m.page, m.row, m.col, m.cut, m.color]), [[1, 1, 1, ART_WINDOW, 'black'], [1, 1, 2, ART_WINDOW, 'black']]);
   assert.equal(mats[0].name, 'Wartortle');
   assert.equal(mats[0].sub, 'No. 008 · Water · Stage 1');
   assert.equal(mats[0].dex, '008');
@@ -53,8 +54,8 @@ test('a connected page is cut as the sheet is: inside the border when every card
   const full = binder([{ id: 'p1', rows: 3, cols: 3, artView: 'connected', slots: [slot('full', 0, 0), slot('full2', 0, 1)] }]);
   const mixed = binder([{ id: 'p1', rows: 3, cols: 3, artView: 'connected', slots: [slot('full', 0, 0), slot('w1', 0, 1)] }]);
   const cutsOf = (b: DemoBinder) => collectFillTiles(b, cards, undefined, 'black').tiles.filter((t): t is MatTile => t.kind === 'mat').map((m) => m.cut);
-  assert.deepEqual(cutsOf(full), ['full', 'full']);
-  assert.deepEqual(cutsOf(mixed), ['window', 'window']);
+  assert.deepEqual(cutsOf(full), [ART_FULL_RECT, ART_FULL_RECT]);
+  assert.deepEqual(cutsOf(mixed), [ART_WINDOW, ART_WINDOW]);
 });
 
 test('mats pack nine a sheet in their own file and count toward the total', () => {

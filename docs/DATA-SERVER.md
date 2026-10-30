@@ -29,11 +29,14 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
 
 ## Pending items this session may pick up
 
-00. **Art frames: a frame class per card and a rectangle per class (2026-10-29).** The whole
-   brief is `docs/ART-FRAMES-HANDOFF.md`: `cards_en.frame` in the catalog bundle plus a
-   `frames.json` beside it, measured in tcgscan-data-science (Pokémon first, ~30 classes;
-   Magic from Scryfall's frame fields; the rest from `card_type`). michi's art views cut every
-   card with one uniform window today and the other games have none.
+00. **Art frames: a frame class per card and a rectangle per class (2026-10-29). Pokémon LIVE
+   2026-10-30.** The brief is `docs/ART-FRAMES-HANDOFF.md`. The data server ships
+   `CatalogCard.frame` (26,773 Pokémon cards, kit 0.9.37+) and a public `browse/frames.json`
+   (133 classes). michi reads both: `lib/frames.ts` loads the table once, `data/artView.ts`
+   `cardFrame` / `connectedCut` cut each card to its own class with the single window as the
+   fallback. Still to come from data-science: Magic (Scryfall frame fields), Yu-Gi-Oh!, One Piece,
+   Lorcana, Digimon, Riftbound, Cyberpunk; michi needs no change for them, and Set Binders can
+   show the art window for a game once its cards carry a class.
 
 0. **Two handoffs from michi's Arrange and Complete page work (2026-10-22).** (a) Ship
    `cards_en.full_art` (the boolean the theme toolbar's Full art filter uses) in the browse

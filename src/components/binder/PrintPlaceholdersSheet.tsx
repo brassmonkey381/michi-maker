@@ -40,6 +40,8 @@ import {
 import { PrintCapExceededError, recordPrintEvent, type RecordedPrint } from '@/data/printRepo';
 import { ANNUAL_POOL, BINDER_PDF_LOOKUP_KEY, BINDER_PDF_PRICE, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useFrames } from '@/hooks/use-frames';
+import { getFrames } from '@/lib/frames';
 import { loadOtherGameCatalog, otherGameCard, otherGameCatalogFor, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { track, trackProOfferDeclined } from '@/lib/analytics';
 import { usePrintAllowance } from '@/hooks/use-print-allowance';
@@ -210,6 +212,8 @@ export function PrintPlaceholdersSheet({
    * have to be taken again when it lands.
    */
   const otherVersion = useSyncExternalStore(subscribeOtherGame, otherGameVersion, otherGameVersion);
+  // The frame table (lib/frames): a mat's hole is the card's own frame. Only fetched once mats are on.
+  const frames = useFrames(!!mats);
   const cardMeta = useMemo(
     () => (catalog ? { version: otherVersion, getCard: (id: string) => catalog.getCard(id) ?? otherGameCard(id, true) } : null),
     [catalog, otherVersion],
@@ -226,8 +230,8 @@ export function PrintPlaceholdersSheet({
     [catalog],
   );
   const collected = useMemo(
-    () => (cardMeta ? collectFillTiles(binder, cardMeta, effectiveOwned, mats) : null),
-    [binder, cardMeta, effectiveOwned, mats],
+    () => (cardMeta ? collectFillTiles(binder, cardMeta, effectiveOwned, mats, frames) : null),
+    [binder, cardMeta, effectiveOwned, mats, frames],
   );
   const counts = collected?.counts ?? null;
   const sheets = counts?.sheets ?? 0;
@@ -261,6 +265,7 @@ export function PrintPlaceholdersSheet({
       const files = await buildFillSheetPdfs(binder, cardMeta ?? catalog, {
         ownedIds: effectiveOwned,
         mats,
+        frames: frames ?? getFrames(),
         // Art pixels: direct CORS fetch → art-proxy edge fn fallback → webp/canvas convert.
         loadImage: createWebArtLoader(),
       });
@@ -375,6 +380,7 @@ export function PrintPlaceholdersSheet({
         const files = await buildFillSheetPdfs(source, cardMeta ?? catalog, {
           ownedIds: effectiveOwned,
           mats,
+          frames: frames ?? getFrames(),
           loadImage: createWebArtLoader(),
         });
         if (files.length === 0) throw new Error('This purchased version has nothing to print.');

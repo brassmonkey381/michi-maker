@@ -41,9 +41,10 @@ import {
   PUZZLE_BACKDROP_FALLBACK, canReveal, revealCountdownText, revealPuzzleAnswer, revealedAnswer, todaysPuzzle,
   type DailyPuzzle, type GuessResult,
 } from '@/data/dailyPuzzle';
-import { ART_FULL_GAP_OVER_W, ART_VIEWS, connectedCellAspect, connectedCut, isFullArtCard, type ArtView } from '@/data/artView';
+import { ART_VIEWS, cardFrame, connectedCut, type ArtView } from '@/data/artView';
 import { resolveCatalogCardWith } from '@/data/cardResolver';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useFrames } from '@/hooks/use-frames';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import {
   trackPuzzleGuess, trackPuzzleGuessFailed, trackPuzzleOpened, trackPuzzleRevealed, trackPuzzleSolved,
@@ -86,6 +87,7 @@ export default function DailyScreen() {
   // read card metadata, so choosing one is what loads the catalogue.
   const [artView, setArtView] = useState<ArtView | 'card'>('card');
   const { catalog } = useCatalog(artView !== 'card');
+  const frames = useFrames(artView !== 'card');
   /** A burst for every right word, a bigger one for the last (owner, 2026-10-22). */
   const [confetti, setConfetti] = useState<ConfettiPiece[] | null>(null);
   /**
@@ -254,11 +256,11 @@ export default function DailyScreen() {
   );
   const remaining = puzzle ? puzzle.themeCount - found.length : 0;
   const puzzleCards = puzzle ? puzzle.cardIds.map((id) => resolveCatalogCardWith(catalog, id)) : [];
-  const cut = connectedCut(puzzleCards);
+  const cut = connectedCut(puzzleCards, frames);
   const connected = artView === 'connected';
   // Between the cards: the pocket gap, nothing on a connected sheet, or the silver bands a sheet
   // of full arts lost (artView.ts ART_FULL_GAP_OVER_W), so the art meets as it was drawn to.
-  const sheetGap = connected ? (cut === 'full' ? cell * ART_FULL_GAP_OVER_W : 0) : Spacing.two;
+  const sheetGap = connected ? cell * cut.gapOverW : Spacing.two;
   // RED OR GREEN (owner, 2026-10-22): the last verdict colours the box and the line under it, so
   // a right word reads as right without reading. The tint lifts as soon as they type again.
   const verdict = last && !typed ? (last.result.hit ? 'yes' : 'no') : null;
@@ -348,12 +350,12 @@ export default function DailyScreen() {
                       accessibilityLabel="Look closer at this card"
                     >
                       {connected ? (
-                        <View style={{ width: cell, height: cell * connectedCellAspect(cut) }}>
+                        <View style={{ width: cell, height: cell * cut.aspect }}>
                           <ArtWindow cut={cut} renderImage={renderImage} />
                         </View>
-                      ) : artView === 'window' && !isFullArtCard(card) ? (
+                      ) : artView === 'window' && cardFrame(card, frames).kind !== 'full' ? (
                         <View style={[styles.card, { width: cell, height: cell * 1.396 }]}>
-                          <StockCard card={card} radius={Radius.control} small={cell < 170} renderImage={renderImage} />
+                          <StockCard card={card} frame={cardFrame(card, frames)} radius={Radius.control} small={cell < 170} renderImage={renderImage} />
                         </View>
                       ) : (
                         <Image

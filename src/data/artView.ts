@@ -19,7 +19,9 @@
  *              ART_FULL_GAP_OVER_W); any other page cuts every card to the window, full art
  *              included.
  *
- * ONE WINDOW FOR EVERY ERA. The crop is a single rectangle in fractions of the card, measured on
+ * ONE WINDOW FOR EVERY ERA was the first cut (2026-10-24); since 2026-10-30 a card's own FRAME CLASS
+ * (cardFrame, frames.json from the data server) says where its art is, and the single window below
+ * is the fallback for a card with no class. The crop was a single rectangle in fractions of the card, measured on
  * thirteen scans from EX-era promos to Mega Evolution: the inner edge of the art sits at x 6.9–8.6%
  * and 91.7–93.3%, y 8.9–10.3% and 46.2–50%, and this is the intersection. It trims up to two
  * percent of art from the widest windows and never shows frame, and one window is what makes the
@@ -91,26 +93,87 @@ export const POCKET_ART_VIEWS: { id: PocketArtView | 'inherit'; label: string; b
   { id: 'window', label: 'Art window', blurb: 'The illustration on a plain stock card with the name, set and number.' },
 ];
 
-/** The art window as fractions of the card: left, top, right, bottom. */
-export const ART_WINDOW = { x0: 0.086, y0: 0.103, x1: 0.917, y1: 0.462 } as const;
+/** A rectangle in fractions of the card image: left, top, right, bottom. */
+export interface Rect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/**
+ * THE FRAME CLASSES (docs/ART-FRAMES-HANDOFF.md; data-science measured, tcgscan-data publishes).
+ * Every card the pipeline has classified carries `CatalogCard.frame`, a class id such as
+ * `pk-sv-pokemon`, and `frames.json` beside the catalogue maps each class to its rectangle:
+ *
+ *   window  the art inside a printed frame: cut to the frame's inner edge
+ *   bleed   the art runs to the card edge and on behind the attack text (V, VMAX, GX, EX, ex):
+ *           cut at the weakness bar, where the art ends (owner, 2026-10-29)
+ *   full    the art is the whole card inside a border: cut inside the border
+ *
+ * Rectangles are in the card's printed orientation. The one landscape class (pk-break) never
+ * joins a portrait sheet. 133 classes on 2026-10-30, Pokémon only; ART_WINDOW below stays the
+ * fallback for a card with no class, so nothing breaks while the table fills.
+ */
+export type FrameKind = 'window' | 'bleed' | 'full';
+
+/** What the cut needs to know about a card: its class, and the full-art flag and kind behind it. */
+export type ArtCardLike = Partial<Pick<CatalogCard, 'fullArt' | 'fullArtKind'>> & { frame?: string };
+
+export interface FrameClass extends Rect {
+  kind: FrameKind;
+  orientation: 'portrait' | 'landscape';
+}
+
+export type FrameTable = Readonly<Record<string, FrameClass>>;
+
+const frac = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
+
+/** frames.json as fetched, kept only where every field is sane: a bad row falls back, never throws. */
+export function normalizeFrames(raw: unknown): FrameTable {
+  const out: Record<string, FrameClass> = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== 'object') continue;
+    const f = v as Record<string, unknown>;
+    const kind = f.kind === 'window' || f.kind === 'bleed' || f.kind === 'full' ? f.kind : null;
+    const orientation = f.orientation === 'landscape' ? 'landscape' : f.orientation === 'portrait' ? 'portrait' : null;
+    if (!kind || !orientation) continue;
+    if (!frac(f.x0) || !frac(f.y0) || !frac(f.x1) || !frac(f.y1) || f.x1 <= f.x0 || f.y1 <= f.y0) continue;
+    out[id] = { kind, orientation, x0: f.x0, y0: f.y0, x1: f.x1, y1: f.y1 };
+  }
+  return out;
+}
+
+/** The art window as fractions of the card: left, top, right, bottom. The fallback for a card with no class. */
+export const ART_WINDOW: Rect = { x0: 0.086, y0: 0.103, x1: 0.917, y1: 0.462 };
 
 /** Card box aspect, height over width. The same 88/63 as binderLayout, kept here so this stays pure. */
 const CARD_H_OVER_W = 88 / 63;
 
+/** A rectangle's height over its width, on the card's own proportions. */
+export function rectAspect(r: Rect): number {
+  return ((r.y1 - r.y0) * CARD_H_OVER_W) / (r.x1 - r.x0);
+}
+
 /** The window's height over its width, on the card's own proportions. */
-export const ART_WINDOW_H_OVER_W =
-  ((ART_WINDOW.y1 - ART_WINDOW.y0) * CARD_H_OVER_W) / (ART_WINDOW.x1 - ART_WINDOW.x0);
+export const ART_WINDOW_H_OVER_W = rectAspect(ART_WINDOW);
 
 /**
- * Where to draw the whole card picture so that its window fills a box `boxW` wide: the picture's
- * size, and its offset from the box's top-left (negative, since the window is inside it). The
+ * Where to draw the whole card picture so that `rect` fills a box `boxW` wide: the picture's
+ * size, and its offset from the box's top-left (negative, since the rectangle is inside it). The
  * renderer clips to the box. One place for the arithmetic, so a stock card and a connected cell
- * cut the same window.
+ * cut the same way. The picture keeps the card's proportions: no rescaling in one direction only.
  */
-export function windowPlacement(boxW: number): { width: number; height: number; left: number; top: number } {
-  const width = boxW / (ART_WINDOW.x1 - ART_WINDOW.x0);
+export function placement(boxW: number, rect: Rect): { width: number; height: number; left: number; top: number } {
+  const width = boxW / (rect.x1 - rect.x0);
   const height = width * CARD_H_OVER_W;
-  return { width, height, left: -ART_WINDOW.x0 * width, top: -ART_WINDOW.y0 * height };
+  return { width, height, left: -rect.x0 * width, top: -rect.y0 * height };
+}
+
+/** placement() for the art window, or for a card's own rectangle when it has one. */
+export function windowPlacement(boxW: number, rect: Rect = ART_WINDOW): { width: number; height: number; left: number; top: number } {
+  return placement(boxW, rect);
 }
 
 /**
@@ -118,10 +181,13 @@ export function windowPlacement(boxW: number): { width: number; height: number; 
  * Measured on all 34 Saboteri promo scans: the band's median is 4.1% on the left, 3.6% on the
  * right (the scans sit a little to one side) and 2.7% top and bottom, and the cut is half a
  * percent inside that, because the scans vary by a pixel or two and a hairline of band at a seam
- * reads as a crack through the picture (owner, 2026-10-24: "slightly off"). The same cut on every
- * full-art card, as with the window.
+ * reads as a crack through the picture (owner, 2026-10-24: "slightly off"). The fallback for a
+ * full-art card with no class (pk-full and its set splits carry their own measured border).
  */
 export const ART_FULL_TRIM = { left: 0.047, right: 0.042, top: 0.033, bottom: 0.033 } as const;
+
+/** The same border as a rectangle. */
+export const ART_FULL_RECT: Rect = { x0: ART_FULL_TRIM.left, y0: ART_FULL_TRIM.top, x1: 1 - ART_FULL_TRIM.right, y1: 1 - ART_FULL_TRIM.bottom };
 
 /**
  * THE ART CONTINUES ACROSS THE BANDS (owner, 2026-10-24: "maybe they are meant to connect with
@@ -133,44 +199,98 @@ export const ART_FULL_TRIM = { left: 0.047, right: 0.042, top: 0.033, bottom: 0.
  * Vertically the bands are a hair narrower; the same gap is used and the difference is under a
  * pixel at any pocket size.
  */
-export const ART_FULL_GAP_OVER_W = (ART_FULL_TRIM.left + ART_FULL_TRIM.right) / (1 - ART_FULL_TRIM.left - ART_FULL_TRIM.right);
+export function bandGapOverW(r: Rect): number {
+  return (r.x0 + (1 - r.x1)) / (r.x1 - r.x0);
+}
+export const ART_FULL_GAP_OVER_W = bandGapOverW(ART_FULL_RECT);
 
 /** The trimmed full-art card's height over its width. */
-export const ART_FULL_H_OVER_W =
-  ((1 - ART_FULL_TRIM.top - ART_FULL_TRIM.bottom) * CARD_H_OVER_W) / (1 - ART_FULL_TRIM.left - ART_FULL_TRIM.right);
+export const ART_FULL_H_OVER_W = rectAspect(ART_FULL_RECT);
 
 /** As windowPlacement, for the art inside a full-art card's border. */
 export function fullArtPlacement(boxW: number): { width: number; height: number; left: number; top: number } {
-  const width = boxW / (1 - ART_FULL_TRIM.left - ART_FULL_TRIM.right);
-  const height = width * CARD_H_OVER_W;
-  return { width, height, left: -ART_FULL_TRIM.left * width, top: -ART_FULL_TRIM.top * height };
+  return placement(boxW, ART_FULL_RECT);
 }
 
-/** How a connected sheet cuts its cards: the art window, or the whole art of a full-art card. */
-export type ConnectedCut = 'window' | 'full';
+/**
+ * A CARD'S OWN CUT: its frame class when the table knows it, else the measured full-art border
+ * when the catalogue calls it full art, else the art window. `kind` is what the stock card reads:
+ * a `full` card has no window to cut and is shown whole; a `window` or `bleed` card is cut and
+ * set on the stock card. A landscape class comes back as it is; callers that lay portrait cells
+ * (the connected sheet) check `orientation` and leave it out.
+ */
+export function cardFrame(
+  card: ArtCardLike | undefined,
+  frames: FrameTable | null | undefined,
+): FrameClass {
+  const own = card?.frame && frames ? frames[card.frame] : undefined;
+  if (own) return own;
+  if (isFullArtCard(card)) return { kind: 'full', orientation: 'portrait', ...ART_FULL_RECT };
+  return { kind: 'window', orientation: 'portrait', ...ART_WINDOW };
+}
 
 /**
- * The cut a connected page uses, from the cards on it: 'full' when every card the catalogue knows
- * is full art, otherwise the window. A page the catalogue has not resolved yet (or an empty page)
- * is the window, so the sheet never jumps from full to window as the catalogue loads a page of
- * windowed cards; it jumps the other way at most once.
+ * HOW A SHEET CUTS ITS CARDS: one rectangle for every cell, its aspect, and the gap between cells
+ * as a share of the cell's width (the bands a full-art sheet lost, nothing otherwise). The same
+ * object drives the grid, the puzzle, and the printed mats, so they cannot disagree.
  */
-export function connectedCut(cards: (Pick<CatalogCard, 'fullArt' | 'fullArtKind'> | undefined)[]): ConnectedCut {
-  const known = cards.filter((c): c is NonNullable<typeof c> => !!c);
-  return known.length > 0 && known.every(isFullArtCard) ? 'full' : 'window';
+export interface SheetCut {
+  kind: FrameKind;
+  rect: Rect;
+  aspect: number;
+  gapOverW: number;
+}
+
+export function cutFor(rect: Rect, kind: FrameKind): SheetCut {
+  return { kind, rect, aspect: rectAspect(rect), gapOverW: kind === 'full' ? bandGapOverW(rect) : 0 };
+}
+
+/** The two cuts every page could make before the frame table: the fallback window and the Saboteri border. */
+export const WINDOW_CUT: SheetCut = cutFor(ART_WINDOW, 'window');
+export const FULL_CUT: SheetCut = cutFor(ART_FULL_RECT, 'full');
+
+/** The largest rectangle inside all of them. */
+export function intersect(rects: readonly Rect[]): Rect {
+  // Always a plain rectangle, never one of the inputs (a FrameClass carries more keys than a Rect).
+  return rects.reduce<Rect>((a, r) => ({ x0: Math.max(a.x0, r.x0), y0: Math.max(a.y0, r.y0), x1: Math.min(a.x1, r.x1), y1: Math.min(a.y1, r.y1) }), { x0: 0, y0: 0, x1: 1, y1: 1 });
+}
+
+/**
+ * The cut a connected page uses, from the cards on it (docs/ART-FRAMES-HANDOFF.md "Connected art
+ * with different windows"). Every known portrait card contributes its own rectangle (cardFrame):
+ * one class on the page, the common case for cards drawn to connect, cuts its exact rectangle;
+ * mixed classes cut to the intersection, which on a mixed Pokémon page trims under 3 percent of
+ * art and never shows frame. The sheet is `full` (spaced by the bands) only when every card is;
+ * a mix of full and windowed cards is cut to the windows, where the art of the full card is.
+ * Landscape classes are left out of the sum. A page the catalogue has not resolved yet, or an
+ * empty page, is the fallback window, so the sheet never jumps from full to window as the
+ * catalogue loads a page of windowed cards; it jumps the other way at most once.
+ */
+export function connectedCut(
+  cards: (ArtCardLike | undefined)[],
+  frames?: FrameTable | null,
+): SheetCut {
+  const known = cards
+    .filter((c): c is NonNullable<typeof c> => !!c)
+    .map((c) => cardFrame(c, frames))
+    .filter((f) => f.orientation === 'portrait');
+  if (known.length === 0) return WINDOW_CUT;
+  const rect = intersect(known);
+  if (known.every((f) => f.kind === 'full')) return cutFor(rect, 'full');
+  return cutFor(rect, known.every((f) => f.kind === 'bleed') ? 'bleed' : 'window');
 }
 
 /** The cell's height over its width for a cut. */
-export function connectedCellAspect(cut: ConnectedCut): number {
-  return cut === 'full' ? ART_FULL_H_OVER_W : ART_WINDOW_H_OVER_W;
+export function connectedCellAspect(cut: SheetCut): number {
+  return cut.aspect;
 }
 
 /**
  * A card with no window to cut. The catalogue's own flag first (the Full art filter's), then the
  * pipeline's kind for cards the flag has not assessed, exactly as the arranger reads it
- * (arrange.ts artClassOf).
+ * (arrange.ts artClassOf). cardFrame() consults the frame table first and this second.
  */
-export function isFullArtCard(card: Pick<CatalogCard, 'fullArt' | 'fullArtKind'> | undefined): boolean {
+export function isFullArtCard(card: ArtCardLike | undefined): boolean {
   if (!card) return false;
   if (card.fullArt === true) return true;
   return /^(special_illustration_rare|illustration_rare|named_full_art|measured|double_rare)$/.test(card.fullArtKind ?? '');

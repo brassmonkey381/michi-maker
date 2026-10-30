@@ -197,3 +197,13 @@ Where the result differs from the plan above:
   quarter turn). `pk-legend` is `full`, portrait, as the scans store the halves.
 - **Flags:** 3,144 to review (2 percent or more off, or more than one side off) and 2,853 minor
   (one side, 1 to 2 percent: the scan's own crop varying by a few pixels).
+
+## Status: michi consumes the table (2026-10-30)
+
+`src/lib/frames.ts` fetches `frames.json` once from the browse bucket; `src/hooks/use-frames.ts`
+hands it to React. `src/data/artView.ts`: `cardFrame(card, frames)` is a card's own cut (its
+class, else the measured full-art border when the catalogue flags full art, else `ART_WINDOW`);
+`connectedCut(cards, frames)` returns a `SheetCut` (rect, aspect, gap) that is exact for one class,
+the intersection for several, `full` only when every card is, and leaves landscape classes out.
+The stock card, the connected sheet, the daily puzzle and the printed mats all go through it.
+Guests have no catalogue, so their art views still use the fallback window.

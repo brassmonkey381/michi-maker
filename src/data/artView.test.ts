@@ -8,13 +8,21 @@ import {
   ART_VIEWS,
   ART_WINDOW,
   ART_WINDOW_H_OVER_W,
+  cardFrame,
   connectedCellAspect,
   connectedCut,
+  FULL_CUT,
   fullArtPlacement,
+  intersect,
   isFullArtCard,
   normalizeArtView,
+  normalizeFrames,
+  placement,
+  rectAspect,
   stockCardText,
+  WINDOW_CUT,
   windowPlacement,
+  type FrameTable,
 } from './artView.ts';
 
 test('the column is read as a view or nothing', () => {
@@ -93,15 +101,81 @@ test('the full-art cut takes the border and keeps the card proportions', () => {
   assert.ok(Math.abs(box * (1 + ART_FULL_GAP_OVER_W) - p.width) < 1e-9);
 });
 
-test('a connected page cuts whole only when every card it knows is full art', () => {
+test('without a frame table a connected page cuts whole only when every card it knows is full art', () => {
   const full = { fullArt: true, fullArtKind: 'scene_tagged' };
   const windowed = { fullArt: false, fullArtKind: '' };
-  assert.equal(connectedCut([full, full, undefined]), 'full');
-  assert.equal(connectedCut([full, windowed]), 'window');
-  assert.equal(connectedCut([undefined, undefined]), 'window');
-  assert.equal(connectedCut([]), 'window');
-  assert.equal(connectedCellAspect('full'), ART_FULL_H_OVER_W);
-  assert.equal(connectedCellAspect('window'), ART_WINDOW_H_OVER_W);
+  assert.deepEqual(connectedCut([full, full, undefined]), FULL_CUT);
+  assert.deepEqual(connectedCut([full, windowed]), WINDOW_CUT, 'a windowed card on the page: the windows, where the full card\'s art also is');
+  assert.deepEqual(connectedCut([undefined, undefined]), WINDOW_CUT);
+  assert.deepEqual(connectedCut([]), WINDOW_CUT);
+  assert.equal(connectedCellAspect(FULL_CUT), ART_FULL_H_OVER_W);
+  assert.equal(connectedCellAspect(WINDOW_CUT), ART_WINDOW_H_OVER_W);
+  assert.ok(Math.abs(FULL_CUT.gapOverW - ART_FULL_GAP_OVER_W) < 1e-12);
+  assert.equal(WINDOW_CUT.gapOverW, 0, 'only a full-art sheet keeps the bands\' space');
+});
+
+// The shape of frames.json (docs/ART-FRAMES-HANDOFF.md), with the kinds the table has.
+const FRAMES: FrameTable = normalizeFrames({
+  'pk-sv-pokemon': { kind: 'window', orientation: 'portrait', x0: 0.069, y0: 0.09, x1: 0.931, y1: 0.48 },
+  'pk-sv-trainer': { kind: 'window', orientation: 'portrait', x0: 0.069, y0: 0.09, x1: 0.931, y1: 0.43 },
+  'pk-sv-ex': { kind: 'bleed', orientation: 'portrait', x0: 0, y0: 0, x1: 1, y1: 0.89 },
+  'pk-full': { kind: 'full', orientation: 'portrait', x0: 0.047, y0: 0.033, x1: 0.958, y1: 0.967 },
+  'pk-break': { kind: 'full', orientation: 'landscape', x0: 0.056, y0: 0.033, x1: 0.945, y1: 0.964 },
+  'bad-kind': { kind: 'oval', orientation: 'portrait', x0: 0, y0: 0, x1: 1, y1: 1 },
+  'bad-rect': { kind: 'window', orientation: 'portrait', x0: 0.5, y0: 0, x1: 0.4, y1: 1 },
+  'bad-range': { kind: 'window', orientation: 'portrait', x0: -1, y0: 0, x1: 2, y1: 1 },
+  'bad-row': 7,
+});
+
+test('frames.json is kept only where every field is sane', () => {
+  assert.deepEqual(Object.keys(FRAMES).sort(), ['pk-break', 'pk-full', 'pk-sv-ex', 'pk-sv-pokemon', 'pk-sv-trainer']);
+  assert.deepEqual(normalizeFrames(null), {});
+  assert.deepEqual(normalizeFrames('nope'), {});
+  assert.equal(FRAMES['pk-sv-ex'].kind, 'bleed');
+});
+
+test('a card cuts to its own class, else the measured border when full art, else the window', () => {
+  assert.deepEqual(cardFrame({ frame: 'pk-sv-trainer' }, FRAMES), FRAMES['pk-sv-trainer']);
+  assert.deepEqual(cardFrame({ frame: 'pk-sv-ex', fullArt: true }, FRAMES), FRAMES['pk-sv-ex'], 'the class wins over the flag');
+  assert.equal(cardFrame({ frame: 'pk-none', fullArt: true }, FRAMES).kind, 'full', 'an unknown class falls back to the flag');
+  assert.deepEqual(cardFrame({ frame: 'pk-sv-pokemon' }, null), { kind: 'window', orientation: 'portrait', ...ART_WINDOW }, 'no table yet: the window');
+  assert.deepEqual(cardFrame(undefined, FRAMES), { kind: 'window', orientation: 'portrait', ...ART_WINDOW });
+  assert.equal(cardFrame({ frame: 'pk-break' }, FRAMES).orientation, 'landscape');
+});
+
+test('a connected sheet cuts one class exactly, several to their intersection, and leaves landscape out', () => {
+  const pokemon = { frame: 'pk-sv-pokemon' };
+  const trainer = { frame: 'pk-sv-trainer' };
+  const one = connectedCut([pokemon, pokemon, undefined], FRAMES);
+  assert.deepEqual(one.rect, { x0: 0.069, y0: 0.09, x1: 0.931, y1: 0.48 });
+  assert.equal(one.kind, 'window');
+  assert.equal(one.gapOverW, 0);
+  const mixed = connectedCut([pokemon, trainer], FRAMES);
+  assert.deepEqual(mixed.rect, { x0: 0.069, y0: 0.09, x1: 0.931, y1: 0.43 }, 'the shorter window, so no text box shows');
+  assert.ok(Math.abs(mixed.aspect - rectAspect(mixed.rect)) < 1e-12);
+  const bleed = connectedCut([{ frame: 'pk-sv-ex' }, { frame: 'pk-sv-ex' }], FRAMES);
+  assert.equal(bleed.kind, 'bleed');
+  assert.equal(bleed.rect.y1, 0.89, 'cut at the weakness bar, where the art ends');
+  const fulls = connectedCut([{ frame: 'pk-full' }, { frame: 'pk-full' }], FRAMES);
+  assert.equal(fulls.kind, 'full');
+  assert.ok(fulls.gapOverW > 0.09 && fulls.gapOverW < 0.1, 'spaced by the bands the class measured');
+  const withBleed = connectedCut([{ frame: 'pk-full' }, { frame: 'pk-sv-ex' }], FRAMES);
+  assert.equal(withBleed.kind, 'window', 'a full and a bleed card: not a full sheet');
+  assert.equal(withBleed.rect.y1, 0.89);
+  assert.deepEqual(connectedCut([{ frame: 'pk-break' }, pokemon], FRAMES).rect, one.rect, 'the landscape card does not shape the sheet');
+  assert.deepEqual(connectedCut([{ frame: 'pk-break' }], FRAMES), WINDOW_CUT, 'a page of only landscape cards falls back');
+  assert.deepEqual(intersect([{ x0: 0, y0: 0.1, x1: 0.9, y1: 1 }, { x0: 0.1, y0: 0, x1: 1, y1: 0.9 }]), { x0: 0.1, y0: 0.1, x1: 0.9, y1: 0.9 });
+});
+
+test('placement puts any rectangle exactly over the box and keeps the card proportions', () => {
+  const r = FRAMES['pk-sv-ex'];
+  const p = placement(300, r);
+  assert.ok(Math.abs(p.left + r.x0 * p.width) < 1e-9);
+  assert.ok(Math.abs(p.left + r.x1 * p.width - 300) < 1e-9);
+  assert.ok(Math.abs(p.top + r.y0 * p.height) < 1e-9);
+  assert.ok(Math.abs(p.top + r.y1 * p.height - 300 * rectAspect(r)) < 1e-9);
+  assert.ok(Math.abs(p.height / p.width - 88 / 63) < 1e-9);
+  assert.deepEqual(windowPlacement(300), placement(300, ART_WINDOW));
 });
 
 test('the art view resolves pocket over page over binder, and a stored card is the full card said out loud', async () => {

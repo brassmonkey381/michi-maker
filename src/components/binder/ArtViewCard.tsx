@@ -8,7 +8,7 @@ import { useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Fonts, Weight } from '@/constants/theme';
-import { ART_WINDOW_H_OVER_W, fullArtPlacement, stockCardText, windowPlacement, type ConnectedCut } from '@/data/artView';
+import { ART_WINDOW, cutFor, placement, rectAspect, stockCardText, WINDOW_CUT, type FrameClass, type SheetCut } from '@/data/artView';
 import type { CatalogCard } from '@/lib/catalog';
 
 /** Draws the whole card picture, cover-fit, filling whatever box it is given. */
@@ -18,11 +18,12 @@ export type RenderCardImage = () => ReactNode;
  * A card's ART WINDOW filling its box: the whole scan is drawn larger than the box and offset so
  * the window lands exactly on it, and the box clips the rest (windowPlacement). The scan keeps
  * its own proportions, so nothing is rescaled in one direction only. Measured from the box, so
- * it follows the pocket. With `cut="full"` the box gets the art inside a full-art card's border.
+ * it follows the pocket. `cut` says which rectangle of the card lands on the box (artView.ts
+ * SheetCut): the page's cut on a connected sheet, the card's own frame on a stock card.
  */
-export function ArtWindow({ renderImage, radius = 0, cut = 'window' }: { renderImage: RenderCardImage; radius?: number; cut?: ConnectedCut }) {
+export function ArtWindow({ renderImage, radius = 0, cut = WINDOW_CUT }: { renderImage: RenderCardImage; radius?: number; cut?: SheetCut }) {
   const [boxW, setBoxW] = useState(0);
-  const place = boxW > 0 ? (cut === 'full' ? fullArtPlacement(boxW) : windowPlacement(boxW)) : null;
+  const place = boxW > 0 ? placement(boxW, cut.rect) : null;
   return (
     <View onLayout={(e) => setBoxW(e.nativeEvent.layout.width)} style={[styles.fill, { overflow: 'hidden', borderRadius: radius, backgroundColor: '#000' }]}>
       {place ? (
@@ -36,15 +37,19 @@ export function ArtWindow({ renderImage, radius = 0, cut = 'window' }: { renderI
  * THE STOCK CARD (owner, 2026-10-24): the art window at the full width of a plain black card, no
  * rescaling, and under it the name, a type and stage line, and the card's references in a ruled
  * table. The window keeps its measured height, so the text block takes what is left; on a small
- * pocket only the name fits, and the rest is left off rather than shrunk to dust.
+ * pocket only the name fits, and the rest is left off rather than shrunk to dust. `frame` is the
+ * card's own class (artView.ts cardFrame): a V's bleed cut is taller than a window and takes the
+ * room from the table, which is the right trade; the art is what the view is for.
  */
-export function StockCard({ card, radius, small, renderImage }: { card: CatalogCard | undefined; radius: number; small: boolean; renderImage: RenderCardImage }) {
+export function StockCard({ card, radius, small, renderImage, frame }: { card: CatalogCard | undefined; radius: number; small: boolean; renderImage: RenderCardImage; frame?: FrameClass }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
+  const rect = frame ?? ART_WINDOW;
+  const cut = cutFor(rect, frame?.kind ?? 'window');
   const text = stockCardText(card, '');
   // The card's own margins: 7% of its width each side, as the mock-up had them.
   const margin = Math.round(box.w * 0.07);
   const windowW = Math.max(0, box.w - margin * 2);
-  const windowH = windowW * ART_WINDOW_H_OVER_W;
+  const windowH = windowW * rectAspect(rect);
   // Type follows the pocket: at a 300px card the name is 27px and a table row is 12.5px.
   const unit = box.w / 300;
   const nameSize = Math.max(8, 27 * unit);
@@ -62,7 +67,7 @@ export function StockCard({ card, radius, small, renderImage }: { card: CatalogC
       {box.w > 0 ? (
         <>
           <View style={{ position: 'absolute', left: margin, top: margin, width: windowW, height: windowH }}>
-            <ArtWindow renderImage={renderImage} />
+            <ArtWindow renderImage={renderImage} cut={cut} />
           </View>
           {text.dex ? (
             // The dex number, large and a shade above the card's black, in the bottom corner as the

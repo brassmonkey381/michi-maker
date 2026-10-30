@@ -34,7 +34,8 @@ import {
 import { AboutHoverCard } from '@/components/binder/AboutPopup';
 import { ArtWindow, StockCard } from '@/components/binder/ArtViewCard';
 import { cellWidthFor, gapFor } from '@/data/binderLayout';
-import { ART_FULL_GAP_OVER_W, connectedCellAspect, connectedCut, isFullArtCard, resolveArtView, type ArtView, type ConnectedCut } from '@/data/artView';
+import { cardFrame, connectedCut, resolveArtView, WINDOW_CUT, type ArtView, type FrameTable, type SheetCut } from '@/data/artView';
+import { useFrames } from '@/hooks/use-frames';
 import { insideEdgePairStarts } from '@/data/binderPhysics';
 import { cutBoundaries } from '@/data/printFit';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -408,7 +409,11 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // THE PAGE'S VIEW: its own, else the binder's (artView.ts resolveArtView). A pocket may still
   // say otherwise below, unless the page is connected, which is the sheet's shape.
   const pageView = resolveArtView(page.artView, pageStyle?.artView);
-  const { catalog } = useCatalog(captionOn || !!pageView || page.slots.some((s) => s.artView === 'window'));
+  const artSomewhere = !!pageView || page.slots.some((s) => s.artView === 'window');
+  const { catalog } = useCatalog(captionOn || artSomewhere);
+  // The frame table (lib/frames): where each card's art is, so an art view cuts the card's own
+  // frame and not one window for every era. Fetched once, only when a page shows art.
+  const frames = useFrames(artSomewhere);
   // The price caption reads from a separate per-card summary (~2.7MB) — load it only when the
   // Price label is actually turned on, so a plain binder view never pulls it.
   const priceOn = captionFields.includes('price');
@@ -453,23 +458,24 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
    * is centred on the page (sheetTop below) and the page keeps its height.
    */
   const connected = pageView === 'connected';
-  // The sheet's cut (artView.ts connectedCut): the art inside the border when every card is full art.
-  const cut: ConnectedCut = connected
-    ? connectedCut(page.slots.map((s) => (s.type === 'card' ? resolveCatalogCardWith(catalog, s.cardId) : undefined)))
-    : 'window';
+  // The sheet's cut (artView.ts connectedCut): the cards' own frames, exact for one class and the
+  // intersection for several; the art inside the border, spaced by it, when every card is full art.
+  const cut: SheetCut = connected
+    ? connectedCut(page.slots.map((s) => (s.type === 'card' ? resolveCatalogCardWith(catalog, s.cardId) : undefined)), frames)
+    : WINDOW_CUT;
   const captionH = captionOn && !connected ? (small ? 30 : 34) : 0;
 
   const innerW = width - pad * 2 - frame * 2;
   // THE GAP FOLLOWS THE POCKET (binderLayout POCKET_GAP_RATIO), the same share the Slice Studio
   // cut the pieces with, so a picture across several pockets meets itself at every gap.
-  // A FULL-ART SHEET KEEPS THE BAND'S SPACE (artView.ts ART_FULL_GAP_OVER_W): the cells are the
+  // A FULL-ART SHEET KEEPS THE BAND'S SPACE (artView.ts SheetCut.gapOverW): the cells are the
   // arts and the gap is the two silver bands they lost, in the page's colour, so the sheet is
   // exactly a page of whole cards butted together, which is how the art was drawn to meet.
-  const full = connected && cut === 'full';
+  const full = connected && cut.kind === 'full';
   const fullW = innerW / page.cols;
-  const cellW = full ? fullW / (1 + ART_FULL_GAP_OVER_W) : cellWidthFor(innerW, page.cols);
-  const gap = full ? cellW * ART_FULL_GAP_OVER_W : connected ? 0 : gapFor(cellW);
-  const cellH = cellW * (connected ? connectedCellAspect(cut) : CARD_ASPECT);
+  const cellW = full ? fullW / (1 + cut.gapOverW) : cellWidthFor(innerW, page.cols);
+  const gap = full ? cellW * cut.gapOverW : connected ? 0 : gapFor(cellW);
+  const cellH = cellW * (connected ? cut.aspect : CARD_ASPECT);
   // How much the emphasised labels (price / owned / finish) grow at this pocket size.
   const chipScale = emphasisScale(cellW);
   const label = labelColors(theme);
@@ -803,6 +809,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               label={label}
               artView={connected ? 'connected' : resolveArtView(slot.artView, page.artView, pageStyle?.artView)}
               cut={cut}
+              frames={frames}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             chipScale={chipScale}
             onLabel={onLabel}
@@ -1015,6 +1022,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               label={label}
               artView={connected ? 'connected' : resolveArtView(dragged.artView, page.artView, pageStyle?.artView)}
               cut={cut}
+              frames={frames}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
             chipScale={chipScale}
             />
@@ -1707,12 +1715,15 @@ function SlotContent({
   label,
   onLabel,
   artView,
-  cut = 'window',
+  cut = WINDOW_CUT,
+  frames = null,
 }: {
   /** The page shows its cards as their artwork (artView.ts): a stock card, or windows edge to edge. */
   artView?: ArtView;
   /** On a connected page, how the sheet cuts its cards (artView.ts connectedCut). */
-  cut?: ConnectedCut;
+  cut?: SheetCut;
+  /** The frame table (lib/frames), so a stock card cuts the card's own frame. Null before it loads. */
+  frames?: FrameTable | null;
   /** The colour of the band round a card: the page's background, or the sleeve. See ringPad. */
   ring?: string;
   /** How wide that band is: 4% of the pocket. */
@@ -1872,11 +1883,13 @@ function SlotContent({
     );
   }
   const catalogCard = artView === 'window' ? resolveCatalogCardWith(catalog, id) : undefined;
-  if (artView === 'window' && !isFullArtCard(catalogCard)) {
+  const frame = artView === 'window' ? cardFrame(catalogCard, frames) : undefined;
+  if (artView === 'window' && frame && frame.kind !== 'full') {
     return (
       <View style={[styles.fill, { borderRadius: radius, padding: ringPad, backgroundColor: sleeveColor ?? ring ?? 'transparent' }]}>
         <StockCard
           card={catalogCard}
+          frame={frame}
           radius={Math.max(0, radius - ringPad)}
           small={small}
           renderImage={() => <CardImage key={id} id={id} radius={0} small={false} contentFit="cover" scanUri={scanUri} instant={instantImages} />}

@@ -72,7 +72,7 @@ import {
 } from 'pdf-lib';
 
 // Relative, not '@/': this module is exercised by node --test (fillSheetPacking.test.ts).
-import { ART_FULL_TRIM, ART_WINDOW, connectedCut, isFullArtCard, resolveArtView, stockCardText } from './artView.ts';
+import { cardFrame, connectedCut, resolveArtView, stockCardText, type FrameTable, type Rect } from './artView.ts';
 import { insideEdgePairStarts, pageSide } from './binderPhysics.ts';
 import { cutPieces } from './printFit.ts';
 import type { DemoBinder, DemoSlot, ImageTransform } from '@/data/binderTypes';
@@ -260,8 +260,8 @@ export interface MatTile {
   rows: { label: string; value: string }[];
   /** The dex number for the faint watermark in the corner, '' when unknown. */
   dex: string;
-  /** The hole: the art window, or the art inside a full-art card's border (artView.ts). */
-  cut: 'window' | 'full';
+  /** The hole, in card fractions: the card's own frame, or the sheet's cut on a connected page (artView.ts). */
+  cut: Rect;
   color: MatColor;
 }
 
@@ -337,6 +337,8 @@ export interface CardMeta {
   releaseDate?: string;
   fullArt?: boolean;
   fullArtKind?: string;
+  /** The frame class (artView.ts cardFrame), when the catalogue has one. */
+  frame?: string;
 }
 
 /** Card metadata lookup the builder needs — satisfied by the kit catalog's `getCard`. */
@@ -357,7 +359,7 @@ function matText(m: CardMeta): Pick<MatTile, 'name' | 'sub' | 'rows' | 'dex'> {
     releaseDate: m.releaseDate ?? '',
   });
 }
-const fullArtOf = (m: CardMeta | undefined) => (m ? { fullArt: m.fullArt, fullArtKind: m.fullArtKind ?? '' } : undefined);
+const fullArtOf = (m: CardMeta | undefined) => (m ? { fullArt: m.fullArt, fullArtKind: m.fullArtKind ?? '', frame: m.frame } : undefined);
 
 const transformKey = (t?: ImageTransform) => (t ? `${t.rot}|${t.flipH ? 1 : 0}|${t.flipV ? 1 : 0}` : '0|0|0');
 
@@ -513,6 +515,8 @@ export function collectFillTiles(
   ownedIds?: ReadonlySet<string>,
   /** Print the art-view pages' cards as mats of this colour (see the header). Off when absent. */
   mats?: MatColor,
+  /** The frame table (lib/frames), so a mat's hole is the card's own frame. */
+  frames?: FrameTable | null,
 ): { tiles: FillTile[]; counts: FillCounts } {
   const tiles: FillTile[] = [];
   binder.pages.forEach((page, pageIndex) => {
@@ -578,10 +582,12 @@ export function collectFillTiles(
       : [];
     if (pockets.length) {
       const metas = pockets.map((s) => cards.getCard(s.cardId!));
-      const cut = pageView === 'connected' ? connectedCut(metas.map(fullArtOf)) : 'window';
+      const sheet = pageView === 'connected' ? connectedCut(metas.map(fullArtOf), frames).rect : null;
       pockets.forEach((slot, i) => {
         const m = metas[i];
-        if (pageView !== 'connected' && isFullArtCard(fullArtOf(m))) return;
+        const own = cardFrame(fullArtOf(m), frames);
+        if (!sheet && own.kind === 'full') return;
+        const cut: Rect = sheet ?? { x0: own.x0, y0: own.y0, x1: own.x1, y1: own.y1 };
         tiles.push({
           kind: 'mat', page: pageIndex + 1, row: slot.row + 1, col: slot.col + 1,
           ...(m ? matText(m) : { name: 'Unknown card', sub: '', rows: [], dex: '' }),
@@ -793,10 +799,12 @@ export async function buildFillSheetPdfs(
     preview?: boolean;
     /** Print the art-view pages' cards as mats of this colour, in their own file (see the header). */
     mats?: MatColor;
+    /** The frame table (lib/frames) for the mats' holes. */
+    frames?: FrameTable | null;
   },
 ): Promise<FillSheetPdf[]> {
   const title = sanitize(binder.title);
-  const { tiles, counts } = collectFillTiles(binder, cards, opts?.ownedIds, opts?.mats);
+  const { tiles, counts } = collectFillTiles(binder, cards, opts?.ownedIds, opts?.mats, opts?.frames);
   const plain = tiles.filter((t) => t.kind !== 'art' && t.kind !== 'mat');
   const art = tiles.filter((t) => t.kind === 'art');
   const matTiles = tiles.filter((t) => t.kind === 'mat');
@@ -1118,9 +1126,7 @@ function drawMatTile(page: PDFPage, tile: MatTile, x: number, y: number, bold: P
   if (dark) {
     page.drawRectangle({ x: x + ART_INSET, y: y + ART_INSET, width: CARD_W - ART_INSET * 2, height: CARD_H - ART_INSET * 2, color: MAT_BLACK });
   }
-  const t = tile.cut === 'full'
-    ? { x0: ART_FULL_TRIM.left, x1: 1 - ART_FULL_TRIM.right, y0: ART_FULL_TRIM.top, y1: 1 - ART_FULL_TRIM.bottom }
-    : ART_WINDOW;
+  const t = tile.cut;
   const hx = x + t.x0 * CARD_W;
   const hw = (t.x1 - t.x0) * CARD_W;
   const hh = (t.y1 - t.y0) * CARD_H;

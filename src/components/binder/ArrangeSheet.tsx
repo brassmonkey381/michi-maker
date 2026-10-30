@@ -38,7 +38,7 @@
  * later from what the owner actually chooses.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { getColorIndex, loadColorIndex } from 'tcgscan-browse';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
@@ -93,6 +93,8 @@ export function ArrangeSheet({
   /** The store write: the moves and any template art gaps, applied as one commit by the screen. */
   onApply: (what: string, moves: ArrangeMove[], art: { pageId: string; slot: DemoSlot }[]) => void;
 }) {
+  // Read at the top: hooks before any early return.
+  const narrow = useWindowDimensions().width < 500;
   const { catalog, guestGated } = useCatalog(visible);
   const canSpread = !!facing && facing.page.rows === page.rows && facing.page.cols === page.cols;
   const [wantSpread, setWantSpread] = useState(false);
@@ -267,10 +269,13 @@ export function ArrangeSheet({
     const sig = (c: Candidate) => c.placements.map((pl) => `${pl.cardId}@${cellKey(pl.cell)}`).sort().join('|');
     const avoid = new Set(candidates.map(sig));
     const next = seed + 1;
-    const fresh = arrangeShuffle({ ...arranged.input, seed: next, avoid }).map((c, i) => ({ ...c, name: `Shuffle ${seed * 3 + i + 1}` }));
-    setShuffled({ key: baseKey, seed: next, takes: [...(extra ? extra.takes : []), ...fresh] });
-    // The new takes are appended, so the first of them sits where the list ends now.
-    setSel({ key: candKey, i: fresh.length ? candidates.length : index });
+    const fresh = arrangeShuffle({ ...arranged.input, seed: next, avoid }).map((c, i) => ({ ...c, name: `Shuffle ${i + 1}` }));
+    // THREE AT A TIME, REPLACED (owner, 2026-10-29: the list had grown to "72 of 74"). The last
+    // shuffle's takes make way for the fresh ones; `avoid` still keeps a fresh take from repeating
+    // anything on screen. The first fresh take sits right after the base takes.
+    const baseCount = candidates.length - (extra ? extra.takes.length : 0);
+    setShuffled({ key: baseKey, seed: next, takes: fresh });
+    setSel({ key: candKey, i: fresh.length ? baseCount : index });
     track('arrange_shuffle', { press: next, spread, fresh: fresh.length });
   };
 
@@ -364,8 +369,11 @@ export function ArrangeSheet({
     ? `Read as a ${mix.dominant === 'full' ? 'full-art' : 'windowed'} page: ${mix.dominant === 'full' ? mix.windowed : mix.full} card${(mix.dominant === 'full' ? mix.windowed : mix.full) === 1 ? ' looks' : 's look'} ${mix.dominant === 'full' ? 'windowed' : 'full art'} to the catalogue.`
     : '';
   const isNow = !cand || cand.mode === 'current';
+  // ON A PHONE (owner, 2026-10-29): the one-row bar squeezed its middle to a column of single
+  // words. Three short rows instead: the take and the arrows, its chips, then the buttons; the
+  // long helper sentence stays on wide screens.
   return (
-    <ThemedView type="backgroundElement" style={styles.bar} accessibilityRole="toolbar" accessibilityLabel="Arrange this page">
+    <ThemedView type="backgroundElement" style={[styles.bar, narrow && styles.barNarrow]} accessibilityRole="toolbar" accessibilityLabel="Arrange this page">
       {pockets.length < 2 ? (
         <>
           <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
@@ -389,6 +397,44 @@ export function ArrangeSheet({
           <Btn text="Cancel" onPress={onClose} />
         </>
       ) : (
+        narrow ? (
+          <>
+            <View style={styles.narrowRow}>
+              <Btn text="‹" label="Previous take" onPress={() => step(-1)} />
+              <View style={styles.narrowMiddle}>
+                <ThemedText type="smallBold" numberOfLines={1} style={styles.title}>
+                  {isNow ? 'As it is now' : cand.name}
+                </ThemedText>
+                <Text style={styles.count}>{`${index + 1} of ${candidates.length}`}</Text>
+              </View>
+              <Btn text="›" label="Next take" onPress={() => step(1)} />
+            </View>
+            {!isNow && cand.reason ? (
+              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1} style={styles.reason}>
+                {cand.reason}
+              </ThemedText>
+            ) : null}
+            {!isNow && (cand.artCells > reserved.size || cand.held.length || cand.open.length || cand.ask) ? (
+              <View style={styles.chips}>
+                {cand.artCells > reserved.size ? <Chip text={`${cand.artCells - reserved.size} more for art`} /> : null}
+                {cand.held.length ? <Chip text={`${cand.held.length} to the tray`} /> : null}
+                {cand.open.length ? <Chip text={`${cand.open.length} open`} /> : null}
+                {cand.ask ? <Chip accent text={askText(cand)} /> : null}
+              </View>
+            ) : null}
+            <View style={styles.narrowRow}>
+              {canSpread ? (
+                <View style={styles.seg} accessibilityRole="radiogroup" accessibilityLabel="Arrange the page or the whole spread">
+                  <SegBtn text="Page" on={!spread} onPress={() => setWantSpread(false)} />
+                  <SegBtn text="Spread" on={spread} onPress={() => setWantSpread(true)} />
+                </View>
+              ) : null}
+              <Btn text="Shuffle" label="Three fresh takes" onPress={shuffleMore} testID="arrange-shuffle" />
+              <Btn text="Keep" primary disabled={isNow} label="Keep this arrangement (Enter)" onPress={() => apply(cand, index)} />
+              <Btn text="Cancel" label="Cancel, put the page back (Esc)" onPress={onClose} />
+            </View>
+          </>
+        ) : (
         <>
           <Btn text="‹" label="Previous take" onPress={() => step(-1)} />
           <View style={styles.middle}>
@@ -421,6 +467,7 @@ export function ArrangeSheet({
           <Btn text="Keep" primary disabled={isNow} label="Keep this arrangement (Enter)" onPress={() => apply(cand, index)} />
           <Btn text="Cancel" label="Cancel, put the page back (Esc)" onPress={onClose} />
         </>
+        )
       )}
     </ThemedView>
   );
@@ -487,6 +534,9 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   middle: { flex: 1, minWidth: 0, gap: 2 },
+  barNarrow: { flexDirection: 'column', alignItems: 'stretch', gap: 6 },
+  narrowRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two, flexWrap: 'wrap' },
+  narrowMiddle: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: Spacing.two },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two },
   // READABLE AT A GLANCE (owner, 2026-10-22: "some of the text is too small"): the bar sits over
   // the page and is read while comparing takes, so nothing on it goes below the label size.

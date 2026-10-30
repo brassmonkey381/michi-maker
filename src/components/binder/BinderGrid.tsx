@@ -1176,6 +1176,7 @@ function SlotToolbar({
   const left = Math.max(0, Math.min(centerX - size.w / 2, innerW - size.w));
   const aboveTop = slotTop - size.h - 8;
   const top = aboveTop < 0 ? slotTop + 8 : aboveTop;
+  const narrow = innerW < 500;
 
   return (
     <View
@@ -1187,36 +1188,67 @@ function SlotToolbar({
       // actions ran off the right edge, Move and Remove with it. Capped at the page's width it
       // folds onto a second line, and `top` already moves up to make room.
       style={[styles.slotToolbar, hint && styles.slotToolbarHint, { left, top, maxWidth: innerW, flexWrap: 'wrap', justifyContent: 'center', opacity: size.w ? 1 : 0 }]}>
-      {twoFaces && more ? (
-        <ToolButton label="‹" onPress={() => setMore(false)} accessibilityLabel="Back to the main actions" />
+      {narrow ? (
+        // ON A PHONE (owner, 2026-10-29): the three verbs people reach for, then More. Everything
+        // else, Remove included, sits one tap behind it, so the bar covers one row of the page
+        // instead of three. Same words, same text size, tighter padding.
+        more ? (
+          <>
+            <ToolButton compact label="‹" onPress={() => setMore(false)} accessibilityLabel="Back to the main actions" />
+            {onColors ? <ToolButton compact label="Colors" onPress={onColors} /> : null}
+            {onMove ? <ToolButton compact label="Move" onPress={onMove} /> : null}
+            {onToTray ? <ToolButton compact label="Tray" onPress={onToTray} accessibilityLabel="Send this card to the tray" /> : null}
+            <ToolButton compact label="Duplicate" onPress={onDuplicate} />
+            {onPickCopy ? <ToolButton compact label={hasCopy ? 'My card ✓' : 'My card'} onPress={onPickCopy} /> : null}
+            {onStyle ? <ToolButton compact label={slot.type === 'artwork' ? 'Backing' : 'Sleeve'} onPress={onStyle} /> : null}
+            {onSplit ? <ToolButton compact label="Split" onPress={onSplit} /> : null}
+            <View style={styles.toolDivider} />
+            <ToolButton compact label="Remove" tone="danger" onPress={onRemove} />
+          </>
+        ) : (
+          <>
+            <ToolButton compact label="Replace" onPress={onReplace} />
+            {onEditArt ? <ToolButton compact label="Edit" onPress={onEditArt} accessibilityLabel="Edit this picture: zoom, rotate, flip, cut" /> : null}
+            {onAutoFill ? <ToolButton compact label="✨ Fill page" onPress={onAutoFill} /> : null}
+            {onSimilar ? <ToolButton compact label="Similar" onPress={onSimilar} /> : null}
+            <ToolButton compact label="More ⋯" onPress={() => setMore(true)} accessibilityLabel="More actions: colors, move, tray, duplicate, my card, sleeve, remove" />
+            <ToolButton compact label="✕" onPress={onDeselect} accessibilityLabel="Clear selection" />
+          </>
+        )
       ) : (
-        <ToolButton label="Replace" onPress={onReplace} />
+        <>
+        {twoFaces && more ? (
+          <ToolButton label="‹" onPress={() => setMore(false)} accessibilityLabel="Back to the main actions" />
+        ) : (
+          <ToolButton label="Replace" onPress={onReplace} />
+        )}
+        {onEditArt && !more ? <ToolButton label="Edit" onPress={onEditArt} accessibilityLabel="Edit this picture: zoom, rotate, flip, cut" /> : null}
+        {!twoFaces || more ? <ToolButton label="Duplicate" onPress={onDuplicate} /> : null}
+        {/* "✨ Fill page" is what this feature is called EVERYWHERE else — the sheet's title, the
+            guide that tells you to look for it here, the tier limits, the sign-in perk. The button
+            said "Fill", so the one place you act on it was the one place it went by another name. */}
+        {onAutoFill && !more ? <ToolButton label="✨ Fill page" onPress={onAutoFill} /> : null}
+        {onSimilar && !more ? <ToolButton label="Similar" onPress={onSimilar} /> : null}
+        {onColors && !more ? <ToolButton label="Colors" onPress={onColors} /> : null}
+        {onMove && !more ? <ToolButton label="Move" onPress={onMove} /> : null}
+        {onToTray && !more ? <ToolButton label="Tray" onPress={onToTray} accessibilityLabel="Send this card to the tray" /> : null}
+        {/* Whose card is in this pocket - a tick when it is one of the owner's, so the answer is
+            visible without opening anything. The ✓ is state, not decoration, which is the line this
+            row draws: a glyph earns its place by saying something the word does not. */}
+        {onPickCopy && (!twoFaces || more) ? (
+          <ToolButton label={hasCopy ? 'My card ✓' : 'My card'} onPress={onPickCopy} />
+        ) : null}
+        {onStyle && (!twoFaces || more) ? <ToolButton label={slot.type === 'artwork' ? 'Backing' : 'Sleeve'} onPress={onStyle} /> : null}
+        {onSplit ? <ToolButton label="Split" onPress={onSplit} /> : null}
+        {twoFaces && !more ? <ToolButton label="More ⋯" onPress={() => setMore(true)} accessibilityLabel="More actions: duplicate, my card, sleeve" /> : null}
+        {/* Everything left of this line changes the pocket; everything right of it ends something.
+            Remove sat flush against Duplicate in a row of six with 2px between them — one slip on a
+            crowded toolbar and the card is gone rather than copied. */}
+        <View style={styles.toolDivider} />
+        <ToolButton label="Remove" tone="danger" onPress={onRemove} />
+        <ToolButton label="✕" onPress={onDeselect} accessibilityLabel="Clear selection" />
+        </>
       )}
-      {onEditArt && !more ? <ToolButton label="Edit" onPress={onEditArt} accessibilityLabel="Edit this picture: zoom, rotate, flip, cut" /> : null}
-      {!twoFaces || more ? <ToolButton label="Duplicate" onPress={onDuplicate} /> : null}
-      {/* "✨ Fill page" is what this feature is called EVERYWHERE else — the sheet's title, the
-          guide that tells you to look for it here, the tier limits, the sign-in perk. The button
-          said "Fill", so the one place you act on it was the one place it went by another name. */}
-      {onAutoFill && !more ? <ToolButton label="✨ Fill page" onPress={onAutoFill} /> : null}
-      {onSimilar && !more ? <ToolButton label="Similar" onPress={onSimilar} /> : null}
-      {onColors && !more ? <ToolButton label="Colors" onPress={onColors} /> : null}
-      {onMove && !more ? <ToolButton label="Move" onPress={onMove} /> : null}
-      {onToTray && !more ? <ToolButton label="Tray" onPress={onToTray} accessibilityLabel="Send this card to the tray" /> : null}
-      {/* Whose card is in this pocket - a tick when it is one of the owner's, so the answer is
-          visible without opening anything. The ✓ is state, not decoration, which is the line this
-          row draws: a glyph earns its place by saying something the word does not. */}
-      {onPickCopy && (!twoFaces || more) ? (
-        <ToolButton label={hasCopy ? 'My card ✓' : 'My card'} onPress={onPickCopy} />
-      ) : null}
-      {onStyle && (!twoFaces || more) ? <ToolButton label={slot.type === 'artwork' ? 'Backing' : 'Sleeve'} onPress={onStyle} /> : null}
-      {onSplit ? <ToolButton label="Split" onPress={onSplit} /> : null}
-      {twoFaces && !more ? <ToolButton label="More ⋯" onPress={() => setMore(true)} accessibilityLabel="More actions: duplicate, my card, sleeve" /> : null}
-      {/* Everything left of this line changes the pocket; everything right of it ends something.
-          Remove sat flush against Duplicate in a row of six with 2px between them — one slip on a
-          crowded toolbar and the card is gone rather than copied. */}
-      <View style={styles.toolDivider} />
-      <ToolButton label="Remove" tone="danger" onPress={onRemove} />
-      <ToolButton label="✕" onPress={onDeselect} accessibilityLabel="Clear selection" />
     </View>
   );
 }
@@ -1226,10 +1258,13 @@ function ToolButton({
   onPress,
   tone = 'default',
   accessibilityLabel,
+  compact,
 }: {
   label: string;
   onPress?: () => void;
   tone?: 'default' | 'danger';
+  /** Tighter padding for the phone's one-row bar; the text size is the same. */
+  compact?: boolean;
   /** For the one button whose label is a glyph — "✕" announces as nothing useful. */
   accessibilityLabel?: string;
 }) {
@@ -1239,7 +1274,7 @@ function ToolButton({
       hitSlop={6}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      style={({ pressed }) => [styles.toolBtn, pressed && styles.dimmed]}>
+      style={({ pressed }) => [styles.toolBtn, compact && styles.toolBtnCompact, pressed && styles.dimmed]}>
       <Text style={[styles.toolBtnText, tone === 'danger' && styles.toolBtnTextDanger]}>{label}</Text>
     </Pressable>
   );
@@ -2891,6 +2926,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: Radius.pill,
   },
+  toolBtnCompact: { paddingHorizontal: 8, paddingVertical: 7 },
   toolBtnText: {
     color: Palette.ink2,
     fontSize: FontSize.label,

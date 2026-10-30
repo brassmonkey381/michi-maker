@@ -66,6 +66,9 @@ export function PageWearBar({
 }) {
   const store = useBinders();
   const { width: winW, height: winH } = useWindowDimensions();
+  // ON A PHONE THE BAR WRAPS instead of scrolling (owner, 2026-10-29): a sideways scroll hides
+  // chips with no sign that there are more. Two rows show every one.
+  const narrow = winW < 500;
   const [open, setOpen] = useState<{ kind: Kind; x: number; top: number; bottom: number } | null>(null);
   // The card's real height, once drawn: placed above the bar it has to clear the whole bar, and a
   // guess put it over the chips (the first draw sat 150px up and covered the row it came from).
@@ -120,7 +123,7 @@ export function PageWearBar({
         {/* SCROLLS ON A PHONE, CENTRED ON A DESK (owner, 2026-10-29): a centred row wider than the
             window lost a chip off each side. The content grows to fill and centres when it fits,
             and scrolls from its first chip when it does not. */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.barContent} keyboardShouldPersistTaps="handled">
+        <ScrollView horizontal={!narrow} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.barContent, narrow && styles.barWrap]} keyboardShouldPersistTaps="handled">
         {chip('background', 'Background', background)}
         {chip('sleeve', 'Sleeves', sleeve)}
         {chip('artBacking', 'Art backing', backing)}
@@ -267,6 +270,7 @@ const styles = StyleSheet.create({
     zIndex: 61,
   },
   barContent: { flexGrow: 1, flexDirection: 'row', justifyContent: 'center', gap: 6, paddingHorizontal: 8 },
+  barWrap: { flexWrap: 'wrap', rowGap: 6 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

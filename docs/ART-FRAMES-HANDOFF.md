@@ -166,3 +166,34 @@ Pokémon alone lands in one session. The whole table is about two weeks of sessi
 - `connectedCut` returns a rectangle, not a kind: exact for one class, the intersection for
   several, and declines a landscape class.
 - Set Binders shows the art window row for every game whose cards carry a class.
+
+## Status: Pokémon measured (2026-10-29, data-science 7557fb6)
+
+**Where the output is.** `tcgscan-data/pipeline/work/art_frames.json` (schema 1: `classes` and
+`cards`), the file `tcgscan.catalog.art_frames` publishes. `--check` passes: 26,779 cards in 116
+classes. Per-game working files sit beside it in `work/frames/pokemon/` (`frames.json` with
+medians and spreads, `card_frames.json`, `measurements.json` with every edge the finder saw,
+`flags.json`). Committed: contact sheets and `flags.csv` in data-science
+`docs/art-frames/pokemon/`; code in `pipeline/tcgscan/analysis/frames/`
+(`python -m tcgscan.analysis.frames.measure --game pokemon`, then `... .sheets`).
+
+Where the result differs from the plan above:
+
+- **116 classes, not about 30.** The base classes are the planned ones (11 eras, counting Mega
+  Evolution, times Pokémon/Trainer/Energy, plus the specials and `pk-full`). A set whose cards sit
+  more than 1 percent off their class splits off as `<class>-s<set id>`. That happens either
+  because the set has its own frame (XY Evolutions is in the Base Set style, Base Set's window is
+  narrower) or because TCGplayer cropped that set's scans differently (EX FireRed & LeafGreen sits
+  1.6 percent off the other EX sets with the same printed frame). A page from one set still
+  shares one class.
+- **Rectangle = median over every scan of the class**, not over 10 to 20. A 20-scan sample sat
+  more than half a percent off the full median in 19 of 116 classes.
+- **Bleed bottoms are the weakness bar** (owner, 2026-10-29). The art of a V, VMAX, GX, EX or ex
+  runs on behind the attack text, so the cut ends where the art ends: at about 0.84 of the card
+  height, or about 0.89 for SV ex, whose art runs on behind the weakness row.
+- **No class** for World Championship deck cards. They are not tournament legal and their scans
+  carry a banner across the art (owner). Four undated cards with no scan also have no class.
+- `pk-break` is `full`, landscape, given in printed orientation (the scans store it turned a
+  quarter turn). `pk-legend` is `full`, portrait, as the scans store the halves.
+- **Flags:** 3,144 to review (2 percent or more off, or more than one side off) and 2,853 minor
+  (one side, 1 to 2 percent: the scan's own crop varying by a few pixels).

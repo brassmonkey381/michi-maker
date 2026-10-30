@@ -1,5 +1,5 @@
 # Deploys the reddit-capi edge function and sets its secrets on the APP project
-# (piikwvntldytjejxmcla). Run from any terminal:
+# (piikwvntldytjejxmcla), each call pinned to that project ref. Run from any terminal:
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\Brian\source\repos\tcgscan\michi-maker\scripts\deploy-reddit-capi.ps1"
 #
@@ -33,19 +33,23 @@ $hashEmail = Read-KeyFile $secrets 'REDDIT_CAPI_HASH_EMAIL'
 $testMode = Read-KeyFile $secrets 'REDDIT_CAPI_TEST_MODE'
 Write-Host "      token: present, pixel id: present, hash email: $(if ($hashEmail -eq '1') { 'on' } else { 'off' }), test mode: $(if ($testMode -eq '1') { 'on' } else { 'off' })"
 
-Write-Host "[2/4] Applying the migration (reddit_conversions table)"
+Write-Host "[2/4] Creating the reddit_conversions table (the one SQL file, not db push)"
+# NOT `db push`: the app project is shared with the tcgscan repos, whose migration history lives in
+# the remote table and not in this repo, so push stops on ~50 remote versions it cannot see
+# (analytics-studio, 2026-10-30). The file is `create table if not exists`, so a rerun is safe.
+$sql = Join-Path $repo 'supabase\migrations61030160000_reddit_conversions.sql'
 Push-Location $repo
 try {
-  & npx supabase db push
-  if ($LASTEXITCODE -ne 0) { Write-Host "FAILED: supabase db push exited $LASTEXITCODE"; exit 3 }
+  & npx supabase db query --linked --project-ref piikwvntldytjejxmcla -f $sql
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAILED: supabase db query exited $LASTEXITCODE. Paste $sql into the SQL editor instead, then rerun this script."; exit 3 }
 
   Write-Host "[3/4] Setting function secrets"
   $args = @("REDDIT_CAPI_TOKEN=$token", "REDDIT_PIXEL_ID=$pixel", "REDDIT_CAPI_HASH_EMAIL=$(if ($hashEmail -eq '1') { '1' } else { '0' })", "REDDIT_CAPI_TEST_MODE=$(if ($testMode -eq '1') { '1' } else { '0' })")
-  & npx supabase secrets set @args
+  & npx supabase secrets set --project-ref piikwvntldytjejxmcla @args
   if ($LASTEXITCODE -ne 0) { Write-Host "FAILED: supabase secrets set exited $LASTEXITCODE"; exit 4 }
 
   Write-Host "[4/4] Deploying reddit-capi (verify_jwt stays on)"
-  & npx supabase functions deploy reddit-capi
+  & npx supabase functions deploy reddit-capi --project-ref piikwvntldytjejxmcla
   if ($LASTEXITCODE -ne 0) { Write-Host "FAILED: functions deploy exited $LASTEXITCODE"; exit 5 }
 } finally {
   Pop-Location

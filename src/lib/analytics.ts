@@ -20,6 +20,7 @@ import { supabasePublishableKey, supabaseUrl } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { Json } from '@/types/database';
 import { readAuthHop } from '@/lib/authHop';
+import { redditFirstCardPlaced, redditSignUp } from '@/lib/redditPixel';
 
 /** This app always reports as 'michi' (tcgscan-app shares the same tables under 'tcgscan'). */
 const APP = 'michi' as const;
@@ -593,6 +594,12 @@ function unbindLifecycleListeners(): void {
  */
 export function track(name: string, props?: Record<string, unknown>): void {
   try {
+    // REDDIT PIXEL CONVERSIONS ride the same call as the analytics event, so the studio's
+    // account.created and Reddit's SignUp are one moment (src/lib/redditPixel.ts lists what the
+    // page sends). SignUp: account.created, conversionId = the uid. ViewContent: the first card
+    // placed on this page load. No-ops without EXPO_PUBLIC_REDDIT_PIXEL_ID or off the web.
+    if (name === 'account.created') redditSignUp(cachedUser?.id);
+    else if (name === 'card.add' && props?.kind !== 'swap') redditFirstCardPlaced();
     if (!supabase) return;
     if (!cachedUser) {
       // No identity yet. Buffer rather than drop (the trial.start hole), keeping the real time so a

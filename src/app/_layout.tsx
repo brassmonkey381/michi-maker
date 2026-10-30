@@ -5,6 +5,7 @@ import { Platform, useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { RouteTracker } from '@/components/analytics/RouteTracker';
+import { initRedditPixel } from '@/lib/redditPixel';
 import { AvatarConsentPrompt } from '@/components/auth/AvatarConsentPrompt';
 import { UsernameGate } from '@/components/auth/UsernameGate';
 import { ProStatusBanner } from '@/components/monetization/ProStatusBanner';
@@ -31,6 +32,8 @@ export default function TabLayout() {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     const prevent = (e: Event) => e.preventDefault();
     document.addEventListener('dragstart', prevent);
+    // Reddit Pixel base load + PageVisit (a no-op without EXPO_PUBLIC_REDDIT_PIXEL_ID).
+    initRedditPixel();
     return () => document.removeEventListener('dragstart', prevent);
   }, []);
 

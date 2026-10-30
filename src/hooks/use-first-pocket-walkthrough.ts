@@ -46,6 +46,7 @@ export function useFirstPocketWalkthrough({
   editing,
   studio,
   pickerOpen,
+  fillOpen,
   width,
   tier,
 }: {
@@ -53,6 +54,8 @@ export function useFirstPocketWalkthrough({
   editing: boolean;
   studio: boolean;
   pickerOpen: boolean;
+  /** Is the Fill page sheet open? Once seen this session, step three is over. */
+  fillOpen: boolean;
   /** The window's width, so the report can tell a docked browser from a bottom sheet. */
   width: number;
   tier: string;
@@ -109,7 +112,15 @@ export function useFirstPocketWalkthrough({
   // read during render and a ref read there is the thing the React rules forbid.
   const [hadCardOnArrival] = useState(hasCard);
 
-  const state = resolveState({ hasCard, hadCardOnArrival, record, editing, studio, pickerOpen });
+  // A latch, like hadCardOnArrival: the step ends when Fill page is opened and stays ended when
+  // the sheet closes again.
+  const [fillSeen, setFillSeen] = useState(false);
+  if (fillOpen && !fillSeen) setFillSeen(true);
+  // ON A PHONE the browser is a sheet over the page, so the closing line is only seen once the
+  // sheet is gone: it stays until Fill page opens. On a wide window the browser is docked beside
+  // the page, the line was seen as the card landed, and closing the browser ends it, as before.
+  const narrow = width < 500;
+  const state = resolveState({ hasCard, hadCardOnArrival, record, editing, studio, pickerOpen, filled: fillSeen || fillOpen || (!narrow && !pickerOpen) });
   const step = state.show ? state.step : null;
 
   /** The furthest step this session actually reached, for the ending event. Written in the effect

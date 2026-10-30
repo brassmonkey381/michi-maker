@@ -324,11 +324,14 @@ export default function MyBindersScreen() {
                     <Text style={styles.storyBtnText}>Story binder</Text>
                   </Pressable>
                 ) : null}
-                <Pressable
-                  onPress={handleNew}
-                  style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
-                  <Text style={styles.newBtnText}>+ New</Text>
-                </Pressable>
+                {/* An empty shelf has its own + New binder in the card below; two was one too many. */}
+                {store.userBinders.length === 0 ? null : (
+                  <Pressable
+                    onPress={handleNew}
+                    style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
+                    <Text style={styles.newBtnText}>+ New</Text>
+                  </Pressable>
+                )}
               </View>
             }>
             {store.userBinders.length === 0 ? (

@@ -31,6 +31,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AccountButton } from '@/components/auth/AccountButton';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { CurateCallout } from '@/components/CurateCallout';
 import { PagedCarousel } from '@/components/PagedCarousel';
@@ -344,15 +345,20 @@ export default function DiscoverScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           onLayout={(e) => measureFrame(e.nativeEvent.layout.width)}>
-          {railHidden ? (
-            <View style={styles.backRow}>
+          {/* The account button top right, as on My Binders (owner, 2026-10-29): a visitor who
+              arrives here from a shared binder has nowhere else to create an account. */}
+          <View style={styles.topRow}>
+            {railHidden ? (
               <Pressable onPress={() => router.push('/')} hitSlop={8}>
                 <ThemedText type="smallBold" themeColor="textSecondary">
                   ‹ Home
                 </ThemedText>
               </Pressable>
-            </View>
-          ) : null}
+            ) : (
+              <View />
+            )}
+            <AccountButton />
+          </View>
 
           <ThemedText type="title" style={styles.h1}>
             Discover Binders
@@ -567,6 +573,7 @@ const styles = StyleSheet.create({
   },
   backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.three },
   h1: { marginBottom: Spacing.one },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.two },
   sub: { marginBottom: Spacing.three, lineHeight: 20 },
   search: {
     borderWidth: 1,

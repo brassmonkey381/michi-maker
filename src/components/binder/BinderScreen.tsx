@@ -734,6 +734,7 @@ export function BinderScreen({
     editing,
     studio: !!studio,
     pickerOpen: pickerCell !== null,
+    fillOpen: autoFillOpen,
     width,
     tier: store.tier,
   });

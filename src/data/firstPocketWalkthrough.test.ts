@@ -20,6 +20,7 @@ const live = {
   editing: true,
   studio: false,
   pickerOpen: false,
+  filled: false,
 };
 
 test('a binder that already held cards retires it silently, before anything is drawn', () => {
@@ -28,12 +29,14 @@ test('a binder that already held cards retires it silently, before anything is d
   assert.equal(s.show === false && s.retire, 'not-needed');
 });
 
-test('the first card landing earns the closing line, and closing the browser ends it as placed', () => {
+test('the first card landing earns the closing line, which outlives the browser until Fill page opens', () => {
   const justPlaced = resolveState({ ...live, hasCard: true, pickerOpen: true });
   assert.equal(justPlaced.show === true && justPlaced.step, 'placed');
   const closed = resolveState({ ...live, hasCard: true, pickerOpen: false });
-  assert.equal(closed.show, false);
-  assert.equal(closed.show === false && closed.retire, 'placed');
+  assert.equal(closed.show === true && closed.step, 'placed');
+  const filled = resolveState({ ...live, hasCard: true, filled: true });
+  assert.equal(filled.show, false);
+  assert.equal(filled.show === false && filled.retire, 'placed');
 });
 
 test('walking away draws and retires nothing; coming back to a binder with a card retires it in silence', () => {

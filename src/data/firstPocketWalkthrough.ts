@@ -93,6 +93,12 @@ export interface WalkthroughInputs {
   studio: boolean;
   /** Is the card browser open on a pocket? Decides which line the banner carries. */
   pickerOpen: boolean;
+  /**
+   * Has the Fill page sheet been opened this session? That is the tap step three names, so it is
+   * what ends the step (owner, 2026-10-29, on a phone: the browser is a sheet over the page, so a
+   * step that lived only while the browser was open was never seen there).
+   */
+  filled: boolean;
 }
 
 export type WalkthroughState =
@@ -113,15 +119,17 @@ export function resolveState({
   editing,
   studio,
   pickerOpen,
+  filled,
 }: WalkthroughInputs): WalkthroughState {
   if (record.retiredAt) return { show: false, retire: null };
   if (hadCardOnArrival) return { show: false, retire: 'not-needed' };
   if (!editing || studio) return { show: false, retire: null };
   if (record.opens > MAX_EDITOR_OPENS) return { show: false, retire: 'ignored' };
   if (hasCard) {
-    // The closing line while the browser is still up, then it is over: the card is placed.
-    if (pickerOpen) return { show: true, step: 'placed' };
-    return { show: false, retire: 'placed' };
+    // The closing line stays up, browser open or closed, until the reader opens Fill page, the
+    // tap it names, or presses its cross. Walking away draws nothing and a return with a card
+    // retires it in silence.
+    return filled ? { show: false, retire: 'placed' } : { show: true, step: 'placed' };
   }
   return { show: true, step: pickerOpen ? 'card' : 'ring' };
 }

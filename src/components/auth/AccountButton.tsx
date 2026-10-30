@@ -48,8 +48,10 @@ export function AccountButton() {
             </View>
           )
         ) : (
-          <View style={styles.pill}>
-            <ThemedText type="smallBold" style={styles.pillText}>
+          // A guest's pill is the page's main call to action (owner, 2026-10-29), so it is sized
+          // like one; a signed-out visitor's Sign in stays the quiet chip it was.
+          <View style={[styles.pill, auth.isGuest && styles.pillBig]}>
+            <ThemedText type="smallBold" style={[styles.pillText, auth.isGuest && styles.pillTextBig]}>
               {auth.isGuest ? 'Create account' : 'Sign in'}
             </ThemedText>
           </View>
@@ -77,5 +79,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
   },
+  pillBig: { paddingVertical: Spacing.two + 2, paddingHorizontal: Spacing.four },
   pillText: { color: Palette.accentText },
+  pillTextBig: { fontSize: FontSize.control },
 });

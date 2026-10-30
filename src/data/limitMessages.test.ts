@@ -27,7 +27,7 @@ import { TRIAL_DAYS_TEXT } from './trialLength.ts';
 const PAID: Tier[] = ['free', 'pro', 'vip'];
 
 test('guests are sent to the auth sheet, never to the price table', () => {
-  assert.deepEqual(limitCta('guest'), { kind: 'signin', label: 'Sign in (free)' });
+  assert.deepEqual(limitCta('guest'), { kind: 'signin', label: 'Create account (free)' });
 });
 
 test('every tier that can pay is sent to plans', () => {
@@ -43,7 +43,7 @@ test('all three cap messages point guests at signing in, not at upgrading', () =
     artLimitMessage('guest', TIER_LIMITS.guest),
   ];
   for (const msg of messages) {
-    assert.match(msg, /Sign in \(free\)/);
+    assert.match(msg, /Create a free account/);
     assert.doesNotMatch(msg, /[Uu]pgrade/);
   }
 });

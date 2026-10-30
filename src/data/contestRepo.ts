@@ -31,7 +31,7 @@ export async function enterContest(binderId: string, category: ContestCategory):
   const supabase = requireSupabase();
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth.user?.id;
-  if (!uid) throw new Error('Sign in to enter the contest.');
+  if (!uid) throw new Error('Create an account to enter the contest.');
   const { error } = await supabase
     .from('contest_entries')
     .insert({ binder_id: binderId, owner_id: uid, contest: CONTEST.id, category });

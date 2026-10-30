@@ -242,7 +242,7 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
 
       {tier === 'guest' ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-          Sign in (free) to keep your binders long-term and unlock the full plan.
+          Create a free account to keep your binders long-term and unlock the full plan.
         </ThemedText>
       ) : (
         <>

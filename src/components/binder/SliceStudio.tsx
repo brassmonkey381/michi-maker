@@ -1176,7 +1176,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           <View style={styles.capNote}>
             {guest ? (
               <SignInPerk
-                message={`You’re keeping ${trayCount} of ${trayLimit} guest artworks. Sign in (free) to keep up to ${TIER_LIMITS.free.artUploads}.`}
+                message={`You’re keeping ${trayCount} of ${trayLimit} guest artworks. Create a free account to keep up to ${TIER_LIMITS.free.artUploads}.`}
               />
             ) : (
               <CapGateOffer

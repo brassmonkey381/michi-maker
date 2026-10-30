@@ -301,7 +301,7 @@ export default function PurchasesScreen() {
 
         {!isSignedIn ? (
           <ThemedText type="small" themeColor="textSecondary">
-            Sign in to see your purchase history.
+            Sign in or create an account to see your purchase history.
           </ThemedText>
         ) : loading ? (
           <View style={styles.center}>

@@ -55,7 +55,7 @@ export async function uploadArtImage(file: Blob, filename?: string): Promise<str
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error('Sign in to upload your own images.');
+  if (!user) throw new Error('Create an account to upload your own images.');
 
   const { blob, mime, ext } = await prepareArt(file, filename);
   const path = `${user.id}/${uuidv4()}.${ext}`;

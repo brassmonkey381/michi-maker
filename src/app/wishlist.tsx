@@ -192,7 +192,7 @@ export default function WishlistScreen() {
           </ThemedText>
         ) : minted ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-            Voting needed a session, so this browser now has a guest one. Sign in to keep your votes on another device.
+            Voting needed a session, so this browser now has a guest one. Create an account to keep your votes on another device.
           </ThemedText>
         ) : null}
 

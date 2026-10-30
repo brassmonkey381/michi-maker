@@ -16,8 +16,10 @@
  *
  * WHAT IS SENT. event_type SignUp, event_at (the client's, else now), click_id (the rdt_cid the
  * landing page captured, when there was one), user { ip_address, user_agent, external_id } from
- * THIS request (the account was just created from it), event_metadata { conversion_id: uid }.
- * ip_address and external_id are SHA-256 hex, as Reddit asks. The email hash is sent ONLY when
+ * THIS request (the account was just created from it), event_metadata { conversion_id }.
+ * ip_address, external_id AND conversion_id are SHA-256 hex, as Reddit asks of the API: the pixel
+ * sends the raw uid as its conversion_id and Reddit normalises the two for the dedupe (Segment's
+ * destination hashes it the same way; analytics-studio checked, 2026-10-30). The email hash is sent ONLY when
  * REDDIT_CAPI_HASH_EMAIL=1 (default off: michi has no consent banner; the owner decides).
  *
  * FIRE AND FORGET. One retry on a network error, a 429 or a 5xx; a Reddit outage answers
@@ -151,7 +153,7 @@ Deno.serve(async (req) => {
     event_at: eventAt.toISOString(),
     event_type: { tracking_type: 'SignUp' },
     user: userMatch,
-    event_metadata: { conversion_id: user.id },
+    event_metadata: { conversion_id: await sha256Hex(user.id) },
   };
   if (clickId) event.click_id = clickId;
   const payload: Record<string, unknown> = { events: [event] };

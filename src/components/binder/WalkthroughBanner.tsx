@@ -24,11 +24,17 @@ export function WalkthroughBanner({
   copy,
   onDismiss,
   onShown,
+  onPress,
 }: {
   copy: WalkthroughCopy;
   onDismiss: () => void;
   /** Called once, when this has laid out with a real height. */
   onShown?: () => void;
+  /**
+   * The whole card is a button when set (owner, 2026-10-30: "can clicking on the 2 of 2 pop up
+   * take the user to account creation?"). The cross still dismisses on its own.
+   */
+  onPress?: () => void;
 }) {
   const pointsDown = copy.arrow === 'down';
   // ON A PHONE THE CARD IS ITS TITLE (owner, 2026-10-29): in the bottom sheet the full card
@@ -45,7 +51,12 @@ export function WalkthroughBanner({
       }}>
       {/* Above the card when it points up, so card and arrow read as one object either way. */}
       {pointsDown ? null : <Text style={[styles.arrow, styles.arrowUp]}>▲</Text>}
-      <View style={styles.card}>
+      <Pressable
+        style={({ pressed }) => [styles.card, onPress && pressed && styles.pressed]}
+        onPress={onPress}
+        disabled={!onPress}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={onPress ? copy.title : undefined}>
         <View style={styles.head}>
           <View style={styles.step}>
             <Text style={styles.stepText}>
@@ -64,7 +75,7 @@ export function WalkthroughBanner({
           </Pressable>
         </View>
         {narrow ? null : <Text style={styles.body}>{copy.body}</Text>}
-      </View>
+      </Pressable>
       {pointsDown && !narrow ? <Text style={[styles.arrow, styles.arrowDown]}>▼</Text> : null}
     </View>
   );

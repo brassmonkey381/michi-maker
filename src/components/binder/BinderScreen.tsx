@@ -38,6 +38,7 @@ import { LikersSheet } from '@/components/binder/LikersSheet';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
+import { AuthSheet } from '@/components/auth/AuthSheet';
 import { PocketRing, type PocketRect } from '@/components/binder/PocketRing';
 import { AddArtSheet } from '@/components/binder/AddArtSheet';
 import { SliceStudio, type SliceStudioHandle, type StudioPiece } from '@/components/binder/SliceStudio';
@@ -749,6 +750,8 @@ export function BinderScreen({
   // Seeded only: has a Fill or Complete placed cards this session (the payoff step)? Latched by
   // handleAutoFillPlaced. And is the page being edited full?
   const [fillPlaced, setFillPlaced] = useState(false);
+  // The seeded payoff card opens account creation on a tap (owner, 2026-10-30).
+  const [walkthroughAuthOpen, setWalkthroughAuthOpen] = useState(false);
   const wtPage = binder?.pages[Math.max(0, Math.min(pageIndex, (binder?.pages.length ?? 1) - 1))];
   const wtPageFull = !!wtPage && wtPage.slots.reduce((n, s) => n + s.rowSpan * s.colSpan, 0) >= wtPage.rows * wtPage.cols;
   const walkthrough = useFirstPocketWalkthrough({
@@ -3548,9 +3551,14 @@ export function BinderScreen({
                 left: Math.max(Spacing.three, Math.min(ringRect.x - 40, width - 340)),
               },
             ]}>
-            <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
+            <WalkthroughBanner
+              copy={walkthrough.copy}
+              onDismiss={walkthrough.dismiss}
+              onPress={walkthrough.step === 'filled' ? () => setWalkthroughAuthOpen(true) : undefined}
+            />
           </View>
         ) : null}
+        <AuthSheet visible={walkthroughAuthOpen} onClose={() => setWalkthroughAuthOpen(false)} />
         {/* Sits with the other always-mounted overlays: the dropper outlives the sheet that
             armed it (that sheet has to close to let you reach the pockets), so its way out cannot
             live inside the picker. */}

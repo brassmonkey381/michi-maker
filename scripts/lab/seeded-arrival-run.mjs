@@ -46,6 +46,14 @@ t3 = await text();
 await shot('03-filled');
 log('FILL toast:', (t3.match(/Filled \d+ pockets?[^|]{0,80}/) ?? ['(none)'])[0], '| payoff?', t3.includes('Create an account to save your binder'), '| 2 of 2?', t3.includes('2 of 2'), '| PRO?', PRO.test(t3));
 
+// The payoff card is a button: a tap opens account creation (owner, 2026-10-30).
+await page.getByText('Create an account to save your binder', { exact: false }).first().click({ timeout: 8000 }).catch(() => log('  payoff card not clickable'));
+await wait(2500);
+await shot('04-auth-sheet');
+const t4 = await text();
+log('AUTH sheet open?', /Continue with Google|Sign in|Create account|Email/.test(t4), '| PRO?', PRO.test(t4));
+await page.keyboard.press('Escape'); await wait(800);
+
 // A second Complete: the page is full, so the tool is disabled; the Fill route is the wall.
 await page.keyboard.press('Escape'); await wait(800);
 const disabled = await page.locator('[data-testid="tool-complete"]').first().getAttribute('aria-disabled');

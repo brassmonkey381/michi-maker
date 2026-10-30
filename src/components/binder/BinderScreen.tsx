@@ -1443,7 +1443,11 @@ export function BinderScreen({
     rows: number,
     cols: number,
     sourceEntryId: string | undefined,
+    cardName?: string,
+    note?: string,
   ) => {
+    // Occupied before the write: the toast says "swapped", and the store tags card.add the same.
+    const swapped = page.slots.some((s) => s.row === row && s.col === col && (s.type !== 'card' || s.cardId !== cardId));
     store.upsertSlot(
       binder.id,
       page.id,
@@ -1463,6 +1467,19 @@ export function BinderScreen({
     // same unasked-for disappearance the old toggle's off state caused.
     const next = nextEmptyCell(row, col, rows, cols);
     if (next) setPickerCell(next);
+    // SAY WHERE IT WENT (owner, 2026-10-30: "fire a toast on card add or swap to pocket on
+    // mobile"). On a phone the card sheet covers the page, so a placed card changed nothing anyone
+    // could see; the Reddit lane saw 4 phones open the browser and 1 place a card. The toast sits
+    // above every modal (TopLayer), names the card and the pocket, says add or swap, says where
+    // the next pick goes, and carries Undo. Phones only: on a wide screen the pocket is in view.
+    // The name comes from the caller: a guest has no catalog, so resolveCard misses for them.
+    if (phone || note) {
+      const name = cardName ?? resolveCard(cardId)?.name ?? 'Card';
+      const pocket = (r: number, c: number) => r * page.cols + c + 1;
+      const verb = swapped ? 'swapped into' : 'added to';
+      const where = next ? `Next: pocket ${pocket(next.row, next.col)}` : 'Page full';
+      showToast(phone ? `${name} ${verb} pocket ${pocket(row, col)}. ${where}${note ? `. ${note}` : ''}` : note!, true);
+    }
   };
 
   // Whether the user owns ANY copy of this card, placed or not - the line between "aspirational
@@ -1635,11 +1652,10 @@ export function BinderScreen({
       return;
     }
     // Owned but every copy is spoken for: still place it (an aspirational pocket is the design
-    // default), but say why it will wear catalogue art - this used to happen in silence.
-    if (ownsCard(cardId)) {
-      showToast('Your copies are all in pockets, so this one shows catalogue art');
-    }
-    placeCardInPocket(cardId, row, col, rows, cols, undefined);
+    // default), but say why it will wear catalogue art - this used to happen in silence. It rides
+    // the placement toast, which would otherwise replace it before it could be read.
+    const note = ownsCard(cardId) ? 'Your copies are all in pockets, so this one shows catalogue art' : undefined;
+    placeCardInPocket(cardId, row, col, rows, cols, undefined, card?.name, note);
   };
 
   /**
@@ -2994,7 +3010,7 @@ export function BinderScreen({
                 });
                 return;
               }
-              placeCardInPocket(c.cardId, c.row, c.col, c.rows, c.cols, entryId ?? undefined);
+              placeCardInPocket(c.cardId, c.row, c.col, c.rows, c.cols, entryId ?? undefined, c.cardName);
             }}
           />
         ) : null}

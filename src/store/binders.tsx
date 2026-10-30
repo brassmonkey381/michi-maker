@@ -1738,10 +1738,12 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         for (const removedId of removedSlotIds) persist(() => repo.deleteSlot(removedId), target.id);
         persist(() => repo.upsertSlot(pageId, slot), target.id);
       }
-      // Count only a NEW card landing in a pocket (not span/edit tweaks of an existing slot).
-      if (!existing && slot.type === 'card' && slot.cardId) {
+      // Count a card landing in a pocket, not span/edit tweaks of the slot already there.
+      // `kind` (2026-10-30, for the Reddit lane): 'add' into an empty pocket, 'swap' over whatever
+      // the pocket held. Swaps were not counted at all before this.
+      if (slot.type === 'card' && slot.cardId && (!existing || existing.type !== 'card' || existing.cardId !== slot.cardId)) {
         rememberCardAdded(slot.cardId);
-        track('card.add', { source: 'manual', count: 1, via: via ?? 'pocket' });
+        track('card.add', { source: 'manual', count: 1, via: via ?? 'pocket', kind: existing ? 'swap' : 'add' });
       }
     },
     [binders, commit, persist, claimIsFree],

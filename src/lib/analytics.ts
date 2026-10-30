@@ -176,15 +176,22 @@ const hop = (() => {
     return null;
   }
 })();
-const landingCampaign = urlCampaign
-  ?? (hop && (Object.keys(hop.params).length || hop.referrer)
-    ? {
-        suffix: Object.keys(hop.params).length ? `?${new URLSearchParams(hop.params).toString()}` : '',
-        code: hop.params.code ?? null,
-        params: hop.params,
-        referrer: hop.referrer,
-      }
-    : null);
+// The hop wins whenever the URL carried no campaign params. The return page is
+// /auth-callback?code=<token> with the provider as referrer, so the URL parse above is NOT null (a
+// referrer, no params) and `urlCampaign ?? hop` starved the hop: the first two server-side Reddit
+// SignUps went out without their click id (analytics-studio, 2026-10-30).
+const landingCampaign = (() => {
+  if (urlCampaign && Object.keys(urlCampaign.params).length) return urlCampaign;
+  if (hop && (Object.keys(hop.params).length || hop.referrer)) {
+    return {
+      suffix: Object.keys(hop.params).length ? `?${new URLSearchParams(hop.params).toString()}` : '',
+      code: hop.params.code ?? null,
+      params: hop.params,
+      referrer: hop.referrer,
+    };
+  }
+  return urlCampaign;
+})();
 
 /** The guest uid and session that tapped the provider, when this page load is their return. */
 export function hopOrigin(): Readonly<Record<string, string>> {

@@ -54,7 +54,7 @@ export function limitCta(tier: Tier, trialEligible = false): LimitCta {
   if (tier === 'guest') return { kind: 'signin', label: 'Create account (free)' };
   // A free account that can still take the trial is offered it by name (owner, 2026-10-29); one
   // that has used it, or a paid tier at a higher cap, is shown the plans.
-  return { kind: 'plans', label: tier === 'free' && trialEligible ? 'PRO Free Trial' : 'See plans' };
+  return { kind: 'plans', label: tier === 'free' && trialEligible ? 'Try PRO for FREE' : 'See plans' };
 }
 
 /**

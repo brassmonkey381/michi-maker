@@ -17,7 +17,7 @@ import { useTrial } from '@/hooks/use-trial';
 
 export function UpgradePerk({
   message,
-  /** Button label. Defaults to "PRO Free Trial" for an account that can still have the free
+  /** Button label. Defaults to "Try PRO for FREE" for an account that can still have the free
    *  days at checkout, and "Upgrade to PRO" otherwise (owner, 2026-10-11). */
   cta,
   /** Runs before navigating (e.g. close a covering modal so /plans is actually visible). */

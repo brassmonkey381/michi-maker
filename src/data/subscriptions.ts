@@ -178,13 +178,11 @@ const TIER_RANK: Record<Tier, number> = { guest: 0, free: 1, pro: 2, vip: 3 };
  * picked. stripe-checkout decides eligibility for real; the client reads useTrial().state.
  */
 /**
- * THE WALL'S BUTTON (owner, 2026-10-29: "PRO Free Trial", leading to the plans page). Every PRO
- * wall a free account meets wears it while the trial is still theirs to take; the plans page's own
- * PRO button keeps PLANS_TRIAL_BUTTON_LABEL, since "PRO Free Trial" as the button ON /plans would
- * read as a link to where the reader already is.
+ * THE WALL'S BUTTON (owner, 2026-10-29: "put 'Try PRO for FREE' everywhere there's a PRO CTA").
+ * Every PRO wall a free account meets wears it while the trial is still theirs to take, and leads
+ * to the plans page, whose own PRO button says the same.
  */
-export const TRIAL_CTA_LABEL = 'PRO Free Trial';
-export const PLANS_TRIAL_BUTTON_LABEL = 'Try PRO for FREE';
+export const TRIAL_CTA_LABEL = 'Try PRO for FREE';
 
 export function planCta(column: PlanHeader, current: Tier, onTrial = false, trialEligible = false): PlanCta {
   const columnRank = TIER_RANK[column.tier];
@@ -206,7 +204,7 @@ export function planCta(column: PlanHeader, current: Tier, onTrial = false, tria
   // A new subscription. Someone who has never held PRO gets the free days at checkout, and the
   // button says so; a guest is asked to choose first (checkout needs an account either way).
   if (current === 'guest') return { kind: 'buy', label: `Choose ${column.name}` };
-  return { kind: 'buy', label: trialEligible && column.tier === 'pro' ? PLANS_TRIAL_BUTTON_LABEL : label };
+  return { kind: 'buy', label: trialEligible && column.tier === 'pro' ? TRIAL_CTA_LABEL : label };
 }
 
 /** Lookup key for the one-time full-binder PDF (payment mode; needs a binderId). */

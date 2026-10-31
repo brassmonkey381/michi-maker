@@ -1295,22 +1295,6 @@ export function BinderScreen({
       ? `${base}. ${blanks > 1 ? 'Blank pages were' : 'A blank page was'} added so folded art stays on its pocket pairs.`
       : base;
 
-  // In-editor "Duplicate" clones the *current page* (right after it) and jumps to the copy.
-  // Set the index directly (not via changePage, which would clamp against the stale page count
-  // before the new page lands) — the render clamps `pageIndex` to bounds once it does.
-  const handleDuplicatePage = () => {
-    if (store.pageLimitReached(binder.id)) {
-      showLimitToast(pageLimitMessage(store.tier, store.limits));
-      return;
-    }
-    const result = store.duplicatePage(binder.id, page.id);
-    if (result) {
-      setSelectedSlotId(null);
-      setPageIndex(result.pageIndex);
-      showToast(parityNote('Page duplicated', result.blanksInserted));
-    }
-  };
-
   // A new page at the end: the `+ Page` button and the N key (owner, 2026-10-12). The "insert an
   // empty page after this one" button that sat beside it was removed the same day: two ways to add
   // a page, one of them a bare arrow glyph, read as one feature twice. store.insertPage remains for
@@ -2544,20 +2528,10 @@ export function BinderScreen({
       <IconBtn glyph="↷" label="Redo" onPress={store.redo} disabled={!store.canRedo} testID="tool-redo" />
       <View style={styles.groupRule} />
       <View style={styles.pageGroup}>
-        {/* Tapping it opens the page's details — the same dialog the title above the page opens —
-            so a page's name sits at the head of the page's own tools as well as over its art.
-            Not an IconBtn (it is a counter, not a 30px square), so it carries its own tip. */}
-        <Tipped text={`Page ${idx + 1} of ${binder.pages.length}. Name and describe this page`}>
-          <Pressable
-            onPress={() => setPageInfoOpen(true)}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityLabel={`Page ${idx + 1} of ${binder.pages.length} — name and description`}
-            testID="tool-page-badge"
-            style={styles.pageBadge}>
-            <Text style={styles.pageBadgeText}>{`▤ ${idx + 1}/${binder.pages.length}`}</Text>
-          </Pressable>
-        </Tipped>
+        {/* THE PAGE BADGE ("1/3") AND DUPLICATE ARE GONE (owner, 2026-10-30, from an iPhone 13
+            mini): the row wrapped, which left the Art chip and the gear each alone on a row of
+            its own. The badge opened the page's details, which the title over the page still
+            opens, and the page number is on the strip; duplication was unused. */}
         <IconBtn
           glyph="+"
           // THE ONE THAT CARRIES ITS WORDS. People were reported not to find this at all: a bare
@@ -2586,8 +2560,6 @@ export function BinderScreen({
             testID="tool-complete"
           />
         </View>
-        {/* Duplicate sits after the two page-filling tools (owner, 2026-10-22). */}
-        <IconBtn glyph="⧉" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
         {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
         {store.userBinders.some((b) => b.id !== binder.id) ? (
           <IconBtn
@@ -4086,11 +4058,14 @@ const styles = StyleSheet.create({
   /** In the flow and taking what is left, so it truncates rather than drawing over its neighbours. */
   phoneTitlePress: { flex: 1, minWidth: 0 },
   phoneTitleText: { fontFamily: Fonts?.brand, fontSize: FontSize.lg, lineHeight: 24 },
+  /** 375 wide on an iPhone 13 mini: the Art chip, undo and redo, the page group and the gear
+   *  all on ONE row, which the old 16px gutters and gaps could not do, so the chip and the gear
+   *  each sat alone on a row of their own (owner, 2026-10-30). The gap is the whole budget. */
   phoneToolRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.three,
+    gap: 4,
+    paddingHorizontal: 2,
     paddingBottom: Spacing.two,
   },
   phoneToolRows: { flexWrap: 'wrap', justifyContent: 'center', rowGap: Spacing.two },
@@ -4153,7 +4128,7 @@ const styles = StyleSheet.create({
   },
   // The seam between "the session's history" and "this page". 18px inside a 30px row reads as a
   // divider; a full-height rule would read as a second border and fight the group's own.
-  groupRule: { width: 1, height: 18, marginHorizontal: 5, backgroundColor: Palette.hairline },
+  groupRule: { width: 1, height: 18, marginHorizontal: 3, backgroundColor: Palette.hairline },
   pageBadge: { height: 24, paddingHorizontal: 5, justifyContent: 'center' },
   pageBadgeText: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.ink2 },
   /**

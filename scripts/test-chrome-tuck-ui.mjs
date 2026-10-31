@@ -91,7 +91,7 @@ const box = async (sel) =>
   }, sel);
 
 // 1. THE TOOLS ARE ICONS, AND EACH ONE IS NAMED. A glyph with no accessible name is a puzzle.
-const TOOLS = ['tool-undo', 'tool-redo', 'tool-add-page', 'tool-duplicate', 'binder-select-toggle'];
+const TOOLS = ['tool-undo', 'tool-redo', 'tool-add-page', 'tool-complete', 'binder-select-toggle'];
 const named = [];
 for (const t of TOOLS) {
   const el = p.locator(`[data-testid="${t}"]`).first();

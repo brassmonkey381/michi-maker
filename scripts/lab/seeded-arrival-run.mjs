@@ -27,9 +27,26 @@ await wait(5000);
 await shot('01-arrival');
 const t1 = await text();
 log('URL:', page.url());
-log('ARRIVAL: seeded walkthrough?', t1.includes('Tap Complete to fill this page'), '| 1 of 2?', t1.includes('1 of 2'), '| ring?', await page.locator('[data-testid="walkthrough-pocket-ring"]').count(), '| PRO?', PRO.test(t1));
+log('ARRIVAL: art step?', t1.includes('Drag the picture across the row'), '| 1 of 3?', t1.includes('1 of 3'), '| ring?', await page.locator('[data-testid="walkthrough-pocket-ring"]').count(), '| PRO?', PRO.test(t1));
 const filledPockets = await page.locator('img[src*="/cards/"], img[src*="supabase"]').count();
-log('card images on screen:', filledPockets);
+log('card images on screen:', filledPockets, '| preset picture?', await page.locator('img[src*="binder-art"], [style*="binder-art"]').count());
+
+// STEP ONE: the picture in pocket 4 is pre-selected, so its resize handle is already there. Pull it
+// one pocket to the right (the ring is one pocket wide, so that is the distance) and let go.
+const handle = page.locator('[data-testid="resize-handle"]').first();
+log('  resize handle visible?', await handle.count());
+const ring = await page.locator('[data-testid="walkthrough-pocket-ring"]').first().boundingBox().catch(() => null);
+const hb = await handle.boundingBox().catch(() => null);
+if (hb && ring) {
+  const x0 = hb.x + hb.width / 2, y0 = hb.y + hb.height / 2;
+  await page.mouse.move(x0, y0); await page.mouse.down();
+  for (let i = 1; i <= 8; i += 1) { await page.mouse.move(x0 + (ring.width + 8) * i / 8, y0); await wait(40); }
+  await page.mouse.up();
+  await wait(1500);
+  await shot('01b-dragged');
+  const td = await text();
+  log('DRAGGED: complete step?', td.includes('Tap Complete to fill this page'), '| 2 of 3?', td.includes('2 of 3'), '| art step gone?', !td.includes('Drag the picture'));
+} else log('  no handle or ring to drag', !!hb, !!ring);
 
 // Complete -> the first fill offered.
 await page.locator('[data-testid="tool-complete"]').first().click({ timeout: 8000 });
@@ -44,7 +61,7 @@ for (let i = 0; i < 20 && !/Filled \d+ pocket/.test(t3); i += 1) { await wait(50
 await wait(1500);
 t3 = await text();
 await shot('03-filled');
-log('FILL toast:', (t3.match(/Filled \d+ pockets?[^|]{0,80}/) ?? ['(none)'])[0], '| payoff?', t3.includes('Create an account to save your binder'), '| 2 of 2?', t3.includes('2 of 2'), '| PRO?', PRO.test(t3));
+log('FILL toast:', (t3.match(/Filled \d+ pockets?[^|]{0,80}/) ?? ['(none)'])[0], '| payoff?', t3.includes('Create an account to save your binder'), '| 3 of 3?', t3.includes('3 of 3'), '| PRO?', PRO.test(t3));
 
 // The payoff card is a button: a tap opens account creation (owner, 2026-10-30).
 const payoff = page.getByRole('button', { name: /Create an account to save your binder/ }).first();

@@ -119,13 +119,14 @@ test('every callout is numbered, short, em-dash free, and points somewhere', () 
 
 
 // --- the seeded variant (data/seedPages arrivals) -----------------------------------------------
-const seededLive = { record: EMPTY_RECORD, editing: true, studio: false, completed: false, pageFull: false, arrivedFull: false };
+const seededLive = { record: EMPTY_RECORD, editing: true, studio: false, completed: false, pageFull: false, arrivedFull: false, artDone: false };
 
-test('seeded: step one points at Complete, the payoff follows a fill or a full page, and it stays up', () => {
-  assert.deepEqual(resolveSeededState(seededLive), { show: true, step: 'complete' });
+test('seeded: the picture first, Complete once it is dragged, the payoff after a fill or a full page whatever the picture did', () => {
+  assert.deepEqual(resolveSeededState(seededLive), { show: true, step: 'art' });
+  assert.deepEqual(resolveSeededState({ ...seededLive, artDone: true }), { show: true, step: 'complete' });
   assert.deepEqual(resolveSeededState({ ...seededLive, completed: true }), { show: true, step: 'filled' });
   assert.deepEqual(resolveSeededState({ ...seededLive, pageFull: true }), { show: true, step: 'filled' });
-  assert.deepEqual(resolveSeededState({ ...seededLive, completed: true, pageFull: true }), { show: true, step: 'filled' });
+  assert.deepEqual(resolveSeededState({ ...seededLive, artDone: true, completed: true, pageFull: true }), { show: true, step: 'filled' });
 });
 
 test('seeded: the same endings as the first-pocket walkthrough', () => {
@@ -136,10 +137,12 @@ test('seeded: the same endings as the first-pocket walkthrough', () => {
   assert.deepEqual(resolveSeededState({ ...seededLive, record: rec({ opens: MAX_EDITOR_OPENS + 1 }) }), { show: false, retire: 'ignored' });
 });
 
-test('seeded copy: two steps, numbered, short, no em-dashes, never PRO, the account ask on the payoff', () => {
-  assert.equal(SEEDED_TOTAL, 2);
-  assert.equal(SEEDED_COPY.complete.index, 1);
-  assert.equal(SEEDED_COPY.filled.index, 2);
+test('seeded copy: three steps, numbered, short, no em-dashes, never PRO, the account ask on the payoff', () => {
+  assert.equal(SEEDED_TOTAL, 3);
+  assert.equal(SEEDED_COPY.art.index, 1);
+  assert.equal(SEEDED_COPY.complete.index, 2);
+  assert.equal(SEEDED_COPY.filled.index, 3);
+  assert.match(SEEDED_COPY.art.title, /Drag/);
   for (const c of Object.values(SEEDED_COPY)) {
     assert.equal(c.total, SEEDED_TOTAL);
     assert.doesNotMatch(c.title + c.body, /—|\bPRO\b/);

@@ -58,6 +58,7 @@ export function useFirstPocketWalkthrough({
   variant = 'first-pocket',
   completed = false,
   pageFull = false,
+  artDone = true,
 }: {
   hasCard: boolean;
   editing: boolean;
@@ -74,6 +75,8 @@ export function useFirstPocketWalkthrough({
   completed?: boolean;
   /** Seeded only: the page being edited has no empty pocket. */
   pageFull?: boolean;
+  /** Seeded only: the picture in pocket 4 has been dragged two wide or more, or removed. */
+  artDone?: boolean;
 }): FirstPocketWalkthrough {
   const { user, profile, updateProfile } = useAuth();
   const userId = user?.id ?? null;
@@ -140,7 +143,7 @@ export function useFirstPocketWalkthrough({
   const [arrivedFull] = useState(pageFull);
   const state =
     variant === 'seeded'
-      ? resolveSeededState({ record, editing, studio, completed, pageFull, arrivedFull })
+      ? resolveSeededState({ record, editing, studio, completed, pageFull, arrivedFull, artDone })
       : resolveState({ hasCard, hadCardOnArrival, record, editing, studio, pickerOpen, filled: fillSeen || fillOpen || (!narrow && !pickerOpen) });
   const step = state.show ? state.step : null;
 
@@ -208,7 +211,7 @@ export function useFirstPocketWalkthrough({
 
   const copy = (): WalkthroughCopy | null => {
     if (!step) return null;
-    if (step === 'complete' || step === 'filled') return SEEDED_COPY[step];
+    if (step === 'art' || step === 'complete' || step === 'filled') return SEEDED_COPY[step];
     return step === 'placed' && isGuest ? WALKTHROUGH_COPY_GUEST_PLACED : WALKTHROUGH_COPY[step];
   };
   return {

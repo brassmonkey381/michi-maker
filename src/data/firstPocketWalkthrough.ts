@@ -33,8 +33,8 @@ export type WalkthroughStep = 'ring' | 'card' | 'placed';
  */
 export type WalkthroughVariant = 'first-pocket' | 'seeded';
 
-/** The seeded variant's steps: tap Complete, then the payoff over the filled page. */
-export type SeededStep = 'complete' | 'filled';
+/** The seeded variant's steps: drag the picture across, tap Complete, then the payoff over the filled page. */
+export type SeededStep = 'art' | 'complete' | 'filled';
 
 /** Why it will never show again. */
 export type WalkthroughEnding = 'not-needed' | 'placed' | 'dismissed' | 'ignored' | 'paged';
@@ -218,12 +218,21 @@ export const WALKTHROUGH_COPY_GUEST_PLACED: WalkthroughCopy = {
  * one fillPage sample, exactly as the Fill sheet spends it. The second step is the payoff over the
  * finished page and asks for the free account; it stays until its cross.
  */
-export const SEEDED_TOTAL = 2;
+export const SEEDED_TOTAL = 3;
 
 export const SEEDED_COPY = {
+  /** Under the picture in pocket 4, ringed, its resize handle already showing (owner, 2026-10-30:
+   *  the first act is the editor's best trick). Done at two pockets wide, so the pull is short. */
+  art: {
+    index: 1,
+    total: SEEDED_TOTAL,
+    title: 'Drag the picture across the row',
+    body: 'Pull the handle on its corner to the right until it covers two or three pockets.',
+    arrow: 'up',
+  },
   /** Under the Complete tool in the page bar, ringed, arrow up at it. */
   complete: {
-    index: 1,
+    index: 2,
     total: SEEDED_TOTAL,
     title: 'Tap Complete to fill this page',
     body: 'Pick how the rest of the page is filled. Or tap an empty pocket to add a card of your own.',
@@ -231,7 +240,7 @@ export const SEEDED_COPY = {
   },
   /** The same place, once the page is full. The owner's line (2026-10-30). */
   filled: {
-    index: 2,
+    index: 3,
     total: SEEDED_TOTAL,
     title: 'Create an account to save your binder and keep working',
     highlight: 'Create an account',
@@ -251,15 +260,19 @@ export interface SeededInputs {
   pageFull: boolean;
   /** Was it already full when this editor session began? Nothing to teach, retire in silence. */
   arrivedFull: boolean;
+  /** Is the seeded picture two pockets wide or more, or gone? (data/seedPages seedArtDone) */
+  artDone: boolean;
 }
 
 export type SeededState = { show: false; retire: WalkthroughEnding | null } | { show: true; step: SeededStep };
 
-/** The seeded variant's resolveState: the same endings, two steps. */
-export function resolveSeededState({ record, editing, studio, completed, pageFull, arrivedFull }: SeededInputs): SeededState {
+/** The seeded variant's resolveState: the same endings, three steps. A fill or a full page is the
+ *  payoff whatever became of the picture, so Complete first never strands anyone on step one. */
+export function resolveSeededState({ record, editing, studio, completed, pageFull, arrivedFull, artDone }: SeededInputs): SeededState {
   if (record.retiredAt) return { show: false, retire: null };
   if (arrivedFull) return { show: false, retire: 'not-needed' };
   if (!editing || studio) return { show: false, retire: null };
   if (record.opens > MAX_EDITOR_OPENS) return { show: false, retire: 'ignored' };
-  return { show: true, step: completed || pageFull ? 'filled' : 'complete' };
+  if (completed || pageFull) return { show: true, step: 'filled' };
+  return { show: true, step: artDone ? 'complete' : 'art' };
 }

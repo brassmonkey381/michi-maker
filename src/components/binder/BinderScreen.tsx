@@ -57,6 +57,7 @@ import { loadPokemonColorIndexes } from '@/lib/colorIndexes';
 import { MovePageSheet } from '@/components/binder/MovePageSheet';
 import { QuickPreviewModal, SharePictureChooser } from '@/components/binder/SharePreview';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
+import { seedArtDone, seedArtSlot } from '@/data/seedPages';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { pillChip, sheet } from '@/constants/ui';
 import { ContestLockBanner } from '@/components/contest/ContestLockBanner';
@@ -754,6 +755,8 @@ export function BinderScreen({
   const [walkthroughAuthOpen, setWalkthroughAuthOpen] = useState(false);
   const wtPage = binder?.pages[Math.max(0, Math.min(pageIndex, (binder?.pages.length ?? 1) - 1))];
   const wtPageFull = !!wtPage && wtPage.slots.reduce((n, s) => n + s.rowSpan * s.colSpan, 0) >= wtPage.rows * wtPage.cols;
+  // The seeded picture (data/seedPages): step one is over once it is two pockets wide, or gone.
+  const wtArtDone = !wtPage || seedArtDone(wtPage);
   const walkthrough = useFirstPocketWalkthrough({
     hasCard,
     editing,
@@ -765,6 +768,7 @@ export function BinderScreen({
     variant: seeded ? 'seeded' : 'first-pocket',
     completed: fillPlaced,
     pageFull: wtPageFull,
+    artDone: wtArtDone,
   });
   // THE TWO ONE-TIME HINTS that follow the walkthrough (data/editorHints): what the bar over a
   // selected card does, and that the bar along the page's bottom edge dresses it. Here with the
@@ -818,7 +822,22 @@ export function BinderScreen({
    */
   const completeRef = useRef<View>(null);
   const [completeRect, setCompleteRect] = useState<PocketRect | null>(null);
-  const wantComplete = walkthrough.variant === 'seeded' && walkthrough.step !== null;
+  const wantComplete = walkthrough.step === 'complete' || walkthrough.step === 'filled';
+  /**
+   * THE SEEDED PICTURE'S STEP: the ring and the callout sit on pocket 4, and the pocket is selected
+   * for the reader so its resize handle is already there to pull. Selected once per mount; a reader
+   * who taps away is not re-caught.
+   */
+  const wantArt = walkthrough.step === 'art';
+  const artSelected = useRef(false);
+  useEffect(() => {
+    if (!wantArt || artSelected.current || !wtPage) return;
+    const art = seedArtSlot(wtPage);
+    if (!art) return;
+    artSelected.current = true;
+    const t = setTimeout(() => setSelectedSlotId(art.id), 80);
+    return () => clearTimeout(t);
+  }, [wantArt, wtPage]);
   useEffect(() => {
     if (!wantComplete) return;
     const t = setTimeout(() => {
@@ -831,14 +850,17 @@ export function BinderScreen({
   const wantPlaced = walkthrough.step === 'placed';
   const ringPage = binder ? binder.pages[Math.min(pageIndex, binder.pages.length - 1)] : null;
   useEffect(() => {
-    if ((!wantRing && !wantPlaced) || !ringPage) return;
+    if ((!wantRing && !wantPlaced && !wantArt) || !ringPage) return;
     // EVERYTHING INSIDE THE TIMER, including the decision that there is nothing to ring. A
     // re-measure taken in the same tick as a layout change reads the old box, and setting state
     // straight from an effect body is the pattern the React rules forbid; a frame's delay solves
     // both. Until it fires the render is gated on `wantRing`, so no stale ring is drawn.
     const t = setTimeout(() => {
       let cell: { row: number; col: number } | null = null;
-      if (wantPlaced) {
+      if (wantArt) {
+        const art = seedArtSlot(ringPage);
+        cell = art ? { row: art.row, col: art.col } : null;
+      } else if (wantPlaced) {
         const filled = ringPage.slots.find((sl) => sl.type === 'card' && sl.cardId);
         cell = filled ? { row: filled.row, col: filled.col } : null;
       } else {
@@ -859,7 +881,7 @@ export function BinderScreen({
     // Anything that MOVES THE GRID has to re-measure, not just anything that changes the page:
     // adding a page brings in the page strip, which shifts the binder sideways and left a ring
     // hanging over empty space. Page count and index are in here for exactly that.
-  }, [wantRing, wantPlaced, ringPage, binder?.pages.length, pageIndex, width, artworkOpen, cardsCollapsed]);
+  }, [wantRing, wantPlaced, wantArt, ringPage, binder?.pages.length, pageIndex, width, artworkOpen, cardsCollapsed]);
 
   if (!binder) {
     return (
@@ -3522,7 +3544,7 @@ export function BinderScreen({
           </View>
         ) : null}
 
-        <PocketRing rect={wantRing ? ringRect : walkthrough.step === 'complete' ? completeRect : null} />
+        <PocketRing rect={wantRing || wantArt ? ringRect : walkthrough.step === 'complete' ? completeRect : null} />
         {/* THE SEEDED VARIANT: both steps hang under the Complete tool, step one with the ring on
             it. Clamped to the window like the pocket callouts. */}
         {wantComplete && completeRect && walkthrough.copy ? (
@@ -3546,7 +3568,7 @@ export function BinderScreen({
             UNDER the pocket they point at, arrow up, and clamped to the window so a pocket near
             the right edge still shows its callout whole. Step two lives in the browser instead,
             because that is where the control it names is. */}
-        {(wantPlaced || wantRing) && ringRect && walkthrough.copy ? (
+        {(wantPlaced || wantRing || wantArt) && ringRect && walkthrough.copy ? (
           <View
             style={[
               styles.walkthroughFloat,

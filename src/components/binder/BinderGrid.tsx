@@ -1372,7 +1372,7 @@ function ResizeOverlay({
             in the corner where a thumb is least accurate. The TARGET is 44px of transparent View
             around it — the knob stays the size it should look, and the thing you have to hit is
             the size it should be. */}
-        <View style={styles.resizeHit}>
+        <View style={styles.resizeHit} testID="resize-handle">
           <View style={styles.resizeHandle} />
         </View>
       </GestureDetector>

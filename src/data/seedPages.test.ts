@@ -10,6 +10,7 @@ test('every seed set is three distinct real-looking ids under one theme name', (
     for (const id of set.cardIds) assert.match(id, /^\d+$/, `${key}: ${id}`);
     assert.equal(set.theme, key);
     assert.match(set.picture.url, /^https:\/\/piikwvntldytjejxmcla\.supabase\.co\/storage\/v1\/object\/public\/binder-art\//, key);
+    assert.equal((set.picture as { origin?: string }).origin, key === 'grails' ? 'external' : undefined, key);
     assert.ok(set.picture.artist && set.picture.sourceUrl.startsWith('https://'), key);
   }
 });
@@ -22,7 +23,7 @@ test('every ad code maps to a set that exists, and the default does too', () => 
 test('seedSetFor: the code picks the theme, case and spaces forgiven; unknown or missing is the default', () => {
   assert.equal(seedSetFor('rd_rainbow_image').theme, 'autumn');
   assert.equal(seedSetFor(' RD_LIDI_VIDEO ').theme, 'volcano');
-  assert.equal(seedSetFor('rd_coverflow_4x5').theme, 'pikachu');
+  assert.equal(seedSetFor('rd_coverflow_4x5').theme, 'grails');
   assert.equal(seedSetFor('oakland_cardshow').theme, DEFAULT_SEED);
   assert.equal(seedSetFor(undefined).theme, DEFAULT_SEED);
   assert.equal(seedSetFor(null).theme, DEFAULT_SEED);

@@ -29,6 +29,7 @@ import { ShareSheet } from '@/components/binder/ShareSheet';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
+import { matchBinder } from '@/data/binderSearch';
 import { similarityWall } from '@/data/similarityGate';
 import { tasteToast } from '@/data/tastes';
 import { hasBinderCovers, hasFindSimilar } from '@/data/tiers';
@@ -200,10 +201,13 @@ export default function MyBindersScreen() {
   const q = binderQuery.trim().toLowerCase();
   // Most recently edited first: the binder someone is working on is the one they came back for.
   const shelf = visibility === 'puzzles' ? puzzleBinders : store.userBinders;
+  // THE QUERY REACHES INTO THE BINDER (owner, 2026-11-02): title, description, then page titles
+  // and page notes. A binder is remembered by the page in it ("the Pikachu page") as often as by
+  // its name, and half of all pages already have one. Cheap: the binders are in memory.
   const visibleBinders = sortByRecentEdit(shelf).filter((b) => {
     if (showVisibilityFilter && visibility === 'public' && !b.isPublic) return false;
     if (showVisibilityFilter && visibility === 'private' && b.isPublic) return false;
-    return !showBinderSearch || !q || b.title.toLowerCase().includes(q);
+    return !showBinderSearch || !q || matchBinder(b, q) !== null;
   });
 
   const menuBinder = menuId ? (store.getBinder(menuId) ?? null) : null;
@@ -441,7 +445,28 @@ export default function MyBindersScreen() {
                   <BinderCarousel
                     binders={visibleBinders}
                     onOpen={openBinder}
-                    accessory={(binder) => (
+                    accessory={(binder) => {
+                      // Say WHY the tile is here when the binder's name does not: a page hit
+                      // names the page and opens the binder on it.
+                      const hit = q && showBinderSearch ? matchBinder(binder, q) : null;
+                      return (
+                      <View style={styles.tileActionsWrap}>
+                      {hit?.kind === 'page' ? (
+                        <Pressable
+                          onPress={() => router.push(`/binder/${binder.id}?edit=1&page=${hit.pageIndex + 1}`)}
+                          hitSlop={6}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Open ${binder.title} on page ${hit.pageIndex + 1}, ${hit.pageTitle}`}
+                          style={({ pressed }) => [styles.pageHit, pressed && styles.pressed]}>
+                          <Text style={styles.pageHitText} numberOfLines={1}>
+                            p. {hit.pageIndex + 1} · {hit.pageTitle}
+                          </Text>
+                        </Pressable>
+                      ) : hit?.kind === 'description' ? (
+                        <Text style={styles.pageHitText} numberOfLines={1}>
+                          in the description
+                        </Text>
+                      ) : null}
                       <View style={styles.tileActions}>
                         {/* THE COVER, ON THE SHELF. It was reachable only from the ⋯ menu, which
                             is where you go when you already know a thing exists — and a binder
@@ -479,7 +504,9 @@ export default function MyBindersScreen() {
                         </Pressable>
                         <MenuButton onPress={() => setMenuId(binder.id)} />
                       </View>
-                    )}
+                      </View>
+                      );
+                    }}
                   />
                 )}
               </>
@@ -689,6 +716,9 @@ const styles = StyleSheet.create({
   noMatch: { paddingVertical: Spacing.three },
   upgradeRow: { marginBottom: Spacing.three },
   tileActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  tileActionsWrap: { gap: Spacing.one },
+  pageHit: { alignSelf: 'flex-start' },
+  pageHitText: { color: Palette.accent, fontSize: FontSize.label, fontWeight: Weight.semibold },
   printBtn: {
     backgroundColor: Palette.accent,
     borderRadius: Radius.pill,

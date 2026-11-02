@@ -1,7 +1,7 @@
 /**
  * Discover — everyone's public binders. Two views share one screen:
  *
- *   • TYPED QUERY — the debounced `search_binders` RPC (title / description / owner @username).
+ *   • TYPED QUERY — the debounced `search_binders` RPC (title / description / page titles / owner @username).
  *   • NO QUERY (the default) — Public binders, ordered by likes or by when they were made public
  *     (the reader picks; likes is the default), then the house account's own reference binders,
  *     which are deliberately last, then one card pointing at the contest.
@@ -364,7 +364,7 @@ export default function DiscoverScreen() {
             Discover Binders
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-            Search everyone’s public binders by title, description, or creator.
+            Search everyone’s public binders by title, page title, description, or creator.
           </ThemedText>
 
           <TextInput

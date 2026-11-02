@@ -13,7 +13,7 @@ export type CoverageFeature = { key: FeatureKey; label: string; blurb: string };
 
 type FeatureKey = 'search' | 'colour' | 'similar' | 'theme' | 'scanner';
 
-export const COVERAGE_AS_OF = '2026-10-29';
+export const COVERAGE_AS_OF = '2026-11-02';
 
 export const COVERAGE_FEATURES: CoverageFeature[] = [
   { key: 'search', label: 'Card search', blurb: 'find any card' },
@@ -33,7 +33,9 @@ export const COVERAGE_ROWS: CoverageRow[] = [
   { game: 'One Piece', status: ALL_LIVE },
   { game: 'Disney Lorcana', status: ALL_LIVE },
   { game: 'Cyberpunk TCG', status: ALL_LIVE },
-  { game: 'Riftbound', status: { ...ALL_LIVE, theme: 'wip' } },
+  // The scanner has a Riftbound model (riftbound-v1 in tcgscan-app) but it is not live or public
+  // facing yet (owner, 2026-11-02), so it stays WIP here until it ships.
+  { game: 'Riftbound', status: { ...ALL_LIVE, theme: 'wip', scanner: 'wip' } },
   { game: 'Digimon', status: { search: 'live', colour: 'live', similar: 'wip', theme: 'wip', scanner: 'wip' } },
   { game: 'Magic: The Gathering', status: { search: 'wip', colour: 'live', similar: 'wip', theme: 'wip', scanner: 'wip' } },
   { game: 'Yu-Gi-Oh!', status: { search: 'live', colour: 'wip', similar: 'wip', theme: 'wip', scanner: 'wip' } },

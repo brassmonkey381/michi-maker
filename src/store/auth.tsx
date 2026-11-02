@@ -119,6 +119,8 @@ interface AuthStore {
   /** Claim a permanent, unique @username (only when none is set yet — usernames are immutable). */
   claimUsername: (username: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
+  /** Delete the signed-in account and everything in it, through the delete-account function. */
+  deleteAccount: () => Promise<AuthResult>;
 }
 
 const AuthContext = createContext<AuthStore | null>(null);
@@ -521,6 +523,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }, []);
 
+  /**
+   * ACCOUNT DELETION (owner, 2026-11-02, after a deletion request arrived by email). The
+   * delete-account function has served both apps since 2026-07-28 and tcgscan-app had the
+   * control; michi's privacy page promised one "from your account menu" that was never built.
+   * The function deletes the caller's own auth user (cascades take the rest, a paid plan is
+   * cancelled first), so afterwards this signs out the way signOut does: opted out, no guest
+   * re-minted on reload.
+   */
+  const deleteAccount = useCallback(async (): Promise<AuthResult> => {
+    if (!supabase) return NOT_CONFIGURED;
+    const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>('delete-account', { body: {} });
+    if (error) return { error: `Could not delete the account: ${error.message}` };
+    if (!data?.ok) return { error: data?.error ?? 'Could not delete the account. Try again, or email us.' };
+    await AsyncStorage.setItem(OPTED_OUT_KEY, '1');
+    await supabase.auth.signOut().catch(() => {
+      // the user is already gone server-side; a refused sign-out changes nothing
+    });
+    setSession(null);
+    setProfile(null);
+    return OK;
+  }, []);
+
   const isGuest = !!user?.is_anonymous;
   const isSignedIn = !!user && !user.is_anonymous;
 
@@ -544,6 +568,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateProfile,
       claimUsername,
       signOut,
+      deleteAccount,
     }),
     [
       ready,
@@ -564,6 +589,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateProfile,
       claimUsername,
       signOut,
+      deleteAccount,
     ],
   );
 

@@ -52,7 +52,9 @@ export function AccountButton() {
           // like one; a signed-out visitor's Sign in stays the quiet chip it was.
           <View style={[styles.pill, auth.isGuest && styles.pillBig]}>
             <ThemedText type="smallBold" style={[styles.pillText, auth.isGuest && styles.pillTextBig]}>
-              {auth.isGuest ? 'Create account' : 'Sign in'}
+              {/* Both doors in one pill (owner, 2026-11-02): a returning member who landed as a
+                  guest was reading "Create account" and not finding their way in. */}
+              {auth.isGuest ? 'Create account or sign in' : 'Sign in'}
             </ThemedText>
           </View>
         )}

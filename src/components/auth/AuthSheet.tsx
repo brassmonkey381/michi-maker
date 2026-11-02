@@ -27,11 +27,13 @@ import {
   View,
 } from 'react-native';
 
+import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { providerAvatarUrl, withAvatarOfferAccepted } from '@/data/avatarConsent';
+import { track } from '@/lib/analytics';
 import { pruneAvatars, uploadAvatarImage } from '@/lib/uploadAvatar';
 import { useAuth, type OAuthProvider } from '@/store/auth';
 import type { Profile } from '@/types/domain';
@@ -455,6 +457,21 @@ function ProfileView({ onClose }: { onClose: () => void }) {
   // The bio. Draft-then-save rather than save-per-keystroke: a 280-char field written live would
   // hammer the profiles row and flash half-sentences to anyone on the public page.
   const [bioDraft, setBioDraft] = useState<string | null>(null);
+  // Account deletion: the typed confirmation, the in-flight flag, and the one error line.
+  const [deleteConfirm, setDeleteConfirm] = useState<ConfirmSpec | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const runDelete = async () => {
+    setDeleteConfirm(null);
+    setDeleting(true);
+    setDeleteError(null);
+    // Sent before the account goes: afterwards there is no session to send it under.
+    track('account.deleted');
+    const r = await auth.deleteAccount();
+    setDeleting(false);
+    if (r.error) setDeleteError(r.error);
+    else onClose();
+  };
   const [bioBusy, setBioBusy] = useState(false);
   const savedBio = auth.profile?.bio ?? '';
   const bio = bioDraft ?? savedBio;
@@ -675,6 +692,37 @@ function ProfileView({ onClose }: { onClose: () => void }) {
           Sign out
         </ThemedText>
       </Pressable>
+
+      {/* DELETE ACCOUNT (owner, 2026-11-02): the privacy page has promised this "from your account
+          menu" since July, and App Store rule 5.1.1(v) requires it in-app. Last in the sheet, quiet,
+          behind a typed confirmation: the one thing here that cannot be undone. */}
+      <Pressable
+        onPress={() =>
+          setDeleteConfirm({
+            title: 'Delete your account?',
+            message:
+              'This removes your profile, binders, saved cards, uploaded art and plan right away, and it cannot be undone. A paid plan is cancelled first, so you are not billed again.',
+            confirmLabel: 'Delete my account',
+            destructive: true,
+            requireText: 'DELETE',
+            onConfirm: () => void runDelete(),
+          })
+        }
+        disabled={deleting}
+        accessibilityRole="button"
+        accessibilityLabel="Delete account"
+        testID="delete-account"
+        style={({ pressed }) => [styles.deleteLink, pressed && styles.pressed]}>
+        <ThemedText type="small" style={styles.deleteLinkText}>
+          {deleting ? 'Deleting…' : 'Delete account'}
+        </ThemedText>
+      </Pressable>
+      {deleteError ? (
+        <ThemedText type="small" style={styles.deleteError}>
+          {deleteError}
+        </ThemedText>
+      ) : null}
+      <ConfirmDialog spec={deleteConfirm} onClose={() => setDeleteConfirm(null)} />
     </ScrollView>
   );
 }
@@ -877,4 +925,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signOutText: { color: Palette.danger },
+  deleteLink: { alignItems: 'center', paddingVertical: Spacing.two },
+  deleteLinkText: { color: Palette.danger, textDecorationLine: 'underline' },
+  deleteError: { color: Palette.danger, textAlign: 'center' },
 });

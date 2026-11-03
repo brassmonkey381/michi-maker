@@ -89,6 +89,8 @@ export function isPrivateArt(attribution?: ArtAttribution | null, imageUrl?: str
   if (attribution?.origin === 'upload') return false;
   // Set and series logos: public by the owner's decision — see ArtAttribution.origin.
   if (attribution?.origin === 'logo') return false;
+  // An artist's own piece, offered on the shelf for exactly this (data/artists.ts).
+  if (attribution?.origin === 'artist') return false;
   // Imported and copied art (loosened 2026-08-26): public-eligible when WE host the bytes.
   // importArt re-uploads every pull into the user's own bucket, and copied slots point at the
   // source binder's bucket art, so both normally pass. A URL we cannot check, or one pointing

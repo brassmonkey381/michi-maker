@@ -70,9 +70,12 @@ export interface ArtAttribution {
    *    bucket. Public-eligible by the owner's decision (2026-09-02): the app already shows the
    *    same logos publicly on Home and Browse, so a sticker of one is no different in kind.
    *    Recorded so that posture can be re-tightened with one line and a jsonb query.
+   *  - 'artist' — a piece a real artist offered on the artists shelf (data/artists.ts), hosted in
+   *    the artist's own bucket folder and approved by an admin. Public-eligible: offering it for
+   *    preview is what the shelf is. Printed as a placeholder, never as the picture.
    * Absent ⇒ legacy/official content (card art, our own AI art) — not treated as private.
    */
-  origin?: 'external' | 'upload' | 'card' | 'copied' | 'logo';
+  origin?: 'external' | 'upload' | 'card' | 'copied' | 'logo' | 'artist';
 }
 
 const PLATFORM_NAMES: Record<string, string> = {

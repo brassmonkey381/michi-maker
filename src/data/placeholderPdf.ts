@@ -526,7 +526,9 @@ export function collectFillTiles(
     // slices stay separate pieces. Legacy oversized slots subdivide into folded pairs at
     // the page's inside-edge pockets + singles (side-load physics).
     const pairStarts = insideEdgePairStarts(page.cols, pageSide(pageIndex));
-    for (const { group, slots } of groupArt(page.slots.filter((s) => s.type === 'artwork' && s.imageUrl))) {
+    // An artist's piece (origin 'artist', data/artists.ts) is preview only: it never prints as
+    // a picture. It takes the placeholder path below instead, named for the artist.
+    for (const { group, slots } of groupArt(page.slots.filter((s) => s.type === 'artwork' && s.imageUrl && s.attribution?.origin !== 'artist'))) {
       for (const slot of slots) {
         for (const piece of slotPieces(slot, pairStarts)) {
           byCell.set(`${slot.row + piece.i},${slot.col + piece.j}`, {
@@ -553,6 +555,21 @@ export function collectFillTiles(
           number: card?.number ?? '',
           owned: ownedIds?.has(slot.cardId) ?? false,
         });
+      } else if (slot.type === 'artwork' && slot.imageUrl && slot.attribution?.origin === 'artist') {
+        // One placeholder per covered pocket, naming the artist, so the page still cuts and
+        // assembles and the collector knows whose piece goes there.
+        for (let i = 0; i < slot.rowSpan; i += 1) {
+          for (let j = 0; j < slot.colSpan; j += 1) {
+            byCell.set(`${slot.row + i},${slot.col + j}`, {
+              kind: 'card', page: pageIndex + 1, row: slot.row + i + 1, col: slot.col + j + 1,
+              span: slot.rowSpan > 1 || slot.colSpan > 1 ? `${slot.colSpan}×${slot.rowSpan}` : '',
+              name: slot.attribution?.artist ? `Art by ${slot.attribution.artist}` : 'Artist piece',
+              setName: slot.attribution?.sourceName ?? '',
+              number: 'preview only',
+              owned: false,
+            });
+          }
+        }
       } else if (slot.type === 'insert' && slot.insertColor) {
         // Spanning inserts print one card-size color piece per covered pocket.
         for (let i = 0; i < slot.rowSpan; i += 1) {

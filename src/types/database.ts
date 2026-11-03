@@ -1034,6 +1034,8 @@ export type Database = {
           display_name: string | null
           id: string
           is_admin: boolean
+          is_artist: boolean
+          artist_link: string | null
           is_public: boolean
           marketing_consent: boolean
           marketing_consent_at: string | null
@@ -1057,6 +1059,8 @@ export type Database = {
           display_name?: string | null
           id: string
           is_admin?: boolean
+          is_artist?: boolean
+          artist_link?: string | null
           is_public?: boolean
           marketing_consent?: boolean
           marketing_consent_at?: string | null
@@ -1080,6 +1084,8 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_admin?: boolean
+          is_artist?: boolean
+          artist_link?: string | null
           is_public?: boolean
           marketing_consent?: boolean
           marketing_consent_at?: string | null

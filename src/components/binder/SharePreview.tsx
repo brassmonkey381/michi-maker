@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { ImageLinkField, PillButton, Seg } from '@/components/binder/inspector/controls';
+import { ArtistShelf } from '@/components/binder/ArtistShelf';
 import { PresetPictureGrid } from '@/components/binder/PresetPictureGrid';
 import { ThemedText } from '@/components/themed-text';
 import { Palette, Radius, Spacing } from '@/constants/theme';
@@ -46,6 +47,12 @@ export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
             value={binder.shareBackdrop}
             onPick={(shareBackdrop) => store.updateBinder(binder.id, { shareBackdrop })}
             testID="share-backdrop-presets"
+          />
+          <ArtistShelf
+            surface="background"
+            value={binder.shareBackdrop}
+            onPick={(shareBackdrop) => store.updateBinder(binder.id, { shareBackdrop })}
+            testID="share-backdrop-artists"
           />
           <ImageLinkField
             value={binder.shareBackdrop ?? undefined}

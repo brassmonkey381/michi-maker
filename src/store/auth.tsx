@@ -102,6 +102,7 @@ interface AuthStore {
     patch: Partial<
       Pick<
         Profile,
+        | 'artist_link'
         | 'avatar_url'
         | 'avatar_consented_at'
         | 'avatar_prompt_at'

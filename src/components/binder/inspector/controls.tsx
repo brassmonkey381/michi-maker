@@ -11,6 +11,7 @@ import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { ArtistShelf } from '@/components/binder/ArtistShelf';
 import { ColorField } from '@/components/binder/ColorField';
 import { PresetPictureGrid } from '@/components/binder/PresetPictureGrid';
 import { ThemedText } from '@/components/themed-text';
@@ -240,6 +241,9 @@ export function WearRow({
   onChange: (value: string | null) => void;
   testID?: string;
 }) {
+  // Which artists shelf this row offers, read off the label: every WearRow is a sleeve or a
+  // backing (data/artists.ts surfaces). A picked piece is an ordinary picture address here.
+  const artistSurface = /sleeve/i.test(label) ? 'sleeve' : 'backing';
   const isNone = own === WEAR_NONE;
   const inEffect = resolveWear(own, above);
   const pictured = isImageRef(inEffect);
@@ -257,6 +261,7 @@ export function WearRow({
       {/* PRESETS FIRST (owner, 2026-10-13): a row of textures to tap, then the link field for a
           picture of your own. Both store an address; the row only makes the common case one tap. */}
       {showLink ? <PresetPictureGrid kind="texture" value={pictured ? inEffect : undefined} onPick={onChange} testID={testID ? `${testID}-presets` : undefined} /> : null}
+      {showLink ? <ArtistShelf surface={artistSurface} value={pictured ? inEffect : undefined} onPick={(url) => onChange(url)} testID={testID ? `${testID}-artists` : undefined} /> : null}
       {showLink ? <ImageLinkField value={pictured ? inEffect : undefined} onChange={onChange} testID={testID ? `${testID}-link` : undefined} /> : null}
     </View>
   );

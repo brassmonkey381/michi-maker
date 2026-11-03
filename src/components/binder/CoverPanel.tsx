@@ -16,6 +16,7 @@
  */
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { ArtistShelf } from '@/components/binder/ArtistShelf';
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { CoverArtSection } from '@/components/binder/CoverArtSection';
 import { StickerLibrary } from '@/components/binder/StickerLibrary';
@@ -69,7 +70,7 @@ export function CoverPanel({
     write(next);
     ctx.onSelect(d.id);
   };
-  const addArt = (url: string) => {
+  const addArt = (url: string, attribution: CoverImageDecoration['attribution'] = { sourceName: 'Your upload', origin: 'upload' }) => {
     const d: CoverImageDecoration = {
       id: uuidv4(),
       kind: 'art',
@@ -77,7 +78,7 @@ export function CoverPanel({
       x: 0.5,
       y: 0.5,
       w: NEW_DECORATION_W,
-      attribution: { sourceName: 'Your upload', origin: 'upload' },
+      attribution,
     };
     add(d);
   };
@@ -132,6 +133,11 @@ export function CoverPanel({
         <Text style={[styles.count, full && styles.countFull]}>
           {items.length} / {MAX_DECORATIONS_PER_SURFACE}
         </Text>
+      </View>
+      {/* THE ARTISTS SHELF (owner, 2026-11-03): a real artist's cover piece, placed like an
+          upload and credited to them. Preview only. Nothing shows until an artist offers one. */}
+      <View style={full ? styles.disabled : undefined} pointerEvents={full ? 'none' : 'auto'}>
+        <ArtistShelf surface="cover" onPick={(url, attribution) => addArt(url, attribution)} testID="cover-artists" />
       </View>
       <View style={styles.toolbar}>
         <Pressable

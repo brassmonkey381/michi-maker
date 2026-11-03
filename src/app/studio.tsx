@@ -20,6 +20,7 @@ import { GrowthPanel } from '@/components/analytics/GrowthPanel';
 import { HealthPanel } from '@/components/analytics/HealthPanel';
 import { MoneyPanel } from '@/components/analytics/MoneyPanel';
 import { PuzzlePanel } from '@/components/analytics/PuzzlePanel';
+import { ArtistsPanel } from '@/components/analytics/ArtistsPanel';
 import { ReportsPanel } from '@/components/analytics/ReportsPanel';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -284,6 +285,9 @@ export default function StudioScreen() {
         {/* The takedown queue. michi-only: reports are filed on binders and profiles, which
             tcgscan does not have. */}
         {app === 'michi' ? <ReportsPanel /> : null}
+
+        {/* Artist accounts and the review queue for the pieces they offer (data/artists.ts). */}
+        {app === 'michi' ? <ArtistsPanel /> : null}
 
         {/* Authoring the daily puzzle. michi-only for the same reason: it publishes a binder page,
             and tcgscan has no binders. Collapsed until opened, because it is used on the days a

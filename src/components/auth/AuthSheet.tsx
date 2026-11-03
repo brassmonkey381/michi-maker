@@ -27,6 +27,7 @@ import {
   View,
 } from 'react-native';
 
+import { ArtistPanel } from '@/components/auth/ArtistPanel';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -607,6 +608,10 @@ function ProfileView({ onClose }: { onClose: () => void }) {
           </ThemedText>
         </Pressable>
       ) : null}
+
+      {/* ARTIST ACCOUNTS (owner, 2026-11-03): granted in Studio; the panel offers pieces for
+          preview on everyone's binders. See data/artists.ts. */}
+      {auth.profile?.is_artist ? <ArtistPanel /> : null}
 
       <View style={styles.privacyRow}>
         <View style={styles.privacyText}>

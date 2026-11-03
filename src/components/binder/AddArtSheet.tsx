@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { ArtistShelf } from '@/components/binder/ArtistShelf';
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { FindArtSheet, openArtSearch, useArtLead } from '@/components/binder/FindArtSheet';
@@ -138,6 +139,10 @@ export function AddArtSheet({
             />
           </View>
         ) : null}
+
+        {/* THE ARTISTS SHELF (owner, 2026-11-03): real artists' pieces, placed straight from the
+            shelf (already hosted, no copy needed), credited to the artist, preview only. */}
+        <ArtistShelf surface="slot" onPick={(hosted, attribution) => onPick(hosted, attribution)} testID="add-art-artists" />
 
         <View style={styles.urlRow}>
           <TextInput

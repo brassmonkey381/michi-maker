@@ -58,6 +58,8 @@ export function ImageProperties({
   const originLabel =
     d.attribution?.origin === 'logo'
       ? 'Set logo'
+      : d.attribution?.origin === 'artist'
+        ? `Artist piece${d.attribution.artist ? ` by ${d.attribution.artist}` : ''}, preview only`
       : d.attribution?.origin === 'upload'
         ? 'Your upload'
         : d.attribution?.origin === 'card'

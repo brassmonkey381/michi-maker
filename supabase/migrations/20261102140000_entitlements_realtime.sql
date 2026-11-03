@@ -8,9 +8,9 @@
 -- read their own tcgscan trial"); realtime postgres_changes respects them. No write policy is
 -- added: clients never write either table, only the payments webhook and the trial RPC do.
 --
--- Replica identity FULL on entitlements so a DELETE event carries user_id and the client filter
--- can match it (the default identity sends the primary key only). tcgscan_pro_trials is keyed by
--- user_id already. This changes what the WAL records for the row, nothing about the data.
+-- DELETE events carry the primary key only, and user_id is in both keys (entitlements is keyed
+-- (user_id, product), tcgscan_pro_trials by user_id), so the client's user_id filter matches
+-- deletes without changing replica identity.
 --
 -- Applied with `supabase db query --linked -f` (this project is shared; db push always stops).
 
@@ -29,5 +29,3 @@ begin
     alter publication supabase_realtime add table public.tcgscan_pro_trials;
   end if;
 end $$;
-
-alter table public.entitlements replica identity full;

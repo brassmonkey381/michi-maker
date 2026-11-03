@@ -32,7 +32,11 @@ log(`  test account @${prof[0]?.username}: artist ${prof[0]?.is_artist}`);
 if (!prof[0]?.is_artist) { log('the test account is not an artist yet: run state/apply-artists.ps1 first'); process.exit(2); }
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
-const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+// The offer half runs on the phone size, where the Account pill opens the sheet the way the
+// delete-account lab proved; the place half needs the desktop editor's artwork dock.
+const ctx = MODE === 'offer'
+  ? await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  : await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
 await ctx.addInitScript(({ key, value }) => { try { localStorage.setItem(key, value); } catch {} }, sessionSeed(session));
 const page = await ctx.newPage();
 page.on('console', (m) => { if (m.type() === 'error' && !/favicon|DevTools|ResizeObserver/i.test(m.text())) log('  console.error:', m.text().slice(0, 160)); });

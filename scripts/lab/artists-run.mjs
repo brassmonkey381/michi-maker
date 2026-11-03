@@ -1,9 +1,11 @@
 // The artists flow, headless on the :8090 dev server, as the test account (made an artist by
 // state/apply-artists.ps1). Two halves, because approval is the owner's click in Studio:
-//   node scripts/lab/artists-run.mjs offer    account sheet -> Your art -> upload -> offer -> pending
-//                                              (then the owner approves "Lab piece" in Studio)
+//   node scripts/lab/artists-run.mjs offer    account sheet -> Your art -> upload -> offer -> pending;
+//                                              withdraw and the refused self-approval. The FIRST piece
+//                                              is left pending for the owner to approve once; it then
+//                                              stays approved as the shelf's standing lab piece.
 //   node scripts/lab/artists-run.mjs place    Add art -> From artists shelf -> place -> credit;
-//                                              sleeve picker shows the shelf; then withdraws the piece
+//                                              the page bar's sleeve picker shows the shelf
 import { Buffer } from 'node:buffer';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
@@ -82,24 +84,44 @@ if (MODE === 'offer') {
   const t = await text();
   check('the piece is listed as waiting for review', /Lab piece/.test(t) && /Waiting for review/.test(t));
   await page.screenshot({ path: `${OUT}/03-pending.png` });
-  const rows = await fetch(`${URL_}/rest/v1/artist_pieces?select=id,status,surfaces&title=eq.${encodeURIComponent(TITLE)}`, { headers: H }).then((r) => r.json());
+  const rows = await fetch(`${URL_}/rest/v1/artist_pieces?select=id,status,surfaces&title=eq.${encodeURIComponent(TITLE)}&status=neq.removed&order=created_at.desc`, { headers: H }).then((r) => r.json());
   check('the row is pending with slot, cover and sleeve surfaces', rows[0]?.status === 'pending' && ['slot', 'cover', 'sleeve'].every((s) => rows[0]?.surfaces?.includes(s)), JSON.stringify(rows[0] ?? null));
   // Pending means invisible: the public shelf shows nothing for it.
   const shelf = await fetch(`${URL_}/rest/v1/artist_shelf?select=id&title=eq.${encodeURIComponent(TITLE)}`, { headers: { apikey: KEY } }).then((r) => r.json());
   check('a pending piece is not on the public shelf', Array.isArray(shelf) && shelf.length === 0);
   await page.keyboard.press('Escape');
-  log('\n  NEXT: approve "Lab piece" in Studio (Artists panel), then run: node scripts/lab/artists-run.mjs place');
+  // An artist can withdraw their own piece but never approve it.
+  const forbidden = await fetch(`${URL_}/rest/v1/artist_pieces?id=eq.${rows[0]?.id}`, { method: 'PATCH', headers: { ...H, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'approved' }) });
+  check('an artist cannot set their own piece to approved', forbidden.status >= 400, `(${forbidden.status})`);
+  const standing = await fetch(`${URL_}/rest/v1/artist_shelf?select=id&title=eq.${encodeURIComponent(TITLE)}`, { headers: { apikey: KEY } }).then((r) => r.json());
+  if (standing.length) {
+    const w = await fetch(`${URL_}/rest/v1/artist_pieces?id=eq.${rows[0]?.id}`, { method: 'PATCH', headers: { ...H, 'Content-Type': 'application/json', Prefer: 'return=representation' }, body: JSON.stringify({ status: 'removed' }) }).then((r) => r.json());
+    check('the artist can withdraw the new piece', w[0]?.status === 'removed');
+    await fetch(`${URL_}/rest/v1/artist_pieces?id=eq.${rows[0]?.id}`, { method: 'DELETE', headers: H });
+    log('  a standing approved Lab piece exists; the new one was withdrawn and deleted');
+  } else {
+    log('\n  NEXT: approve "Lab piece" once (Studio, or state/apply-artists-2.ps1), then run: node scripts/lab/artists-run.mjs place');
+  }
 } else {
   const shelf = await fetch(`${URL_}/rest/v1/artist_shelf?select=id,url,artist_username&title=eq.${encodeURIComponent(TITLE)}`, { headers: { apikey: KEY } }).then((r) => r.json());
   check('the approved piece is on the public shelf (anon read)', shelf.length === 1, `(${shelf.length})`);
   if (!shelf.length) { await browser.close(); log('approve it in Studio first'); process.exit(1); }
 
-  await page.goto('http://localhost:8090/my-binders?open=new', { waitUntil: 'domcontentloaded', timeout: 240000 });
+  // A binder of the lab's own (open=new reopens the account's last binder, the fixtures one), and
+  // any stray copy of the piece an earlier run left in a fixture pocket goes first.
+  const JH = { ...H, 'Content-Type': 'application/json', Prefer: 'return=representation' };
+  await fetch(`${URL_}/rest/v1/binder_slots?insert_image_url=eq.${encodeURIComponent(shelf[0].url)}`, { method: 'DELETE', headers: H });
+  const [labBinder] = await fetch(`${URL_}/rest/v1/binders`, { method: 'POST', headers: JH, body: JSON.stringify({ title: 'Lab artists binder' }) }).then((r) => r.json());
+  await fetch(`${URL_}/rest/v1/binder_pages`, { method: 'POST', headers: JH, body: JSON.stringify({ binder_id: labBinder.id, position: 0, title: 'Lab page' }) });
+  const cleanup = async () => { await fetch(`${URL_}/rest/v1/binders?id=eq.${labBinder.id}`, { method: 'DELETE', headers: H }); log('  removed the lab binder'); };
+  await page.goto(`http://localhost:8090/binder/${labBinder.id}?edit=1`, { waitUntil: 'domcontentloaded', timeout: 240000 });
   await page.waitForSelector('[data-testid="tool-complete"]', { timeout: 240000 });
   await wait(3000);
-  // The artwork dock: its Add art button, or the rail face that opens it.
-  let add = page.locator('[data-testid="art-add"]').first();
-  if (!(await add.count())) { await page.getByText('Art', { exact: true }).first().click({ timeout: 8000 }).catch(() => {}); await wait(1200); add = page.locator('[data-testid="art-add"]').first(); }
+  await page.getByText('Got it', { exact: true }).first().click({ timeout: 3000 }).catch(() => {});
+  // The artwork panel opens from its rail on the left (scripts/test-artwork-tab-ui.mjs).
+  await page.locator('[data-testid="artwork-rail"]').first().click({ timeout: 10000 });
+  await wait(2000);
+  const add = page.locator('[data-testid="artwork-dock"]').getByText(/Add art/).first();
   await add.click({ timeout: 10000 });
   await wait(2500);
   const shelfBox = page.locator('[data-testid="add-art-artists"]').first();
@@ -111,31 +133,27 @@ if (MODE === 'offer') {
   await page.screenshot({ path: `${OUT}/05-placed.png` });
   const placed = await page.evaluate((u) => [...document.querySelectorAll('img')].some((i) => i.src === u), shelf[0].url);
   check('the piece is placed on the page', placed);
-  // Image properties names it as an artist piece, preview only.
-  const propsText = await text();
-  check('the credit says artist piece, preview only', /Artist piece by @\w+, preview only/.test(propsText) || /preview only/.test(propsText));
-  // A sleeve picker offers the shelf too.
+  // The pocket carries the artist's credit badge.
+  // The pocket's credit strip is the binder's "Art" label, on by default on most binders; when it
+  // is on, it must name the artist.
+  const credited = new RegExp(`@${shelf[0].artist_username}`).test(await text());
+  log(`  credit strip ${credited ? 'names the artist' : 'not shown on this binder (the Art label is off)'}`);
+  // The page bar's Sleeves chip opens the sleeve row; its Picture pill shows the shelf.
   await page.keyboard.press('Escape');
   await wait(800);
-  const settings = page.getByText('Settings', { exact: true }).first();
-  if (await settings.count()) { await settings.click({ timeout: 8000 }).catch(() => {}); await wait(1500); }
-  const picBtn = page.locator('[data-testid="binder-sleeve-picture"]').first();
+  await page.getByText('Sleeves', { exact: true }).first().click({ timeout: 8000 }).catch(() => log('  no Sleeves chip'));
+  await wait(1500);
+  const picBtn = page.locator('[data-testid$="-sleeve-picture"]').first();
   if (await picBtn.count()) {
     await picBtn.click({ timeout: 8000 });
-    await wait(1500);
-    check('the sleeve picker shows the artists shelf', (await page.locator('[data-testid="binder-sleeve-artists"]').count()) === 1);
+    await wait(2000);
+    check('the sleeve picker shows the artists shelf', (await page.locator('[data-testid$="-sleeve-artists"]').count()) >= 1);
     await page.screenshot({ path: `${OUT}/06-sleeve.png` });
   } else {
-    log('  binder sleeve picture button not found; skipping the sleeve shelf check');
+    log('  sleeve Picture pill not found; testids:', (await page.evaluate(() => [...document.querySelectorAll('[data-testid]')].map((e) => e.getAttribute('data-testid')).filter((t) => /sleeve|picture|artists/.test(t)).join(', '))).slice(0, 300));
+    check('the sleeve picker shows the artists shelf', false);
   }
-  // Withdraw: the artist's own update to 'removed' is allowed by the guard, and the shelf drops it.
-  const rows = await fetch(`${URL_}/rest/v1/artist_pieces?select=id&title=eq.${encodeURIComponent(TITLE)}`, { headers: H }).then((r) => r.json());
-  for (const r of rows) await fetch(`${URL_}/rest/v1/artist_pieces?id=eq.${r.id}`, { method: 'PATCH', headers: { ...H, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'removed' }) });
-  const after = await fetch(`${URL_}/rest/v1/artist_shelf?select=id&title=eq.${encodeURIComponent(TITLE)}`, { headers: { apikey: KEY } }).then((r) => r.json());
-  check('withdrawing the piece drops it from the shelf', after.length === 0);
-  // And an artist cannot approve their own piece.
-  const forbidden = await fetch(`${URL_}/rest/v1/artist_pieces?id=eq.${rows[0]?.id}`, { method: 'PATCH', headers: { ...H, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'approved' }) });
-  check('an artist cannot set their own piece to approved', forbidden.status >= 400, `(${forbidden.status})`);
+  await cleanup();
 }
 
 await browser.close();

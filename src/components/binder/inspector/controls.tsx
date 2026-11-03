@@ -241,9 +241,10 @@ export function WearRow({
   onChange: (value: string | null) => void;
   testID?: string;
 }) {
-  // Which artists shelf this row offers, read off the label: every WearRow is a sleeve or a
-  // backing (data/artists.ts surfaces). A picked piece is an ordinary picture address here.
-  const artistSurface = /sleeve/i.test(label) ? 'sleeve' : 'backing';
+  // Which artists shelf this row offers: every WearRow is a sleeve or a backing (data/artists.ts
+  // surfaces), named in its fieldKey or testID even when the label is just "Colour" (the page
+  // bar's popover). A picked piece is an ordinary picture address here.
+  const artistSurface = /sleeve/i.test(`${fieldKey} ${testID ?? ''} ${label}`) ? 'sleeve' : 'backing';
   const isNone = own === WEAR_NONE;
   const inEffect = resolveWear(own, above);
   const pictured = isImageRef(inEffect);

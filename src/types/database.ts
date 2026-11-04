@@ -1039,6 +1039,7 @@ export type Database = {
           is_admin: boolean
           is_artist: boolean
           artist_link: string | null
+          artist_prints: boolean
           is_public: boolean
           marketing_consent: boolean
           marketing_consent_at: string | null
@@ -1064,6 +1065,7 @@ export type Database = {
           is_admin?: boolean
           is_artist?: boolean
           artist_link?: string | null
+          artist_prints?: boolean
           is_public?: boolean
           marketing_consent?: boolean
           marketing_consent_at?: string | null
@@ -1089,6 +1091,7 @@ export type Database = {
           is_admin?: boolean
           is_artist?: boolean
           artist_link?: string | null
+          artist_prints?: boolean
           is_public?: boolean
           marketing_consent?: boolean
           marketing_consent_at?: string | null

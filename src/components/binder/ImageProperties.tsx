@@ -59,7 +59,7 @@ export function ImageProperties({
     d.attribution?.origin === 'logo'
       ? 'Set logo'
       : d.attribution?.origin === 'artist'
-        ? `Artist piece${d.attribution.artist ? ` by ${d.attribution.artist}` : ''}, preview only`
+        ? `Artist piece${d.attribution.artist ? ` by ${d.attribution.artist}` : ''}, ${d.attribution.printable ? 'prints as shown' : 'preview only'}`
       : d.attribution?.origin === 'upload'
         ? 'Your upload'
         : d.attribution?.origin === 'card'

@@ -73,6 +73,7 @@ import {
 
 // Relative, not '@/': this module is exercised by node --test (fillSheetPacking.test.ts).
 import { cardFrame, connectedCut, resolveArtView, stockCardText, type FrameTable, type Rect } from './artView.ts';
+import { printsAsPicture } from './artworkLibrary.ts';
 import { insideEdgePairStarts, pageSide } from './binderPhysics.ts';
 import { cutPieces } from './printFit.ts';
 import type { DemoBinder, DemoSlot, ImageTransform } from '@/data/binderTypes';
@@ -255,8 +256,9 @@ export interface MatTile {
   row: number;
   col: number;
   name: string;
-  /** Dex number, type and stage, "No. 008 · Water · Stage 1". */
-  sub: string;
+  /** "160 HP" and the rarity, right side of the name line, HP over rarity; '' when unknown. */
+  hp: string;
+  rarity: string;
   rows: { label: string; value: string }[];
   /** The dex number for the faint watermark in the corner, '' when unknown. */
   dex: string;
@@ -335,6 +337,8 @@ export interface CardMeta {
   seriesId?: string;
   illustrator?: string;
   releaseDate?: string;
+  hp?: number | null;
+  rarity?: string;
   fullArt?: boolean;
   fullArtKind?: string;
   /** The frame class (artView.ts cardFrame), when the catalogue has one. */
@@ -347,16 +351,16 @@ export interface CardMetaSource {
 }
 
 /** A mat's words, as the stock card on screen says them (artView.ts stockCardText). */
-function matText(m: CardMeta): Pick<MatTile, 'name' | 'sub' | 'rows' | 'dex'> {
+function matText(m: CardMeta): Pick<MatTile, 'name' | 'hp' | 'rarity' | 'rows' | 'dex'> {
   return stockCardText({
     name: m.name,
-    types: m.types ?? [],
-    stage: m.stage ?? '',
     seriesId: m.seriesId ?? '',
     setName: m.setName,
     number: m.number,
     illustrator: m.illustrator ?? '',
     releaseDate: m.releaseDate ?? '',
+    hp: m.hp ?? null,
+    rarity: m.rarity ?? '',
   });
 }
 const fullArtOf = (m: CardMeta | undefined) => (m ? { fullArt: m.fullArt, fullArtKind: m.fullArtKind ?? '', frame: m.frame } : undefined);
@@ -526,9 +530,10 @@ export function collectFillTiles(
     // slices stay separate pieces. Legacy oversized slots subdivide into folded pairs at
     // the page's inside-edge pockets + singles (side-load physics).
     const pairStarts = insideEdgePairStarts(page.cols, pageSide(pageIndex));
-    // An artist's piece (origin 'artist', data/artists.ts) is preview only: it never prints as
-    // a picture. It takes the placeholder path below instead, named for the artist.
-    for (const { group, slots } of groupArt(page.slots.filter((s) => s.type === 'artwork' && s.imageUrl && s.attribution?.origin !== 'artist'))) {
+    // An artist's piece (origin 'artist', data/artists.ts) is preview only unless its artist
+    // allows printing (attribution.printable): then it prints as any picture does. Otherwise it
+    // takes the placeholder path below instead, named for the artist.
+    for (const { group, slots } of groupArt(page.slots.filter((s) => s.type === 'artwork' && s.imageUrl && printsAsPicture(s.attribution)))) {
       for (const slot of slots) {
         for (const piece of slotPieces(slot, pairStarts)) {
           byCell.set(`${slot.row + piece.i},${slot.col + piece.j}`, {
@@ -555,7 +560,7 @@ export function collectFillTiles(
           number: card?.number ?? '',
           owned: ownedIds?.has(slot.cardId) ?? false,
         });
-      } else if (slot.type === 'artwork' && slot.imageUrl && slot.attribution?.origin === 'artist') {
+      } else if (slot.type === 'artwork' && slot.imageUrl && !printsAsPicture(slot.attribution)) {
         // One placeholder per covered pocket, naming the artist, so the page still cuts and
         // assembles and the collector knows whose piece goes there.
         for (let i = 0; i < slot.rowSpan; i += 1) {
@@ -607,7 +612,7 @@ export function collectFillTiles(
         const cut: Rect = sheet ?? { x0: own.x0, y0: own.y0, x1: own.x1, y1: own.y1 };
         tiles.push({
           kind: 'mat', page: pageIndex + 1, row: slot.row + 1, col: slot.col + 1,
-          ...(m ? matText(m) : { name: 'Unknown card', sub: '', rows: [], dex: '' }),
+          ...(m ? matText(m) : { name: 'Unknown card', hp: '', rarity: '', rows: [], dex: '' }),
           cut, color: mats!,
         });
       });
@@ -1167,14 +1172,20 @@ function drawMatTile(page: PDFPage, tile: MatTile, x: number, y: number, bold: P
   }
   let cursor = hy - 16;
   if (cursor - 12 < bottom) return;
-  const [name] = wrap(sanitize(tile.name), bold, 12, w, 1);
+  // HP over rarity on the right of the name line, as the stock card on screen has them.
+  const hp = sanitize(tile.hp);
+  const rarity = sanitize(tile.rarity).toUpperCase();
+  const hpW = hp ? bold.widthOfTextAtSize(hp, 8) : 0;
+  const rarityW = rarity ? regular.widthOfTextAtSize(rarity, 5) : 0;
+  const cornerW = Math.min(w * 0.45, Math.max(hpW, rarityW));
+  const [name] = wrap(sanitize(tile.name), bold, 12, w - (cornerW ? cornerW + 6 : 0), 1);
   if (name) page.drawText(name, { x: left, y: cursor, size: 12, font: bold, color: ink });
-  cursor -= 11;
-  if (tile.sub) {
-    const [sub] = wrap(sanitize(tile.sub).toUpperCase(), regular, 6, w, 1);
-    if (sub) page.drawText(sub, { x: left, y: cursor, size: 6, font: regular, color: muted });
-    cursor -= 9;
+  if (hp) page.drawText(hp, { x: right - hpW, y: cursor + 3, size: 8, font: bold, color: ink });
+  if (rarity) {
+    const [r] = wrap(rarity, regular, 5, w * 0.45, 1);
+    if (r) page.drawText(r, { x: right - regular.widthOfTextAtSize(r, 5), y: cursor - 4, size: 5, font: regular, color: muted });
   }
+  cursor -= cornerW ? 14 : 11;
   const rowH = 14;
   const fit = Math.max(0, Math.floor((cursor - 4 - bottom) / rowH));
   const rows = tile.rows.slice(0, fit);

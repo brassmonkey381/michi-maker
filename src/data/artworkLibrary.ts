@@ -72,10 +72,21 @@ export interface ArtAttribution {
    *    Recorded so that posture can be re-tightened with one line and a jsonb query.
    *  - 'artist' — a piece a real artist offered on the artists shelf (data/artists.ts), hosted in
    *    the artist's own bucket folder and approved by an admin. Public-eligible: offering it for
-   *    preview is what the shelf is. Printed as a placeholder, never as the picture.
+   *    preview is what the shelf is. Printed as a placeholder unless `printable` says otherwise.
    * Absent ⇒ legacy/official content (card art, our own AI art) — not treated as private.
    */
   origin?: 'external' | 'upload' | 'card' | 'copied' | 'logo' | 'artist';
+  /**
+   * An artist piece whose artist allows printing (profiles.artist_prints, stamped when the piece
+   * is placed): it prints as the picture, like an upload. Absent on an artist piece means preview
+   * only. Meaningless on any other origin.
+   */
+  printable?: boolean;
+}
+
+/** Whether a placed piece prints as its picture: everything but an artist piece whose artist has not allowed printing. */
+export function printsAsPicture(a: ArtAttribution | null | undefined): boolean {
+  return a?.origin !== 'artist' || a.printable === true;
 }
 
 const PLATFORM_NAMES: Record<string, string> = {

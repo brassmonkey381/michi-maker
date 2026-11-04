@@ -100,7 +100,7 @@ export function ArtistShelf({
               </Text>
             </>
           ) : null}
-          {' · preview only'}
+          {chosen.prints ? ' · prints as shown' : ' · preview only'}
         </Text>
       ) : null}
     </View>

@@ -9,14 +9,14 @@ import { ActivityIndicator, Linking, Pressable, StyleSheet, TextInput, View } fr
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { ARTIST_SURFACE_LABELS, type AdminPiece, type PieceStatus, adminArtistPieces, adminListArtists, adminReviewPiece, adminSetArtistByUsername } from '@/data/artists';
+import { ARTIST_SURFACE_LABELS, type AdminArtist, type AdminPiece, type PieceStatus, adminArtistPieces, adminListArtists, adminReviewPiece, adminSetArtistByUsername, adminSetArtistPrints } from '@/data/artists';
 
 type Tab = 'pending' | 'approved' | 'rejected';
 
 export function ArtistsPanel() {
   const [tab, setTab] = useState<Tab>('pending');
   const [pieces, setPieces] = useState<AdminPiece[] | null>(null);
-  const [artists, setArtists] = useState<{ id: string; username: string | null; displayName: string | null; artistLink: string | null }[]>([]);
+  const [artists, setArtists] = useState<AdminArtist[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [handle, setHandle] = useState('');
@@ -33,6 +33,16 @@ export function ArtistsPanel() {
     setBusy(p.id);
     adminReviewPiece(p.id, status, status === 'rejected' ? note.trim() || null : null)
       .then(() => { setNote(''); load(); })
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setBusy(null));
+  };
+
+  const setPrints = (a: AdminArtist, on: boolean) => {
+    if (busy) return;
+    setBusy(`prints-${a.id}`);
+    setError(null);
+    adminSetArtistPrints(a.id, on)
+      .then(load)
       .catch((e) => setError((e as Error).message))
       .finally(() => setBusy(null));
   };
@@ -75,9 +85,20 @@ export function ArtistsPanel() {
         </Pressable>
       </View>
       {artists.length ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          {artists.map((a) => (a.username ? `@${a.username}` : a.displayName ?? a.id.slice(0, 8))).join(' · ')}
-        </ThemedText>
+        // Each artist with a Prints switch: on, their placed pieces print as pictures; off, a
+        // placeholder named for them prints (the default, preview only).
+        <View style={styles.artistList}>
+          {artists.map((a) => (
+            <View key={a.id} style={styles.artistRow} testID={`artists-account-${a.id}`}>
+              <ThemedText type="small" style={styles.artistName} numberOfLines={1}>
+                {a.username ? `@${a.username}` : a.displayName ?? a.id.slice(0, 8)}
+              </ThemedText>
+              <Pressable onPress={() => setPrints(a, !a.prints)} disabled={busy === `prints-${a.id}`} style={a.prints ? styles.quietBtn : styles.ghostBtn} testID={`artists-prints-${a.id}`}>
+                <ThemedText type="small" style={a.prints ? styles.quietText : styles.ghostText}>{a.prints ? 'Prints as shown' : 'Preview only'}</ThemedText>
+              </Pressable>
+            </View>
+          ))}
+        </View>
       ) : null}
 
       <View style={styles.tabs}>
@@ -148,6 +169,11 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.two },
   grantRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  artistList: { gap: 4 },
+  artistRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
+  artistName: { flexShrink: 1 },
+  ghostBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: Palette.hairlineStrong },
+  ghostText: { color: Palette.muted },
   input: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: Palette.hairlineStrong, borderRadius: Radius.control, paddingHorizontal: Spacing.two, paddingVertical: 6, fontSize: FontSize.sm, color: Palette.ink },
   tabs: { flexDirection: 'row', gap: Spacing.two },
   tab: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: Palette.hairlineStrong },

@@ -33,6 +33,18 @@ A placed piece carries `attribution.origin = 'artist'` with the artist's `@usern
 is public-eligible, labelled "Artist piece, preview only" in image properties, and the print path
 prints a placeholder named for the artist instead of the picture.
 
+## Printing (2026-11-03)
+
+An admin can mark an artist **Prints as shown** in the Studio panel (`profiles.artist_prints`,
+`admin_set_artist_prints`). The shelf carries it as `prints`, a piece placed from the shelf is
+stamped `attribution.printable = true`, image properties say "prints as shown", and the print path
+prints the picture as it would an upload. Pieces placed before the switch keep the stamp they were
+placed with. The owner's account (@fakemichi) is the first such artist (`state/apply-artist-prints.ps1`).
+
+What prints today: art slots and picture inserts. Sleeves, art backings, page backgrounds and
+covers are screen decoration with no print path for anyone; a mat prints as a plain black or white
+card with the card's facts, its picture and style not yet.
+
 ## Files
 
 - `supabase/migrations/20261103100000_artists.sql`: columns, table, view `artist_shelf`, admin RPCs.
@@ -41,3 +53,4 @@ prints a placeholder named for the artist instead of the picture.
 - `src/components/auth/ArtistPanel.tsx`: the artist's panel in the account sheet.
 - `src/components/analytics/ArtistsPanel.tsx`: Studio's queue and grants.
 - `state/apply-artists.ps1`: applies the migration and makes the owner an artist (owner-run).
+- `supabase/migrations/20261103130000_artist_prints.sql` and `state/apply-artist-prints.ps1`: the Prints permission.

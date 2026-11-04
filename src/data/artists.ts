@@ -6,7 +6,9 @@
  * that the pickers read (approved pieces only, with the artist's name and link).
  *
  * Attribution on a placed piece is origin 'artist': public-eligible (the artist offered it for
- * exactly this), credited by username with the artist's link, and printed as a placeholder.
+ * exactly this), credited by username with the artist's link, and printed as a placeholder unless
+ * the artist allows printing (profiles.artist_prints, 2026-11-03; the owner's own account first):
+ * then `printable` is stamped on the attribution and the piece prints as the picture.
  */
 import type { ArtAttribution } from './artworkLibrary.ts';
 import { requireSupabase } from '@/lib/supabase';
@@ -37,6 +39,8 @@ export interface ShelfPiece {
   artistUsername: string | null;
   artistName: string | null;
   artistLink: string | null;
+  /** The artist allows printing: a placed piece prints as the picture. */
+  prints: boolean;
 }
 
 /** One of the signed-in artist's own pieces, at any status. */
@@ -60,10 +64,12 @@ export interface AdminPiece extends MyPiece {
 }
 
 /** How a placed piece is credited: "@username" with their link, origin 'artist'. */
-export function artistAttribution(p: Pick<ShelfPiece, 'artistUsername' | 'artistName' | 'artistLink' | 'title'>): ArtAttribution {
+export function artistAttribution(p: Pick<ShelfPiece, 'artistUsername' | 'artistName' | 'artistLink' | 'title'> & Partial<Pick<ShelfPiece, 'prints'>>): ArtAttribution {
   const name = p.artistUsername ? `@${p.artistUsername}` : (p.artistName ?? 'an artist');
-  return { artist: name, sourceName: p.title, sourceUrl: p.artistLink ?? undefined, origin: 'artist' };
+  return { artist: name, sourceName: p.title, sourceUrl: p.artistLink ?? undefined, origin: 'artist', ...(p.prints ? { printable: true } : {}) };
 }
+
+export { printsAsPicture } from './artworkLibrary.ts';
 
 /** "@username" or the display name, for a credit line. */
 export function artistLabel(p: Pick<ShelfPiece, 'artistUsername' | 'artistName'>): string {
@@ -79,6 +85,7 @@ const SHELF_TTL_MS = 5 * 60 * 1000;
 type ShelfRow = {
   id: string; title: string; url: string; width: number | null; height: number | null; surfaces: string[];
   artist_id: string; artist_username: string | null; artist_name: string | null; artist_link: string | null;
+  prints?: boolean | null;
 };
 
 export async function fetchArtistShelf(): Promise<ShelfPiece[]> {
@@ -93,6 +100,7 @@ export async function fetchArtistShelf(): Promise<ShelfPiece[]> {
         id: r.id, title: r.title, url: r.url, width: r.width, height: r.height,
         surfaces: r.surfaces.filter((s): s is ArtistSurface => (ARTIST_SURFACES as readonly string[]).includes(s)),
         artistId: r.artist_id, artistUsername: r.artist_username, artistName: r.artist_name, artistLink: r.artist_link,
+        prints: r.prints === true,
       }));
       shelfCache = { at: Date.now(), pieces };
       return pieces;
@@ -209,9 +217,26 @@ export async function adminSetArtistByUsername(username: string, on: boolean): P
   return { id: prof.id, username: prof.username ?? handle };
 }
 
-export async function adminListArtists(): Promise<{ id: string; username: string | null; displayName: string | null; artistLink: string | null }[]> {
+export interface AdminArtist {
+  id: string;
+  username: string | null;
+  displayName: string | null;
+  artistLink: string | null;
+  /** The artist allows printing (profiles.artist_prints). */
+  prints: boolean;
+}
+
+export async function adminListArtists(): Promise<AdminArtist[]> {
   const supabase = requireSupabase();
-  const { data, error } = await supabase.from('profiles').select('id, username, display_name, artist_link').eq('is_artist', true).order('username');
+  const { data, error } = await supabase.from('profiles').select('id, username, display_name, artist_link, artist_prints').eq('is_artist', true).order('username');
   if (error) throw new Error(error.message);
-  return (data ?? []).map((p) => ({ id: p.id, username: p.username, displayName: p.display_name, artistLink: p.artist_link }));
+  return (data ?? []).map((p) => ({ id: p.id, username: p.username, displayName: p.display_name, artistLink: p.artist_link, prints: p.artist_prints === true }));
+}
+
+/** Allow or stop an artist's pieces printing as pictures. Pieces already placed keep the stamp they were placed with. */
+export async function adminSetArtistPrints(userId: string, on: boolean): Promise<void> {
+  const supabase = requireSupabase();
+  const { error } = await supabase.rpc('admin_set_artist_prints' as never, { p_user: userId, p_on: on } as never);
+  if (error) throw new Error(`set prints: ${error.message}`);
+  invalidateArtistShelf();
 }

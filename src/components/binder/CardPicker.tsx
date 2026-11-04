@@ -6,12 +6,15 @@ import type { CardAction } from 'tcgscan-browse';
 
 import Animated, { type SharedValue } from 'react-native-reanimated';
 
+import { ArtistShelf } from '@/components/binder/ArtistShelf';
+import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { ArtworkPanel } from '@/components/binder/ArtworkPanel';
 import { DockRailFace, markDockOpened } from '@/components/binder/DockRailFace';
 import { useDockResize } from '@/components/binder/DockResizeHandle';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { ThemedText } from '@/components/themed-text';
 import { THEME_FAMILIES, themeBackgroundDataUri } from '@/data/themeBackgrounds';
+import type { ArtAttribution } from '@/data/artworkLibrary';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 import type { SavedSlice } from '@/data/savedSlices';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -115,6 +118,12 @@ interface CardPickerProps {
   /** Guests can't keep artworks (cap 0): the studio shows a sign-in note, not an upgrade pitch. */
   guest?: boolean;
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
+  /**
+   * A PICTURE INSERT (owner, 2026-11-03: "allow uploading as inserts too"): an upload of your own
+   * or an artist's piece, placed at the chosen shape like a tonal insert is. Credited and capped
+   * exactly as the Add art sheet's pictures are, because it is the same art entering the account.
+   */
+  onPickPictureInsert?: (imageUrl: string, attribution: ArtAttribution, rowSpan: number, colSpan: number) => void;
   onClear: () => void;
   /** One-shot "find similar to all" seed (binder multi-select → this picker). Applied on the
    *  card browser's mount; bypasses the broadcast command bus so it can't be intercepted. */
@@ -183,6 +192,7 @@ export function CardPicker({
   resizeMin = 0,
   resizeMax = 0,
   onPickInsert,
+  onPickPictureInsert,
   onClear,
   initialSimilar,
   paletteSeed,
@@ -252,7 +262,9 @@ export function CardPicker({
       shape.cols,
     );
 
-  // The Insert tab: a tonal negative-space tile, a themed background, or leave the pocket empty.
+  // The Insert tab: a tonal negative-space tile, a picture insert, a themed background, or leave
+  // the pocket empty.
+  const [insertError, setInsertError] = useState<string | null>(null);
   const renderInsert = () => (
     <>
       <Text style={styles.sectionLabel}>Tonal insert · {sizeLabel}</Text>
@@ -269,6 +281,28 @@ export function CardPicker({
           );
         })}
       </View>
+
+      {onPickPictureInsert ? (
+        <View testID="insert-picture">
+          <Text style={styles.sectionLabel}>Picture insert · {sizeLabel}</Text>
+          <View style={styles.insertRow}>
+            <ArtUploadButton
+              onUploaded={(hosted) => {
+                setInsertError(null);
+                onPickPictureInsert(hosted, { sourceName: 'your upload', origin: 'upload' }, shape.rows, shape.cols);
+              }}
+              onError={setInsertError}
+            />
+            <Text style={styles.insertNote}>A picture of your own, filling this shape.</Text>
+          </View>
+          {insertError ? <Text style={styles.insertError}>{insertError}</Text> : null}
+          <ArtistShelf
+            surface="slot"
+            onPick={(hosted, attribution) => onPickPictureInsert(hosted, attribution, shape.rows, shape.cols)}
+            testID="insert-artists"
+          />
+        </View>
+      ) : null}
 
       {/* Themed backgrounds, procedural, fully owned elemental art (themeBackgrounds.ts). One
           swatch per energy family; the Variant chip flips every swatch to its alternate palette. */}
@@ -663,6 +697,8 @@ const styles = StyleSheet.create({
   insertRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
   insertSwatch: { width: 28, height: 28, borderRadius: 7, borderWidth: 1, borderColor: Palette.swatchBorder },
   insertSwatchActive: { borderWidth: 3, borderColor: Palette.accent },
+  insertNote: { flex: 1, fontSize: FontSize.sm, color: Palette.muted2, lineHeight: 16 },
+  insertError: { fontSize: FontSize.sm, color: Palette.danger, marginBottom: 6 },
   themeHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   themeSwatch: { width: 48, alignItems: 'center', gap: 3 },
   themeSwatchImg: {

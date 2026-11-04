@@ -22,10 +22,13 @@ import { useDockResize } from '@/components/binder/DockResizeHandle';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
+import { ArtistShelf } from '@/components/binder/ArtistShelf';
+import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { ArtworkPanel } from '@/components/binder/ArtworkPanel';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import type { ArtAttribution } from '@/data/artworkLibrary';
 import type { SavedSlice } from '@/data/savedSlices';
 
 /** The tonal inserts, the same set the picker's Insert tab offered. */
@@ -67,6 +70,8 @@ export interface ArtworkDockProps {
   onToast?: (message: string) => void;
   /** Inserts live on this side too — see the tab note below. */
   onPickInsert?: (color: string, rowSpan: number, colSpan: number) => void;
+  /** A picture insert, one pocket, from an upload or the artists shelf (see CardPicker's). */
+  onPickPictureInsert?: (imageUrl: string, attribution: ArtAttribution) => void;
   onClear?: () => void;
   /** Dragging the inner edge — see the same props on CardPicker. */
   onResize?: (px: number) => void;
@@ -101,6 +106,7 @@ export function ArtworkDock({
   side = 'left',
   onClose,
   onPickInsert,
+  onPickPictureInsert,
   onClear,
   coverTools,
   coverLayers,
@@ -116,6 +122,7 @@ export function ArtworkDock({
    * thing beside the cards and the other opposite it, for no reason a person could name.
    */
   const [tab, setTab] = useState<'art' | 'insert' | 'cover'>('art');
+  const [insertError, setInsertError] = useState<string | null>(null);
   // The inner edge is whichever border faces the page, so it is the opposite of `side`. Declared
   // with the other hooks, above every early return, so its order never varies.
   const dockResize = useDockResize({
@@ -226,6 +233,23 @@ export function ArtworkDock({
               />
             ))}
           </View>
+          {onPickPictureInsert ? (
+            <View style={styles.pictureInsert} testID="insert-picture">
+              <Text style={styles.insertTitle}>Picture insert</Text>
+              <View style={styles.uploadRow}>
+                <ArtUploadButton
+                  onUploaded={(hosted) => {
+                    setInsertError(null);
+                    onPickPictureInsert(hosted, { sourceName: 'your upload', origin: 'upload' });
+                  }}
+                  onError={setInsertError}
+                />
+                <Text style={styles.insertHint}>A picture of your own in one pocket. Drag its corner to make it bigger.</Text>
+              </View>
+              {insertError ? <Text style={styles.insertError}>{insertError}</Text> : null}
+              <ArtistShelf surface="slot" onPick={(hosted, attribution) => onPickPictureInsert(hosted, attribution)} testID="insert-artists" />
+            </View>
+          ) : null}
           {onClear ? (
             <Pressable onPress={onClear} style={styles.clearBtn} accessibilityRole="button">
               <Text style={styles.clearText}>Leave the pocket empty</Text>
@@ -312,6 +336,10 @@ const styles = StyleSheet.create({
   tabTextOn: { color: Palette.ink2 },
   insertScroll: { gap: Spacing.three, paddingBottom: Spacing.four },
   insertHint: { fontSize: FontSize.sm, color: Palette.muted2, lineHeight: 16 },
+  pictureInsert: { gap: Spacing.two },
+  insertTitle: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.ink },
+  uploadRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  insertError: { fontSize: FontSize.sm, color: Palette.danger },
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   swatch: { width: 56, height: 78, borderRadius: Radius.thumb, borderWidth: 1, borderColor: Palette.hairline },
   clearBtn: { paddingVertical: 8, alignSelf: 'flex-start' },

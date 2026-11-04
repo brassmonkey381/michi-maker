@@ -153,6 +153,23 @@ if (MODE === 'offer') {
     log('  sleeve Picture pill not found; testids:', (await page.evaluate(() => [...document.querySelectorAll('[data-testid]')].map((e) => e.getAttribute('data-testid')).filter((t) => /sleeve|picture|artists/.test(t)).join(', '))).slice(0, 300));
     check('the sleeve picker shows the artists shelf', false);
   }
+  // The art dock's Inserts tab offers a Picture insert: Upload and the artists shelf (owner,
+  // 2026-11-03). Picking the piece there places a second copy on the page.
+  await page.keyboard.press('Escape');
+  await wait(800);
+  const dock = page.locator('[data-testid="artwork-dock"]');
+  if (!(await dock.count())) await page.locator('[data-testid="artwork-rail"]').first().click({ timeout: 10000 }).catch(() => {});
+  await wait(1500);
+  await page.locator('[data-testid="artwork-dock"]').getByText('Inserts', { exact: true }).first().click({ timeout: 8000 }).catch(() => log('  no Inserts tab'));
+  await wait(2000);
+  check('the Inserts tab shows the Picture insert row', (await page.locator('[data-testid="insert-picture"]').count()) >= 1);
+  check('the Inserts tab shows the artists shelf', (await page.locator('[data-testid="insert-artists"]').count()) >= 1);
+  const before = await page.evaluate((u) => [...document.querySelectorAll('img')].filter((i) => i.src === u).length, shelf[0].url);
+  await page.locator(`[data-testid="insert-artists-${shelf[0].id}"]`).first().click({ timeout: 8000 }).catch(() => log('  no shelf tile on the Inserts tab'));
+  await wait(3000);
+  const afterN = await page.evaluate((u) => [...document.querySelectorAll('img')].filter((i) => i.src === u).length, shelf[0].url);
+  check('picking the piece on the Inserts tab places it', afterN > before, `(${before} -> ${afterN})`);
+  await page.screenshot({ path: `${OUT}/07-insert.png` });
   await cleanup();
 }
 

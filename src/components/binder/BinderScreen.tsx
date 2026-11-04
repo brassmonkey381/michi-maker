@@ -1232,18 +1232,26 @@ export function BinderScreen({
   };
   /** The Add art sheet chose a picture: one whole piece, seated where the studio would seat it. */
   const placeQuickArt = (imageUrl: string, attribution: ArtAttribution) => {
+    if (placePictureInsert(imageUrl, attribution, 1, 1)) setAddArtOpen(false);
+  };
+  /**
+   * A PICTURE INSERT (owner, 2026-11-03): the Inserts tab's upload or artist piece, at the shape
+   * the tab chose. The same path as Add art, so the cap, the shared-binder rights check, the
+   * credit and the tray mirror all apply; side-load physics splits an illegal footprint.
+   */
+  const placePictureInsert = (imageUrl: string, attribution: ArtAttribution, rs: number, cs: number): boolean => {
     const slice: SavedSlice = {
       id: uuidv4(),
       imageUrl,
       crop: null,
       fit: 'cover',
-      rs: 1,
-      cs: 1,
+      rs,
+      cs,
       groupId: uid('slicegrp'),
       label: domainOf(imageUrl),
       attribution,
     };
-    if (placeStudioPieces([{ r: 0, c: 0, slice }])) setAddArtOpen(false);
+    return placeStudioPieces([{ r: 0, c: 0, slice }]);
   };
   // What the studio's Find art sheet reads: the page's cards, by id.
   const pageCardIds = page.slots.flatMap((s) => (s.cardId ? [s.cardId] : []));
@@ -3119,6 +3127,7 @@ export function BinderScreen({
           // Inserts moved to this side with the artwork: both are "not a card", and the card
           // browser has to stay alone on its own side anyway.
           onPickInsert={handlePickInsert}
+          onPickPictureInsert={(url, attribution) => void placePictureInsert(url, attribution, 1, 1)}
           onClear={handleClear}
           ghostOn={ghostOn}
           ghostX={ghostX}
@@ -3152,6 +3161,9 @@ export function BinderScreen({
           trayLimit={store.limits.artUploads}
           guest={store.tier === 'guest'}
           onPickInsert={handlePickInsert}
+          onPickPictureInsert={(url, attribution, rs, cs) => {
+            if (placePictureInsert(url, attribution, rs, cs)) closePicker();
+          }}
           onClear={handleClear}
           initialSimilar={similarSeed ?? undefined}
           paletteSeed={paletteSeed}

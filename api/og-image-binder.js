@@ -285,7 +285,53 @@ async function loadArt(pages, binder) {
       }
     }),
   );
+  await sampleLuminance(pages, out);
   return out;
+}
+
+/**
+ * THE BRIGHTNESS UNDER A MAT'S TEXT (matStyle.ts luminanceUnder; lib/luminanceLoader.web.ts is
+ * the app's reader): a mat whose ink follows the picture reads a 160px-wide greyscale copy of it.
+ * One per picture, kept on the data URI, made here so the Satori tree (which is built without
+ * awaiting) can read it.
+ */
+const LUMINANCE = new Map();
+async function sampleLuminance(pages, art) {
+  for (const page of pages) {
+    const mat = page.matStyle;
+    if (!mat || !mat.autoInk || !mat.picture) continue;
+    const uri = art.get(mat.picture);
+    if (!uri || LUMINANCE.has(uri)) continue;
+    try {
+      const buf = Buffer.from(uri.slice(uri.indexOf(',') + 1), 'base64');
+      const meta = await sharp(buf).metadata();
+      if (!meta.width || !meta.height) continue;
+      const lw = 160;
+      const lh = Math.max(1, Math.round((lw * meta.height) / meta.width));
+      const data = await sharp(buf).resize(lw, lh, { fit: 'fill' }).greyscale().raw().toBuffer();
+      LUMINANCE.set(uri, { pw: meta.width, ph: meta.height, lw, lh, data });
+    } catch {
+      /* unreadable: the mat keeps its chosen ink */
+    }
+  }
+}
+/** matStyle.ts luminanceUnder: the mean brightness, 0..1, under `rect` when the picture is cover-fitted into `box`. */
+function luminanceUnder(sample, box, rect) {
+  if (!sample || !sample.pw || !sample.ph || !box.width || !box.height) return 0.5;
+  const scale = Math.max(box.width / sample.pw, box.height / sample.ph);
+  const ox = (box.width - sample.pw * scale) / 2;
+  const oy = (box.height - sample.ph * scale) / 2;
+  const toGrid = (x, y) => [((x - ox) / scale) * (sample.lw / sample.pw), ((y - oy) / scale) * (sample.lh / sample.ph)];
+  const [x0, y0] = toGrid(rect.left, rect.top);
+  const [x1, y1] = toGrid(rect.left + rect.width, rect.top + rect.height);
+  let sum = 0;
+  let n = 0;
+  for (let y = Math.max(0, Math.floor(y0)); y < Math.min(sample.lh, Math.ceil(y1)); y += 1)
+    for (let x = Math.max(0, Math.floor(x0)); x < Math.min(sample.lw, Math.ceil(x1)); x += 1) {
+      sum += sample.data[y * sample.lw + x];
+      n += 1;
+    }
+  return n ? sum / n / 255 : 0.5;
 }
 
 /** What a slot draws: a manifest card image, or its own artwork. null = empty pocket. */
@@ -452,6 +498,15 @@ function normalizeMat(raw) {
   if (typeof raw.font === 'string' && MAT_FONT_FAMILY[raw.font]) out.font = raw.font;
   if (Array.isArray(raw.fields)) out.fields = MAT_FIELDS.filter((f) => raw.fields.includes(f));
   if (raw.name === 'clean') out.clean = true;
+  if (raw.name === 'none') out.noName = true;
+  if (raw.halo === 'thin' || raw.halo === 'wide') out.halo = raw.halo;
+  if (out.picture && typeof raw.scrim === 'number' && raw.scrim > 0) out.scrim = Math.min(1, raw.scrim);
+  if (out.picture && raw.autoInk === true) out.autoInk = true;
+  if (raw.align && typeof raw.align === 'object') {
+    const side = (v) => (v === 'left' || v === 'center' || v === 'right' ? v : undefined);
+    const align = { name: side(raw.align.name), rows: side(raw.align.rows), dex: side(raw.align.dex) };
+    if (align.name || align.rows || align.dex) out.align = align;
+  }
   return Object.keys(out).length ? out : null;
 }
 
@@ -476,21 +531,34 @@ function attachStyles(pages, binder) {
 }
 
 /** The mat's colours, as matStyle.ts matPalette cuts them from the ink and the paper. */
-function matPalette(mat) {
+function matPalette(mat, luminance) {
   const paper = (mat && mat.paper) || DEFAULT_MAT_PAPER;
-  const ink = (mat && mat.ink) || DEFAULT_MAT_INK;
+  let ink = (mat && mat.ink) || DEFAULT_MAT_INK;
+  // The ground the ink is read against: the paper, or with a following ink the opposite of the
+  // ink it chose. The outline, the scrim and the faded cuts use it.
+  let ground = paper;
+  if (mat && mat.autoInk && mat.picture && luminance !== undefined) {
+    const dark = luminance > 0.5;
+    ink = dark ? '#111114' : '#f6f3ea';
+    ground = dark ? '#f6f3ea' : '#111114';
+  }
+  const full = !!mat && mat.halo === 'wide';
   return {
     paper,
     ink,
+    ground,
+    halo: mat ? mat.halo : undefined,
+    scrim: mat && mat.picture && mat.scrim ? mat.scrim : 0,
     picture: mat ? mat.picture : undefined,
     family: MAT_FONT_FAMILY[(mat && mat.font) || 'serif'],
-    sub: mixHex(ink, paper, 0.35),
-    label: mixHex(ink, paper, 0.5),
-    value: mixHex(ink, paper, 0.08),
-    rule: mixHex(ink, paper, 0.8),
-    watermark: mixHex(ink, paper, 0.94),
+    sub: full ? ink : mixHex(ink, ground, 0.35),
+    label: full ? ink : mixHex(ink, ground, 0.5),
+    value: full ? ink : mixHex(ink, ground, 0.08),
+    rule: full ? ink : mixHex(ink, ground, 0.8),
+    watermark: mixHex(ink, ground, 0.94),
   };
 }
+const alphaHex = (hex, alpha) => `${hex}${Math.round(Math.min(1, Math.max(0, alpha)) * 255).toString(16).padStart(2, '0')}`;
 
 const matShows = (mat, field) => !mat || !mat.fields || mat.fields.includes(field);
 
@@ -514,6 +582,7 @@ function stockText(fact, mat) {
   if (!fact) return { name: '', hp: '', rarity: '', rows: [], dex: '' };
   const species = speciesOf(fact.name);
   const dexNo = dexNumber(species);
+  const noName = !!mat && mat.noName;
   const rows = [
     ['Series', fact.series],
     ['Set', fact.set_name],
@@ -524,7 +593,7 @@ function stockText(fact, mat) {
     .filter(([label, v]) => !!v && matShows(mat, MAT_FIELD_OF_ROW[label]))
     .map(([label, value]) => ({ label, value: String(value) }));
   return {
-    name: (mat && mat.clean && species) || fact.name || '',
+    name: noName ? '' : (mat && mat.clean && species) || fact.name || '',
     hp: matShows(mat, 'hp') && fact.hp ? `${fact.hp} HP` : '',
     rarity: matShows(mat, 'rarity') && fact.rarity ? String(fact.rarity) : '',
     rows,
@@ -585,19 +654,38 @@ function stockCard(left, top, w, hgt, art, fact, wear, mat, picture, slice) {
   const nameBlock = (38 + 18 + 14) * unit;
   const spare = chh - margin - windowH - nameBlock - 24 * unit;
   // THE MAT (matStyle.ts): the paper, a picture over it, the ink, the face and which lines show.
-  const pal = matPalette(mat);
+  // An ink that follows the picture reads the brightness under this mat's text block (ArtViewCard
+  // StockCard does the same with the app's reader): within the whole picture, or this pocket's slice.
+  const textBlock = { left: (slice ? -slice.left : 0) + margin, top: (slice ? -slice.top : 0) + margin + windowH, width: windowW, height: Math.max(1, chh - margin - windowH) };
+  const luminance = picture && mat && mat.autoInk ? luminanceUnder(LUMINANCE.get(picture), slice ? { width: slice.width, height: slice.height } : { width: cw, height: chh }, textBlock) : undefined;
+  const pal = matPalette(mat, luminance);
   const family = pal.family;
   const text = stockText(fact, mat);
   const rows = text.rows.slice(0, Math.max(0, Math.floor(spare / rowH)));
+  // THE OUTLINE (matStyle.ts halo): four offset shadows in the ground colour make a ring Satori
+  // can draw; the wide one is twice the size (and the small lines in full ink, from the palette).
+  const haloPx = Math.max(1, Math.round(S)) * (pal.halo === 'wide' ? 2 : 1);
+  const hs = pal.halo ? { textShadow: `${haloPx}px 0 ${haloPx}px ${pal.ground}, -${haloPx}px 0 ${haloPx}px ${pal.ground}, 0 ${haloPx}px ${haloPx}px ${pal.ground}, 0 -${haloPx}px ${haloPx}px ${pal.ground}` } : {};
+  const align = (mat && mat.align) || {};
+  const ALIGN_ITEMS = { left: 'flex-start', center: 'center', right: 'flex-end' };
   const textKids = [];
   if (text.name || text.hp || text.rarity) {
     const corner = [];
-    if (text.hp) corner.push(h('div', { style: { display: 'flex', fontSize: rowSize * 1.1, lineHeight: 1.3, fontWeight: 700, fontFamily: family, color: pal.ink, whiteSpace: 'nowrap' } }, text.hp));
-    if (text.rarity) corner.push(h('div', { style: { display: 'flex', fontSize: labelSize, lineHeight: 1.3, letterSpacing: 1.2 * unit, fontFamily: family, color: pal.sub, whiteSpace: 'nowrap' } }, text.rarity.toUpperCase()));
+    if (text.hp) corner.push(h('div', { style: { display: 'flex', fontSize: rowSize * 1.1, lineHeight: 1.3, fontWeight: 700, fontFamily: family, color: pal.ink, whiteSpace: 'nowrap', ...hs } }, text.hp));
+    if (text.rarity) corner.push(h('div', { style: { display: 'flex', fontSize: labelSize, lineHeight: 1.3, letterSpacing: 1.2 * unit, fontFamily: family, color: pal.sub, whiteSpace: 'nowrap', ...hs } }, text.rarity.toUpperCase()));
+    if (align.name) {
+      // A packed name section (matStyle.ts MatAlign): the name over an "HP · RARITY" line, at one side.
+      textKids.push(
+        h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: ALIGN_ITEMS[align.name], width: windowW } }, [
+          ...(text.name ? [h('div', { style: { display: 'flex', fontSize: nameSize, lineHeight: 1.15, fontWeight: 700, fontFamily: family, color: pal.ink, whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: windowW, ...hs } }, text.name)] : []),
+          ...(corner.length ? [h('div', { style: { display: 'flex', flexDirection: 'row', alignItems: 'baseline', gap: 6 * unit } }, corner)] : []),
+        ]),
+      );
+    } else
     textKids.push(
       // HP over rarity, right side of the name line (owner, 2026-11-03), as StockCard lays it.
       h('div', { style: { display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', width: windowW } }, [
-        h('div', { style: { display: 'flex', flexShrink: 1, fontSize: nameSize, lineHeight: 1.15, fontWeight: 700, fontFamily: family, color: pal.ink, whiteSpace: 'nowrap', overflow: 'hidden' } }, text.name),
+        h('div', { style: { display: 'flex', flexShrink: 1, fontSize: nameSize, lineHeight: 1.15, fontWeight: 700, fontFamily: family, color: pal.ink, whiteSpace: 'nowrap', overflow: 'hidden', ...hs } }, text.name),
         ...(corner.length ? [h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, marginLeft: 6, maxWidth: Math.round(windowW * 0.45) } }, corner)] : []),
       ]),
     );
@@ -607,10 +695,10 @@ function stockCard(left, top, w, hgt, art, fact, wear, mat, picture, slice) {
     textKids.push(
       h(
         'div',
-        { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: rowH, borderBottomWidth: 1, borderBottomStyle: 'solid', borderBottomColor: pal.rule } },
+        { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: align.rows ? ALIGN_ITEMS[align.rows] : 'space-between', height: rowH, borderBottomWidth: 1, borderBottomStyle: 'solid', borderBottomColor: pal.rule } },
         [
-          h('div', { style: { display: 'flex', fontSize: labelSize, letterSpacing: 1.4 * unit, fontFamily: family, color: pal.label, whiteSpace: 'nowrap' } }, r.label.toUpperCase()),
-          h('div', { style: { display: 'flex', fontSize: rowSize, fontFamily: family, color: pal.value, marginLeft: 6, whiteSpace: 'nowrap', overflow: 'hidden' } }, r.value),
+          h('div', { style: { display: 'flex', fontSize: labelSize, letterSpacing: 1.4 * unit, fontFamily: family, color: pal.label, whiteSpace: 'nowrap', ...hs } }, r.label.toUpperCase()),
+          h('div', { style: { display: 'flex', fontSize: rowSize, fontFamily: family, color: pal.value, marginLeft: align.rows ? 8 : 6, whiteSpace: 'nowrap', overflow: 'hidden', ...hs } }, r.value),
         ],
       ),
     );
@@ -621,11 +709,20 @@ function stockCard(left, top, w, hgt, art, fact, wear, mat, picture, slice) {
     // page-wide one (matStyle.ts spreadSlice, measured from the pocket, so the ring comes off).
     const box = slice ? { left: slice.left - ring, top: slice.top - ring, width: slice.width, height: slice.height } : { left: 0, top: 0, width: cw, height: chh };
     kids.push(h('img', { src: picture, width: Math.round(box.width), height: Math.round(box.height), style: { position: 'absolute', left: Math.round(box.left), top: Math.round(box.top), objectFit: 'cover' } }));
+    if (pal.scrim > 0) {
+      // THE SCRIM (matStyle.ts scrim): the picture tinted toward the ground under the text block
+      // only, fading in from the window's foot, as StockCard draws it.
+      const from = margin + windowH;
+      const fade = Math.round(14 * unit);
+      kids.push(h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: Math.round(from), width: cw, height: fade, backgroundImage: `linear-gradient(to bottom, ${alphaHex(pal.ground, 0)}, ${alphaHex(pal.ground, pal.scrim)})` } }));
+      kids.push(h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: Math.round(from) + fade, width: cw, height: Math.max(0, Math.round(chh - from) - fade), backgroundColor: alphaHex(pal.ground, pal.scrim) } }));
+    }
   }
   kids.push(h('div', { style: { display: 'flex', position: 'absolute', left: margin, top: margin, width: windowW, height: Math.round(windowH), overflow: 'hidden', backgroundColor: '#000' } }, art ? [artWindowImg(art.src, windowW, 'window')] : []));
   if (text.dex) {
     // The dex number, large and a shade above the paper, in the bottom corner; under the rows.
-    kids.push(h('div', { style: { display: 'flex', position: 'absolute', right: margin, bottom: 6 * unit, fontSize: 56 * unit, lineHeight: 1, fontFamily: family, color: pal.watermark, whiteSpace: 'nowrap' } }, text.dex));
+    const at = align.dex === 'left' ? { left: margin } : align.dex === 'center' ? { left: margin, width: windowW, justifyContent: 'center' } : { right: margin };
+    kids.push(h('div', { style: { display: 'flex', position: 'absolute', ...at, bottom: 6 * unit, fontSize: 56 * unit, lineHeight: 1, fontFamily: family, color: pal.watermark, whiteSpace: 'nowrap', ...hs } }, text.dex));
   }
   kids.push(h('div', { style: { display: 'flex', flexDirection: 'column', position: 'absolute', left: margin, top: margin + windowH + 10 * unit, width: windowW } }, textKids));
   const card = h(

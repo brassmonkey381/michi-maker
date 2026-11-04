@@ -1,7 +1,9 @@
 /**
  * THE MAT CUSTOMIZER (owner, 2026-11-03; data/matStyle.ts): what the art view's stock card looks
  * like. The paper (a colour, or a picture from the presets, the artists shelf, an upload or a
- * link), the ink, the face, and which lines of the card's data the mat carries.
+ * link), the ink, the face, which lines of the card's data the mat carries, how each section
+ * sits, and how the ink stays readable over a busy picture: an outline, a scrim, or an ink that
+ * follows the picture (owner, 2026-11-03: "ship them all as options for the user to pick from").
  *
  * One panel at two levels: the binder's settings style every mat, and the page bar's Art view
  * popover styles one page's, with "Use binder's" to hand the choice back. The panel never knows
@@ -15,12 +17,22 @@ import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { ColorBox, ImageLinkField, PillButton, Row, Seg, ToggleChip, styles } from '@/components/binder/inspector/controls';
 import { PresetPictureGrid } from '@/components/binder/PresetPictureGrid';
 import { FontSize, Palette } from '@/constants/theme';
-import { DEFAULT_MAT_INK, DEFAULT_MAT_PAPER, MAT_FIELDS, MAT_FONTS, matFields, spreadFits, spreadMinimum, type MatStyle, type MatStylePatch } from '@/data/matStyle';
+import { DEFAULT_MAT_INK, DEFAULT_MAT_PAPER, MAT_ALIGNS, MAT_FIELDS, MAT_FONTS, MAT_SCRIMS, matFields, spreadFits, spreadMinimum, type MatAlign, type MatName, type MatStyle, type MatStylePatch } from '@/data/matStyle';
 
-const MAT_NAMES: { id: 'card' | 'clean'; label: string }[] = [
+const MAT_NAMES: { id: MatName; label: string }[] = [
   { id: 'card', label: 'As printed' },
   { id: 'clean', label: 'Species only' },
+  { id: 'none', label: 'None' },
 ];
+
+const MAT_HALOS: { id: 'off' | 'thin' | 'wide'; label: string; blurb: string }[] = [
+  { id: 'off', label: 'Off', blurb: 'No outline.' },
+  { id: 'thin', label: 'Thin', blurb: 'A thin outline round every line, in the paper colour.' },
+  { id: 'wide', label: 'Wide', blurb: 'A wider outline, and the small lines in the full ink.' },
+];
+
+/** The stock layout, then the three sides (matStyle.ts MatAlign). */
+const SECTION_ALIGNS: { id: 'stock' | MatAlign; label: string }[] = [{ id: 'stock', label: 'Stock' }, ...MAT_ALIGNS];
 
 export function MatPanel({
   value,
@@ -107,9 +119,26 @@ export function MatPanel({
       {showPicker ? <ImageLinkField value={value?.picture} onChange={(picture) => onChange({ picture })} testID={testID ? `${testID}-link` : undefined} /> : null}
       <Row label="Ink">
         <ColorBox fieldKey={`${fieldKey}-ink`} value={value?.ink ?? DEFAULT_MAT_INK} onChange={(ink) => onChange({ ink })} />
+        {pictured ? <ToggleChip label="Follows the picture" on={!!value?.autoInk} onPress={() => onChange({ autoInk: value?.autoInk ? null : true })} accessibilityLabel="Ink follows the picture: dark ink where the picture is light under the text, light ink where it is dark, mat by mat" /> : null}
       </Row>
+      <Row label="Outline" testID={testID ? `${testID}-halo` : undefined}>
+        <Seg options={MAT_HALOS} value={value?.halo ?? 'off'} onChange={(halo) => onChange({ halo: halo === 'off' ? null : halo })} />
+      </Row>
+      {pictured ? (
+        <Row label="Scrim" testID={testID ? `${testID}-scrim` : undefined}>
+          <Seg
+            options={MAT_SCRIMS}
+            value={(MAT_SCRIMS.find((o) => o.value === (value?.scrim ?? 0)) ?? MAT_SCRIMS[value?.scrim ? 2 : 0]).id}
+            onChange={(id) => {
+              const found = MAT_SCRIMS.find((o) => o.id === id);
+              onChange({ scrim: found && found.value > 0 ? found.value : null });
+            }}
+          />
+          <Text style={local.note}>Tints the picture toward the paper under the text.</Text>
+        </Row>
+      ) : null}
       <Row label="Name" testID={testID ? `${testID}-name` : undefined}>
-        <Seg options={MAT_NAMES} value={value?.name ?? 'card'} onChange={(name) => onChange({ name: name === 'clean' ? 'clean' : null })} />
+        <Seg options={MAT_NAMES} value={value?.name ?? 'card'} onChange={(name) => onChange({ name: name === 'card' ? null : name })} />
       </Row>
       <Row label="Font" testID={testID ? `${testID}-font` : undefined}>
         <Seg options={MAT_FONTS} value={value?.font ?? 'serif'} onChange={(font) => onChange({ font: font === 'serif' ? null : font })} />
@@ -121,13 +150,30 @@ export function MatPanel({
           ))}
         </View>
       </Row>
-      <Text style={local.note}>The name always shows; Species only cleans it to the Pokémon it is a card of. HP and Rarity sit beside the name. Lines that do not fit a small pocket are left off, as before.</Text>
+      <Row label="Align" testID={testID ? `${testID}-align` : undefined}>
+        <View style={local.alignRows}>
+          {(['name', 'rows', 'dex'] as const).map((section) => (
+            <View key={section} style={local.alignRow}>
+              <Text style={local.alignLabel}>{section === 'name' ? 'Name line' : section === 'rows' ? 'Rows' : 'Dex'}</Text>
+              <Seg
+                options={section === 'dex' ? MAT_ALIGNS : SECTION_ALIGNS}
+                value={value?.align?.[section] ?? (section === 'dex' ? 'right' : 'stock')}
+                onChange={(side) => onChange({ align: { [section]: side === 'stock' || (section === 'dex' && side === 'right') ? null : side } })}
+              />
+            </View>
+          ))}
+        </View>
+      </Row>
+      <Text style={local.note}>Species only cleans the name to the Pokémon it is a card of; None leaves it off. HP and Rarity sit beside the name. Stock is the card as it shipped: name left with HP and Rarity in the corner, the value of each row at the far edge. Lines that do not fit a small pocket are left off, as before.</Text>
     </View>
   );
 }
 
 const local = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, flexShrink: 1 },
+  alignRows: { gap: 6, flexShrink: 1 },
+  alignRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  alignLabel: { fontSize: FontSize.xs, color: Palette.muted, minWidth: 64 },
   uploadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   note: { flex: 1, fontSize: FontSize.xs, color: Palette.muted, lineHeight: 15 },
 });

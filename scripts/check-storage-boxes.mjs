@@ -32,23 +32,43 @@ try {
   console.log(applied ? '  APPLIED' : '  NOT APPLIED: the app update reads columns that do not exist, so sync fails');
   if (!applied) process.exit(0);
 
-  console.log('Step 2: units by collection');
+  console.log('Step 2: units by ACCOUNT, then collection (codes are numbered per account)');
   const rows = await sql(`
-    select c.name as collection, u.id, u.kind, u.code, u.name, u.parent_id,
+    select u.user_id, coalesce(au.email, '(no email: guest)') as email, c.name as collection, u.id, u.kind, u.code,
+           u.name, u.parent_id, u.created_at, u.updated_at,
            (u.kind = 'stack' and (u.parent_id is null or not exists (
-              select 1 from public.storage_units b where b.user_id=u.user_id and b.id=u.parent_id and b.kind='box'))) as orphan,
-           u.updated_at
-    from public.storage_units u join public.collections c on c.user_id=u.user_id and c.id=u.collection_id
-    order by c.name, u.kind, u.code nulls last;`);
-  let last = '';
+              select 1 from public.storage_units b where b.user_id=u.user_id and b.id=u.parent_id and b.kind='box'))) as orphan
+    from public.storage_units u
+    join public.collections c on c.user_id=u.user_id and c.id=u.collection_id
+    left join auth.users au on au.id=u.user_id
+    order by (au.email is null), au.email, u.user_id, c.name, u.kind, u.code nulls last;`);
+  const accounts = [...new Set(rows.map((r) => r.user_id))];
+  console.log(`  ${accounts.length} account(s) hold storage units`);
+  const mask = (e) => (e.includes('@') ? `${e.slice(0, 3)}***@${e.split('@')[1]}` : e);
+  let lastUser = '';
+  let lastCol = '';
   for (const r of rows) {
-    if (r.collection !== last) console.log(`  [${r.collection}]`);
-    last = r.collection;
+    if (r.user_id !== lastUser) {
+      console.log(`  ACCOUNT ${mask(r.email)} (${r.user_id.slice(0, 8)})`);
+      lastUser = r.user_id;
+      lastCol = '';
+    }
+    if (r.collection !== lastCol) console.log(`    [${r.collection}]`);
+    lastCol = r.collection;
     const code = `${{ binder: 'Bi', box: 'Bo', stack: 'S', other: '?' }[r.kind]}${r.code ?? '-'}`;
-    const box = r.parent_id ? ` in ${rows.find((x) => x.id === r.parent_id)?.kind === 'box' ? `Bo${rows.find((x) => x.id === r.parent_id).code ?? '-'}` : 'MISSING BOX'}` : '';
-    console.log(`    ${code.padEnd(6)} ${r.kind.padEnd(6)}${box}${r.name ? `  "${r.name}"` : ''}${r.orphan ? '  <- ORPHAN' : ''}`);
+    const parent = r.parent_id ? rows.find((x) => x.user_id === r.user_id && x.id === r.parent_id) : null;
+    const box = r.parent_id ? ` in ${parent?.kind === 'box' ? `Bo${parent.code ?? '-'}` : 'MISSING BOX'}` : '';
+    console.log(`      ${code.padEnd(6)} ${r.kind.padEnd(6)}${box}${r.name ? `  "${r.name}"` : ''}${r.orphan ? '  <- ORPHAN' : ''}`);
   }
-  console.log(`  ${rows.filter((r) => r.orphan).length} orphan stack(s)`);
+  const dups = rows.filter((r, i) => r.code != null && rows.findIndex((x) => x.user_id === r.user_id && x.kind === r.kind && x.code === r.code) !== i);
+  console.log(`  duplicate codes inside one account: ${dups.length}`);
+  for (const o of rows.filter((r) => r.orphan)) {
+    console.log(`  ORPHAN ${o.id} in "${o.collection}" (${mask(o.email)}): parent_id=${o.parent_id ?? 'null'}`);
+    const [elsewhere] = o.parent_id
+      ? await sql(`select kind, collection_id from public.storage_units where user_id='${o.user_id}' and id='${o.parent_id}';`)
+      : [];
+    console.log(`    that parent id ${elsewhere ? `exists as a ${elsewhere.kind} in collection ${elsewhere.collection_id}` : 'does not exist on the server'}; stack updated ${o.updated_at}, created ${o.created_at}`);
+  }
   console.log('DONE (nothing was changed)');
 } catch (e) {
   console.log(`FAILED: ${e.message}`);

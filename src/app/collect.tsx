@@ -92,8 +92,8 @@ type ShapeId = (typeof SHAPE_OPTIONS)[number]['id'];
 const shapeOf = (id: ShapeId) => SHAPE_OPTIONS.find((s) => s.id === id) ?? SHAPE_OPTIONS[1];
 const ART_WINDOWS = [
   { id: 'off', label: 'Card view', blurb: 'Pages show the whole card.' },
-  { id: 'black', label: 'Art window, black', blurb: 'Pages show the art window on black. Black mats print from the binder.' },
-  { id: 'white', label: 'Art window, white', blurb: 'Pages show the art window. White mats print from the binder.' },
+  { id: 'black', label: 'Art window, black', blurb: 'Pages show the art window on black.' },
+  { id: 'white', label: 'Art window, white', blurb: 'Pages show the art window on white.' },
 ] as const;
 /**
  * Where the art panels are filled from. Stock photos for everyone; the two Pokémon art sites are

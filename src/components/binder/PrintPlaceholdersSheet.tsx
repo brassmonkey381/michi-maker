@@ -48,6 +48,15 @@ import { usePrintAllowance } from '@/hooks/use-print-allowance';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
 
+/**
+ * MATS ARE OFF THE PRINT SHEET FOR NOW (owner, 2026-11-03): the printed mat is still the plain
+ * black or white card with every line, while the screen draws the paper, picture, ink, face and
+ * lines a person chose. A paid file that does not match the preview is worse than no file, so the
+ * section is hidden and an art-view page prints as placeholders until the share image and its
+ * download draw the mat style, then the print sheet follows. Everything below stays wired: flip
+ * this to true to offer the choice again.
+ */
+const MATS_PRINT = false;
 /** The mat choice on the print sheet. "Off" prints an art-view page as placeholders, as before. */
 const MAT_OPTIONS = [
   { id: 'off', label: 'Off', blurb: 'Those pages print as placeholders.' },
@@ -201,8 +210,8 @@ export function PrintPlaceholdersSheet({
   const hasArtView = useMemo(() => binder.pages.some((p) => p.artView === 'window' || p.artView === 'connected'), [binder.pages]);
   // On by default for a binder shown in the art view (owner, 2026-10-26: the Collect page's art
   // window choice is a choice to print mats); black as on screen, white a tap away.
-  const [matChoice, setMatChoice] = useState<'off' | MatColor>(() => (hasArtView ? 'black' : 'off'));
-  const mats: MatColor | undefined = hasArtView && matChoice !== 'off' ? matChoice : undefined;
+  const [matChoice, setMatChoice] = useState<'off' | MatColor>(() => (hasArtView && MATS_PRINT ? 'black' : 'off'));
+  const mats: MatColor | undefined = MATS_PRINT && hasArtView && matChoice !== 'off' ? matChoice : undefined;
   /**
    * EVERY GAME'S CARDS, NOT POKÉMON'S ALONE (2026-09-20). The builder asks one lookup for a name,
    * set and number, and it was handed Pokémon's catalog, so a One Piece or Lorcana pocket printed
@@ -674,7 +683,7 @@ export function PrintPlaceholdersSheet({
                     ))}
                   </View>
                 ) : null}
-                {hasArtView && counts && counts.total > 0 ? (
+                {MATS_PRINT && hasArtView && counts && counts.total > 0 ? (
                   <View style={styles.matsBlock} testID="print-mats">
                     <ThemedText type="smallBold">Art-view pages as mats</ThemedText>
                     <Seg options={MAT_OPTIONS} value={matChoice} onChange={setMatChoice} />

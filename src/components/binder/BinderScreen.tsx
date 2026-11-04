@@ -72,6 +72,7 @@ import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
 import { themeSearchWall } from '@/data/themeGate';
 import { tasteToast, type TasteFeature } from '@/data/tastes';
+import { canEditArtView } from '@/data/betaFeatures';
 import { hasArtViews, hasBinderCovers, hasBinderTracks, hasFindSimilar } from '@/data/tiers';
 import { TrackPill } from '@/components/binder/TrackPill';
 import { setTrack, stopPlayer } from '@/lib/binderAudio';
@@ -2473,7 +2474,8 @@ export function BinderScreen({
         <PageWearBar
           binder={binder}
           page={p}
-          artViews={{ locked: artViewsLocked, onLocked: onArtViewsLocked }}
+          // In beta (betaFeatures.ts): the page bar's Art view chip is offered to the testing accounts only.
+          artViews={canEditArtView(user?.id) ? { locked: artViewsLocked, onLocked: onArtViewsLocked } : undefined}
           hint={!pocketHint.copy && !!pageHint.copy}
           // SELECT SEVERAL POCKETS acts on a SELECTION on this page. Gone while the picker is
           // aimed at a pocket (the two modes are mutually exclusive in code) and on an empty

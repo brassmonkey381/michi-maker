@@ -27,6 +27,8 @@ import { Palette } from '@/constants/theme';
 import { ART_VIEWS } from '@/data/artView';
 import { SPINE_STYLES, WEAR_NONE } from '@/data/pageStyle';
 import { hasArtViews } from '@/data/tiers';
+import { canEditArtView } from '@/data/betaFeatures';
+import { useAuth } from '@/store/auth';
 import { isBlankPage, useBinders } from '@/store/binders';
 
 const PAGE_SIZE_OPTIONS = REAL_PAGE_SIZES.map((s) => ({ id: s.label, label: s.label, rows: s.rows, cols: s.cols }));
@@ -79,6 +81,8 @@ export function BinderLook({
   onTracksLocked: () => void;
 }) {
   const store = useBinders();
+  const { user } = useAuth();
+  const artViewBeta = canEditArtView(user?.id);
   const ps = binder.pageStyle;
   const [coverOpen, setCoverOpen] = useState(false);
   /** Run a change, or say why not. Every control in the Binder group goes through this. */
@@ -263,7 +267,9 @@ export function BinderLook({
           testID="binder-backing"
         />
         {/* THE ART VIEW FOR THE WHOLE BINDER (owner, 2026-10-27; artView.ts): every page shows
-            its cards this way unless a page or a pocket says otherwise. PRO's, like the page's. */}
+            its cards this way unless a page or a pocket says otherwise. PRO's, like the page's.
+            In beta (betaFeatures.ts): offered to the testing accounts only. */}
+        {artViewBeta ? (
         <Row label={hasArtViews(store.tier) || store.taste.active('artViews') ? 'Art view' : 'Art view \u00b7 PRO'} testID="binder-art-view">
           <View style={hasArtViews(store.tier) || store.taste.active('artViews') ? undefined : local.locked}>
             <Seg
@@ -277,11 +283,12 @@ export function BinderLook({
             />
           </View>
         </Row>
+        ) : null}
       </Group>
       {/* THE MATS (owner, 2026-11-03; matStyle.ts): what every art window's stock card looks
           like. Shown whenever the binder or any page uses the art window, so the group is not a
-          puzzle on a binder of plain cards. PRO's, as the art view is. */}
-      {ps?.artView === 'window' || binder.pages.some((p) => p.artView === 'window' || p.slots.some((s) => s.artView === 'window')) ? (
+          puzzle on a binder of plain cards. PRO's, as the art view is. In beta, as the art view is. */}
+      {artViewBeta && (ps?.artView === 'window' || binder.pages.some((p) => p.artView === 'window' || p.slots.some((s) => s.artView === 'window'))) ? (
         <Group title={hasArtViews(store.tier) || store.taste.active('artViews') ? 'Art window mats' : 'Art window mats · PRO'} note="The card every art window sits on, on every page unless a page says otherwise." testID="binder-group-mats">
           <View style={hasArtViews(store.tier) || store.taste.active('artViews') ? undefined : local.locked}>
             <MatPanel

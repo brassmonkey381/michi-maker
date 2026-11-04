@@ -36,6 +36,7 @@ import {
   type CollectorSort, type CollectorSortKey, completeSet, DEFAULT_DIR, evolutionFamilies, evolutionLineSet, type FacetKey, FACETS, facetOptions, filterPockets, matchSets,
   characterIndex, characterSet, facetsFor, hasMichiLayouts, heroOnlyLabel, inLanguage, isPokemonCard, kindsFor, livingCatalogue, livingDex, masterSet, michiPages, naturalSortKey, NO_FILTERS, pagesNeeded, searchCharacters, searchSpecies, sortChangesOrder, sortKeysFor, sortPockets, speciesCounts, speciesSet, withCameos,
 } from '@/data/collectorBinders';
+import { canEditArtView } from '@/data/betaFeatures';
 import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import { collectorPool, curateMaxPages, leftoverPockets, type TailOrder, titleTailPages } from '@/data/collectorCurate';
 import { saveFillSheetFiles, fileStem } from '@/data/fillSheetSave';
@@ -156,7 +157,7 @@ export function pagesForPockets(pockets: readonly CollectorPocket[], shape: { ro
 export default function CollectScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { isSignedIn, profile } = useAuth();
+  const { isSignedIn, profile, user } = useAuth();
   const isAdmin = !!profile?.is_admin;
   const store = useBinders();
   const { limits, tier } = useTier();
@@ -186,7 +187,10 @@ export default function CollectScreen() {
   const [fillSource, setFillSource] = useState<'stock' | FanArtSource>('stock');
   // A non-admin can never hold a fan-art source, whatever state says.
   const fanArt: FanArtSource | null = isAdmin && fillSource !== 'stock' ? fillSource : null;
-  const [artWindow, setArtWindow] = useState<'off' | 'black' | 'white'>('off');
+  const [artWindowChoice, setArtWindow] = useState<'off' | 'black' | 'white'>('off');
+  // In beta (betaFeatures.ts): the art window is offered to the testing accounts only; everyone else builds plain pages.
+  const artViewBeta = canEditArtView(user?.id);
+  const artWindow = artViewBeta ? artWindowChoice : 'off';
   // The store as of the latest render, for the art fill that runs across awaits after the binder
   // is created (the render-time closure would not know the new binder).
   const storeRef = useRef(store);
@@ -724,7 +728,7 @@ export default function CollectScreen() {
                     </View>
                   ) : null}
                   {/* The art window opens only on a card the catalogue flags full art, which the other games' do not. */}
-                  {secondary ? null : <Seg options={ART_WINDOWS} value={artWindow} onChange={setArtWindow} />}
+                  {secondary || !artViewBeta ? null : <Seg options={ART_WINDOWS} value={artWindow} onChange={setArtWindow} />}
                   <View style={styles.actions}>
                     {artWindow === 'off' ? (
                       <Pressable onPress={() => void printFree()} disabled={printing} style={[styles.btn, styles.btnOutline, printing && styles.dim]} accessibilityRole="button" testID="collect-print">

@@ -13,6 +13,8 @@ import { POCKET_ART_VIEWS, type PocketArtView, resolveArtView } from '@/data/art
 import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { resolveWear } from '@/data/pageStyle';
 import { hasArtViews } from '@/data/tiers';
+import { canEditArtView } from '@/data/betaFeatures';
+import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
 /**
@@ -53,6 +55,7 @@ function common(values: (string | null | undefined)[]): string | null | undefine
 
 export function PocketsWear({ binder, page, slots }: { binder: DemoBinder; page: DemoPage; slots: DemoSlot[] }) {
   const store = useBinders();
+  const { user } = useAuth();
   const cards = slots.filter((s) => s.type !== 'artwork');
   const arts = slots.filter((s) => s.type === 'artwork');
   const key = slots.map((s) => s.id).join('.');
@@ -69,7 +72,8 @@ export function PocketsWear({ binder, page, slots }: { binder: DemoBinder; page:
             onChange={(sleeve) => store.setSlotsStyle(binder.id, page.id, cards.map((s) => s.id), { sleeve })}
             testID="slots-sleeve"
           />
-          <PocketArtViewRow binder={binder} page={page} slots={cards} own={common(cards.map((s) => s.artView)) as PocketArtView | null | undefined} testID="slots-art-view" />
+          {/* In beta (betaFeatures.ts): offered to the testing accounts only. */}
+          {canEditArtView(user?.id) ? <PocketArtViewRow binder={binder} page={page} slots={cards} own={common(cards.map((s) => s.artView)) as PocketArtView | null | undefined} testID="slots-art-view" /> : null}
         </>
       ) : null}
       {arts.length ? (

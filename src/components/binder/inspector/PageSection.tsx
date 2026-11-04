@@ -12,6 +12,8 @@ import { PageComposition } from '@/components/binder/PageComposition';
 import { LabeledInput, Row, Seg, WearRow, styles } from '@/components/binder/inspector/controls';
 import { PAGE_ART_VIEWS } from '@/data/artView';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
+import { canEditArtView } from '@/data/betaFeatures';
+import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
 export function PageFields({
@@ -30,6 +32,8 @@ export function PageFields({
   onArtViewsLocked?: () => void;
 }) {
   const store = useBinders();
+  const { user } = useAuth();
+  const artViewBeta = canEditArtView(user?.id);
   const artView = page.artView ?? 'inherit';
   return (
     <View style={styles.section}>
@@ -67,7 +71,8 @@ export function PageFields({
       />
       {/* HOW THE CARDS SHOW (artView.ts): the binder's choice, or this page's own: the full card,
           the art window on a stock card, or the windows edge to edge. A pocket can say otherwise
-          again (PocketSection), unless the page is connected. */}
+          again (PocketSection), unless the page is connected. In beta (betaFeatures.ts). */}
+      {artViewBeta ? (
       <Row label={artViewsLocked ? 'Art view · PRO' : 'Art view'} testID="page-art-view">
         <View style={artViewsLocked ? local.locked : undefined}>
           <Seg
@@ -83,6 +88,7 @@ export function PageFields({
           />
         </View>
       </Row>
+      ) : null}
       <PageComposition page={page} />
     </View>
   );

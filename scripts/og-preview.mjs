@@ -21,6 +21,7 @@ import { join } from 'node:path';
 const require = createRequire(import.meta.url);
 const { __tooling } = require('../api/og-image-binder.js');
 const {
+  attachStyles,
   fetchBinder,
   fetchManifest,
   completeManifest,
@@ -120,6 +121,7 @@ if (pageNo) {
   }
   pages = [one];
 }
+attachStyles(pages, binder);
 const art = await loadArt(pages, v2 ? binder : null);
 await loadFacts(pages);
 const single = pages.length === 1;

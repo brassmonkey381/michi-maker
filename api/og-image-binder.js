@@ -30,6 +30,7 @@
  *  - On ANY failure it redirects to the binder's cover image (or the site image), so a
  *    share always has something.
  */
+/* global __dirname */
 const sharp = require('sharp');
 // The page choice is shared with the meta endpoint on purpose: og:image:width/height is declared
 // there and drawn here, so a second copy of the rule is a preview whose shape can disagree.
@@ -119,7 +120,11 @@ async function fetchBinder(id) {
     .replace('binder_pages(id,position,rows,cols,', 'binder_pages(id,position,rows,cols,art_view,')
     // 2026-10-27: a pocket's own art view (binder_slots.art_view), over the page's and the binder's.
     .replace('sleeve,art_backing))', 'sleeve,art_backing,art_view))');
-  for (const select of [`share_page_ids,${viewed}`, `share_page_ids,${looked}`, `share_page_ids,${styled}`, `share_page_ids,${base}`, base]) {
+  // THE MAT STYLE (owner, 2026-11-03): a page's own art window mat (binder_pages.mat, matStyle.ts),
+  // over the binder's (page_style.mat, already in the look). Asked for first; the selects below
+  // still draw a database without the column.
+  const matted = viewed.replace('binder_pages(id,position,rows,cols,art_view,', 'binder_pages(id,position,rows,cols,art_view,mat,');
+  for (const select of [`share_page_ids,${matted}`, `share_page_ids,${viewed}`, `share_page_ids,${looked}`, `share_page_ids,${styled}`, `share_page_ids,${base}`, base]) {
     const url = `${SUPABASE_URL}/rest/v1/binders?id=eq.${encodeURIComponent(
       id,
     )}&is_public=eq.true&select=${encodeURIComponent(select)}`;
@@ -257,6 +262,8 @@ async function loadArt(pages, binder) {
     }
     // v2: the page's pictured background, sleeves or backing.
     for (const w of [page.background_color, page.sleeve, page.art_backing]) if (isImageRef(w)) urls.add(w);
+    // The mat's picture (attachStyles ran first; absent on the v1 path, which draws no mats).
+    if (page.matStyle && page.matStyle.picture) urls.add(page.matStyle.picture);
   }
   // v2: the binder-wide pictures, and the picture behind the whole share image.
   const ps = binder && binder.page_style;
@@ -354,7 +361,9 @@ function catalogApiUrl() {
   }
 }
 const CATALOG_API_KEY = process.env.EXPO_PUBLIC_CATALOG_API_KEY || '';
-const FACT_COLS = 'id,name,number,rarity,set_name,series,release_date,illustrator,types,stage';
+// hp is granted to the publishable key; the catalog's dex column is not, so the dex number comes
+// from the name, as the app finds it (speciesOf below).
+const FACT_COLS = 'id,name,number,rarity,set_name,series,release_date,illustrator,types,stage,hp';
 
 /**
  * What the stock cards say: name, type and stage, set, number, illustrator and year for every card
@@ -381,20 +390,168 @@ async function loadFacts(pages) {
   for (const p of viewed) p.facts = facts;
 }
 
-/** The stock card's text (artView.ts stockCardText): blank fields left out, so a row never reads "SET". */
-function stockText(fact) {
-  if (!fact) return { name: '', sub: '', rows: [] };
-  const sub = [Array.isArray(fact.types) ? fact.types[0] : null, fact.stage].filter(Boolean).join(' · ');
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// THE MAT STYLE (owner, 2026-11-03: "font, color, other changes, are not doing the print
+// preview"). What a stock card wears on screen (src/data/matStyle.ts, ArtViewCard.tsx StockCard):
+// the paper, a picture over it, the ink, the face, which lines show, the name cleaned to its
+// species, and one picture spread across the page's mats with the empty pockets filled from it.
+// The numbers are copied from the screen; keep them in step.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The species a card is a card OF, and its dex number: collectorBinders.ts speciesOf and dexNumber,
+ * copied here because the share image runs as plain Node and cannot import the TypeScript. The
+ * list is the same pokedex.json the app reads. Keep the regexes in step with the app's.
+ */
+const POKEDEX = require('../src/data/pokedex.json');
+const speciesKey = (name) =>
+  String(name)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u2640\u2642]/g, '');
+const DEX_BY_KEY = new Map(POKEDEX.map((n, i) => [speciesKey(n), i + 1]));
+const SPECIES_PREFIXES = /^(?:(?:alolan|galarian|hisuian|paldean|mega|m|dark|light|shining|radiant|shadow|crystal|origin forme|origin form|altered forme|single strike|rapid strike|fusion strike|ancient|future|terastal|tera|detective|surfing|flying|birthday|erika's|misty's|brock's|lt\. surge's|sabrina's|koga's|blaine's|giovanni's|rocket's|team rocket's|team magma's|team aqua's|team plasma's|team galactic's|n's|iono's|lillie's|hop's|marnie's|ethan's|lance's|cynthia's|steven's|arven's|lady's|[a-z]+'s)\s+)+/i;
+const SPECIES_SUFFIXES = /(?:\s*(?:-?gx|-?ex|v-union|vmax|vstar|v|lv\.?\s*x|break|prism star|\u25c7|\u2605|\u03b4|star|legend|[a-z]+ forme?|\(.*?\)))+$/i;
+function speciesOf(cardName) {
+  let n = String(cardName || '').split(/\s*&\s*/)[0].trim();
+  n = n.replace(SPECIES_PREFIXES, '');
+  for (let i = 0; i < 4; i += 1) {
+    const next = n.replace(SPECIES_SUFFIXES, '').trim();
+    if (next === n) break;
+    n = next;
+  }
+  const candidates = [n, n.replace(/\s+(?:x|y|z|\d+%|complete|10% forme|50% forme)$/i, '').trim()];
+  for (const c of candidates) {
+    const k = speciesKey(c);
+    if (DEX_BY_KEY.has(k)) return POKEDEX[DEX_BY_KEY.get(k) - 1];
+  }
+  const k = speciesKey(n);
+  let best = '';
+  for (const [key, dex] of DEX_BY_KEY) {
+    if (k.startsWith(key) && key.length > speciesKey(best).length) best = POKEDEX[dex - 1];
+  }
+  return best && speciesKey(best).length >= 3 ? best : '';
+}
+const dexNumber = (species) => DEX_BY_KEY.get(speciesKey(species)) || 0;
+const MAT_FIELDS = ['hp', 'rarity', 'dex', 'series', 'set', 'number', 'illustrator', 'released'];
+const MAT_FIELD_OF_ROW = { Series: 'series', Set: 'set', Number: 'number', Illustrator: 'illustrator', Released: 'released' };
+/** The faces, by the family Satori is handed in `matFonts()`. The serif is the app's own Fraunces. */
+const MAT_FONT_FAMILY = { serif: 'Fraunces', sans: 'Inter', rounded: 'Nunito', mono: 'JetBrains Mono' };
+const DEFAULT_MAT_PAPER = '#111114';
+const DEFAULT_MAT_INK = '#f2efe6';
+
+/** A stored mat style, shape-checked as matStyle.ts normalizeMatStyle does; null when it says nothing usable. */
+function normalizeMat(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out = {};
+  if (typeof raw.paper === 'string' && HEX.test(raw.paper)) out.paper = raw.paper.toLowerCase();
+  if (isImageRef(raw.picture)) out.picture = raw.picture;
+  if (raw.spread === 'page' && out.picture) out.spread = 'page';
+  if (typeof raw.ink === 'string' && HEX.test(raw.ink)) out.ink = raw.ink.toLowerCase();
+  if (typeof raw.font === 'string' && MAT_FONT_FAMILY[raw.font]) out.font = raw.font;
+  if (Array.isArray(raw.fields)) out.fields = MAT_FIELDS.filter((f) => raw.fields.includes(f));
+  if (raw.name === 'clean') out.clean = true;
+  return Object.keys(out).length ? out : null;
+}
+
+/** The page's own mat, else the binder's: a page's style replaces the binder's whole (matStyle.ts resolveMatStyle). */
+function resolveMat(page, binder) {
+  return normalizeMat(page && page.mat) || normalizeMat(binder && binder.page_style && binder.page_style.mat) || null;
+}
+
+/**
+ * What every page shows, resolved onto it before the art and the facts load: the art view
+ * (page_style.artView under every page, a page's own art_view over it, 'card' meaning the full
+ * card) and the mat its stock cards wear. One place for the three renders and the preview script.
+ */
+function attachStyles(pages, binder) {
+  const binderView = (binder && binder.page_style && binder.page_style.artView) || null;
+  for (const p of pages) {
+    const v = p.art_view || binderView;
+    p.art_view = v === 'window' || v === 'connected' ? v : null;
+    p.matStyle = resolveMat(p, binder);
+  }
+  return pages;
+}
+
+/** The mat's colours, as matStyle.ts matPalette cuts them from the ink and the paper. */
+function matPalette(mat) {
+  const paper = (mat && mat.paper) || DEFAULT_MAT_PAPER;
+  const ink = (mat && mat.ink) || DEFAULT_MAT_INK;
+  return {
+    paper,
+    ink,
+    picture: mat ? mat.picture : undefined,
+    family: MAT_FONT_FAMILY[(mat && mat.font) || 'serif'],
+    sub: mixHex(ink, paper, 0.35),
+    label: mixHex(ink, paper, 0.5),
+    value: mixHex(ink, paper, 0.08),
+    rule: mixHex(ink, paper, 0.8),
+    watermark: mixHex(ink, paper, 0.94),
+  };
+}
+
+const matShows = (mat, field) => !mat || !mat.fields || mat.fields.includes(field);
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** "Aug 2019" from "2019-08-02" (artView.ts releasedLabel); the year alone without a month. */
+function releasedLabel(date) {
+  if (!date) return '';
+  const m = /^(\d{4})(?:-(\d{2}))?/.exec(String(date));
+  if (!m) return String(date);
+  const month = m[2] ? MONTHS[Number(m[2]) - 1] : undefined;
+  return month ? `${month} ${m[1]}` : m[1];
+}
+
+/**
+ * The stock card's text (artView.ts stockCardText, filtered as StockCard does by the mat): the
+ * name (cleaned to its species when the mat says so), HP and rarity for the name line's right
+ * side, the ruled rows the mat shows, and the dex number for the watermark. Blank fields are left
+ * out, so a row never reads "SET".
+ */
+function stockText(fact, mat) {
+  if (!fact) return { name: '', hp: '', rarity: '', rows: [], dex: '' };
+  const species = speciesOf(fact.name);
+  const dexNo = dexNumber(species);
   const rows = [
     ['Series', fact.series],
     ['Set', fact.set_name],
     ['Number', fact.number],
     ['Illustrator', fact.illustrator],
-    ['Released', fact.release_date ? String(fact.release_date).slice(0, 4) : ''],
+    ['Released', releasedLabel(fact.release_date)],
   ]
-    .filter(([, v]) => !!v)
+    .filter(([label, v]) => !!v && matShows(mat, MAT_FIELD_OF_ROW[label]))
     .map(([label, value]) => ({ label, value: String(value) }));
-  return { name: fact.name || '', sub, rows };
+  return {
+    name: (mat && mat.clean && species) || fact.name || '',
+    hp: matShows(mat, 'hp') && fact.hp ? `${fact.hp} HP` : '',
+    rarity: matShows(mat, 'rarity') && fact.rarity ? String(fact.rarity) : '',
+    rows,
+    dex: matShows(mat, 'dex') && dexNo > 0 ? String(dexNo).padStart(3, '0') : '',
+  };
+}
+
+/** The mat faces for Satori, read once: regular and bold of each, next to this file (api/fonts, OFL). */
+let MAT_FONTS = null;
+function matFonts() {
+  if (MAT_FONTS) return MAT_FONTS;
+  const fs = require('fs');
+  const path = require('path');
+  const file = (name) => fs.readFileSync(path.join(__dirname, 'fonts', name));
+  MAT_FONTS = [
+    // @vercel/og replaces its own font when fonts are passed, so the brand's sans comes along.
+    { name: 'sans serif', data: fs.readFileSync(path.join(__dirname, '..', 'node_modules', '@vercel', 'og', 'dist', 'Geist-Regular.ttf')), weight: 700, style: 'normal' },
+    { name: 'Fraunces', data: file('fraunces-latin-400-normal.woff'), weight: 400, style: 'normal' },
+    { name: 'Fraunces', data: file('fraunces-latin-700-normal.woff'), weight: 700, style: 'normal' },
+    { name: 'Inter', data: file('inter-latin-400-normal.woff'), weight: 400, style: 'normal' },
+    { name: 'Inter', data: file('inter-latin-700-normal.woff'), weight: 700, style: 'normal' },
+    { name: 'Nunito', data: file('nunito-latin-400-normal.woff'), weight: 400, style: 'normal' },
+    { name: 'Nunito', data: file('nunito-latin-700-normal.woff'), weight: 700, style: 'normal' },
+    { name: 'JetBrains Mono', data: file('jetbrains-mono-latin-400-normal.woff'), weight: 400, style: 'normal' },
+    { name: 'JetBrains Mono', data: file('jetbrains-mono-latin-700-normal.woff'), weight: 700, style: 'normal' },
+  ];
+  return MAT_FONTS;
 }
 
 /** A card's picture cut to its window (or to the art inside a full-art border), filling a box. */
@@ -413,7 +570,7 @@ function artWindowImg(src, boxW, cut) {
  * card, no rescaling, and under it the name, a type and stage line, and the references in a ruled
  * table, as many rows as fit. The pocket's ring or sleeve sits round it as round any card.
  */
-function stockCard(left, top, w, hgt, art, fact, wear) {
+function stockCard(left, top, w, hgt, art, fact, wear, mat, picture, slice) {
   const ring = wear ? wear.ring : 0;
   const cw = w - ring * 2;
   const chh = hgt - ring * 2;
@@ -427,28 +584,50 @@ function stockCard(left, top, w, hgt, art, fact, wear) {
   const rowH = 24 * unit;
   const nameBlock = (38 + 18 + 14) * unit;
   const spare = chh - margin - windowH - nameBlock - 24 * unit;
-  const text = stockText(fact);
+  // THE MAT (matStyle.ts): the paper, a picture over it, the ink, the face and which lines show.
+  const pal = matPalette(mat);
+  const family = pal.family;
+  const text = stockText(fact, mat);
   const rows = text.rows.slice(0, Math.max(0, Math.floor(spare / rowH)));
   const textKids = [];
-  if (text.name) {
-    textKids.push(h('div', { style: { display: 'flex', fontSize: nameSize, lineHeight: 1.15, fontWeight: 700, color: '#f2efe6', whiteSpace: 'nowrap', overflow: 'hidden' } }, text.name));
+  if (text.name || text.hp || text.rarity) {
+    const corner = [];
+    if (text.hp) corner.push(h('div', { style: { display: 'flex', fontSize: rowSize * 1.1, lineHeight: 1.3, fontWeight: 700, fontFamily: family, color: pal.ink, whiteSpace: 'nowrap' } }, text.hp));
+    if (text.rarity) corner.push(h('div', { style: { display: 'flex', fontSize: labelSize, lineHeight: 1.3, letterSpacing: 1.2 * unit, fontFamily: family, color: pal.sub, whiteSpace: 'nowrap' } }, text.rarity.toUpperCase()));
+    textKids.push(
+      // HP over rarity, right side of the name line (owner, 2026-11-03), as StockCard lays it.
+      h('div', { style: { display: 'flex', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', width: windowW } }, [
+        h('div', { style: { display: 'flex', flexShrink: 1, fontSize: nameSize, lineHeight: 1.15, fontWeight: 700, fontFamily: family, color: pal.ink, whiteSpace: 'nowrap', overflow: 'hidden' } }, text.name),
+        ...(corner.length ? [h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, marginLeft: 6, maxWidth: Math.round(windowW * 0.45) } }, corner)] : []),
+      ]),
+    );
   }
-  if (text.sub) {
-    textKids.push(h('div', { style: { display: 'flex', fontSize: labelSize * 1.15, letterSpacing: 1.6 * unit, marginTop: 4 * unit, color: '#a39e8e', whiteSpace: 'nowrap', overflow: 'hidden' } }, text.sub.toUpperCase()));
-  }
-  if (rows.length) textKids.push(h('div', { style: { display: 'flex', height: 1, marginTop: 10 * unit, backgroundColor: '#34343c' } }));
+  if (rows.length) textKids.push(h('div', { style: { display: 'flex', height: 1, marginTop: 10 * unit, backgroundColor: pal.rule } }));
   for (const r of rows) {
     textKids.push(
       h(
         'div',
-        { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: rowH, borderBottomWidth: 1, borderBottomStyle: 'solid', borderBottomColor: '#1f1f25' } },
+        { style: { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: rowH, borderBottomWidth: 1, borderBottomStyle: 'solid', borderBottomColor: pal.rule } },
         [
-          h('div', { style: { display: 'flex', fontSize: labelSize, letterSpacing: 1.4 * unit, color: '#7d7868', whiteSpace: 'nowrap' } }, r.label.toUpperCase()),
-          h('div', { style: { display: 'flex', fontSize: rowSize, color: '#e4dfd0', marginLeft: 6, whiteSpace: 'nowrap', overflow: 'hidden' } }, r.value),
+          h('div', { style: { display: 'flex', fontSize: labelSize, letterSpacing: 1.4 * unit, fontFamily: family, color: pal.label, whiteSpace: 'nowrap' } }, r.label.toUpperCase()),
+          h('div', { style: { display: 'flex', fontSize: rowSize, fontFamily: family, color: pal.value, marginLeft: 6, whiteSpace: 'nowrap', overflow: 'hidden' } }, r.value),
         ],
       ),
     );
   }
+  const kids = [];
+  if (picture) {
+    // The mat's picture over the paper: the whole picture on this mat, or this mat's slice of the
+    // page-wide one (matStyle.ts spreadSlice, measured from the pocket, so the ring comes off).
+    const box = slice ? { left: slice.left - ring, top: slice.top - ring, width: slice.width, height: slice.height } : { left: 0, top: 0, width: cw, height: chh };
+    kids.push(h('img', { src: picture, width: Math.round(box.width), height: Math.round(box.height), style: { position: 'absolute', left: Math.round(box.left), top: Math.round(box.top), objectFit: 'cover' } }));
+  }
+  kids.push(h('div', { style: { display: 'flex', position: 'absolute', left: margin, top: margin, width: windowW, height: Math.round(windowH), overflow: 'hidden', backgroundColor: '#000' } }, art ? [artWindowImg(art.src, windowW, 'window')] : []));
+  if (text.dex) {
+    // The dex number, large and a shade above the paper, in the bottom corner; under the rows.
+    kids.push(h('div', { style: { display: 'flex', position: 'absolute', right: margin, bottom: 6 * unit, fontSize: 56 * unit, lineHeight: 1, fontFamily: family, color: pal.watermark, whiteSpace: 'nowrap' } }, text.dex));
+  }
+  kids.push(h('div', { style: { display: 'flex', flexDirection: 'column', position: 'absolute', left: margin, top: margin + windowH + 10 * unit, width: windowW } }, textKids));
   const card = h(
     'div',
     {
@@ -461,16 +640,13 @@ function stockCard(left, top, w, hgt, art, fact, wear) {
         height: chh,
         borderRadius: Math.max(0, POCKET_RADIUS - ring),
         overflow: 'hidden',
-        backgroundColor: '#111114',
+        backgroundColor: pal.paper,
         borderWidth: Math.max(1, Math.round(S)),
         borderStyle: 'solid',
-        borderColor: '#2a2a30',
+        borderColor: pal.rule,
       },
     },
-    [
-      h('div', { style: { display: 'flex', position: 'absolute', left: margin, top: margin, width: windowW, height: Math.round(windowH), overflow: 'hidden', backgroundColor: '#000' } }, art ? [artWindowImg(art.src, windowW, 'window')] : []),
-      h('div', { style: { display: 'flex', flexDirection: 'column', position: 'absolute', left: margin, top: margin + windowH + 10 * unit, width: windowW } }, textKids),
-    ],
+    kids,
   );
   return h(
     'div',
@@ -725,6 +901,15 @@ function pageGrid(page, cw, ch, manifest, art, look) {
   const GAP = gapOf(cw);
   const colStep = cw + GAP;
   const rowStep = ch + GAP;
+  const gridW = cols * cw + (cols - 1) * GAP;
+  const gridH = rows * ch + (rows - 1) * GAP;
+  // THE MAT every stock card on this page wears (attachStyles), its picture when it loaded, and
+  // whether that picture spreads across the page (matStyle.ts spread; BinderGrid draws it only on
+  // a window page). A slice is the pocket's part of the picture laid over the whole grid.
+  const mat = page.matStyle || null;
+  const matPicture = mat && mat.picture && art ? art.get(mat.picture) || null : null;
+  const spread = !!(matPicture && mat.spread === 'page' && windowed);
+  const sliceAt = (r, c) => (spread ? { left: c ? -c * colStep : 0, top: r ? -r * rowStep : 0, width: gridW, height: gridH } : undefined);
   const covered = new Set();
   const boxes = [];
   for (const s of page.binder_slots || []) {
@@ -743,7 +928,7 @@ function pageGrid(page, cw, ch, manifest, art, look) {
     const stock = windowedHere && a && !a.artwork && !a.hero && !isFullArtFact(fact);
     boxes.push(
       stock
-        ? stockCard(c * colStep, r * rowStep, cs * cw + (cs - 1) * GAP, rs * ch + (rs - 1) * GAP, a, fact, look ? pocketWear(look, s, a, cw) : null)
+        ? stockCard(c * colStep, r * rowStep, cs * cw + (cs - 1) * GAP, rs * ch + (rs - 1) * GAP, a, fact, look ? pocketWear(look, s, a, cw) : null, mat, matPicture, sliceAt(r, c))
         : pocket(
             c * colStep,
             r * rowStep,
@@ -758,7 +943,17 @@ function pageGrid(page, cw, ch, manifest, art, look) {
   const empties = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (!covered.has(`${r}:${c}`)) empties.push(pocket(c * colStep, r * rowStep, cw, ch, null, false, look ? pocketWear(look, null, null, cw) : null));
+      if (covered.has(`${r}:${c}`)) continue;
+      empties.push(pocket(c * colStep, r * rowStep, cw, ch, null, false, look ? pocketWear(look, null, null, cw) : null));
+      if (spread) {
+        // An empty pocket's slice of the page-wide picture, so the spread reads as one piece.
+        const sl = sliceAt(r, c);
+        empties.push(
+          h('div', { style: { display: 'flex', position: 'absolute', left: c * colStep, top: r * rowStep, width: cw, height: ch, borderRadius: POCKET_RADIUS, overflow: 'hidden' } }, [
+            h('img', { src: matPicture, width: Math.round(sl.width), height: Math.round(sl.height), style: { position: 'absolute', left: Math.round(sl.left), top: Math.round(sl.top), objectFit: 'cover' } }),
+          ]),
+        );
+      }
     }
   }
   const innerW = cols * cw + (cols - 1) * GAP;
@@ -1789,6 +1984,7 @@ async function render(pages, manifest, art, single, chrome, opts) {
     await new ImageResponse(node, {
       width: single ? SINGLE_W : W,
       height: single ? SINGLE_H : H,
+      fonts: matFonts(),
     }).arrayBuffer(),
   );
   try {
@@ -1824,11 +2020,7 @@ module.exports = async (req, res) => {
         // page_style.artView under every page, a page's own art_view over it, 'card' meaning the
         // full card. Resolved onto each page here so the frames read one value a page; a pocket's
         // own art_view is read where the pocket is drawn (pageGrid).
-        const binderView = (binder && binder.page_style && binder.page_style.artView) || null;
-        for (const p of pages) {
-          const v = p.art_view || binderView;
-          p.art_view = v === 'window' || v === 'connected' ? v : null;
-        }
+        attachStyles(pages, binder);
         const [art] = await Promise.all([loadArt(pages, look ? binder : null), loadFacts(pages)]);
         // Only compose when at least one pocket actually resolves to an image — otherwise
         // an all-blank page is worse than the cover fallback.
@@ -1882,6 +2074,9 @@ function fullCards(pages) {
 
 module.exports.__tooling = {
   fullCards,
+  attachStyles,
+  stockText,
+  normalizeMat,
   SECONDARY_PREFIXES,
   fetchBinder,
   fetchManifest,

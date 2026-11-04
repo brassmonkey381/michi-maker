@@ -19,6 +19,7 @@
  * PURE, importing nothing from react-native, so `node --test` can reach all of it.
  */
 import { type ArtViewSetting, normalizeArtViewSetting } from './artView.ts';
+import { normalizeMatStyle, withMatStyle, type MatStyle, type MatStylePatch } from './matStyle.ts';
 import { binderPreset } from './binderPresets.ts';
 
 /** The stitching on the page: none, one thread along every seam, or two. */
@@ -66,6 +67,8 @@ export interface PageStyle {
   artBacking?: string;
   /** How every page shows its cards unless a page or pocket says otherwise (artView.ts). Absent means the full card. */
   artView?: ArtViewSetting;
+  /** What every art window mat looks like unless a page says otherwise (matStyle.ts). Absent means the stock card. */
+  mat?: MatStyle;
   /** The binder's hardware. Absent means a plain binder. */
   details?: BinderDetails;
   /**
@@ -138,7 +141,7 @@ const SPINES = new Set<string>(SPINE_STYLES.map((s) => s.id));
  */
 export function normalizePageStyle(value: unknown): PageStyle | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const raw = value as { binder?: unknown; material?: unknown; sleeve?: unknown; artBacking?: unknown; artView?: unknown; details?: unknown; thread?: unknown };
+  const raw = value as { binder?: unknown; material?: unknown; sleeve?: unknown; artBacking?: unknown; artView?: unknown; mat?: unknown; details?: unknown; thread?: unknown };
   const out: PageStyle = {};
   if (typeof raw.binder === 'string' && binderPreset(raw.binder)) out.binder = raw.binder;
   let material = typeof raw.material === 'string' ? raw.material : undefined;
@@ -155,6 +158,8 @@ export function normalizePageStyle(value: unknown): PageStyle | undefined {
   if (artBacking) out.artBacking = artBacking;
   const artView = normalizeArtViewSetting(raw.artView);
   if (artView && artView !== 'card') out.artView = artView; // 'card' is the default; nothing to store
+  const mat = normalizeMatStyle(raw.mat);
+  if (mat) out.mat = mat;
   const details = normalizeDetails(raw.details, legacyZip);
   if (details) out.details = details;
   const thread = normalizeThread(raw.thread);
@@ -196,6 +201,8 @@ export interface PageStylePatch {
   sleeve?: string | null;
   artBacking?: string | null;
   artView?: ArtViewSetting | null;
+  /** `mat: null` goes back to the stock card; fields inside merge (matStyle.ts withMatStyle). */
+  mat?: MatStylePatch | null;
   /** `zip: null` removes the zip; `zip: {}` adds one with the defaults; fields inside merge. */
   zip?: { pull?: string | null; track?: ZipTrack | null } | null;
   spine?: SpineStyle | null;
@@ -232,6 +239,10 @@ export function withPageStyle(current: PageStyle | undefined | null, patch: Page
     else details.spine = patch.spine;
   }
   next.details = details;
+  if (patch.mat !== undefined) {
+    if (patch.mat === null) delete next.mat;
+    else next.mat = withMatStyle(current?.mat, patch.mat);
+  }
   if (patch.thread !== undefined) {
     if (patch.thread === null) delete next.thread;
     else {

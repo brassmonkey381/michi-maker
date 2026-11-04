@@ -11,6 +11,7 @@ import type { ArtAttribution } from '@/data/artworkLibrary';
 import type { PageStyle } from '@/data/pageStyle';
 import type { CoverSurfaceId } from '@/data/binderModels';
 import type { ArtViewSetting, PocketArtView } from '@/data/artView';
+import type { MatStyle } from '@/data/matStyle';
 
 /** What a pocket may wear or show for itself: each field set, cleared with null, or left alone. */
 export type SlotStylePatch = { sleeve?: string | null; artBacking?: string | null; artView?: PocketArtView | null };
@@ -330,6 +331,11 @@ export interface DemoPage {
    * says (PageStyle.artView), which is the full card unless set. See src/data/artView.ts.
    */
   artView?: ArtViewSetting | null;
+  /**
+   * THIS PAGE'S OWN art window mat (matStyle.ts), replacing the binder's whole. Absent or null is
+   * the binder's (PageStyle.mat), else the stock card.
+   */
+  mat?: MatStyle | null;
   /**
    * Whether the page is visible to public viewers of a public binder. Absent ⇒ public (the DB
    * default). A private page is hidden from everyone but the owner even inside a public binder.

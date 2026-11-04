@@ -16,12 +16,14 @@ import { Image } from 'expo-image';
 import { useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type View as ViewType } from 'react-native';
 
-import { ColorBox, PillButton, Row, Seg, WearRow } from '@/components/binder/inspector/controls';
+import { PillButton, Seg, WearRow } from '@/components/binder/inspector/controls';
+import { MatPanel } from '@/components/binder/inspector/MatPanel';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BinderSurface, FontSize, Palette, Radius, Shadows, Weight } from '@/constants/theme';
 import { ART_VIEWS, PAGE_ART_VIEWS, resolveArtView } from '@/data/artView';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
+import { withMatStyle } from '@/data/matStyle';
 import { isImageRef, resolveWear } from '@/data/pageStyle';
 import { useBinders } from '@/store/binders';
 
@@ -81,7 +83,8 @@ export function PageWearBar({
   const artViewLabel = ART_VIEWS.find((v) => v.id === shownView)?.label ?? 'Full card';
 
   const background = page.backgroundColor ?? BinderSurface.mat;
-  const bgPictured = isImageRef(background);
+  // The page's mat popover (matStyle.ts): folded under the view picker until asked for.
+  const [matOpen, setMatOpen] = useState(false);
   const sleeve = resolveWear(page.sleeve, binder.pageStyle?.sleeve);
   const backing = resolveWear(page.artBacking, binder.pageStyle?.artBacking);
 
@@ -189,18 +192,19 @@ export function PageWearBar({
                       : 'How this page shows its cards'}
             </ThemedText>
             {open.kind === 'background' ? (
-              // THIS PAGE'S OWN COLOUR (owner, 2026-09-15). The binder's Background in Settings
-              // paints every page at once; this paints one, and "All pages" spreads it.
-              // A colour only (owner, 2026-09-15): a picture behind the pages is a share-image
-              // choice, made in the Share sheet.
-              <Row label="Colour">
-                <ColorBox
-                  fieldKey={`${page.id}-bar-bg`}
-                  value={bgPictured ? undefined : background}
-                  onChange={(backgroundColor) => store.updatePage(binder.id, page.id, { backgroundColor })}
-                />
-                <PillButton label="All pages" onPress={() => store.setBinderBackground(binder.id, bgPictured ? BinderSurface.mat : background)} testID="page-bg-all" />
-              </Row>
+              // THIS PAGE'S OWN BACKGROUND. The binder's Background in Settings paints every page
+              // at once; this paints one, and "All pages" spreads it. A colour or a picture
+              // (owner, 2026-11-03): the presets, the artists shelf, an upload or a link.
+              <WearRow
+                label="Colour"
+                fieldKey={`${page.id}-bar-bg`}
+                own={background}
+                surface="background"
+                none={false}
+                onChange={(backgroundColor) => store.updatePage(binder.id, page.id, { backgroundColor: backgroundColor ?? BinderSurface.mat })}
+                testID="page-bg"
+                extra={<PillButton label="All pages" onPress={() => store.setBinderBackground(binder.id, background)} testID="page-bg-all" />}
+              />
             ) : open.kind === 'sleeve' ? (
               <WearRow
                 label="Colour"
@@ -230,6 +234,30 @@ export function PageWearBar({
                 <ThemedText type="small" themeColor="textSecondary" style={styles.blurb}>
                   {artView === 'inherit' ? `Use binder\u2019s: ${artViewLabel.toLowerCase()} here. Set it for the whole binder behind the gear.` : PAGE_ART_VIEWS.find((v) => v.id === artView)?.blurb}
                 </ThemedText>
+                {/* THIS PAGE'S MATS (owner, 2026-11-03; matStyle.ts): behind one pill, because the
+                    customizer is five rows and most pages take the binder's. The first change
+                    copies the binder's mat and edits that, so a page never starts from a blank
+                    stock card the binder does not show. */}
+                {shownView === 'window' ? (
+                  <View style={styles.matWrap}>
+                    <PillButton label={matOpen ? 'Hide mats' : page.mat ? 'Mats on this page (own)' : 'Mats on this page'} active={!!page.mat} onPress={() => setMatOpen((v) => !v)} testID="page-mat-toggle" />
+                    {matOpen ? (
+                      <MatPanel
+                        value={page.mat ?? binder.pageStyle?.mat}
+                        fieldKey={`${page.id}-mat`}
+                        onChange={(patch) => {
+                          if (artViews?.locked) {
+                            artViews.onLocked();
+                            return;
+                          }
+                          store.updatePage(binder.id, page.id, { mat: withMatStyle(page.mat ?? binder.pageStyle?.mat, patch) ?? null });
+                        }}
+                        inherit={{ label: "Use binder's", own: !!page.mat, onPress: () => store.updatePage(binder.id, page.id, { mat: null }) }}
+                        testID="page-mat"
+                      />
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
             ) : (
               <WearRow
@@ -250,6 +278,7 @@ export function PageWearBar({
 }
 
 const styles = StyleSheet.create({
+  matWrap: { gap: 8, marginTop: 8, alignSelf: 'stretch' },
   /** Over the page's bottom edge, centred: attached to the page, not a row of its own. */
   /** The ring a one-time hint draws round the whole row of chips. */
   hintRing: {

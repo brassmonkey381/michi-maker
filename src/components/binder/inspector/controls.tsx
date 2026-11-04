@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ArtistShelf } from '@/components/binder/ArtistShelf';
+import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { ColorField } from '@/components/binder/ColorField';
 import { PresetPictureGrid } from '@/components/binder/PresetPictureGrid';
 import { ThemedText } from '@/components/themed-text';
@@ -228,6 +229,9 @@ export function WearRow({
   inherit,
   onChange,
   testID,
+  surface,
+  none = true,
+  extra,
 }: {
   label: string;
   fieldKey: string;
@@ -240,12 +244,19 @@ export function WearRow({
   /** A colour, a picture, WEAR_NONE, or null to inherit. */
   onChange: (value: string | null) => void;
   testID?: string;
+  /** Which artists shelf this row offers (data/artists.ts). Read from the fieldKey when omitted. */
+  surface?: 'sleeve' | 'backing' | 'background';
+  /** Whether "None" is a state here. A page background has no none: the page is always some colour. */
+  none?: boolean;
+  /** More controls on the first row, after the pills (the page bar's "All pages"). */
+  extra?: React.ReactNode;
 }) {
-  // Which artists shelf this row offers: every WearRow is a sleeve or a backing (data/artists.ts
-  // surfaces), named in its fieldKey or testID even when the label is just "Colour" (the page
-  // bar's popover). A picked piece is an ordinary picture address here.
-  const artistSurface = /sleeve/i.test(`${fieldKey} ${testID ?? ''} ${label}`) ? 'sleeve' : 'backing';
+  // Which artists shelf this row offers: a sleeve or a backing (data/artists.ts surfaces), named
+  // in its fieldKey or testID even when the label is just "Colour" (the page bar's popover), or
+  // a page background when the host says so. A picked piece is an ordinary picture address here.
+  const artistSurface = surface ?? (/sleeve/i.test(`${fieldKey} ${testID ?? ''} ${label}`) ? 'sleeve' : 'backing');
   const isNone = own === WEAR_NONE;
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const inEffect = resolveWear(own, above);
   const pictured = isImageRef(inEffect);
   // The link field shows when the value in effect IS a picture, or when asked for.
@@ -256,13 +267,27 @@ export function WearRow({
       <Row label={label}>
         <ColorBox fieldKey={`${fieldKey}-${isNone ? 'none' : pictured ? 'picture' : 'colour'}`} value={pictured ? undefined : (inEffect ?? '#ffffff')} onChange={onChange} />
         <PillButton label="Picture" active={pictured} onPress={() => setLinkOpen((v) => !v)} testID={testID ? `${testID}-picture` : undefined} />
-        <PillButton label="None" active={isNone} onPress={() => onChange(inherit ? WEAR_NONE : null)} testID={testID ? `${testID}-none` : undefined} />
+        {none ? <PillButton label="None" active={isNone} onPress={() => onChange(inherit ? WEAR_NONE : null)} testID={testID ? `${testID}-none` : undefined} /> : null}
         {inherit && own ? <PillButton label={inherit} onPress={() => onChange(null)} testID={testID ? `${testID}-inherit` : undefined} /> : null}
+        {extra}
       </Row>
       {/* PRESETS FIRST (owner, 2026-10-13): a row of textures to tap, then the link field for a
           picture of your own. Both store an address; the row only makes the common case one tap. */}
       {showLink ? <PresetPictureGrid kind="texture" value={pictured ? inEffect : undefined} onPick={onChange} testID={testID ? `${testID}-presets` : undefined} /> : null}
       {showLink ? <ArtistShelf surface={artistSurface} value={pictured ? inEffect : undefined} onPick={(url) => onChange(url)} testID={testID ? `${testID}-artists` : undefined} /> : null}
+      {/* AN UPLOAD (owner, 2026-11-03): a picture of your own, beside the link for one elsewhere. */}
+      {showLink ? (
+        <View style={styles.uploadRow} testID={testID ? `${testID}-upload` : undefined}>
+          <ArtUploadButton
+            onUploaded={(url) => {
+              setUploadError(null);
+              onChange(url);
+            }}
+            onError={setUploadError}
+          />
+          <Text style={[styles.groupNote, styles.uploadNote]}>{uploadError ?? 'A picture of your own.'}</Text>
+        </View>
+      ) : null}
       {showLink ? <ImageLinkField value={pictured ? inEffect : undefined} onChange={onChange} testID={testID ? `${testID}-link` : undefined} /> : null}
     </View>
   );
@@ -352,6 +377,8 @@ export const styles = StyleSheet.create({
   fieldInputMulti: { minHeight: 36, textAlignVertical: 'top' },
   /** A wear row and, under it, its picture link when one is wanted. */
   wearRows: { gap: 6, alignSelf: 'stretch' },
+  uploadRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  uploadNote: { flex: 1 },
   linkBox: { gap: 4, alignSelf: 'stretch' },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   linkInput: { flex: 1, minWidth: 0, fontSize: FontSize.label },

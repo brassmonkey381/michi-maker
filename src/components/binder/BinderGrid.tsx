@@ -35,6 +35,7 @@ import { AboutHoverCard } from '@/components/binder/AboutPopup';
 import { ArtWindow, StockCard } from '@/components/binder/ArtViewCard';
 import { cellWidthFor, gapFor } from '@/data/binderLayout';
 import { cardFrame, connectedCut, resolveArtView, WINDOW_CUT, type ArtView, type FrameTable, type SheetCut } from '@/data/artView';
+import { resolveMatStyle, type MatStyle } from '@/data/matStyle';
 import { useFrames } from '@/hooks/use-frames';
 import { insideEdgePairStarts } from '@/data/binderPhysics';
 import { cutBoundaries } from '@/data/printFit';
@@ -409,6 +410,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // THE PAGE'S VIEW: its own, else the binder's (artView.ts resolveArtView). A pocket may still
   // say otherwise below, unless the page is connected, which is the sheet's shape.
   const pageView = resolveArtView(page.artView, pageStyle?.artView);
+  // THE MAT every stock card on this page wears (matStyle.ts): the page's own, else the binder's.
+  const mat = resolveMatStyle(page.mat, pageStyle?.mat);
   const artSomewhere = !!pageView || page.slots.some((s) => s.artView === 'window');
   const { catalog } = useCatalog(captionOn || artSomewhere);
   // The frame table (lib/frames): where each card's art is, so an art view cuts the card's own
@@ -810,6 +813,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               artView={connected ? 'connected' : resolveArtView(slot.artView, page.artView, pageStyle?.artView)}
               cut={cut}
               frames={frames}
+              mat={mat}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             chipScale={chipScale}
             onLabel={onLabel}
@@ -1023,6 +1027,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               artView={connected ? 'connected' : resolveArtView(dragged.artView, page.artView, pageStyle?.artView)}
               cut={cut}
               frames={frames}
+              mat={mat}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
             chipScale={chipScale}
             />
@@ -1717,9 +1722,12 @@ function SlotContent({
   artView,
   cut = WINDOW_CUT,
   frames = null,
+  mat,
 }: {
   /** The page shows its cards as their artwork (artView.ts): a stock card, or windows edge to edge. */
   artView?: ArtView;
+  /** What the stock card looks like (matStyle.ts): paper, picture, ink, font, lines. */
+  mat?: MatStyle;
   /** On a connected page, how the sheet cuts its cards (artView.ts connectedCut). */
   cut?: SheetCut;
   /** The frame table (lib/frames), so a stock card cuts the card's own frame. Null before it loads. */
@@ -1890,6 +1898,7 @@ function SlotContent({
         <StockCard
           card={catalogCard}
           frame={frame}
+          mat={mat}
           radius={Math.max(0, radius - ringPad)}
           small={small}
           renderImage={() => <CardImage key={id} id={id} radius={0} small={false} contentFit="cover" scanUri={scanUri} instant={instantImages} />}

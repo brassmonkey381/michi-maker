@@ -173,6 +173,7 @@ export type Database = {
           sleeve: string | null
           art_backing: string | null
           art_view: string | null
+          mat: Json | null
           binder_id: string
           cols: number
           created_at: string
@@ -190,6 +191,7 @@ export type Database = {
           sleeve?: string | null
           art_backing?: string | null
           art_view?: string | null
+          mat?: Json | null
           binder_id: string
           cols?: number
           created_at?: string
@@ -207,6 +209,7 @@ export type Database = {
           sleeve?: string | null
           art_backing?: string | null
           art_view?: string | null
+          mat?: Json | null
           binder_id?: string
           cols?: number
           created_at?: string

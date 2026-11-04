@@ -25,9 +25,9 @@ until an artist has offered a piece for it:
 | --- | --- |
 | slot | Add art sheet, and the Picture insert row of both Inserts tabs (art dock, pocket picker) |
 | sleeve, backing | the Picture row of every sleeve and backing field (binder, page, pocket) |
-| background | the Share sheet's backdrop picker (page backgrounds are colour only in the editor, owner 2026-09-15) |
+| background | the page background pickers (binder settings, the page bar) and the Share sheet's backdrop picker |
 | cover | the cover panel toolbar |
-| mat | the stock card of an art window: not built yet |
+| mat | the Art window mats panel (binder settings, and the page bar's Art view popover): the picture over the mat's paper |
 
 A placed piece carries `attribution.origin = 'artist'` with the artist's `@username` and link. It
 is public-eligible, labelled "Artist piece, preview only" in image properties, and the print path

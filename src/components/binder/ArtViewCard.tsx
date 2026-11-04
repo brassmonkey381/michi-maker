@@ -4,11 +4,13 @@
  * Neither knows where its picture comes from: the caller hands in `renderImage`, so the grid can
  * draw its tiered, scan-first CardImage and the puzzle its plain one, through the same cut.
  */
+import { Image } from 'expo-image';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Fonts, Weight } from '@/constants/theme';
 import { ART_WINDOW, cutFor, placement, rectAspect, stockCardText, WINDOW_CUT, type FrameClass, type SheetCut } from '@/data/artView';
+import { matFieldOfRow, matPalette, matShows, type MatStyle } from '@/data/matStyle';
 import type { CatalogCard } from '@/lib/catalog';
 
 /** Draws the whole card picture, cover-fit, filling whatever box it is given. */
@@ -41,11 +43,23 @@ export function ArtWindow({ renderImage, radius = 0, cut = WINDOW_CUT }: { rende
  * card's own class (artView.ts cardFrame): a V's bleed cut is taller than a window and takes the
  * room from the table, which is the right trade; the art is what the view is for.
  */
-export function StockCard({ card, radius, small, renderImage, frame }: { card: CatalogCard | undefined; radius: number; small: boolean; renderImage: RenderCardImage; frame?: FrameClass }) {
+export function StockCard({ card, radius, small, renderImage, frame, mat }: { card: CatalogCard | undefined; radius: number; small: boolean; renderImage: RenderCardImage; frame?: FrameClass; mat?: MatStyle }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
   const rect = frame ?? ART_WINDOW;
   const cut = cutFor(rect, frame?.kind ?? 'window');
-  const text = stockCardText(card, '');
+  // THE MAT (matStyle.ts): the paper, a picture over it, the ink, the face and which lines show.
+  const pal = matPalette(mat);
+  const family = Fonts[pal.font];
+  const all = stockCardText(card, '');
+  const text = {
+    ...all,
+    dex: matShows(mat, 'dex') ? all.dex : '',
+    sub: matShows(mat, 'sub') ? all.sub : '',
+    rows: all.rows.filter((r) => {
+      const f = matFieldOfRow(r.label);
+      return !f || matShows(mat, f);
+    }),
+  };
   // The card's own margins: 7% of its width each side, as the mock-up had them.
   const margin = Math.round(box.w * 0.07);
   const windowW = Math.max(0, box.w - margin * 2);
@@ -63,7 +77,8 @@ export function StockCard({ card, radius, small, renderImage, frame }: { card: C
   return (
     <View
       onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-      style={[styles.fill, styles.stockCard, { borderRadius: radius }]}>
+      style={[styles.fill, styles.stockCard, { borderRadius: radius, backgroundColor: pal.paper, borderColor: pal.rule }]}>
+      {pal.picture ? <Image source={{ uri: pal.picture }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} /> : null}
       {box.w > 0 ? (
         <>
           <View style={{ position: 'absolute', left: margin, top: margin, width: windowW, height: windowH }}>
@@ -72,18 +87,18 @@ export function StockCard({ card, radius, small, renderImage, frame }: { card: C
           {text.dex ? (
             // The dex number, large and a shade above the card's black, in the bottom corner as the
             // mock-up had it. Drawn before the text so the rows sit over it.
-            <Text style={[styles.stockDex, { right: margin, bottom: 6 * unit, fontSize: 56 * unit, lineHeight: 56 * unit }]}>{text.dex}</Text>
+            <Text style={[styles.stockDex, { right: margin, bottom: 6 * unit, fontSize: 56 * unit, lineHeight: 56 * unit, fontFamily: family, color: pal.watermark }]}>{text.dex}</Text>
           ) : null}
           <View style={{ position: 'absolute', left: margin, right: margin, top: margin + windowH + 10 * unit }}>
-            <Text numberOfLines={1} style={[styles.stockName, { fontSize: nameSize, lineHeight: nameSize * 1.15 }]}>{text.name}</Text>
+            <Text numberOfLines={1} style={[styles.stockName, { fontSize: nameSize, lineHeight: nameSize * 1.15, fontFamily: family, color: pal.ink }]}>{text.name}</Text>
             {!small && text.sub ? (
-              <Text numberOfLines={1} style={[styles.stockSub, { fontSize: labelSize * 1.15, letterSpacing: 1.6 * unit, marginTop: 4 * unit }]}>{text.sub.toUpperCase()}</Text>
+              <Text numberOfLines={1} style={[styles.stockSub, { fontSize: labelSize * 1.15, letterSpacing: 1.6 * unit, marginTop: 4 * unit, fontFamily: family, color: pal.sub }]}>{text.sub.toUpperCase()}</Text>
             ) : null}
-            {rows.length ? <View style={[styles.stockRule, { marginTop: 10 * unit }]} /> : null}
+            {rows.length ? <View style={[styles.stockRule, { marginTop: 10 * unit, backgroundColor: pal.rule }]} /> : null}
             {rows.map((r) => (
-              <View key={r.label} style={[styles.stockRow, { height: rowH }]}>
-                <Text numberOfLines={1} style={[styles.stockLabel, { fontSize: labelSize, letterSpacing: 1.4 * unit }]}>{r.label.toUpperCase()}</Text>
-                <Text numberOfLines={1} style={[styles.stockValue, { fontSize: rowSize }]}>{r.value}</Text>
+              <View key={r.label} style={[styles.stockRow, { height: rowH, borderBottomColor: pal.rule }]}>
+                <Text numberOfLines={1} style={[styles.stockLabel, { fontSize: labelSize, letterSpacing: 1.4 * unit, fontFamily: family, color: pal.label }]}>{r.label.toUpperCase()}</Text>
+                <Text numberOfLines={1} style={[styles.stockValue, { fontSize: rowSize, fontFamily: family, color: pal.value }]}>{r.value}</Text>
               </View>
             ))}
           </View>

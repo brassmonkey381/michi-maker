@@ -16,7 +16,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BinderCoverSheet } from '@/components/binder/BinderCoverSheet';
 import { SoundtrackField } from '@/components/binder/SoundtrackField';
-import { ColorBox, Group, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
+import { Group, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
+import { MatPanel } from '@/components/binder/inspector/MatPanel';
 import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { BinderTrack, DemoBinder, DemoPage } from '@/data/binderTypes';
 import { BINDER_PRESETS } from '@/data/binderPresets';
@@ -24,7 +25,7 @@ import { coverForPreset, coverLabel } from '@/data/presetCovers';
 import { reflowSummary } from '@/data/pageReflow';
 import { Palette } from '@/constants/theme';
 import { ART_VIEWS } from '@/data/artView';
-import { SPINE_STYLES, WEAR_NONE, isImageRef } from '@/data/pageStyle';
+import { SPINE_STYLES, WEAR_NONE } from '@/data/pageStyle';
 import { hasArtViews } from '@/data/tiers';
 import { isBlankPage, useBinders } from '@/store/binders';
 
@@ -137,16 +138,18 @@ export function BinderLook({
             }}
           />
         </Row>
-        {/* A COLOUR ONLY (owner, 2026-09-15): a picture behind the pages is a share-image choice,
-            set in the Share sheet, so the editor's pages stay printable and the two are not confused. */}
-        <Row label="Background">
-          <ColorBox
-            // Re-keyed on the named binder, so picking one shows its cloth here at once.
-            fieldKey={`${binder.id}-${ps?.binder ?? ''}`}
-            value={isImageRef(page.backgroundColor) ? undefined : page.backgroundColor}
-            onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor)}
-          />
-        </Row>
+        {/* A COLOUR OR A PICTURE (owner, 2026-11-03, reversing 2026-09-15's colour-only): the
+            presets, the artists shelf, an upload or a link, behind every page at once. */}
+        <WearRow
+          label="Background"
+          // Re-keyed on the named binder, so picking one shows its cloth here at once.
+          fieldKey={`${binder.id}-${ps?.binder ?? ''}-bg`}
+          own={page.backgroundColor}
+          surface="background"
+          none={false}
+          onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor ?? undefined)}
+          testID="binder-background"
+        />
         {compact}
       </Group>
       {/* BINDER DETAILS (owner, 2026-09-14): the hardware of the binder round the page. A set, not
@@ -275,6 +278,24 @@ export function BinderLook({
           </View>
         </Row>
       </Group>
+      {/* THE MATS (owner, 2026-11-03; matStyle.ts): what every art window's stock card looks
+          like. Shown whenever the binder or any page uses the art window, so the group is not a
+          puzzle on a binder of plain cards. PRO's, as the art view is. */}
+      {ps?.artView === 'window' || binder.pages.some((p) => p.artView === 'window' || p.slots.some((s) => s.artView === 'window')) ? (
+        <Group title={hasArtViews(store.tier) || store.taste.active('artViews') ? 'Art window mats' : 'Art window mats · PRO'} note="The card every art window sits on, on every page unless a page says otherwise." testID="binder-group-mats">
+          <View style={hasArtViews(store.tier) || store.taste.active('artViews') ? undefined : local.locked}>
+            <MatPanel
+              value={ps?.mat}
+              fieldKey={`${binder.id}-mat`}
+              onChange={(mat) => {
+                if (!store.taste.pass('artViews', hasArtViews(store.tier), 'inspector')) return;
+                store.setPageStyle(binder.id, { mat });
+              }}
+              testID="binder-mat"
+            />
+          </View>
+        </Group>
+      ) : null}
       {/* ONE TRACK PER BINDER (owner, 2026-10-14). It plays from the first page to the last. */}
       <Group title="Soundtrack" note="Plays while anyone has this binder open." testID="binder-group-soundtrack">
         <SoundtrackField

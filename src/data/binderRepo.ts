@@ -16,6 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { requireSupabase } from '@/lib/supabase';
 import type { Database, Json } from '@/types/database';
 import { normalizeArtViewSetting, normalizePocketArtView } from '@/data/artView';
+import { normalizeMatStyle } from '@/data/matStyle';
 import type { BinderCover, BinderTrack, DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
 import { normalizeCover } from '@/data/coverDecorations';
 import { isImageRef, normalizePageStyle, normalizeSurface, normalizeWear } from '@/data/pageStyle';
@@ -71,6 +72,7 @@ function pageRow(page: DemoPage, binderId: string, position: number): Tables['bi
     ...(page.sleeve !== undefined ? { sleeve: page.sleeve } : {}),
     ...(page.artBacking !== undefined ? { art_backing: page.artBacking } : {}),
     ...(page.artView !== undefined ? { art_view: page.artView } : {}),
+    ...(page.mat !== undefined ? { mat: (page.mat ?? null) as unknown as Json } : {}),
   };
 }
 
@@ -155,6 +157,7 @@ interface PageRowIn {
   sleeve?: string | null;
   art_backing?: string | null;
   art_view?: string | null;
+  mat?: unknown;
   is_public: boolean;
   position: number;
   track?: BinderTrack | null;
@@ -249,6 +252,7 @@ function mapPage(row: PageRowIn): DemoPage {
     sleeve: normalizeWear(row.sleeve),
     artBacking: normalizeWear(row.art_backing),
     artView: normalizeArtViewSetting(row.art_view),
+    mat: normalizeMatStyle(row.mat),
     isPublic: row.is_public,
     track: trackOf(row.track),
     slots,
@@ -540,6 +544,7 @@ export async function updatePage(id: string, patch: Partial<DemoPage>): Promise<
   if (patch.sleeve !== undefined) row.sleeve = patch.sleeve ?? null;
   if (patch.artBacking !== undefined) row.art_backing = patch.artBacking ?? null;
   if (patch.artView !== undefined) row.art_view = patch.artView ?? null;
+  if (patch.mat !== undefined) row.mat = (patch.mat ?? null) as unknown as Json;
   if (patch.isPublic !== undefined) row.is_public = patch.isPublic;
   if (patch.track !== undefined) row.track = (patch.track ?? null) as unknown as Json;
   if (Object.keys(row).length === 0) return;

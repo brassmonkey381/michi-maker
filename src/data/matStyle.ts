@@ -74,6 +74,13 @@ export interface MatStyle {
   fields?: MatField[];
   /** 'clean' writes the species instead of the printed name (collectorBinders speciesOf). Absent means as printed. */
   name?: 'clean';
+  /**
+   * 'page' spreads the picture across the page's whole pocket grid as one unified mat: each mat
+   * shows its own slice, and an empty pocket shows its slice too (owner, 2026-11-03). Needs a
+   * picture, and one big enough for the grid (spreadFits). Absent means every mat wears the
+   * whole picture.
+   */
+  spread?: 'page';
 }
 
 /** Each field set, cleared with null, or left alone. */
@@ -84,6 +91,7 @@ export interface MatStylePatch {
   font?: MatFont | null;
   fields?: MatField[] | null;
   name?: 'clean' | null;
+  spread?: 'page' | null;
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -99,11 +107,13 @@ const FIELDS = new Set<string>(ALL_MAT_FIELDS);
  */
 export function normalizeMatStyle(value: unknown): MatStyle | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const raw = value as { paper?: unknown; picture?: unknown; ink?: unknown; font?: unknown; fields?: unknown; name?: unknown };
+  const raw = value as { paper?: unknown; picture?: unknown; ink?: unknown; font?: unknown; fields?: unknown; name?: unknown; spread?: unknown };
   const out: MatStyle = {};
   if (raw.name === 'clean') out.name = 'clean';
   if (typeof raw.paper === 'string' && HEX.test(raw.paper) && raw.paper.toLowerCase() !== DEFAULT_MAT_PAPER) out.paper = raw.paper.toLowerCase();
   if (typeof raw.picture === 'string' && IMAGE_REF.test(raw.picture)) out.picture = raw.picture;
+  // A spread with no picture spreads nothing: dropped, so clearing the picture clears it too.
+  if (raw.spread === 'page' && out.picture) out.spread = 'page';
   if (typeof raw.ink === 'string' && HEX.test(raw.ink) && raw.ink.toLowerCase() !== DEFAULT_MAT_INK) out.ink = raw.ink.toLowerCase();
   if (typeof raw.font === 'string' && FONTS.has(raw.font) && raw.font !== 'serif') out.font = raw.font as MatFont;
   if (Array.isArray(raw.fields)) {
@@ -119,12 +129,38 @@ export function normalizeMatStyle(value: unknown): MatStyle | undefined {
 /** Merge a change into a style: null clears a field, undefined leaves it. Normalised on the way out. */
 export function withMatStyle(current: MatStyle | undefined | null, patch: MatStylePatch): MatStyle | undefined {
   const next: Record<string, unknown> = { ...(current ?? {}) };
-  for (const key of ['paper', 'picture', 'ink', 'font', 'fields', 'name'] as const) {
+  for (const key of ['paper', 'picture', 'ink', 'font', 'fields', 'name', 'spread'] as const) {
     if (patch[key] === undefined) continue;
     if (patch[key] === null) delete next[key];
     else next[key] = patch[key];
   }
   return normalizeMatStyle(next);
+}
+
+/**
+ * THE SPREAD'S MINIMUM: a picture across a page is cut into one slice per pocket, so it needs
+ * this many pixels per pocket to stay sharp at a card's size. 300 by 420 is a card at 120 dpi;
+ * a 3×3 page therefore wants 900 by 1260 or more.
+ */
+export const MAT_SPREAD_MIN_PER_POCKET = { w: 300, h: 420 } as const;
+
+export function spreadMinimum(rows: number, cols: number): { w: number; h: number } {
+  return { w: cols * MAT_SPREAD_MIN_PER_POCKET.w, h: rows * MAT_SPREAD_MIN_PER_POCKET.h };
+}
+
+/** Whether a picture of this pixel size may spread across a rows × cols page. */
+export function spreadFits(width: number, height: number, rows: number, cols: number): boolean {
+  const min = spreadMinimum(rows, cols);
+  return width >= min.w && height >= min.h;
+}
+
+/**
+ * One pocket's slice of a page-wide picture: the picture is laid over the whole grid (innerW by
+ * innerH, gaps included, so it meets itself across every gap) and this pocket shows the part
+ * under it. Returned as the picture's box relative to the pocket's own top-left.
+ */
+export function spreadSlice(row: number, col: number, colStep: number, rowStep: number, innerW: number, innerH: number): { left: number; top: number; width: number; height: number } {
+  return { left: col ? -col * colStep : 0, top: row ? -row * rowStep : 0, width: innerW, height: innerH };
 }
 
 /** The page's own mat, else the binder's. A page's style replaces the binder's whole. */

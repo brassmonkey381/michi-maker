@@ -35,7 +35,7 @@ import { AboutHoverCard } from '@/components/binder/AboutPopup';
 import { ArtWindow, StockCard } from '@/components/binder/ArtViewCard';
 import { cellWidthFor, gapFor } from '@/data/binderLayout';
 import { cardFrame, connectedCut, resolveArtView, WINDOW_CUT, type ArtView, type FrameTable, type SheetCut } from '@/data/artView';
-import { resolveMatStyle, type MatStyle } from '@/data/matStyle';
+import { resolveMatStyle, spreadSlice, type MatStyle } from '@/data/matStyle';
 import { useFrames } from '@/hooks/use-frames';
 import { insideEdgePairStarts } from '@/data/binderPhysics';
 import { cutBoundaries } from '@/data/printFit';
@@ -488,6 +488,9 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const colStep = cellW + gap;
   const rowStep = cellH + gap + captionH;
   const innerH = (cellH + captionH) * page.rows + gap * (page.rows - 1);
+  // ONE PICTURE ACROSS THE PAGE'S MATS (matStyle.ts spread): every stock card on a window page
+  // shows its slice, and so does every empty pocket, so the page reads as one unified mat.
+  const spread = !!mat?.picture && mat.spread === 'page' && pageView === 'window' && !connected;
   // The height a page of CARDS would have had, so a connected sheet can sit in its middle.
   const cardsH = cellW * CARD_ASPECT * page.rows + gapFor(cellW) * (page.rows - 1);
   const sheetTop = connected ? Math.max(0, (cardsH - innerH) / 2) : 0;
@@ -718,6 +721,17 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           />
         ))}
 
+        {/* An empty pocket's slice of the page-wide mat picture: the picture continues across the
+            gap as if a mat were there, which is what makes the spread one piece. Under the tap
+            target, and never a control. */}
+        {spread
+          ? emptyCells.map(({ row, col }) => (
+              <View key={`spread-${row}-${col}`} pointerEvents="none" style={[box(row, col, 1, 1), { borderRadius: slotRadius, overflow: 'hidden' }]} testID="mat-spread-empty">
+                <Image source={{ uri: mat!.picture }} style={{ position: 'absolute', ...spreadSlice(row, col, colStep, rowStep, innerW, innerH) }} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+              </View>
+            ))
+          : null}
+
         {/* Empty-cell tap targets (edit mode only; neighbours in the spread omit onCellPress). */}
         {editable && onCellPress &&
           emptyCells.map(({ row, col }) => (
@@ -814,6 +828,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               cut={cut}
               frames={frames}
               mat={mat}
+              matSlice={spread ? spreadSlice(slot.row, slot.col, colStep, rowStep, innerW, innerH) : undefined}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             chipScale={chipScale}
             onLabel={onLabel}
@@ -1028,6 +1043,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               cut={cut}
               frames={frames}
               mat={mat}
+              matSlice={spread ? spreadSlice(dragged.row, dragged.col, colStep, rowStep, innerW, innerH) : undefined}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
             chipScale={chipScale}
             />
@@ -1723,11 +1739,14 @@ function SlotContent({
   cut = WINDOW_CUT,
   frames = null,
   mat,
+  matSlice,
 }: {
   /** The page shows its cards as their artwork (artView.ts): a stock card, or windows edge to edge. */
   artView?: ArtView;
   /** What the stock card looks like (matStyle.ts): paper, picture, ink, font, lines. */
   mat?: MatStyle;
+  /** This pocket's slice of a page-wide mat picture (matStyle.ts spreadSlice), when the mat spreads. */
+  matSlice?: { left: number; top: number; width: number; height: number };
   /** On a connected page, how the sheet cuts its cards (artView.ts connectedCut). */
   cut?: SheetCut;
   /** The frame table (lib/frames), so a stock card cuts the card's own frame. Null before it loads. */
@@ -1899,6 +1918,7 @@ function SlotContent({
           card={catalogCard}
           frame={frame}
           mat={mat}
+          slice={matSlice}
           radius={Math.max(0, radius - ringPad)}
           small={small}
           renderImage={() => <CardImage key={id} id={id} radius={0} small={false} contentFit="cover" scanUri={scanUri} instant={instantImages} />}

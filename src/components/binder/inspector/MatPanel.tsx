@@ -8,14 +8,14 @@
  * which: it shows `value` and reports a patch, and the host decides where the patch lands.
  */
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image as RNImage, StyleSheet, Text, View } from 'react-native';
 
 import { ArtistShelf } from '@/components/binder/ArtistShelf';
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { ColorBox, ImageLinkField, PillButton, Row, Seg, ToggleChip, styles } from '@/components/binder/inspector/controls';
 import { PresetPictureGrid } from '@/components/binder/PresetPictureGrid';
 import { FontSize, Palette } from '@/constants/theme';
-import { DEFAULT_MAT_INK, DEFAULT_MAT_PAPER, MAT_FIELDS, MAT_FONTS, matFields, type MatStyle, type MatStylePatch } from '@/data/matStyle';
+import { DEFAULT_MAT_INK, DEFAULT_MAT_PAPER, MAT_FIELDS, MAT_FONTS, matFields, spreadFits, spreadMinimum, type MatStyle, type MatStylePatch } from '@/data/matStyle';
 
 const MAT_NAMES: { id: 'card' | 'clean'; label: string }[] = [
   { id: 'card', label: 'As printed' },
@@ -27,6 +27,7 @@ export function MatPanel({
   onChange,
   fieldKey,
   inherit,
+  grid,
   testID,
 }: {
   /** The style in effect here (the page's own, or the binder's when the page has none). */
@@ -36,6 +37,11 @@ export function MatPanel({
   fieldKey: string;
   /** At the page level: the pill that hands the mat back to the binder, shown when the page has its own. */
   inherit?: { label: string; own: boolean; onPress: () => void };
+  /**
+   * The pocket grid the picture would spread across: the page's own, or at the binder level the
+   * largest page's. Decides the picture's minimum size (matStyle.ts spreadMinimum).
+   */
+  grid?: { rows: number; cols: number };
   testID?: string;
 }) {
   const pictured = !!value?.picture;
@@ -43,6 +49,32 @@ export function MatPanel({
   const showPicker = pictured || pickerOpen;
   const shown = matFields(value);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [spreadNote, setSpreadNote] = useState<string | null>(null);
+  const spreading = value?.spread === 'page';
+  // Across the page needs a picture with enough pixels for one slice per pocket. The size is
+  // measured when the pill is pressed, so a picture from any source (preset, shelf, upload, link)
+  // is judged the same way, and a small one is refused with the size it would need.
+  const toggleSpread = () => {
+    if (spreading) {
+      setSpreadNote(null);
+      onChange({ spread: null });
+      return;
+    }
+    if (!value?.picture || !grid) return;
+    const min = spreadMinimum(grid.rows, grid.cols);
+    RNImage.getSize(
+      value.picture,
+      (w, h) => {
+        if (spreadFits(w, h, grid.rows, grid.cols)) {
+          setSpreadNote(null);
+          onChange({ spread: 'page' });
+        } else {
+          setSpreadNote(`Too small to spread: this picture is ${w}×${h}, and a ${grid.rows}×${grid.cols} page needs at least ${min.w}×${min.h}.`);
+        }
+      },
+      () => setSpreadNote(`Could not measure this picture. It needs at least ${min.w}×${min.h} pixels for a ${grid.rows}×${grid.cols} page.`),
+    );
+  };
   const toggle = (id: (typeof MAT_FIELDS)[number]['id']) => {
     const next = shown.includes(id) ? shown.filter((f) => f !== id) : [...shown, id];
     onChange({ fields: next });
@@ -52,9 +84,12 @@ export function MatPanel({
       <Row label="Paper">
         <ColorBox fieldKey={`${fieldKey}-paper`} value={value?.paper ?? DEFAULT_MAT_PAPER} onChange={(paper) => onChange({ paper })} />
         <PillButton label="Picture" active={pictured} onPress={() => setPickerOpen((v) => !v)} testID={testID ? `${testID}-picture` : undefined} />
+        {pictured && grid ? <PillButton label="Across the page" active={spreading} onPress={toggleSpread} testID={testID ? `${testID}-spread` : undefined} /> : null}
         {pictured ? <PillButton label="No picture" onPress={() => onChange({ picture: null })} testID={testID ? `${testID}-no-picture` : undefined} /> : null}
         {inherit?.own ? <PillButton label={inherit.label} onPress={inherit.onPress} testID={testID ? `${testID}-inherit` : undefined} /> : null}
       </Row>
+      {spreadNote ? <Text style={local.note} testID={testID ? `${testID}-spread-note` : undefined}>{spreadNote}</Text> : null}
+      {spreading && !spreadNote ? <Text style={local.note}>One picture across the page: each mat shows its slice, and empty pockets fill in with theirs.</Text> : null}
       {showPicker ? <PresetPictureGrid kind="texture" value={value?.picture} onPick={(picture) => onChange({ picture })} testID={testID ? `${testID}-presets` : undefined} /> : null}
       {showPicker ? <ArtistShelf surface="mat" value={value?.picture} onPick={(picture) => onChange({ picture })} testID={testID ? `${testID}-artists` : undefined} /> : null}
       {showPicker ? (

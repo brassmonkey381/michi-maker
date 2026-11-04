@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { ALL_MAT_FIELDS, matName, matPalette, matShows, mix, normalizeMatStyle, resolveMatStyle, withMatStyle } from './matStyle.ts';
+import { ALL_MAT_FIELDS, matName, matPalette, matShows, mix, normalizeMatStyle, resolveMatStyle, spreadFits, spreadMinimum, spreadSlice, withMatStyle } from './matStyle.ts';
 
 test('an empty or bad value is no style', () => {
   assert.equal(normalizeMatStyle(undefined), undefined);
@@ -30,6 +30,22 @@ test('the dropped No. and type line is ignored in a stored style; HP and rarity 
   assert.deepEqual(normalizeMatStyle({ fields: ['sub', 'hp', 'rarity'] }), { fields: ['hp', 'rarity'] });
   assert.equal(ALL_MAT_FIELDS[0], 'hp');
   assert.equal(ALL_MAT_FIELDS[1], 'rarity');
+});
+
+test('a spread needs a picture, and clearing the picture clears the spread', () => {
+  assert.deepEqual(normalizeMatStyle({ picture: 'https://x/y.png', spread: 'page' }), { picture: 'https://x/y.png', spread: 'page' });
+  assert.equal(normalizeMatStyle({ spread: 'page' }), undefined);
+  assert.equal(normalizeMatStyle({ picture: 'https://x/y.png', spread: 'binder' })?.spread, undefined);
+  assert.equal(withMatStyle({ picture: 'https://x/y.png', spread: 'page' }, { picture: null }), undefined);
+});
+
+test('the spread minimum is 300 by 420 a pocket, and a slice is the pocket\'s window onto the grid', () => {
+  assert.deepEqual(spreadMinimum(3, 3), { w: 900, h: 1260 });
+  assert.equal(spreadFits(900, 1260, 3, 3), true);
+  assert.equal(spreadFits(899, 1260, 3, 3), false);
+  assert.equal(spreadFits(2000, 2000, 2, 2), true);
+  assert.deepEqual(spreadSlice(1, 2, 110, 150, 320, 440), { left: -220, top: -150, width: 320, height: 440 });
+  assert.deepEqual(spreadSlice(0, 0, 110, 150, 320, 440), { left: 0, top: 0, width: 320, height: 440 });
 });
 
 test('a usable style is kept, lower-cased, fields in the card order', () => {

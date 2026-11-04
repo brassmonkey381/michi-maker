@@ -253,6 +253,7 @@ export function PageWearBar({
                           store.updatePage(binder.id, page.id, { mat: withMatStyle(page.mat ?? binder.pageStyle?.mat, patch) ?? null });
                         }}
                         inherit={{ label: "Use binder's", own: !!page.mat, onPress: () => store.updatePage(binder.id, page.id, { mat: null }) }}
+                        grid={{ rows: page.rows, cols: page.cols }}
                         testID="page-mat"
                       />
                     ) : null}

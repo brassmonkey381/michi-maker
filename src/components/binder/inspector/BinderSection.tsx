@@ -291,6 +291,7 @@ export function BinderLook({
                 if (!store.taste.pass('artViews', hasArtViews(store.tier), 'inspector')) return;
                 store.setPageStyle(binder.id, { mat });
               }}
+              grid={{ rows: Math.max(1, ...binder.pages.map((p) => p.rows)), cols: Math.max(1, ...binder.pages.map((p) => p.cols)) }}
               testID="binder-mat"
             />
           </View>

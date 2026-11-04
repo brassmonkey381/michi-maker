@@ -43,7 +43,7 @@ export function ArtWindow({ renderImage, radius = 0, cut = WINDOW_CUT }: { rende
  * card's own class (artView.ts cardFrame): a V's bleed cut is taller than a window and takes the
  * room from the table, which is the right trade; the art is what the view is for.
  */
-export function StockCard({ card, radius, small, renderImage, frame, mat }: { card: CatalogCard | undefined; radius: number; small: boolean; renderImage: RenderCardImage; frame?: FrameClass; mat?: MatStyle }) {
+export function StockCard({ card, radius, small, renderImage, frame, mat, slice }: { card: CatalogCard | undefined; radius: number; small: boolean; renderImage: RenderCardImage; frame?: FrameClass; mat?: MatStyle; /** This pocket's slice of a page-wide mat picture (matStyle.ts spreadSlice); absent means the whole picture. */ slice?: { left: number; top: number; width: number; height: number } }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
   const rect = frame ?? ART_WINDOW;
   const cut = cutFor(rect, frame?.kind ?? 'window');
@@ -80,7 +80,7 @@ export function StockCard({ card, radius, small, renderImage, frame, mat }: { ca
     <View
       onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
       style={[styles.fill, styles.stockCard, { borderRadius: radius, backgroundColor: pal.paper, borderColor: pal.rule }]}>
-      {pal.picture ? <Image source={{ uri: pal.picture }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} /> : null}
+      {pal.picture ? <Image source={{ uri: pal.picture }} style={slice ? { position: 'absolute', ...slice } : StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} /> : null}
       {box.w > 0 ? (
         <>
           <View style={{ position: 'absolute', left: margin, top: margin, width: windowW, height: windowH }}>

@@ -37,7 +37,7 @@ const restore = async () => {
   await fetch(`${URL_}/rest/v1/binders?id=eq.${BINDER}`, { method: 'PATCH', headers: JH, body: JSON.stringify({ page_style: before?.page_style ?? null }) });
   log('  binder style put back');
 };
-const mat = { paper: '#f4efe4', ink: '#1d1a2b', font: 'sans', name: 'clean', fields: ['hp', 'rarity', 'set', 'number'], ...(picture ? { picture } : {}) };
+const mat = { paper: '#f4efe4', ink: '#1d1a2b', font: 'sans', name: 'clean', spread: 'page', fields: ['hp', 'rarity', 'set', 'number'], ...(picture ? { picture } : {}) };
 const set = await fetch(`${URL_}/rest/v1/binders?id=eq.${BINDER}`, { method: 'PATCH', headers: JH, body: JSON.stringify({ page_style: { ...(before?.page_style ?? {}), mat } }) }).then((r) => r.json());
 check('the binder carries a mat style', set[0]?.page_style?.mat?.font === 'sans');
 
@@ -80,6 +80,7 @@ try {
   await page.locator('[data-testid="page-mat-picture"]').first().click({ timeout: 5000 }).catch(() => {});
   await wait(1500);
   check('the mat picture picker shows the artists shelf', (await page.locator('[data-testid="page-mat-artists"]').count()) >= 1);
+  check('the mat panel offers Across the page, and it is on', (await page.locator('[data-testid="page-mat-spread"]').count()) === 1 && /Across the page/.test(await page.locator('[data-testid="page-mat"]').first().innerText()));
   await page.screenshot({ path: `${OUT}/02-page-mat.png`, timeout: 120000, animations: 'disabled' });
   await page.keyboard.press('Escape');
   await wait(800);

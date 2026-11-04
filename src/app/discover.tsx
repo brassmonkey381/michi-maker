@@ -119,6 +119,14 @@ const SORTS: { key: DiscoverSort; label: string }[] = [
 /** Fewest letters that run a search. See the note where the search fires. */
 const MIN_QUERY = 2;
 
+/** The public binders loaded so far, per ordering, kept across this page's unmounts (see `shelfCache` below). */
+const shelfCache = new Map<DiscoverSort, { binders: DemoBinder[]; next: BinderListCursor | null; at: number }>();
+const SHELF_CACHE_MS = 10 * 60 * 1000;
+const keptShelf = (sort: DiscoverSort) => {
+  const kept = shelfCache.get(sort);
+  return kept && Date.now() - kept.at < SHELF_CACHE_MS ? kept : undefined;
+};
+
 /** "Load more": the next page of a list that has one. */
 function LoadMore({ busy, onPress, testID }: { busy: boolean; onPress: () => void; testID: string }) {
   return (
@@ -154,7 +162,6 @@ export default function DiscoverScreen() {
   // binder existed only for someone who searched for it. Each list now remembers where it left
   // off (`next`, null when finished) and "Load more" asks for the rows after it.
   const [resultsNext, setResultsNext] = useState<BinderListCursor | null>(null);
-  const [othersNext, setOthersNext] = useState<BinderListCursor | null>(null);
   const [loadingMore, setLoadingMore] = useState<'results' | 'others' | null>(null);
   /** Append a page, never a binder twice: likes move while someone reads, so a row can recur. */
   const appended = (have: DemoBinder[] | null, more: DemoBinder[]) => {
@@ -196,15 +203,25 @@ export default function DiscoverScreen() {
     // does not fill the back button with a trail of shelf positions.
     router.setParams({ sort, shelf: page > 0 ? String(page) : undefined });
   };
-  const [others, setOthers] = useState<DemoBinder[] | null>(null);
+  // THE LIST SURVIVES A LOOK AT A BINDER (owner, 2026-11-04). This page is unmounted the moment
+  // a binder opens (the root layout is a Slot), so without this a return refetched page one and
+  // every page that "load more" had added was gone, while the address still asked for shelf
+  // seven. The shelf position rides in the address; the pages ride here, per ordering, for a
+  // while: a stale like count on the way back is fine, a list that forgot is not.
+  const [others, setOthers] = useState<DemoBinder[] | null>(() => keptShelf(sort)?.binders ?? null);
+  const [othersNext, setOthersNext] = useState<BinderListCursor | null>(() => keptShelf(sort)?.next ?? null);
+  useEffect(() => {
+    if (others) shelfCache.set(sort, { binders: others, next: othersNext, at: Date.now() });
+  }, [sort, others, othersNext]);
 
   // Re-fetches when the sort flips. Contest entries are INCLUDED here: since the contest moved to
   // its own page nothing else on Discover lists them, and leaving them out would hide public
   // binders from the one page that is meant to show every public binder. `others` is cleared to
   // null by the PRESS that changes the sort, so this effect only fetches and never sets state
-  // synchronously.
+  // synchronously. A fresh cached list (above) skips the fetch.
   useEffect(() => {
     if (!isSupabaseConfigured) return;
+    if (keptShelf(sort)) return;
     let alive = true;
     fetchDiscoverPage(sort, { excludeAuthor: OFFICIAL_AUTHOR })
       .then((page) => {
@@ -422,8 +439,9 @@ export default function DiscoverScreen() {
                           key={s.key}
                           onPress={() => {
                             if (active) return;
-                            setOthers(null);
-                            setOthersNext(null);
+                            // A list seen in the last few minutes comes straight back; the fetch effect skips it.
+                            setOthers(keptShelf(s.key)?.binders ?? null);
+                            setOthersNext(keptShelf(s.key)?.next ?? null);
                             setSort(s.key);
                           }}
                           accessibilityRole="tab"
@@ -458,6 +476,8 @@ export default function DiscoverScreen() {
                     key={`public-${sort}`}
                     initialPage={initialShelf}
                     onPageChange={rememberShelf}
+                    // The next page loads itself as the reader reaches the last one (PagedCarousel onReachEnd).
+                    onReachEnd={othersNext ? loadMoreOthers : undefined}
                     pages={shelfPages(others, perShelf, (b) => (
                       <BinderThumb
                         key={b.id}

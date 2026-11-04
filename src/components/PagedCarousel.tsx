@@ -28,6 +28,7 @@ export function PagedCarousel({
   nextLabel = 'Next page',
   initialPage = 0,
   onPageChange,
+  onReachEnd,
 }: {
   /** Measured container width — each page snaps to exactly this. 0 renders nothing (pre-layout). */
   width: number;
@@ -41,6 +42,16 @@ export function PagedCarousel({
   initialPage?: number;
   /** Every settled page change, including wheel and swipe, so a parent can remember the place. */
   onPageChange?: (page: number) => void;
+  /**
+   * THE LIST GROWS AT THE END (owner, 2026-11-04: "scrolling ... should automatically activate
+   * load more when we reach the last loaded page and try to scroll again"). Given only while
+   * more pages exist. Called when the reader lands on the last page (so the next one is ready
+   * before they ask), and again whenever they try to go past it (arrow, wheel, swipe), in case
+   * the first ask is still in flight or failed. With it, the next arrow at the end waits for
+   * the pages instead of wrapping to the first; without it, the carousel wraps as it always has.
+   * Also lets a restored `initialPage` beyond the pages loaded so far wait for them to arrive.
+   */
+  onReachEnd?: () => void;
 }) {
   const [page, setPage] = useState(initialPage);
   const scrollRef = useRef<ScrollView>(null);
@@ -50,19 +61,35 @@ export function PagedCarousel({
   // Losing pages (a removal, a resize repack) can strand the index — clamp it.
   const safePage = Math.min(page, Math.max(0, pageCount - 1));
 
+  const landedOn = (p: number) => {
+    setPage(p);
+    onPageChange?.(p);
+    if (p >= pageCount - 1) onReachEnd?.();
+  };
+
   const goTo = (p: number) => {
     if (pageCount === 0) return;
+    if (p >= pageCount && onReachEnd) {
+      // Past the end of a list that grows: ask for more and stay; the pages arrive in place.
+      onReachEnd();
+      return;
+    }
     const next = ((p % pageCount) + pageCount) % pageCount; // wrap both directions
     scrollRef.current?.scrollTo({ x: next * width, animated: true });
-    setPage(next);
-    onPageChange?.(next);
+    landedOn(next);
   };
 
   const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (width <= 0) return;
     const landed = Math.round(e.nativeEvent.contentOffset.x / width);
-    setPage(landed);
-    onPageChange?.(landed);
+    landedOn(landed);
+  };
+
+  // A swipe that pulls past the last page (touch overscroll) is a try to go further.
+  const onDragEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (width <= 0 || !onReachEnd) return;
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    if (contentOffset.x + layoutMeasurement.width > contentSize.width + 8) onReachEnd();
   };
 
   /**
@@ -84,6 +111,12 @@ export function PagedCarousel({
   const restored = useRef(false);
   const restoreWhenWideEnough = (contentWidth: number) => {
     if (restored.current || width <= 0 || pageCount === 0) return;
+    if (initialPage > pageCount - 1 && onReachEnd) {
+      // The remembered page is further than the list has loaded (a return to Discover after
+      // "load more"): ask for the rest and keep waiting; each arrival lays out wider.
+      onReachEnd();
+      return;
+    }
     const target = Math.min(Math.max(initialPage, 0), pageCount - 1);
     if (target <= 0) {
       restored.current = true;   // nothing to do, and nothing to wait for
@@ -92,6 +125,7 @@ export function PagedCarousel({
     if (contentWidth < (target + 1) * width) return;   // still laying out
     restored.current = true;
     scrollRef.current?.scrollTo({ x: target * width, animated: false });
+    landedOn(target);
   };
 
   // Double-tap an arrow (<200ms) to jump to the first / last page; a single tap steps one page.
@@ -122,16 +156,18 @@ export function PagedCarousel({
       const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       if (Math.abs(delta) < 2) return;
       const next = safePage + (delta > 0 ? 1 : -1);
+      if (next >= pageCount && onReachEnd) onReachEnd(); // past the end of a list that grows: ask, and let the page scroll
       if (next < 0 || next >= pageCount) return; // at an edge → let the page scroll
       e.preventDefault();
       if (e.timeStamp - cooldown < 300) return; // one page per gesture, not per event
       cooldown = e.timeStamp;
       scrollRef.current?.scrollTo({ x: next * width, animated: true });
-      setPage(next);
+      landedOn(next);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [safePage, pageCount, width]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safePage, pageCount, width, onReachEnd]);
 
   return (
     <View ref={rootRef}>
@@ -141,6 +177,7 @@ export function PagedCarousel({
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onMomentumEnd}
+        onScrollEndDrag={onDragEnd}
         onContentSizeChange={restoreWhenWideEnough}
         scrollEventThrottle={16}>
         {width > 0 &&

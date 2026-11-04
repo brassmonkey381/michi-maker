@@ -126,7 +126,7 @@ export default function CoverageScreen() {
           <View style={styles.keyLine}>
             <Pill status="live" />
             <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
-              Works for at least 70% of the game’s released cards.
+              Works for at least 70% of the game’s released cards, and is switched on where you use it.
             </ThemedText>
           </View>
           <View style={styles.keyLine}>
@@ -141,7 +141,7 @@ export default function CoverageScreen() {
           <ThemedText type="small" themeColor="textSecondary" style={styles.para}>
             Magic and Yu-Gi-Oh! have tens of thousands of printings, so their cards are added in batches. The
             scanner and similar fill learn each game’s cards first, and theme search needs every card’s art
-            described before it goes live.
+            described before it goes live. The scanner stays WIP until its game appears in the TCGScan app.
           </ThemedText>
         </View>
       </View>

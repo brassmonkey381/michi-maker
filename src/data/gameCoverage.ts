@@ -2,18 +2,25 @@
  * WHICH FEATURES ARE LIVE FOR EACH GAME, for the /coverage page (owner, 2026-10-29: "start showing
  * the page on michi-maker.com ... under EXPLORE with a tab button named Coverage").
  *
- * Hand-copied from tcgscan-data's `orchestration/scripts/coverage_report.py` ("coverage report").
- * The rule: a feature is LIVE when it covers at least 70% of the game's RELEASED cards (presale
- * cards have no picture yet, so they do not count against it); anything under that is WIP. The
- * page shows statuses only, never the counts behind them. Refresh `AS_OF` with the rows.
+ * The rows are NOT typed here. They come from tcgscan-data's coverage report, copied into
+ * gameCoverage.json by `node scripts/coverage-sync.mjs`, and judged by coverageRule.ts: LIVE means
+ * at least 70% of the game's released cards AND switched on where people reach it (the scanner's
+ * chip in tcgscan-app, the theme registry, the published colour and similar files). Owner,
+ * 2026-11-03: "make sure things are not only 70% covered, but live and accessible to be marked
+ * Live", after Cyberpunk read all-live with its scanner off and half its cards uncovered.
+ *
+ * Refreshing: run the report in tcgscan-data (`python orchestration/scripts/coverage_report.py`),
+ * then the sync here, then `node scripts/lab/print-coverage-pdf.mjs` for the PDF. The page shows
+ * statuses only, never the counts behind them.
  */
-export type CoverageStatus = 'live' | 'wip';
+import { FEATURE_KEYS, statusOf, type CoverageStatus, type FeatureKey } from './coverageRule.ts';
+import coverage from './gameCoverage.json' with { type: 'json' };
+
+export type { CoverageStatus, FeatureKey };
 
 export type CoverageFeature = { key: FeatureKey; label: string; blurb: string };
 
-type FeatureKey = 'search' | 'colour' | 'similar' | 'theme' | 'scanner';
-
-export const COVERAGE_AS_OF = '2026-11-02';
+export const COVERAGE_AS_OF: string = coverage.asOf;
 
 export const COVERAGE_FEATURES: CoverageFeature[] = [
   { key: 'search', label: 'Card search', blurb: 'find any card' },
@@ -25,21 +32,25 @@ export const COVERAGE_FEATURES: CoverageFeature[] = [
 
 export type CoverageRow = { game: string; note?: string; status: Record<FeatureKey, CoverageStatus> };
 
-const ALL_LIVE: Record<FeatureKey, CoverageStatus> = { search: 'live', colour: 'live', similar: 'live', theme: 'live', scanner: 'live' };
+type StoredGame = {
+  key: string;
+  game: string;
+  note?: string;
+  inApp: boolean;
+  share: Record<FeatureKey, number>;
+  on: Record<FeatureKey, boolean>;
+  status: Record<FeatureKey, CoverageStatus>;
+};
 
-/** Most live first, so the table reads from finished to in progress. */
-export const COVERAGE_ROWS: CoverageRow[] = [
-  { game: 'Pokémon', note: 'English', status: ALL_LIVE },
-  { game: 'One Piece', status: ALL_LIVE },
-  { game: 'Disney Lorcana', status: ALL_LIVE },
-  { game: 'Cyberpunk TCG', status: ALL_LIVE },
-  // The scanner has a Riftbound model (riftbound-v1 in tcgscan-app) but it is not live or public
-  // facing yet (owner, 2026-11-02), so it stays WIP here until it ships.
-  { game: 'Riftbound', status: { ...ALL_LIVE, theme: 'wip', scanner: 'wip' } },
-  { game: 'Digimon', status: { search: 'live', colour: 'live', similar: 'wip', theme: 'wip', scanner: 'wip' } },
-  { game: 'Magic: The Gathering', status: { search: 'wip', colour: 'live', similar: 'wip', theme: 'wip', scanner: 'wip' } },
-  { game: 'Yu-Gi-Oh!', status: { search: 'live', colour: 'wip', similar: 'wip', theme: 'wip', scanner: 'wip' } },
-];
+/**
+ * Most live first, as the sync wrote them. The status is re-derived from the stored share and
+ * switch, so a hand edit of one without the other cannot show (gameCoverage.test.ts pins both ways).
+ */
+export const COVERAGE_ROWS: CoverageRow[] = (coverage.games as StoredGame[]).map((g) => ({
+  game: g.game,
+  ...(g.note ? { note: g.note } : {}),
+  status: Object.fromEntries(FEATURE_KEYS.map((k) => [k, statusOf(g.share[k] / 100, g.on[k])])) as Record<FeatureKey, CoverageStatus>,
+}));
 
 /** Where the printable copy lives (public/downloads/; not public/coverage/, which would shadow the /coverage route). */
 export const COVERAGE_PDF = '/downloads/game-feature-coverage.pdf';

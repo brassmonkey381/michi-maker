@@ -1,0 +1,215 @@
+{
+  "asOf": "2026-11-03",
+  "source": "tcgscan-data/pipeline/work/coverage/2026-11-03.json",
+  "games": [
+    {
+      "key": "pokemon",
+      "game": "Pokémon",
+      "note": "English",
+      "inApp": true,
+      "share": {
+        "search": 88,
+        "colour": 85,
+        "similar": 100,
+        "theme": 100,
+        "scanner": 73
+      },
+      "on": {
+        "search": true,
+        "colour": true,
+        "similar": true,
+        "theme": true,
+        "scanner": true
+      },
+      "status": {
+        "search": "live",
+        "colour": "live",
+        "similar": "live",
+        "theme": "live",
+        "scanner": "live"
+      }
+    },
+    {
+      "key": "onepiece",
+      "game": "One Piece",
+      "inApp": true,
+      "share": {
+        "search": 100,
+        "colour": 94,
+        "similar": 93,
+        "theme": 73,
+        "scanner": 93
+      },
+      "on": {
+        "search": true,
+        "colour": true,
+        "similar": true,
+        "theme": true,
+        "scanner": true
+      },
+      "status": {
+        "search": "live",
+        "colour": "live",
+        "similar": "live",
+        "theme": "live",
+        "scanner": "live"
+      }
+    },
+    {
+      "key": "lorcana",
+      "game": "Disney Lorcana",
+      "inApp": true,
+      "share": {
+        "search": 100,
+        "colour": 91,
+        "similar": 87,
+        "theme": 86,
+        "scanner": 87
+      },
+      "on": {
+        "search": true,
+        "colour": true,
+        "similar": true,
+        "theme": true,
+        "scanner": true
+      },
+      "status": {
+        "search": "live",
+        "colour": "live",
+        "similar": "live",
+        "theme": "live",
+        "scanner": "live"
+      }
+    },
+    {
+      "key": "riftbound",
+      "game": "Riftbound",
+      "inApp": false,
+      "share": {
+        "search": 100,
+        "colour": 83,
+        "similar": 71,
+        "theme": 42,
+        "scanner": 71
+      },
+      "on": {
+        "search": true,
+        "colour": true,
+        "similar": true,
+        "theme": true,
+        "scanner": false
+      },
+      "status": {
+        "search": "live",
+        "colour": "live",
+        "similar": "live",
+        "theme": "wip",
+        "scanner": "wip"
+      }
+    },
+    {
+      "key": "digimon",
+      "game": "Digimon",
+      "inApp": false,
+      "share": {
+        "search": 100,
+        "colour": 94,
+        "similar": 52,
+        "theme": 5,
+        "scanner": 52
+      },
+      "on": {
+        "search": true,
+        "colour": true,
+        "similar": true,
+        "theme": true,
+        "scanner": false
+      },
+      "status": {
+        "search": "live",
+        "colour": "live",
+        "similar": "wip",
+        "theme": "wip",
+        "scanner": "wip"
+      }
+    },
+    {
+      "key": "yugioh",
+      "game": "Yu-Gi-Oh!",
+      "inApp": false,
+      "share": {
+        "search": 96,
+        "colour": 96,
+        "similar": 11,
+        "theme": 2,
+        "scanner": 11
+      },
+      "on": {
+        "search": true,
+        "colour": true,
+        "similar": true,
+        "theme": true,
+        "scanner": false
+      },
+      "status": {
+        "search": "live",
+        "colour": "live",
+        "similar": "wip",
+        "theme": "wip",
+        "scanner": "wip"
+      }
+    },
+    {
+      "key": "cyberpunk",
+      "game": "Cyberpunk TCG",
+      "inApp": false,
+      "share": {
+        "search": 100,
+        "colour": 91,
+        "similar": 45,
+        "theme": 42,
+        "scanner": 45
+      },
+      "on": {
+        "search": true,
+        "colour": true,
+        "similar": true,
+        "theme": true,
+        "scanner": false
+      },
+      "status": {
+        "search": "live",
+        "colour": "live",
+        "similar": "wip",
+        "theme": "wip",
+        "scanner": "wip"
+      }
+    },
+    {
+      "key": "magic",
+      "game": "Magic: The Gathering",
+      "inApp": false,
+      "share": {
+        "search": 58,
+        "colour": 59,
+        "similar": 3,
+        "theme": 0,
+        "scanner": 3
+      },
+      "on": {
+        "search": true,
+        "colour": true,
+        "similar": true,
+        "theme": true,
+        "scanner": false
+      },
+      "status": {
+        "search": "wip",
+        "colour": "wip",
+        "similar": "wip",
+        "theme": "wip",
+        "scanner": "wip"
+      }
+    }
+  ]
+}

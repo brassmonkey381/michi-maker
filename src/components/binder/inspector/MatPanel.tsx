@@ -17,6 +17,11 @@ import { PresetPictureGrid } from '@/components/binder/PresetPictureGrid';
 import { FontSize, Palette } from '@/constants/theme';
 import { DEFAULT_MAT_INK, DEFAULT_MAT_PAPER, MAT_FIELDS, MAT_FONTS, matFields, type MatStyle, type MatStylePatch } from '@/data/matStyle';
 
+const MAT_NAMES: { id: 'card' | 'clean'; label: string }[] = [
+  { id: 'card', label: 'As printed' },
+  { id: 'clean', label: 'Species only' },
+];
+
 export function MatPanel({
   value,
   onChange,
@@ -68,6 +73,9 @@ export function MatPanel({
       <Row label="Ink">
         <ColorBox fieldKey={`${fieldKey}-ink`} value={value?.ink ?? DEFAULT_MAT_INK} onChange={(ink) => onChange({ ink })} />
       </Row>
+      <Row label="Name" testID={testID ? `${testID}-name` : undefined}>
+        <Seg options={MAT_NAMES} value={value?.name ?? 'card'} onChange={(name) => onChange({ name: name === 'clean' ? 'clean' : null })} />
+      </Row>
       <Row label="Font" testID={testID ? `${testID}-font` : undefined}>
         <Seg options={MAT_FONTS} value={value?.font ?? 'serif'} onChange={(font) => onChange({ font: font === 'serif' ? null : font })} />
       </Row>
@@ -78,7 +86,7 @@ export function MatPanel({
           ))}
         </View>
       </Row>
-      <Text style={local.note}>The name always shows. Lines that do not fit a small pocket are left off, as before.</Text>
+      <Text style={local.note}>The name always shows; Species only cleans it to the Pokémon it is a card of. HP and Rarity sit beside the name. Lines that do not fit a small pocket are left off, as before.</Text>
     </View>
   );
 }

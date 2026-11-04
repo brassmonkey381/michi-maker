@@ -6,7 +6,7 @@ import { ART_FULL_RECT, ART_WINDOW } from './artView.ts';
 import { type CardMeta, collectFillTiles, describeDownload, describeFiles, type MatTile } from './placeholderPdf.ts';
 
 const META: Record<string, CardMeta> = {
-  w1: { name: 'Wartortle', setName: 'Pokemon GO', number: '016/078', types: ['Water'], stage: 'Stage 1', seriesId: 'Sword & Shield', illustrator: 'kurumitsu', releaseDate: '2022-07-01' },
+  w1: { name: 'Wartortle', setName: 'Pokemon GO', number: '016/078', types: ['Water'], stage: 'Stage 1', seriesId: 'Sword & Shield', illustrator: 'kurumitsu', releaseDate: '2022-07-01', hp: 90, rarity: 'Uncommon' },
   w2: { name: 'Tentacool', setName: 'SV151', number: '072/165', types: ['Water'], stage: 'Basic', seriesId: 'Scarlet & Violet', illustrator: 'miki kudo', releaseDate: '2023-09-22' },
   full: { name: 'Oshawott', setName: 'Brilliant Stars', number: '105/086', types: ['Water'], stage: 'Basic', fullArt: true, fullArtKind: 'illustration_rare', releaseDate: '2022-02-25' },
   full2: { name: 'Sprigatito', setName: 'Promo', number: '001', types: ['Grass'], stage: 'Basic', fullArtKind: 'illustration_rare', releaseDate: '2023-01-01' },
@@ -33,10 +33,11 @@ test('mats are off unless asked for, and print nothing for a page in the card vi
   const mats = tiles.filter((t): t is MatTile => t.kind === 'mat');
   assert.deepEqual(mats.map((m) => [m.page, m.row, m.col, m.cut, m.color]), [[1, 1, 1, ART_WINDOW, 'black'], [1, 1, 2, ART_WINDOW, 'black']]);
   assert.equal(mats[0].name, 'Wartortle');
-  assert.equal(mats[0].sub, 'No. 008 · Water · Stage 1');
+  assert.equal(mats[0].hp, '90 HP');
+  assert.equal(mats[0].rarity, 'Uncommon');
   assert.equal(mats[0].dex, '008');
   assert.deepEqual(mats[0].rows.map((r) => r.label), ['Series', 'Set', 'Number', 'Illustrator', 'Released']);
-  assert.equal(mats[0].rows[4].value, '2022');
+  assert.equal(mats[0].rows[4].value, 'Jul 2022');
 });
 
 test('a full-art card on a window page keeps no mat; a jumbo gets none; an unknown card gets a plain mat', () => {

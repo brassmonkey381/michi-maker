@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { ALL_MAT_FIELDS, matPalette, matShows, mix, normalizeMatStyle, resolveMatStyle, withMatStyle } from './matStyle.ts';
+import { ALL_MAT_FIELDS, matName, matPalette, matShows, mix, normalizeMatStyle, resolveMatStyle, withMatStyle } from './matStyle.ts';
 
 test('an empty or bad value is no style', () => {
   assert.equal(normalizeMatStyle(undefined), undefined);
@@ -14,6 +14,22 @@ test('an empty or bad value is no style', () => {
 
 test('defaults said out loud are dropped; every field is not stored', () => {
   assert.equal(normalizeMatStyle({ paper: '#111114', ink: '#F2EFE6', font: 'serif', fields: [...ALL_MAT_FIELDS] }), undefined);
+});
+
+test('the name option: clean is kept, anything else is as printed, and cleaning uses the species rule', () => {
+  assert.deepEqual(normalizeMatStyle({ name: 'clean' }), { name: 'clean' });
+  assert.equal(normalizeMatStyle({ name: 'card' }), undefined);
+  assert.equal(normalizeMatStyle({ name: 'shout' }), undefined);
+  assert.equal(matName({ name: 'clean' }, 'Mega Charizard X ex'), 'Charizard');
+  assert.equal(matName({ name: 'clean' }, 'Professor Oak'), 'Professor Oak', 'a trainer keeps its printed name');
+  assert.equal(matName(undefined, 'Mega Charizard X ex'), 'Mega Charizard X ex');
+  assert.equal(withMatStyle({ name: 'clean', font: 'sans' }, { name: null })?.name, undefined);
+});
+
+test('the dropped No. and type line is ignored in a stored style; HP and rarity are fields', () => {
+  assert.deepEqual(normalizeMatStyle({ fields: ['sub', 'hp', 'rarity'] }), { fields: ['hp', 'rarity'] });
+  assert.equal(ALL_MAT_FIELDS[0], 'hp');
+  assert.equal(ALL_MAT_FIELDS[1], 'rarity');
 });
 
 test('a usable style is kept, lower-cased, fields in the card order', () => {

@@ -19,7 +19,7 @@ import {
   normalizeFrames,
   placement,
   rectAspect,
-  stockCardText,
+  releasedLabel, stockCardText,
   WINDOW_CUT,
   windowPlacement,
   type FrameTable,
@@ -69,20 +69,24 @@ test('full art is the catalogue flag first, then the kind', () => {
 
 test('the stock card text leaves out what the catalogue does not know', () => {
   const t = stockCardText({
-    name: 'Leavanny', types: ['Grass'], stage: 'Stage 2', seriesId: 'Sun & Moon', setName: 'Unified Minds',
-    number: '9/236', illustrator: 'Kagemaru Himeno', releaseDate: '2019-08-02',
+    name: 'Leavanny', seriesId: 'Sun & Moon', setName: 'Unified Minds',
+    number: '9/236', illustrator: 'Kagemaru Himeno', releaseDate: '2019-08-02', hp: 140, rarity: 'Rare',
   });
   assert.equal(t.name, 'Leavanny');
-  assert.equal(t.sub, 'No. 542 · Grass · Stage 2');
+  assert.equal(t.hp, '140 HP');
+  assert.equal(t.rarity, 'Rare');
   assert.equal(t.dex, '542');
   assert.deepEqual(t.rows.map((r) => `${r.label}=${r.value}`), [
-    'Series=Sun & Moon', 'Set=Unified Minds', 'Number=9/236', 'Illustrator=Kagemaru Himeno', 'Released=2019',
+    'Series=Sun & Moon', 'Set=Unified Minds', 'Number=9/236', 'Illustrator=Kagemaru Himeno', 'Released=Aug 2019',
   ]);
-  const bare = stockCardText({ name: 'Whismur', types: [], stage: '', seriesId: '', setName: 'Nintendo Promos', number: '019', illustrator: '', releaseDate: '' });
-  assert.equal(bare.sub, 'No. 293', 'the dex number stands alone when the type and stage are unknown');
-  const trainer = stockCardText({ name: 'Professor Oak', types: [], stage: '', seriesId: '', setName: 'Base', number: '88', illustrator: '', releaseDate: '' });
-  assert.equal(trainer.sub, '');
+  const bare = stockCardText({ name: 'Whismur', seriesId: '', setName: 'Nintendo Promos', number: '019', illustrator: '', releaseDate: '' });
+  assert.equal(bare.dex, '293');
+  assert.equal(bare.hp, '', 'no HP in the catalogue is no HP line');
+  const trainer = stockCardText({ name: 'Professor Oak', seriesId: '', setName: 'Base', number: '88', illustrator: '', releaseDate: '2024-03' });
   assert.equal(trainer.dex, '');
+  assert.equal(trainer.rows.find((r) => r.label === 'Released')?.value, 'Mar 2024');
+  assert.equal(releasedLabel('2001'), '2001');
+  assert.equal(releasedLabel(undefined), '');
   assert.deepEqual(bare.rows.map((r) => r.label), ['Set', 'Number']);
   assert.equal(stockCardText(undefined, 'Unknown').name, 'Unknown');
 });

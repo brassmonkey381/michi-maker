@@ -37,7 +37,7 @@ const restore = async () => {
   await fetch(`${URL_}/rest/v1/binders?id=eq.${BINDER}`, { method: 'PATCH', headers: JH, body: JSON.stringify({ page_style: before?.page_style ?? null }) });
   log('  binder style put back');
 };
-const mat = { paper: '#f4efe4', ink: '#1d1a2b', font: 'sans', fields: ['set', 'number'], ...(picture ? { picture } : {}) };
+const mat = { paper: '#f4efe4', ink: '#1d1a2b', font: 'sans', name: 'clean', fields: ['hp', 'rarity', 'set', 'number'], ...(picture ? { picture } : {}) };
 const set = await fetch(`${URL_}/rest/v1/binders?id=eq.${BINDER}`, { method: 'PATCH', headers: JH, body: JSON.stringify({ page_style: { ...(before?.page_style ?? {}), mat } }) }).then((r) => r.json());
 check('the binder carries a mat style', set[0]?.page_style?.mat?.font === 'sans');
 
@@ -61,6 +61,9 @@ try {
   check('the stock cards wear the mat picture', !picture || pics >= 3, `(${pics} of them)`);
   check('the mat shows the Set line', /\bSET\b/.test(body));
   check('the mat leaves off the Illustrator line', !/ILLUSTRATOR/.test(body));
+  check('the mat shows HP beside the name', /\b\d{2,3} HP\b/.test(body));
+  check('the mat shows the rarity beside the name', /\b(COMMON|UNCOMMON|RARE|ILLUSTRATION RARE|DOUBLE RARE|ULTRA RARE|PROMO)\b/.test(body));
+  check('the old No. and type line is gone', !/\bNO\. \d{3}\b/.test(body));
   const paper = await page.evaluate(() => [...document.querySelectorAll('div')].filter((d) => getComputedStyle(d).backgroundColor === 'rgb(244, 239, 228)').length);
   check('the stock cards are painted in the mat paper', paper >= 3, `(${paper})`);
 
@@ -71,7 +74,9 @@ try {
   check('the Art view popover offers Mats on this page', (await toggle.count()) === 1);
   await toggle.click({ timeout: 5000 }).catch(() => {});
   await wait(1500);
-  check('the page mat panel opens with Paper, Ink, Font and Lines', (await page.locator('[data-testid="page-mat"]').count()) === 1 && (await page.locator('[data-testid="page-mat-font"]').count()) === 1 && (await page.locator('[data-testid="page-mat-fields"]').count()) === 1);
+  check('the page mat panel opens with Paper, Ink, Name, Font and Lines', (await page.locator('[data-testid="page-mat"]').count()) === 1 && (await page.locator('[data-testid="page-mat-name"]').count()) === 1 && (await page.locator('[data-testid="page-mat-font"]').count()) === 1 && (await page.locator('[data-testid="page-mat-fields"]').count()) === 1);
+  const panelText = await page.locator('[data-testid="page-mat-fields"]').first().innerText().catch(() => '');
+  check('the Lines chips offer HP and Rarity and not No. and type', /\bHP\b/.test(panelText) && /Rarity/.test(panelText) && !/No\. and type/.test(panelText));
   await page.locator('[data-testid="page-mat-picture"]').first().click({ timeout: 5000 }).catch(() => {});
   await wait(1500);
   check('the mat picture picker shows the artists shelf', (await page.locator('[data-testid="page-mat-artists"]').count()) >= 1);

@@ -19,6 +19,8 @@
  * PURE: no react-native, so `node --test` reaches all of it.
  */
 
+import { speciesOf } from './collectorBinders.ts';
+
 export type MatFont = 'serif' | 'sans' | 'rounded' | 'mono';
 
 export const MAT_FONTS: { id: MatFont; label: string }[] = [
@@ -28,18 +30,27 @@ export const MAT_FONTS: { id: MatFont; label: string }[] = [
   { id: 'mono', label: 'Mono' },
 ];
 
-/** The lines a mat can carry, in the order the stock card draws them. */
-export type MatField = 'dex' | 'sub' | 'series' | 'set' | 'number' | 'illustrator' | 'released';
+/**
+ * The lines a mat can carry, in the order the stock card draws them. HP and rarity sit on the
+ * name line, right side, HP over rarity (owner, 2026-11-03); the rest are the ruled rows under it.
+ * The old "No. and type" line was dropped the same day; a stored style naming it reads as not
+ * naming it.
+ */
+export type MatField = 'hp' | 'rarity' | 'dex' | 'series' | 'set' | 'number' | 'illustrator' | 'released';
 
 export const MAT_FIELDS: { id: MatField; label: string; blurb: string }[] = [
-  { id: 'sub', label: 'No. and type', blurb: 'The dex number, type and stage line under the name.' },
+  { id: 'hp', label: 'HP', blurb: 'The hit points, top right of the name line.' },
+  { id: 'rarity', label: 'Rarity', blurb: 'The rarity, top right, under the HP.' },
   { id: 'dex', label: 'Dex watermark', blurb: 'The dex number, large and faint, in the corner.' },
   { id: 'series', label: 'Series', blurb: 'The series the set belongs to.' },
   { id: 'set', label: 'Set', blurb: 'The set name.' },
   { id: 'number', label: 'Number', blurb: 'The card number in its set.' },
   { id: 'illustrator', label: 'Illustrator', blurb: 'Who drew the card.' },
-  { id: 'released', label: 'Released', blurb: 'The year the card came out.' },
+  { id: 'released', label: 'Released', blurb: 'The month and year the card came out.' },
 ];
+
+/** How the name is written: as the card prints it, or cleaned to the species ("Charizard" for "Mega Charizard X ex"). */
+export type MatName = 'card' | 'clean';
 
 export const ALL_MAT_FIELDS: readonly MatField[] = MAT_FIELDS.map((f) => f.id);
 
@@ -61,6 +72,8 @@ export interface MatStyle {
    * choice, so it is kept.
    */
   fields?: MatField[];
+  /** 'clean' writes the species instead of the printed name (collectorBinders speciesOf). Absent means as printed. */
+  name?: 'clean';
 }
 
 /** Each field set, cleared with null, or left alone. */
@@ -70,6 +83,7 @@ export interface MatStylePatch {
   ink?: string | null;
   font?: MatFont | null;
   fields?: MatField[] | null;
+  name?: 'clean' | null;
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -85,8 +99,9 @@ const FIELDS = new Set<string>(ALL_MAT_FIELDS);
  */
 export function normalizeMatStyle(value: unknown): MatStyle | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const raw = value as { paper?: unknown; picture?: unknown; ink?: unknown; font?: unknown; fields?: unknown };
+  const raw = value as { paper?: unknown; picture?: unknown; ink?: unknown; font?: unknown; fields?: unknown; name?: unknown };
   const out: MatStyle = {};
+  if (raw.name === 'clean') out.name = 'clean';
   if (typeof raw.paper === 'string' && HEX.test(raw.paper) && raw.paper.toLowerCase() !== DEFAULT_MAT_PAPER) out.paper = raw.paper.toLowerCase();
   if (typeof raw.picture === 'string' && IMAGE_REF.test(raw.picture)) out.picture = raw.picture;
   if (typeof raw.ink === 'string' && HEX.test(raw.ink) && raw.ink.toLowerCase() !== DEFAULT_MAT_INK) out.ink = raw.ink.toLowerCase();
@@ -104,7 +119,7 @@ export function normalizeMatStyle(value: unknown): MatStyle | undefined {
 /** Merge a change into a style: null clears a field, undefined leaves it. Normalised on the way out. */
 export function withMatStyle(current: MatStyle | undefined | null, patch: MatStylePatch): MatStyle | undefined {
   const next: Record<string, unknown> = { ...(current ?? {}) };
-  for (const key of ['paper', 'picture', 'ink', 'font', 'fields'] as const) {
+  for (const key of ['paper', 'picture', 'ink', 'font', 'fields', 'name'] as const) {
     if (patch[key] === undefined) continue;
     if (patch[key] === null) delete next[key];
     else next[key] = patch[key];
@@ -126,6 +141,16 @@ export function matFields(mat: MatStyle | undefined): readonly MatField[] {
 /** Whether a line shows on this mat. */
 export function matShows(mat: MatStyle | undefined, field: MatField): boolean {
   return matFields(mat).includes(field);
+}
+
+/**
+ * The name as this mat writes it. 'clean' is the app's own name cleaning (collectorBinders
+ * speciesOf): the species a card is a card of, so "Mega Charizard X ex" reads "Charizard". A
+ * trainer or energy has no species and keeps its printed name.
+ */
+export function matName(mat: MatStyle | undefined, printed: string): string {
+  if (mat?.name !== 'clean') return printed;
+  return speciesOf(printed) || printed;
 }
 
 /** The field a stock card row's label maps to (artView.ts stockCardText rows). */

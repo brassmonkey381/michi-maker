@@ -299,30 +299,42 @@ export function isFullArtCard(card: ArtCardLike | undefined): boolean {
 /** What the stock card says under the window. Blank fields are left out, so a row never reads "SET". */
 export interface StockCardText {
   name: string;
-  /** "Grass · Stage 2", or less when the catalogue has less. */
-  /** "No. 093 · Ghost · Stage 1": the dex number leads when the species is known. */
-  sub: string;
+  /** "160 HP", for the right side of the name line; '' for a card without HP. */
+  hp: string;
+  /** The rarity as the catalogue names it, under the HP; '' when unknown. */
+  rarity: string;
   rows: { label: string; value: string }[];
   /** The dex number, three digits, for the faint watermark in the card's bottom corner; '' when unknown. */
   dex: string;
 }
 
-export function stockCardText(card: Pick<CatalogCard, 'name' | 'types' | 'stage' | 'seriesId' | 'setName' | 'number' | 'illustrator' | 'releaseDate'> | undefined, fallbackName = ''): StockCardText {
-  if (!card) return { name: fallbackName, sub: '', rows: [], dex: '' };
-  // The approved mock-up (scripts/lab/windowed-stock-card.mjs) led the sub line with the dex
-  // number and set it large and faint in the bottom corner; both were left out of the first port
-  // (owner, 2026-10-27). The number comes from the species the card is a card of.
+export function stockCardText(card: Pick<CatalogCard, 'name' | 'seriesId' | 'setName' | 'number' | 'illustrator' | 'releaseDate'> & Partial<Pick<CatalogCard, 'hp' | 'rarity'>> | undefined, fallbackName = ''): StockCardText {
+  if (!card) return { name: fallbackName, hp: '', rarity: '', rows: [], dex: '' };
+  // The approved mock-up (scripts/lab/windowed-stock-card.mjs) set the dex number large and faint
+  // in the bottom corner. The number comes from the species the card is a card of. The "No. 093 ·
+  // Ghost · Stage 1" line under the name was dropped on 2026-11-03 (owner): HP and rarity took the
+  // name line's right side instead.
   const n = dexNumber(speciesOf(card.name));
   const dex = n > 0 ? String(n).padStart(3, '0') : '';
-  const sub = [dex ? `No. ${dex}` : '', card.types?.[0], card.stage].filter((s): s is string => !!s).join(' · ');
   const rows = [
     ['Series', card.seriesId],
     ['Set', card.setName],
     ['Number', card.number],
     ['Illustrator', card.illustrator],
-    ['Released', card.releaseDate ? card.releaseDate.slice(0, 4) : ''],
+    ['Released', releasedLabel(card.releaseDate)],
   ]
     .filter(([, v]) => !!v)
     .map(([label, value]) => ({ label, value }));
-  return { name: card.name || fallbackName, sub, rows, dex };
+  return { name: card.name || fallbackName, hp: card.hp ? `${card.hp} HP` : '', rarity: card.rarity ?? '', rows, dex };
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "Aug 2019" from "2019-08-02"; the year alone when the month is missing; '' when there is no date. */
+export function releasedLabel(releaseDate: string | undefined): string {
+  if (!releaseDate) return '';
+  const m = /^(\d{4})(?:-(\d{2}))?/.exec(releaseDate);
+  if (!m) return releaseDate;
+  const month = m[2] ? MONTHS[Number(m[2]) - 1] : undefined;
+  return month ? `${month} ${m[1]}` : m[1];
 }

@@ -10,7 +10,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Fonts, Weight } from '@/constants/theme';
 import { ART_WINDOW, cutFor, placement, rectAspect, stockCardText, WINDOW_CUT, type FrameClass, type SheetCut } from '@/data/artView';
-import { matFieldOfRow, matPalette, matShows, type MatStyle } from '@/data/matStyle';
+import { matFieldOfRow, matName, matPalette, matShows, type MatStyle } from '@/data/matStyle';
 import type { CatalogCard } from '@/lib/catalog';
 
 /** Draws the whole card picture, cover-fit, filling whatever box it is given. */
@@ -53,8 +53,10 @@ export function StockCard({ card, radius, small, renderImage, frame, mat }: { ca
   const all = stockCardText(card, '');
   const text = {
     ...all,
+    name: matName(mat, all.name),
     dex: matShows(mat, 'dex') ? all.dex : '',
-    sub: matShows(mat, 'sub') ? all.sub : '',
+    hp: matShows(mat, 'hp') ? all.hp : '',
+    rarity: matShows(mat, 'rarity') ? all.rarity : '',
     rows: all.rows.filter((r) => {
       const f = matFieldOfRow(r.label);
       return !f || matShows(mat, f);
@@ -90,10 +92,16 @@ export function StockCard({ card, radius, small, renderImage, frame, mat }: { ca
             <Text style={[styles.stockDex, { right: margin, bottom: 6 * unit, fontSize: 56 * unit, lineHeight: 56 * unit, fontFamily: family, color: pal.watermark }]}>{text.dex}</Text>
           ) : null}
           <View style={{ position: 'absolute', left: margin, right: margin, top: margin + windowH + 10 * unit }}>
-            <Text numberOfLines={1} style={[styles.stockName, { fontSize: nameSize, lineHeight: nameSize * 1.15, fontFamily: family, color: pal.ink }]}>{text.name}</Text>
-            {!small && text.sub ? (
-              <Text numberOfLines={1} style={[styles.stockSub, { fontSize: labelSize * 1.15, letterSpacing: 1.6 * unit, marginTop: 4 * unit, fontFamily: family, color: pal.sub }]}>{text.sub.toUpperCase()}</Text>
-            ) : null}
+            <View style={styles.stockNameLine}>
+              <Text numberOfLines={1} style={[styles.stockName, styles.stockNameText, { fontSize: nameSize, lineHeight: nameSize * 1.15, fontFamily: family, color: pal.ink }]}>{text.name}</Text>
+              {!small && (text.hp || text.rarity) ? (
+                // HP over rarity, right side of the name line (owner, 2026-11-03).
+                <View style={styles.stockCorner}>
+                  {text.hp ? <Text numberOfLines={1} style={[styles.stockHp, { fontSize: rowSize * 1.1, lineHeight: rowSize * 1.3, fontFamily: family, color: pal.ink }]}>{text.hp}</Text> : null}
+                  {text.rarity ? <Text numberOfLines={1} style={[styles.stockRarity, { fontSize: labelSize, lineHeight: labelSize * 1.3, letterSpacing: 1.2 * unit, fontFamily: family, color: pal.sub }]}>{text.rarity.toUpperCase()}</Text> : null}
+                </View>
+              ) : null}
+            </View>
             {rows.length ? <View style={[styles.stockRule, { marginTop: 10 * unit, backgroundColor: pal.rule }]} /> : null}
             {rows.map((r) => (
               <View key={r.label} style={[styles.stockRow, { height: rowH, borderBottomColor: pal.rule }]}>
@@ -114,7 +122,11 @@ const styles = StyleSheet.create({
   stockCard: { backgroundColor: '#111114', borderWidth: 1, borderColor: '#2a2a30', overflow: 'hidden' },
   stockName: { fontFamily: Fonts.serif, fontWeight: Weight.bold, color: '#f2efe6' },
   stockDex: { position: 'absolute', fontFamily: Fonts.serif, color: '#1b1b20' },
-  stockSub: { color: '#a39e8e' },
+  stockNameLine: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  stockNameText: { flexShrink: 1 },
+  stockCorner: { alignItems: 'flex-end', marginLeft: 6, flexShrink: 0, maxWidth: '45%' },
+  stockHp: { fontWeight: Weight.bold, textAlign: 'right' },
+  stockRarity: { textAlign: 'right' },
   stockRule: { height: 1, backgroundColor: '#34343c' },
   stockRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#1f1f25' },
   stockLabel: { color: '#7d7868' },

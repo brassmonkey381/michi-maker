@@ -52,7 +52,7 @@ export interface ToastSpec {
 const DISMISS_MS = { default: 5000, limit: 9000 } as const;
 const PLANS: Href = '/plans';
 
-export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: () => void }) {
+export function Toast({ spec, onDismiss, bottomInset = 0 }: { spec: ToastSpec | null; onDismiss: () => void; /** Chrome pinned under the toast (the phone tool bar). */ bottomInset?: number }) {
   const dismissRef = useRef(onDismiss);
   useEffect(() => {
     dismissRef.current = onDismiss;
@@ -86,7 +86,7 @@ export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: 
           AuthSheet below stays put; it is a modal itself and belongs on the app's own layer. */}
       {spec && tone === 'limit' ? (
         <TopLayer>
-          <View pointerEvents="box-none" style={styles.wrap}>
+          <View pointerEvents="box-none" style={[styles.wrap, bottomInset ? { bottom: 28 + bottomInset } : null]}>
             <View style={styles.card}>
               {/* The dismiss sits OUTSIDE the flow rather than beside the message: in a row it
                   stole width from one side only, so a centred message was centred against the
@@ -119,7 +119,7 @@ export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: 
 
       {spec && tone !== 'limit' ? (
         <TopLayer>
-          <View pointerEvents="box-none" style={styles.wrap}>
+          <View pointerEvents="box-none" style={[styles.wrap, bottomInset ? { bottom: 28 + bottomInset } : null]}>
             <View style={styles.toast}>
               {/* Three lines, not two: the catalogue-art notes ride the END of already-long
                   messages (binder titles are uncapped), and a two-line clamp ate exactly the new

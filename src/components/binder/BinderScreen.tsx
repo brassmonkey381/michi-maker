@@ -41,6 +41,7 @@ import { ShareSheet } from '@/components/binder/ShareSheet';
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { PocketRing, sameRect, type PocketRect } from '@/components/binder/PocketRing';
 import { Spotlight } from '@/components/binder/Spotlight';
+import { PhoneMoreSheet, PhoneToolBar } from '@/components/binder/PhoneToolBar';
 import { AddArtSheet } from '@/components/binder/AddArtSheet';
 import { SliceStudio, type SliceStudioHandle, type StudioPiece } from '@/components/binder/SliceStudio';
 import { Tipped, ToolTip } from '@/components/binder/ToolTip';
@@ -230,7 +231,7 @@ export function BinderScreen({
     [ownedCopies],
   );
   const theme = useTheme();
-  const { width } = useWindowDimensions();
+  const { width, height: windowH } = useWindowDimensions();
   /**
    * ONE COPY OF THE VIEW PREFERENCES FOR THE WHOLE EDITOR, passed down to BinderPages.
    *
@@ -459,6 +460,11 @@ export function BinderScreen({
    * the ?browse= URL, and a colour search in one would land in both. One browser, one tray.
    */
   const [artworkOpen, setArtworkOpen] = useState(false);
+  // THE PHONE TOOL BAR (owner, 2026-11-05, option C): its More sheet, and its height, which the
+  // page's height budget has to leave free.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [phoneBarH, setPhoneBarH] = useState(0);
+  const [completeBannerH, setCompleteBannerH] = useState(96);
   /**
    * BOTH SIDES ARE ALWAYS THERE WHILE EDITING — collapsed to a rail, or open.
    *
@@ -2993,12 +2999,19 @@ export function BinderScreen({
                     {editing ? <Text style={styles.titlePen}> ✎</Text> : null}
                   </ThemedText>
                 </Pressable>
-                {/* A GUEST'S WAY IN (owner, 2026-11-05): beside the mode pill, so the tool row
-                    below stays one row. The title gives way first. */}
+                {/* UNDO LIVES UP HERE while editing on a phone: the bar below holds the five
+                    tools, and undo is the one a slip needs within one tap. Redo is under More. */}
+                {editing && canEdit ? (
+                  <Pressable onPress={store.undo} disabled={!store.canUndo} hitSlop={8} accessibilityRole="button" accessibilityLabel="Undo" testID="tool-undo">
+                    <Text style={[styles.phoneUndo, !store.canUndo && styles.phoneUndoOff]}>↶</Text>
+                  </Pressable>
+                ) : null}
+                {/* A GUEST'S WAY IN (owner, 2026-11-05): beside the mode pill. The title gives way first. */}
                 {signInChip}
                 {primaryAction}
               </View>
-              {toolItems ? (
+              {/* While editing, the tools are the bar at the bottom of the screen (PhoneToolBar). */}
+              {toolItems && !(editing && canEdit) ? (
                 <View style={styles.phoneToolRow} testID="binder-tool-row">
                   {toolItems}
                 </View>
@@ -3120,6 +3133,24 @@ export function BinderScreen({
               // estimate of chrome the page component cannot see, wrong by about a hundred pixels,
               // and silently wrong again every time anything was added to the editor's header.
               viewportTop={viewportTop + callerChrome}
+              viewportBottom={phone && editing && canEdit ? phoneBarH : 0}
+              // A TURN PAST THE LAST PAGE ADDS ONE (owner, 2026-11-05: "moving to the right
+              // creates a new page ... up to 1 empty page at the end"): only while editing, and
+              // only when the last page holds something, so the binder never trails two blanks.
+              growReady={editing && binder.pages.length > 0 && occupiedCells(binder.pages[binder.pages.length - 1]).size > 0}
+              onGrow={() => {
+                if (store.pageLimitReached(binder.id)) {
+                  showLimitToast(pageLimitMessage(store.tier, store.limits));
+                  return false;
+                }
+                store.addPage(binder.id);
+                // Straight to the new page: changePage would clamp to the count it still holds.
+                setSelectedSlotId(null);
+                setPickerCell(null);
+                clearMulti();
+                setPageIndex(binder.pages.length);
+                return true;
+              }}
               onPageWidth={setPageWidthUsed}
               editable={editing}
               // Binders reachable here come from the signed-in user's own store (userBinders) or
@@ -3160,6 +3191,42 @@ export function BinderScreen({
                 ⋯ menu, which is the right place: you delete a binder from the shelf, not from
                 inside the thing you are working on. */}
           </ScrollView>
+
+          {phone && editing && canEdit ? (
+            <PhoneToolBar
+              onAdd={() => {
+                // The first empty pocket of this page; a full page opens on its first pocket.
+                const taken = occupiedCells(page);
+                let cell: { row: number; col: number } = { row: 0, col: 0 };
+                let found = false;
+                for (let r = 0; r < page.rows && !found; r += 1) {
+                  for (let c = 0; c < page.cols && !found; c += 1) {
+                    if (!taken.has(`${r},${c}`)) {
+                      cell = { row: r, col: c };
+                      found = true;
+                    }
+                  }
+                }
+                setSelectMode(false);
+                clearMulti();
+                openPickerAt(cell);
+              }}
+              onSelect={() => {
+                setSelectMode((v) => {
+                  if (v) clearMulti();
+                  return !v;
+                });
+                setSelectedSlotId(null);
+              }}
+              selectOn={selectMode}
+              onComplete={() => setCompleteOpen(true)}
+              completeDisabled={!page.slots.some((s) => s.cardId) || page.slots.length >= page.rows * page.cols}
+              completeRef={completeRef}
+              onArrange={() => setArrangeOpen(true)}
+              onMore={() => setMoreOpen(true)}
+              onLayoutHeight={setPhoneBarH}
+            />
+          ) : null}
 
           {/* THE BOTTOM SLICE TRAY IS GONE. It was a full-width bar pinned under the binder plus a
               150px spacer to stop the page sliding beneath it — 150px of a height budget the page
@@ -3711,15 +3778,17 @@ export function BinderScreen({
             it. Clamped to the window like the pocket callouts; the arrow stays on the control. */}
         {wantComplete && completeRect && walkthrough.copy ? (
           <View
+            onLayout={(e) => setCompleteBannerH(e.nativeEvent.layout.height)}
             style={[
               styles.walkthroughFloat,
               {
-                top: completeRect.y + completeRect.height + 8,
+                // Under the control when it is in the header, above it when it is the phone bar.
+                top: completeRect.y < windowH / 2 ? completeRect.y + completeRect.height + 8 : completeRect.y - completeBannerH - 4,
                 left: completeLeft,
               },
             ]}>
             <WalkthroughBanner
-              copy={walkthrough.copy}
+              copy={{ ...walkthrough.copy, arrow: completeRect.y < windowH / 2 ? 'up' : 'down' }}
               arrowX={completeRect.x + completeRect.width / 2 - completeLeft}
               onDismiss={walkthrough.dismiss}
               onPress={walkthrough.step === 'filled' ? () => setWalkthroughAuthOpen(true) : undefined}
@@ -3743,6 +3812,38 @@ export function BinderScreen({
             <WalkthroughBanner copy={walkthrough.copy} arrowX={ringRect.x + ringRect.width / 2 - ringLeft} onDismiss={walkthrough.dismiss} />
           </View>
         ) : null}
+        <PhoneMoreSheet
+          visible={moreOpen}
+          onClose={() => setMoreOpen(false)}
+          items={[
+            { key: 'redo', glyph: '↷', label: 'Redo', onPress: store.redo, disabled: !store.canRedo },
+            { key: 'art', glyph: '🖼', label: 'Your art and inserts', onPress: () => setArtworkOpen(true) },
+            ...(store.userBinders.some((b) => b.id !== binder.id) ? [{ key: 'send', glyph: '➦', label: 'Send this page to another binder', onPress: () => setSendPageOpen(true) }] : []),
+            { key: 'settings', glyph: '⚙', label: 'How this binder looks', onPress: () => setSettingsOpen(true) },
+            ...(binder.pages.length > 1
+              ? [
+                  {
+                    key: 'delete',
+                    glyph: '✕',
+                    label: 'Delete this page',
+                    danger: true,
+                    onPress: () =>
+                      setConfirm({
+                        title: 'Delete this page?',
+                        message: 'The page and everything on it will be removed.',
+                        confirmLabel: 'Delete page',
+                        destructive: true,
+                        onConfirm: () => {
+                          const result = store.removePage(binder.id, page.id);
+                          changePage(0);
+                          showToast(parityNote('Page deleted', result?.blanksInserted), true);
+                        },
+                      }),
+                  },
+                ]
+              : []),
+          ]}
+        />
         <AuthSheet visible={walkthroughAuthOpen} onClose={() => setWalkthroughAuthOpen(false)} />
         <FirstPageDoneSheet
           visible={doneOpen}
@@ -3796,7 +3897,7 @@ export function BinderScreen({
             </View>
           </View>
         ) : null}
-        <Toast spec={toast} onDismiss={() => setToast(null)} />
+        <Toast spec={toast} onDismiss={() => setToast(null)} bottomInset={phone && editing && canEdit ? phoneBarH : 0} />
         <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
         {multiActionsOpen ? (
@@ -4275,6 +4376,8 @@ const styles = StyleSheet.create({
   },
   /** The arrow alone, so it has to be big enough to be the obvious way out. */
   phoneBack: { fontSize: FontSize.h2, lineHeight: 26, paddingRight: 2 },
+  phoneUndo: { fontSize: FontSize.h2, lineHeight: 26, color: Palette.ink, paddingHorizontal: 4 },
+  phoneUndoOff: { opacity: 0.3 },
   /** In the flow and taking what is left, so it truncates rather than drawing over its neighbours. */
   phoneTitlePress: { flex: 1, minWidth: 0 },
   phoneTitleText: { fontFamily: Fonts?.brand, fontSize: FontSize.lg, lineHeight: 24 },

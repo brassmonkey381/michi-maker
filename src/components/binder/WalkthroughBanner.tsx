@@ -102,7 +102,12 @@ export function WalkthroughBanner({
           </Text>
         )}
       </View>
-      {pointsDown && !narrow ? <Text style={[styles.arrow, styles.arrowDown]}>▼</Text> : null}
+      {/* A phone keeps the down arrow only when it has somewhere exact to point. */}
+      {pointsDown && (!narrow || arrowX != null) ? (
+        <View style={[styles.arrowRow, arrowX != null && { alignItems: 'flex-start', paddingLeft: Math.max(0, arrowX - 13) }]}>
+          <Text style={[styles.arrow, styles.arrowDown]}>▼</Text>
+        </View>
+      ) : null}
     </View>
   );
 }

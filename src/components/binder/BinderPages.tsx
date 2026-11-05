@@ -220,6 +220,13 @@ export interface BinderPagesProps {
   maxWidth?: number;
   /** Edit vs inspect: read-only neighbours flip on tap; editable ones stay drag surfaces. */
   editable: boolean;
+  /**
+   * A TURN PAST THE LAST PAGE GROWS THE BINDER (owner, 2026-11-05). `onGrow` appends a page, moves
+   * onto it, and says whether it could; `growReady` is the caller's rule for when a turn may ask
+   * (the last page holds something). Both unset: the end behaves as before (shut, or nothing).
+   */
+  onGrow?: () => boolean;
+  growReady?: boolean;
   /** Build the <BinderGrid> for one slot of the layout — the single per-mode difference. */
   renderGrid: (args: {
     page: DemoPage;
@@ -307,6 +314,8 @@ export function BinderPages({
   toolPills,
   maxWidth,
   editable,
+  onGrow,
+  growReady = false,
   viewerIsOwner = false,
   renderGrid,
   onReorderPages,
@@ -1182,6 +1191,7 @@ export function BinderPages({
    * does nothing, because there is nothing past a closed cover.
    */
   const canShut = Boolean(binder.cover) && count > 0;
+  const mayGrow = editable && growReady && !!onGrow;
   const step = useCallback(
     (dir: 1 | -1) => {
       // Every change of shut drops an explicit focus. The surface in focus is then whichever one
@@ -1267,6 +1277,9 @@ export function BinderPages({
         return;
       }
       if (target >= count) {
+        // Editing, past the end, the last page not empty: a new page. The caller lands on it
+        // (its own page index clamps to the page count it already knows, which is one short).
+        if (mayGrow && onGrow?.()) return;
         if (canShut) {
           // An odd count turns its last sheet first, revealing the tail; an even one is already
           // looking at the inside back and shuts straight away.
@@ -1282,7 +1295,7 @@ export function BinderPages({
       }
       onPageChange(target);
     },
-    [shut, forward, backward, count, canShut, onPageChange, doubleSided],
+    [shut, forward, backward, count, canShut, onPageChange, doubleSided, mayGrow, onGrow],
   );
   /**
    * AUTO FLIP: the binder turns its own pages, one forward step per cadence, from wherever it is
@@ -1352,7 +1365,7 @@ export function BinderPages({
    */
   const turnArrow = (dir: 1 | -1) => {
     const next = dir === 1 ? forward : backward;
-    const off = shut ? (shut === 'front' && dir === -1) || (shut === 'back' && dir === 1) : (next < 0 || next >= count) && !canShut;
+    const off = shut ? (shut === 'front' && dir === -1) || (shut === 'back' && dir === 1) : (next < 0 || next >= count) && !canShut && !(dir === 1 && mayGrow);
     return (
       <Pressable
         onPress={() => step(dir)}
@@ -2147,7 +2160,9 @@ export function BinderPages({
       {/* Page filmstrip — tap a thumbnail to flip to it; long-press-drag reorders (edit only). */}
       {/* The bottom dock. Rendered only when the rail is NOT on the left — the same strip lives in
           one place or the other, never both. */}
-      {(count > 1 || coverStripExtras) && !railLeft ? (
+      {/* On a phone the dock also shows for a ONE-page binder while it can grow: the next arrow is
+          how the second page is made. */}
+      {(count > 1 || coverStripExtras || (phone && mayGrow)) && !railLeft ? (
         <View
           onLayout={(e) => setStripHeight(e.nativeEvent.layout.height)}
           style={[

@@ -25,8 +25,11 @@ export function WalkthroughBanner({
   onDismiss,
   onShown,
   onPress,
+  arrowX,
 }: {
   copy: WalkthroughCopy;
+  /** Where the arrow sits, in px from the card's left edge. Centred when not given. */
+  arrowX?: number;
   onDismiss: () => void;
   /** Called once, when this has laid out with a real height. */
   onShown?: () => void;
@@ -50,7 +53,11 @@ export function WalkthroughBanner({
         if (e.nativeEvent.layout.height > 0) onShown?.();
       }}>
       {/* Above the card when it points up, so card and arrow read as one object either way. */}
-      {pointsDown ? null : <Text style={[styles.arrow, styles.arrowUp]}>▲</Text>}
+      {pointsDown ? null : (
+        <View style={[styles.arrowRow, arrowX != null && { alignItems: 'flex-start', paddingLeft: Math.max(0, arrowX - 13) }]}>
+          <Text style={[styles.arrow, styles.arrowUp]}>▲</Text>
+        </View>
+      )}
       {/* THE CARD IS A VIEW and the BUTTON IS INSIDE IT, beside the cross: a button cannot hold
           another button (the HTML rule React enforces with a console warning), so the pressable
           part is the pill, the title and the sentence, and the dismiss stays a sibling. */}
@@ -102,6 +109,7 @@ export function WalkthroughBanner({
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', marginBottom: Spacing.two },
+  arrowRow: { alignSelf: 'stretch', alignItems: 'center' },
   card: {
     alignSelf: 'stretch',
     gap: Spacing.two,

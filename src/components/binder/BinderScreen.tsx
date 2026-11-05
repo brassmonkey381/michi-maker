@@ -887,6 +887,10 @@ export function BinderScreen({
    */
   const completeRef = useRef<View>(null);
   const [completeRect, setCompleteRect] = useState<PocketRect | null>(null);
+  // Where a floating callout's left edge goes: centred on its control, clamped to the window.
+  const floatW = Math.min(440, width * 0.92);
+  const completeLeft = completeRect ? Math.max(Spacing.three, Math.min(completeRect.x + completeRect.width / 2 - floatW / 2, width - floatW - Spacing.three)) : 0;
+  const ringLeft = ringRect ? Math.max(Spacing.three, Math.min(ringRect.x - 40, width - floatW - Spacing.three)) : 0;
   const wantComplete = walkthrough.step === 'complete' || walkthrough.step === 'filled';
   /**
    * THE SEARCH STEP (analytics-studio, 2026-11-05): the first page with an empty pocket (page two
@@ -2699,7 +2703,7 @@ export function BinderScreen({
         />
         {/* Arrange: the cards this page has, seated several ways (docs/ARRANGE.md). Carries its
             word like "+ Page" does: a bare glyph for a feature nobody has seen yet is a riddle. */}
-        <IconBtn glyph="☷" word="Arrange" label="Arrange the cards on this page (G)" onPress={() => setArrangeOpen(true)} testID="tool-arrange" />
+        <IconBtn glyph="☷" word="Arrange" wordOnly={phone} label="Arrange the cards on this page (G)" onPress={() => setArrangeOpen(true)} testID="tool-arrange" />
         {/* Complete: fill the empty pockets from what the page holds. C on a keyboard. Wrapped so
             the seeded walkthrough can measure it (completeRef); collapsable={false} keeps the
             wrapper a real view on Android. */}
@@ -2707,6 +2711,7 @@ export function BinderScreen({
           <IconBtn
             glyph="✦"
             word="Complete"
+            wordOnly={phone}
             label="Complete this page: fill the empty pockets from the cards already here (C)"
             onPress={() => setCompleteOpen(true)}
             disabled={!page.slots.some((s) => s.cardId) || page.slots.length >= page.rows * page.cols}
@@ -2907,9 +2912,6 @@ export function BinderScreen({
             </Pressable>
           </Tipped>
         ) : null}
-        {/* A GUEST'S WAY IN ON A PHONE (QA, 2026-11-05): the phone header has no room beside the
-            mode button, so the Sign in chip rides the tool row, beside the gear. */}
-        {phone ? signInChip : null}
         {/* The view settings, in both modes, and LAST in both (owner, 2026-10-16): it used to sit
             before the viewing-only items, so it changed neighbours with every mode switch. Named,
             not a bare gear: a gear in a row of glyphs was one more thing to guess at. */}
@@ -2991,10 +2993,13 @@ export function BinderScreen({
                     {editing ? <Text style={styles.titlePen}> ✎</Text> : null}
                   </ThemedText>
                 </Pressable>
+                {/* A GUEST'S WAY IN (owner, 2026-11-05): beside the mode pill, so the tool row
+                    below stays one row. The title gives way first. */}
+                {signInChip}
                 {primaryAction}
               </View>
               {toolItems ? (
-                <View style={[styles.phoneToolRow, styles.phoneToolRows]} testID="binder-tool-row">
+                <View style={styles.phoneToolRow} testID="binder-tool-row">
                   {toolItems}
                 </View>
               ) : null}
@@ -3703,18 +3708,19 @@ export function BinderScreen({
         {wantSearch && themeRect ? <Spotlight holes={[themeRect, ...(ringRect && !searchInSheet ? [ringRect] : []), ...(searchBannerRect ? [searchBannerRect] : [])]} /> : null}
         {wantSearch && themeRect ? <PocketRing rect={themeRect} /> : null}
         {/* THE SEEDED VARIANT: both steps hang under the Complete tool, step one with the ring on
-            it. Clamped to the window like the pocket callouts. */}
+            it. Clamped to the window like the pocket callouts; the arrow stays on the control. */}
         {wantComplete && completeRect && walkthrough.copy ? (
           <View
             style={[
               styles.walkthroughFloat,
               {
                 top: completeRect.y + completeRect.height + 8,
-                left: Math.max(Spacing.three, Math.min(completeRect.x + completeRect.width / 2 - 220, width - 460)),
+                left: completeLeft,
               },
             ]}>
             <WalkthroughBanner
               copy={walkthrough.copy}
+              arrowX={completeRect.x + completeRect.width / 2 - completeLeft}
               onDismiss={walkthrough.dismiss}
               onPress={walkthrough.step === 'filled' ? () => setWalkthroughAuthOpen(true) : undefined}
             />
@@ -3731,10 +3737,10 @@ export function BinderScreen({
               styles.walkthroughFloat,
               {
                 top: ringRect.y + ringRect.height + 8,
-                left: Math.max(Spacing.three, Math.min(ringRect.x - 40, width - 460)),
+                left: ringLeft,
               },
             ]}>
-            <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
+            <WalkthroughBanner copy={walkthrough.copy} arrowX={ringRect.x + ringRect.width / 2 - ringLeft} onDismiss={walkthrough.dismiss} />
           </View>
         ) : null}
         <AuthSheet visible={walkthroughAuthOpen} onClose={() => setWalkthroughAuthOpen(false)} />
@@ -4117,11 +4123,14 @@ function IconBtn({
   active = false,
   tone = 'default',
   testID,
+  wordOnly = false,
 }: {
   glyph: string;
   label: string;
   /** Printed next to the glyph. Short: this sits in chrome, not in the flow. */
   word?: string;
+  /** The word alone, no glyph: a phone's tool row has 390px for all of it (2026-11-05). */
+  wordOnly?: boolean;
   /** What the hover tip says, when the full `label` is longer than a tip should be. */
   tip?: string;
   onPress: () => void;
@@ -4155,15 +4164,17 @@ function IconBtn({
           active && styles.iconBtnActive,
           pressed && !disabled && styles.pressed,
         ]}>
-        <Text
-          style={[
-            styles.iconGlyph,
-            tone === 'danger' && styles.iconGlyphDanger,
-            active && styles.iconGlyphActive,
-            disabled && styles.iconGlyphOff,
-          ]}>
-          {glyph}
-        </Text>
+        {wordOnly && word ? null : (
+          <Text
+            style={[
+              styles.iconGlyph,
+              tone === 'danger' && styles.iconGlyphDanger,
+              active && styles.iconGlyphActive,
+              disabled && styles.iconGlyphOff,
+            ]}>
+            {glyph}
+          </Text>
+        )}
         {word ? (
           <Text
             style={[
@@ -4273,11 +4284,11 @@ const styles = StyleSheet.create({
   phoneToolRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     paddingHorizontal: 2,
     paddingBottom: Spacing.two,
   },
-  phoneToolRows: { flexWrap: 'wrap', justifyContent: 'center', rowGap: Spacing.two },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -4381,8 +4392,8 @@ const styles = StyleSheet.create({
   backChipText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accentText },
   signInChip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: Radius.pill, backgroundColor: Palette.accent, marginRight: 8 },
   signInChipText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accentText },
-  /** On the phone tool row it sits beside the gear, at the row's own size. */
-  signInChipPhone: { paddingVertical: 6, paddingHorizontal: 12, marginRight: 4 },
+  /** In the phone header it sits beside the mode pill, a size down. */
+  signInChipPhone: { paddingVertical: 7, paddingHorizontal: 12, marginRight: 0 },
   signInChipTextPhone: { fontSize: FontSize.sm },
   modeBtnText: { fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.accentText },
   // The public/private chip: a filled accent pill when public, an outlined one when private, so

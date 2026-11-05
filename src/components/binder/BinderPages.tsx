@@ -1345,6 +1345,27 @@ export function BinderPages({
    * gesture cannot be both without one of them feeling stolen; the filmstrip stays the way to flip
    * while editing.
    */
+  /**
+   * ARROWS EITHER SIDE OF THE STRIP, PHONE ONLY (owner, 2026-11-05). While editing a horizontal
+   * drag moves a card, so the swipe is off there, and the strip's thumbnails were the only way to
+   * turn a page. The same step() the swipe and the wheel use, so the ends behave the same.
+   */
+  const turnArrow = (dir: 1 | -1) => {
+    const next = dir === 1 ? forward : backward;
+    const off = shut ? (shut === 'front' && dir === -1) || (shut === 'back' && dir === 1) : (next < 0 || next >= count) && !canShut;
+    return (
+      <Pressable
+        onPress={() => step(dir)}
+        disabled={off}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={dir === 1 ? 'Next page' : 'Previous page'}
+        testID={dir === 1 ? 'binder-turn-next' : 'binder-turn-prev'}
+        style={[styles.turnArrow, off && styles.turnArrowOff]}>
+        <Text style={styles.turnArrowText}>{dir === 1 ? '›' : '‹'}</Text>
+      </Pressable>
+    );
+  };
   const swipe = useMemo(() => {
     // Two directional flings raced, rather than one bidirectional fling: the fling event carries
     // no velocity, so the direction has to come from which gesture matched.
@@ -2138,6 +2159,7 @@ export function BinderPages({
           ]}>
         <View style={styles.dockRow}>
         {autoFlip}
+        {phone ? turnArrow(-1) : null}
         <View style={styles.dockStrip}>
         <PageStrip
             pageStyle={binder.pageStyle}
@@ -2149,6 +2171,7 @@ export function BinderPages({
           {...coverStripExtras}
         />
         </View>
+        {phone ? turnArrow(1) : null}
         </View>
         </View>
       ) : null}
@@ -2651,6 +2674,17 @@ const styles = StyleSheet.create({
   /** The rail is a column now: the auto-flip controls, then the strip taking the rest. */
   railStrip: { flex: 1, minHeight: 0, alignSelf: 'stretch' },
   dockRow: { flexDirection: 'row', alignItems: 'center' },
+  turnArrow: {
+    width: 36,
+    height: 44,
+    marginHorizontal: 4,
+    borderRadius: Radius.control,
+    backgroundColor: Palette.panel,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  turnArrowOff: { opacity: 0.3 },
+  turnArrowText: { fontSize: 28, lineHeight: 32, color: Palette.ink, fontWeight: Weight.bold },
   dockStrip: { flex: 1, minWidth: 0 },
   // Neighbours recede. 0.92 was an 8% dim — indistinguishable from the page in focus, which is
   // exactly the complaint: three equally bright pages with no way to tell which one you were on.

@@ -3077,6 +3077,10 @@ export function BinderScreen({
             onLayout={(e) => setViewportTop(e.nativeEvent.layout.y)}
             contentContainerStyle={[
               styles.scroll,
+              // A phone's page is width-bound, so the height budget leaves a band under the strip;
+              // the page and strip sit in the middle of it rather than pressed up under the header
+              // (owner, 2026-11-05).
+              phone && editing && canEdit && styles.scrollPhoneCentred,
               pickerDocked && { paddingRight: pickerWidth },
               artworkDocked && { paddingLeft: artworkWidth },
             ]}>
@@ -4517,6 +4521,7 @@ const styles = StyleSheet.create({
   // 48px BinderPages could not see, so it sized the page to fit and the container overflowed
   // anyway. The page's own breathing room is reserved inside the height budget where it belongs.
   scroll: { paddingHorizontal: 16 },
+  scrollPhoneCentred: { flexGrow: 1, justifyContent: 'center' },
   // Detail fields share one centred column (matches the edit-tools card) so the editable
   // chrome reads as a single organised stack instead of page-wide boxes.
   toolsCard: {

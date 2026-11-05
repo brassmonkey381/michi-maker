@@ -13,6 +13,8 @@
  * public images the app already displays via <img>.
  */
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import { publishableKey, secretKey } from '../_shared/keys.ts';
 
 /**
  * Exact hostnames (or *.suffixes) art may be relayed from. THE BROWSER DOES THE FETCHING (owner,
@@ -34,6 +36,15 @@ const ALLOWED_HOSTS = new Set([
 ]);
 const ALLOWED_SUFFIXES = ['.wikimedia.org', '.pixabay.com'];
 
+/**
+ * ADMINS ONLY (owner, 2026-11-05: "keep the fan-art hosts"): the two sites the admin-only fan-art
+ * fill searches (supabase/functions/fan-art). Relayed only for a signed-in caller whose profile
+ * row says `is_admin`, checked the way fan-art checks it; everyone else gets 403, the same as any
+ * host not on the list. Nothing in the client can widen this.
+ */
+const ADMIN_HOSTS = new Set(['www.artofpkm.com', 'artofpkm.com', 'cdn.artofpkm.com']);
+const ADMIN_SUFFIXES = ['.wixmp.com'];
+
 const MAX_BYTES = 25 * 1024 * 1024;
 
 const CORS = {
@@ -44,6 +55,19 @@ const CORS = {
 
 function hostAllowed(host: string): boolean {
   return ALLOWED_HOSTS.has(host) || ALLOWED_SUFFIXES.some((s) => host.endsWith(s));
+}
+function adminHost(host: string): boolean {
+  return ADMIN_HOSTS.has(host) || ADMIN_SUFFIXES.some((s) => host.endsWith(s));
+}
+async function isAdmin(req: Request): Promise<boolean> {
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!token || token === publishableKey()) return false;
+  const authClient = createClient(Deno.env.get('SUPABASE_URL')!, publishableKey());
+  const { data: { user } } = await authClient.auth.getUser(token);
+  if (!user) return false;
+  const service = createClient(Deno.env.get('SUPABASE_URL')!, secretKey());
+  const { data: profile } = await service.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
+  return !!profile?.is_admin;
 }
 
 Deno.serve(async (req: Request) => {
@@ -57,7 +81,10 @@ Deno.serve(async (req: Request) => {
   } catch {
     return new Response('bad url', { status: 400, headers: CORS });
   }
-  if (target.protocol !== 'https:' || !hostAllowed(target.hostname)) {
+  if (target.protocol !== 'https:') {
+    return new Response('host not allowed', { status: 403, headers: CORS });
+  }
+  if (!hostAllowed(target.hostname) && !(adminHost(target.hostname) && (await isAdmin(req)))) {
     return new Response('host not allowed', { status: 403, headers: CORS });
   }
 

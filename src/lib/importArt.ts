@@ -12,6 +12,7 @@
 import { sniffImageMime } from '@/lib/imageBytes';
 import { uploadArtImage } from '@/lib/uploadArt';
 import { supabasePublishableKey, supabaseUrl } from '@/lib/env';
+import { supabase } from '@/lib/supabase';
 
 /**
  * BYTES first, the remote header only as a fallback. Trusting the header is what put AVIF in the
@@ -40,8 +41,14 @@ async function fetchImage(url: string): Promise<{ bytes: Uint8Array; type: strin
   // since 2026-11-05 (the user's browser fetches everything else, or the user uploads).
   if (supabaseUrl) {
     try {
+      // The session token rides along so the relay can tell an admin apart (the fan-art hosts
+      // are relayed for admins only); for everyone else it changes nothing.
+      const token = (await supabase?.auth.getSession())?.data.session?.access_token;
       const res = await fetch(`${supabaseUrl}/functions/v1/art-proxy?url=${encodeURIComponent(url)}`, {
-        headers: supabasePublishableKey ? { apikey: supabasePublishableKey } : undefined,
+        headers: {
+          ...(supabasePublishableKey ? { apikey: supabasePublishableKey } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
       if (res.ok) {
         const bytes = new Uint8Array(await res.arrayBuffer());

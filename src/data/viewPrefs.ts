@@ -11,6 +11,9 @@
 import { DOCK_PCT_MAX } from './binderLayout.ts';
 import { isCurrentEpoch, stamp } from './prefsEpoch.ts';
 
+export type PocketBarPlacement = 'over' | 'below' | 'beside';
+export const POCKET_BAR_PLACEMENTS: readonly PocketBarPlacement[] = ['over', 'below', 'beside'];
+
 export interface ViewPrefs {
   /** Green ✓ on pockets holding a card you own. */
   owned: boolean;
@@ -23,6 +26,12 @@ export interface ViewPrefs {
    * of height, and height is what the page is short of. Bottom is the older, more familiar spot.
    */
   navDock: 'bottom' | 'left';
+  /**
+   * Where the selected pocket's action bar sits (owner, 2026-11-05: "option for the toolbar
+   * redesign, via a style picker"). Over: on the pocket's top edge, the original. Below: under
+   * the pocket, covering nothing of it. Beside: a column to its right (or left at the edge).
+   */
+  pocketBar: PocketBarPlacement;
   /**
    * How much of the WINDOW each side dock takes, 0..1, when its edge has been dragged.
    *
@@ -75,6 +84,7 @@ export const VIEW_PREF_DEFAULTS: ViewPrefs = {
   scans: false,
   doubleSided: true,
   navDock: 'left',
+  pocketBar: 'over',
   cardsDockPct: 0,
   artDockPct: 0,
   coverSnap: true,
@@ -139,6 +149,7 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
     // An enum, not a boolean: anything that is not one of the two known values is not an answer.
     navDock:
       raw.navDock === 'left' || raw.navDock === 'bottom' ? raw.navDock : VIEW_PREF_DEFAULTS.navDock,
+    pocketBar: POCKET_BAR_PLACEMENTS.includes(raw.pocketBar as PocketBarPlacement) ? (raw.pocketBar as PocketBarPlacement) : VIEW_PREF_DEFAULTS.pocketBar,
     cardsDockPct: pct('cardsDockPct'),
     artDockPct: pct('artDockPct'),
     coverSnap: flag('coverSnap'),
@@ -166,6 +177,7 @@ export function storedViewPrefs(prefs: ViewPrefs): {
   scans: boolean;
   doubleSided: boolean;
   navDock: 'bottom' | 'left';
+  pocketBar: PocketBarPlacement;
   cardsDockPct: number;
   artDockPct: number;
   coverSnap: boolean;
@@ -179,6 +191,7 @@ export function storedViewPrefs(prefs: ViewPrefs): {
     scans: prefs.scans,
     doubleSided: prefs.doubleSided,
     navDock: prefs.navDock,
+    pocketBar: prefs.pocketBar,
     cardsDockPct: prefs.cardsDockPct,
     artDockPct: prefs.artDockPct,
     coverSnap: prefs.coverSnap,

@@ -1494,6 +1494,28 @@ export function BinderPages({
             </View>
           ) : null}
 
+          {/* THE POCKET BAR'S PLACE (owner, 2026-11-05): over the pocket, under it, or beside it. */}
+          <View style={styles.settingsRow}>
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
+              Pocket bar
+            </ThemedText>
+            <View style={styles.settingsRowControls}>
+              {(['over', 'below', 'beside'] as const).map((p) => (
+                <Pressable
+                  key={p}
+                  onPress={() => view.setPref('pocketBar', p)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: view.pocketBar === p }}
+                  testID={`pocket-bar-${p}`}
+                  style={[pillChip.base, view.pocketBar === p && pillChip.active]}>
+                  <Text style={[pillChip.text, view.pocketBar === p && pillChip.textActive]}>
+                    {p === 'over' ? 'Over the card' : p === 'below' ? 'Under the card' : 'Beside the card'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
           {phone ? null : (
           <View style={styles.settingsRow}>
             <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>

@@ -1,7 +1,8 @@
 import { useHoverSuspended } from '@/components/binder/hoverGate';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode, Fragment } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode, type Ref, Fragment } from 'react';
+import type { PocketBarPlacement } from '@/data/viewPrefs';
 import { useRouter } from 'expo-router';
 import { Linking, Pressable, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 import { affiliateConfigured, productUrl, sendBrowseCommand } from 'tcgscan-browse';
@@ -241,6 +242,8 @@ interface BinderGridProps {
   onSplitSlot?: () => void;
   /** Ring the selected pocket's bar: a one-time hint is pointing at it (data/editorHints). */
   hintToolbar?: boolean;
+  /** Where the selected pocket's bar sits (viewPrefs.pocketBar). Over the pocket by default. */
+  toolbarPlacement?: PocketBarPlacement;
   /** "Move" — arm this pocket so the next pocket tapped, on any page, receives it. */
   onMoveSlot?: () => void;
   /** "Tray" — take this card off the page into the binder's tray (one-by-one card pockets only). */
@@ -299,6 +302,8 @@ interface BinderGridProps {
 export interface BinderGridHandle {
   /** Re-read this grid's window position — call at drag start, before any hitTest. */
   remeasure: () => void;
+  /** The selected pocket's action bar, in window coords, or null when none is shown. */
+  measureToolbar: (cb: (rect: { x: number; y: number; width: number; height: number } | null) => void) => void;
   /** Map window coords to a cell in this grid, or null if the point is outside it. */
   hitTest: (windowX: number, windowY: number) => { row: number; col: number } | null;
   /** Map a point in this grid's inner-content coords to window coords (same frame hitTest
@@ -355,6 +360,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onStyleSlot,
     onSplitSlot,
     hintToolbar = false,
+    toolbarPlacement = 'over',
     onMoveSlot,
     onTraySlot,
     onColorsSlot,
@@ -517,6 +523,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
 
   // Window-position measurement so the editor can hit-test a cross-page drop against this grid.
   const rootRef = useRef<View>(null);
+  /** The selected pocket's action bar, for the host's hint (measureToolbar). */
+  const toolbarRef = useRef<View>(null);
   const originRef = useRef<{ x: number; y: number } | null>(null);
   useImperativeHandle(
     ref,
@@ -525,6 +533,13 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
         rootRef.current?.measureInWindow((x, y) => {
           originRef.current = { x, y };
         }),
+      measureToolbar: (cb) => {
+        if (!toolbarRef.current) {
+          cb(null);
+          return;
+        }
+        toolbarRef.current.measureInWindow((x, y, w, h) => cb(w > 0 ? { x, y, width: w, height: h } : null));
+      },
       hitTest: (windowX, windowY) => {
         const origin = originRef.current;
         // Reject unmeasured grids and non-finite coords — otherwise a NaN slips past the
@@ -1115,6 +1130,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             onMove={onMoveSlot}
             onToTray={onTraySlot}
             hint={hintToolbar}
+            placement={toolbarPlacement}
+            barRef={toolbarRef}
             onSimilar={resizeSlot.cardId ? onSimilarSlot : undefined}
             onColors={resizeSlot.cardId ? onColorsSlot : undefined}
             onAutoFill={resizeSlot.cardId ? onAutoFillSlot : undefined}
@@ -1155,6 +1172,8 @@ function SlotToolbar({
   onAutoFill,
   onPickCopy,
   hasCopy,
+  placement = 'over',
+  barRef,
 }: {
   slot: DemoSlot;
   cellW: number;
@@ -1182,6 +1201,10 @@ function SlotToolbar({
   onToTray?: () => void;
   /** A one-time hint is pointing at this bar: ring it. */
   hint?: boolean;
+  /** Over the pocket (the original), under it, or beside it as a column (viewPrefs.pocketBar). */
+  placement?: PocketBarPlacement;
+  /** The bar's own view, for the host's hint to measure. */
+  barRef?: Ref<View>;
   onAutoFill?: () => void;
   onPickCopy?: () => void;
   /** Whether this pocket already names one of the owner's copies (ticked in the label). */
@@ -1202,13 +1225,32 @@ function SlotToolbar({
   const slotW = slot.colSpan * cellW + (slot.colSpan - 1) * gap;
   const centerX = slotLeft + slotW / 2;
 
-  const left = Math.max(0, Math.min(centerX - size.w / 2, innerW - size.w));
-  const aboveTop = slotTop - size.h - 8;
-  const top = aboveTop < 0 ? slotTop + 8 : aboveTop;
+  const slotH = slot.rowSpan * cellH + (slot.rowSpan - 1) * (gap + captionH);
+  // THREE PLACEMENTS (owner, 2026-11-05). Over: on the pocket's top edge, inside it when the row
+  // above has no room. Below: under the pocket, so nothing of the card is covered. Beside: a
+  // column down its right edge, or its left when the right edge is the page's.
+  const beside = placement === 'beside';
+  let left: number;
+  let top: number;
+  if (beside) {
+    const rightOf = slotLeft + slotW + 8;
+    left = rightOf + size.w <= innerW ? rightOf : Math.max(0, slotLeft - size.w - 8);
+    top = slotTop;
+  } else {
+    left = Math.max(0, Math.min(centerX - size.w / 2, innerW - size.w));
+    if (placement === 'below') {
+      top = slotTop + slotH + 8;
+    } else {
+      const aboveTop = slotTop - size.h - 8;
+      top = aboveTop < 0 ? slotTop + 8 : aboveTop;
+    }
+  }
   const narrow = innerW < 500;
 
   return (
     <View
+      ref={barRef}
+      collapsable={false}
       onLayout={(e) => {
         const { width, height } = e.nativeEvent.layout;
         setSize((s) => (s.w === width && s.h === height ? s : { w: width, h: height }));
@@ -1216,7 +1258,12 @@ function SlotToolbar({
       // WRAPS INSIDE THE PAGE (owner, 2026-10-29, phone screenshot): on a narrow page the row of
       // actions ran off the right edge, Move and Remove with it. Capped at the page's width it
       // folds onto a second line, and `top` already moves up to make room.
-      style={[styles.slotToolbar, hint && styles.slotToolbarHint, { left, top, maxWidth: innerW, flexWrap: 'wrap', justifyContent: 'center', opacity: size.w ? 1 : 0 }]}>
+      style={[
+        styles.slotToolbar,
+        hint && styles.slotToolbarHint,
+        beside ? styles.slotToolbarBeside : null,
+        { left, top, maxWidth: innerW, flexWrap: beside ? 'nowrap' : 'wrap', justifyContent: 'center', opacity: size.w ? 1 : 0 },
+      ]}>
       {narrow ? (
         // ON A PHONE (owner, 2026-10-29): the three verbs people reach for, then More. Everything
         // else, Remove included, sits one tap behind it, so the bar covers one row of the page
@@ -2961,6 +3008,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   slotToolbarHint: { borderWidth: 2, borderColor: Palette.accent },
+  /** The column form: one verb per line, the divider a rule across it. */
+  slotToolbarBeside: { flexDirection: 'column', alignItems: 'stretch', borderRadius: Radius.lg, paddingVertical: 4 },
   toolBtn: {
     // 5px of vertical padding on a 13px label is a 23px target. These sit in a row of six, so a
     // miss is not a no-op — it is the neighbouring verb, and one of the six is Remove.

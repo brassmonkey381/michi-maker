@@ -836,8 +836,8 @@ export function BinderScreen({
     }
     const measure = () => {
       if (hintKind === 'pocket') {
-        if (hintSlotRow == null || hintSlotCol == null) return;
-        curRef.current?.measureCell(hintSlotRow, hintSlotCol, (r) => setHintRect((prev) => sameRect(prev, r)));
+        // The bar itself, not the pocket under it (owner, 2026-11-05).
+        curRef.current?.measureToolbar((r) => setHintRect((prev) => sameRect(prev, r)));
       } else {
         pageBarRef.current?.measureInWindow((x, y, w, h) => setHintRect((prev) => sameRect(prev, w > 0 ? { x, y, width: w, height: h } : null)));
       }
@@ -2550,6 +2550,7 @@ export function BinderScreen({
         onMoveSlot={armMove}
         onTraySlot={selectedSlot?.type === 'card' && selectedSlot.rowSpan === 1 && selectedSlot.colSpan === 1 ? trayToSelected : undefined}
         hintToolbar={!!pocketHint.copy}
+        toolbarPlacement={view.pocketBar}
         onSplitSlot={selectedSlot && canSplitSlice(selectedSlot) ? splitSelected : undefined}
         onSimilarSlot={similarAvailable() ? findSimilarToSelected : undefined}
         onColorsSlot={findColorsOfSelected}
@@ -3684,6 +3685,7 @@ export function BinderScreen({
         <AuthSheet visible={walkthroughAuthOpen} onClose={() => setWalkthroughAuthOpen(false)} />
         <FirstPageDoneSheet
           visible={doneOpen}
+          cardIds={binder.pages.flatMap((p) => p.slots.flatMap((s) => (s.cardId ? [s.cardId] : []))).slice(0, 6)}
           guest={!!user?.is_anonymous}
           onAccount={() => {
             setDoneOpen(false);
@@ -4315,10 +4317,11 @@ const styles = StyleSheet.create({
   headerPrimary: { color: Palette.accent },
   // The Edit/Done mode toggle — filled pill, same voice as the studio's "Save slices".
   modeBtn: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: Radius.pill, backgroundColor: Palette.accent },
-  backChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: Radius.pill, borderWidth: 1.5, borderColor: Palette.accent },
-  backChipText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accent },
-  signInChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: Radius.pill, borderWidth: 1.5, borderColor: Palette.accent, marginRight: 8 },
-  signInChipText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accent },
+  // Solid, like the mode button (owner, 2026-11-05: "solid primary blue backing buttons").
+  backChip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: Radius.pill, backgroundColor: Palette.accent },
+  backChipText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accentText },
+  signInChip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: Radius.pill, backgroundColor: Palette.accent, marginRight: 8 },
+  signInChipText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accentText },
   modeBtnText: { fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.accentText },
   // The public/private chip: a filled accent pill when public, an outlined one when private, so
   // the two read as different states and not as two colours of the same thing.

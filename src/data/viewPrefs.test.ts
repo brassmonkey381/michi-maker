@@ -98,6 +98,8 @@ test('the defaults are the binder as it is meant to read', () => {
     scans: false,
     doubleSided: true,
     navDock: 'left',
+    // The selected pocket's bar on the pocket's top edge, where it has always been.
+    pocketBar: 'over',
     // Zero is "never dragged a dock edge", so the panels size themselves as they always have.
     cardsDockPct: 0,
     artDockPct: 0,

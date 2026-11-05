@@ -4,33 +4,36 @@
  * free to explore, and welcome!"). Shown once, the moment a seeded arrival's own card lands on
  * page two. Five next moves, each a real control the page has, and the account ask for a guest.
  */
+import { Image } from 'expo-image';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { track } from '@/lib/analytics';
+import { cardThumbUrl } from '@/lib/catalogConfig';
 
-/** The five next moves; the two that name a control say where it is on this screen. */
+/** The next moves, one line each (owner, 2026-11-05: "less copy"); the two that name a control say where it is. */
 function nextMoves(narrow: boolean): { title: string; body: string }[] {
   return [
-    { title: 'Tap a card, then Fill page', body: 'The rest of the page is built around the card you picked.' },
-    { title: 'Similar and Colors, on that same bar', body: 'Cards that look like it, or share its palette.' },
-    { title: 'Search the artwork', body: 'In the card browser, type theme: and a word. theme:rain finds cards drawn in the rain.' },
-    { title: 'Add a picture of your own', body: narrow ? 'Art, in the row above the page. Upload it and cut it to fit a pocket.' : 'Art, on the left. Upload it and cut it to fit a pocket.' },
-    narrow
-      ? { title: 'Swipe to turn pages', body: 'A full page grows a new one by itself.' }
-      : { title: 'Turn pages with the arrow keys', body: 'A full page grows a new one by itself.' },
+    { title: 'Tap a card, then Fill page', body: 'The rest is built around it.' },
+    { title: 'Similar and Colors', body: 'On that same bar.' },
+    { title: 'Search the artwork', body: 'Type theme:rain in the card browser.' },
+    { title: 'Add a picture of your own', body: narrow ? 'Art, above the page.' : 'Art, on the left.' },
+    { title: narrow ? 'Swipe to turn pages' : 'Arrow keys turn pages', body: 'A full page grows a new one.' },
   ];
 }
 
 export function FirstPageDoneSheet({
   visible,
+  cardIds,
   guest,
   onAccount,
   onClose,
 }: {
   visible: boolean;
+  /** The binder's cards, a few of them, as the picture of what was built. */
+  cardIds: readonly string[];
   /** A guest gets the account ask as the primary button; an account holder just keeps building. */
   guest: boolean;
   onAccount: () => void;
@@ -45,7 +48,14 @@ export function FirstPageDoneSheet({
   return (
     <DialogCard title="Your first page is built" onClose={onClose} maxWidth={520}>
       <View style={styles.body} testID="first-page-done">
-        <Text style={styles.lead}>Three cards you were given, a fill, and one you chose. That is how every page here starts. A few things to try next:</Text>
+        {cardIds.length ? (
+          <View style={styles.strip}>
+            {cardIds.map((id, i) => (
+              <Image key={`${id}-${i}`} source={{ uri: cardThumbUrl(id, 'full') }} style={styles.thumb} contentFit="cover" transition={150} />
+            ))}
+          </View>
+        ) : null}
+        <Text style={styles.lead}>Three cards you were given, a fill, and one you chose. Next:</Text>
         <View style={styles.list}>
           {NEXT.map((n, i) => (
             <View key={n.title} style={styles.row}>
@@ -57,7 +67,7 @@ export function FirstPageDoneSheet({
             </View>
           ))}
         </View>
-        <Text style={styles.welcome}>There is more to the site than this page. Explore, and welcome.</Text>
+        <Text style={styles.welcome}>There is more to explore. Welcome.</Text>
         <View style={styles.actions}>
           {guest ? (
             <Pressable
@@ -89,6 +99,8 @@ export function FirstPageDoneSheet({
 
 const styles = StyleSheet.create({
   body: { gap: Spacing.three },
+  strip: { flexDirection: 'row', gap: 6, justifyContent: 'center' },
+  thumb: { flex: 1, maxWidth: 72, aspectRatio: 0.716, borderRadius: 4, backgroundColor: Palette.panel },
   lead: { fontSize: FontSize.body, lineHeight: 21, color: Palette.ink2 },
   list: { gap: Spacing.two },
   row: { flexDirection: 'row', gap: Spacing.three, alignItems: 'flex-start' },

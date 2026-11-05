@@ -2767,8 +2767,8 @@ export function BinderScreen({
   /** A guest can sign in or sign up at any time (owner, 2026-11-05), not only when a wall asks. */
   const signInChip = user?.is_anonymous ? (
     <Pressable onPress={() => setWalkthroughAuthOpen(true)} hitSlop={8} accessibilityRole="button" testID="binder-sign-in">
-      <View style={styles.signInChip}>
-        <Text style={styles.signInChipText}>Sign in</Text>
+      <View style={[styles.signInChip, phone && styles.signInChipPhone]}>
+        <Text style={[styles.signInChipText, phone && styles.signInChipTextPhone]}>Sign in</Text>
       </View>
     </Pressable>
   ) : null;
@@ -2862,6 +2862,9 @@ export function BinderScreen({
             </Pressable>
           </Tipped>
         ) : null}
+        {/* A GUEST'S WAY IN ON A PHONE (QA, 2026-11-05): the phone header has no room beside the
+            mode button, so the Sign in chip rides the tool row, beside the gear. */}
+        {phone ? signInChip : null}
         {/* The view settings, in both modes, and LAST in both (owner, 2026-10-16): it used to sit
             before the viewing-only items, so it changed neighbours with every mode switch. Named,
             not a bare gear: a gear in a row of glyphs was one more thing to guess at. */}
@@ -4322,6 +4325,9 @@ const styles = StyleSheet.create({
   backChipText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accentText },
   signInChip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: Radius.pill, backgroundColor: Palette.accent, marginRight: 8 },
   signInChipText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accentText },
+  /** On the phone tool row it sits beside the gear, at the row's own size. */
+  signInChipPhone: { paddingVertical: 6, paddingHorizontal: 12, marginRight: 4 },
+  signInChipTextPhone: { fontSize: FontSize.sm },
   modeBtnText: { fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.accentText },
   // The public/private chip: a filled accent pill when public, an outlined one when private, so
   // the two read as different states and not as two colours of the same thing.

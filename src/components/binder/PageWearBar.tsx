@@ -110,7 +110,7 @@ export function PageWearBar({
         {isImageRef(colour) ? <Image source={{ uri: colour }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} /> : null}
         {colour ? null : <View style={styles.swatchSlash} />}
       </View>
-      <Text style={styles.chipText}>{label}</Text>
+      {narrow ? null : <Text style={styles.chipText}>{label}</Text>}
     </Pressable>
   );
 
@@ -129,7 +129,10 @@ export function PageWearBar({
         {/* SCROLLS ON A PHONE, CENTRED ON A DESK (owner, 2026-10-29): a centred row wider than the
             window lost a chip off each side. The content grows to fill and centres when it fits,
             and scrolls from its first chip when it does not. */}
-        <ScrollView horizontal={!narrow} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.barContent, narrow && styles.barWrap]} keyboardShouldPersistTaps="handled">
+        {/* ONE ROW OF SWATCHES ON A PHONE (QA, 2026-11-05): with their words the four chips wrapped
+            to two rows and sat on the bottom row of pockets. The swatch and the glyph carry each
+            chip; its name stays in the accessibility label and on the card it opens. */}
+        <ScrollView horizontal={!narrow} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.barContent, narrow && styles.barCompact]} keyboardShouldPersistTaps="handled">
         {chip('background', 'Background', background)}
         {chip('sleeve', 'Sleeves', sleeve)}
         {chip('artBacking', 'Art backing', backing)}
@@ -143,7 +146,7 @@ export function PageWearBar({
             testID="page-bar-artView"
             style={({ pressed }) => [styles.chip, shownView !== 'card' && styles.chipOn, pressed && styles.pressed]}>
             <Text style={[styles.chipGlyph, shownView !== 'card' && styles.chipTextOn]}>{'◫'}</Text>
-            <Text style={[styles.chipText, shownView !== 'card' && styles.chipTextOn]}>Art view</Text>
+            {narrow ? null : <Text style={[styles.chipText, shownView !== 'card' && styles.chipTextOn]}>Art view</Text>}
           </Pressable>
         ) : null}
         {select ? (
@@ -165,7 +168,7 @@ export function PageWearBar({
             testID="binder-select-toggle"
             style={({ pressed }) => [styles.chip, select.on && styles.chipOn, pressed && styles.pressed]}>
             <Text style={[styles.chipGlyph, select.on && styles.chipTextOn]}>{'⊕'}</Text>
-            <Text style={[styles.chipText, select.on && styles.chipTextOn]}>Select</Text>
+            {narrow && !select.on ? null : <Text style={[styles.chipText, select.on && styles.chipTextOn]}>Select</Text>}
             {select.on && select.count > 0 ? (
               <View style={styles.count} testID="binder-select-count">
                 <Text style={styles.countText}>{select.count}</Text>
@@ -304,6 +307,8 @@ const styles = StyleSheet.create({
   },
   barContent: { flexGrow: 1, flexDirection: 'row', justifyContent: 'center', gap: 6, paddingHorizontal: 8 },
   barWrap: { flexWrap: 'wrap', rowGap: 6 },
+  /** A phone: the chips are swatches, one row, centred. */
+  barCompact: { flexWrap: 'nowrap', justifyContent: 'center', gap: 10 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

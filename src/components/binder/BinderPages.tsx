@@ -481,7 +481,10 @@ export function BinderPages({
   );
   // The rail is drawn inside this component, so the width it takes is invisible to the callers that
   // compute availableWidth. It comes off here instead, before anything is laid out against it.
-  const pageAvailable = Math.max(0, availableWidth - (railLeft ? NAV_RAIL_WIDTH : 0));
+  // The rail floats over the left edge (owner, 2026-11-05: the page is centred in the window, not
+  // in what the rail leaves). The page keeps a rail's width clear on both sides so it is centred
+  // AND never slides under the strip.
+  const pageAvailable = Math.max(0, availableWidth - (railLeft ? NAV_RAIL_WIDTH * 2 : 0));
   const captionsOn = hasTextCaption(captionFields);
   const spreadGap = SPREAD_GAP;
   // THE BOOK NEEDS A FLOOR OF ITS OWN. Halving the width is only a good trade while both halves
@@ -2612,15 +2615,16 @@ const styles = StyleSheet.create({
   // the bottom of the viewport and the page scrolls under it.
   /** Always a row; with the rail on the bottom it has one child and behaves exactly as before. */
   pageRow: { width: '100%' },
-  pageRowRailed: { flexDirection: 'row', alignItems: 'flex-start' },
+  /** With the rail floating, the row is just the page's box; the rail is positioned over its left edge. */
+  pageRowRailed: { alignItems: 'stretch' },
   /**
    * The left rail. A fixed WIDTH, because the page's budget is computed from that same number; its
    * HEIGHT arrives inline from `railHeight`, because it belongs to the viewport and not to the
    * page. Neither a constant nor `alignSelf: 'stretch'` belongs in this style — see railHeight.
    */
-  navRail: { width: NAV_RAIL_WIDTH },
+  navRail: { width: NAV_RAIL_WIDTH, position: 'absolute', left: 0, top: 0, zIndex: 6 },
   /** In a row the page has to be told to take the rest; on its own it already does. */
-  pageWrapRailed: { flex: 1, minWidth: 0 },
+  pageWrapRailed: { minWidth: 0 },
   stripDock: { paddingTop: 4 },
   /** The rail is a column now: the auto-flip controls, then the strip taking the rest. */
   railStrip: { flex: 1, minHeight: 0, alignSelf: 'stretch' },

@@ -17,7 +17,7 @@
  * so a sheet mounted inside the `spec` branch would unmount with it and never open.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 
@@ -53,6 +53,10 @@ const DISMISS_MS = { default: 5000, limit: 9000 } as const;
 const PLANS: Href = '/plans';
 
 export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: () => void }) {
+  const dismissRef = useRef(onDismiss);
+  useEffect(() => {
+    dismissRef.current = onDismiss;
+  }, [onDismiss]);
   const router = useRouter();
   const [authOpen, setAuthOpen] = useState(false);
   const id = spec?.id;
@@ -60,9 +64,12 @@ export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: 
 
   useEffect(() => {
     if (id == null) return;
-    const handle = setTimeout(onDismiss, DISMISS_MS[tone]);
+    const handle = setTimeout(() => dismissRef.current(), DISMISS_MS[tone]);
     return () => clearTimeout(handle);
-  }, [id, tone, onDismiss]);
+    // The id and the tone re-arm it; the callback does not. `onDismiss` is a fresh function on
+    // every render of the host, and a timer that restarted with each of them never fired on a
+    // screen that re-renders (QA, 2026-11-05: the limit card outlived the whole walkthrough).
+    }, [id, tone]);
 
   const runCta = (cta: LimitCta) => {
     onDismiss();

@@ -3584,7 +3584,7 @@ export function BinderScreen({
           </View>
         ) : null}
 
-        <PocketRing rect={wantRing || wantSearch ? ringRect : walkthrough.step === 'complete' ? completeRect : null} />
+        <PocketRing rect={wantRing || wantSearch ? ringRect : walkthrough.step === 'complete' ? completeRect : null} dim={walkthrough.variant === 'seeded'} />
         {/* THE SEEDED VARIANT: both steps hang under the Complete tool, step one with the ring on
             it. Clamped to the window like the pocket callouts. */}
         {wantComplete && completeRect && walkthrough.copy ? (
@@ -3593,7 +3593,7 @@ export function BinderScreen({
               styles.walkthroughFloat,
               {
                 top: completeRect.y + completeRect.height + 8,
-                left: Math.max(Spacing.three, Math.min(completeRect.x - 120, width - 340)),
+                left: Math.max(Spacing.three, Math.min(completeRect.x + completeRect.width / 2 - 220, width - 460)),
               },
             ]}>
             <WalkthroughBanner
@@ -3614,7 +3614,7 @@ export function BinderScreen({
               styles.walkthroughFloat,
               {
                 top: ringRect.y + ringRect.height + 8,
-                left: Math.max(Spacing.three, Math.min(ringRect.x - 40, width - 340)),
+                left: Math.max(Spacing.three, Math.min(ringRect.x - 40, width - 460)),
               },
             ]}>
             <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
@@ -3628,7 +3628,9 @@ export function BinderScreen({
           <EyedropperBanner />
         </View>
         {editorHint?.copy ? (
-          <View style={EYEDROPPER_BANNER} pointerEvents="box-none">
+          // INSIDE THE PAGE AREA, not the window (QA, 2026-11-05: the card ran under the docked
+          // browser and its Got it was unreachable). The docks are above it, so it keeps clear.
+          <View style={[EYEDROPPER_BANNER, { left: 12 + (artworkDocked ? artworkWidth : 0), right: 12 + (pickerDocked ? pickerWidth : 0) }]} pointerEvents="box-none">
             <View style={styles.hintCard} testID="editor-hint">
               <View style={styles.hintText}>
                 <Text style={styles.hintTitle}>{editorHint.copy.title}</Text>
@@ -3641,7 +3643,7 @@ export function BinderScreen({
           </View>
         ) : null}
         {moving ? (
-          <View style={EYEDROPPER_BANNER} pointerEvents="box-none">
+          <View style={[EYEDROPPER_BANNER, { left: 12 + (artworkDocked ? artworkWidth : 0), right: 12 + (pickerDocked ? pickerWidth : 0) }]} pointerEvents="box-none">
             <View style={styles.moveBanner} testID="move-banner">
               <Text style={styles.moveBannerText}>Tap a pocket on any page to move it there. A filled pocket trades places.</Text>
               <Pressable onPress={() => setMoving(null)} hitSlop={8} accessibilityRole="button">
@@ -4070,7 +4072,7 @@ const styles = StyleSheet.create({
   moveBannerText: { color: Palette.accentText, fontSize: FontSize.label, fontWeight: Weight.semibold },
   moveBannerCancel: { textDecorationLine: 'underline' },
   /** Above the page (60) and the ring (65), below the docks (70): it must never cover a panel. */
-  walkthroughFloat: { position: 'absolute', width: 320, maxWidth: '92%', zIndex: 66 },
+  walkthroughFloat: { position: 'absolute', width: 440, maxWidth: '92%', zIndex: 66 },
   flex: { flex: 1 },
   dismiss: { flex: 1, backgroundColor: Palette.scrim30 },
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },

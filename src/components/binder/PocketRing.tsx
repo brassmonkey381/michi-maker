@@ -15,7 +15,7 @@
  * NOTHING ANIMATES. The collapsed dock rail already owns the one moving thing on this screen, and
  * two nudges arguing is worse than either alone for the person who has stalled.
  */
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { Palette, Radii } from '@/constants/theme';
 
@@ -33,20 +33,41 @@ export interface PocketRect {
   height: number;
 }
 
-export function PocketRing({ rect }: { rect: PocketRect | null }) {
+export function PocketRing({ rect, dim = false }: { rect: PocketRect | null; dim?: boolean }) {
+  const { width: winW, height: winH } = useWindowDimensions();
   // An unmeasured grid gives null, and a ring at a guessed position is worse than no ring: it
   // would point confidently at the wrong pocket. The banner is the step that carries the meaning.
   if (!rect) return null;
+  // THE REST RECEDES (owner, 2026-11-05: "blacking out / bluring the other parts of the screen to
+  // focus attention on the target"). Four panes around the ring, so the target keeps its own
+  // colours and everything else sits behind a light veil. Below the docks (70) and the callout
+  // (66), and pointerEvents none throughout: nothing here takes a tap.
+  const pad = 6;
+  const top = Math.max(0, rect.y - pad);
+  const left = Math.max(0, rect.x - pad);
+  const right = Math.min(winW, rect.x + rect.width + pad);
+  const bottom = Math.min(winH, rect.y + rect.height + pad);
   return (
-    <View
-      pointerEvents="none"
-      testID="walkthrough-pocket-ring"
-      style={[styles.ring, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }]}
-    />
+    <>
+      {dim ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill} testID="walkthrough-dim">
+          <View style={[styles.veil, { left: 0, top: 0, width: winW, height: top }]} />
+          <View style={[styles.veil, { left: 0, top: bottom, width: winW, height: Math.max(0, winH - bottom) }]} />
+          <View style={[styles.veil, { left: 0, top, width: left, height: Math.max(0, bottom - top) }]} />
+          <View style={[styles.veil, { left: right, top, width: Math.max(0, winW - right), height: Math.max(0, bottom - top) }]} />
+        </View>
+      ) : null}
+      <View
+        pointerEvents="none"
+        testID="walkthrough-pocket-ring"
+        style={[styles.ring, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }]}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  veil: { position: 'absolute', backgroundColor: 'rgba(20, 18, 24, 0.32)', zIndex: 64 },
   ring: {
     position: 'absolute',
     borderWidth: 2,

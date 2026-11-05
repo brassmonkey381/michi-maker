@@ -36,7 +36,8 @@ async function fetchImage(url: string): Promise<{ bytes: Uint8Array; type: strin
   } catch {
     // fall through to the proxy
   }
-  // art-proxy edge function for no-CORS hosts (allowlisted art hosts only).
+  // art-proxy edge function for no-CORS hosts: only the free-photo libraries and Wikimedia Commons
+  // since 2026-11-05 (the user's browser fetches everything else, or the user uploads).
   if (supabaseUrl) {
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/art-proxy?url=${encodeURIComponent(url)}`, {

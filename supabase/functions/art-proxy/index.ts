@@ -2,10 +2,11 @@
  * art-proxy — CORS-friendly image relay for the fill-sheet PDF export.
  *
  * The Print-placeholders PDF embeds the binder's artwork pixels, which means the BROWSER must
- * fetch the image bytes — and several art hosts users place from (artofpkm.com's CDN,
- * pokemoncenter.com, pinimg.com, pexels.com) send no Access-Control-Allow-Origin header, so a
- * direct fetch is blocked. This function relays those images server-side and returns them with
- * permissive CORS. The client tries a direct CORS fetch first and only falls back here.
+ * fetch the image bytes — and the free-photo libraries (pexels.com, pixabay.com) send no
+ * Access-Control-Allow-Origin header, so a direct fetch is blocked. This function relays those
+ * images server-side and returns them with permissive CORS. The client tries a direct CORS fetch
+ * first and only falls back here. Since 2026-07-17 every imported picture is re-hosted in the
+ * user's own bucket at import time, so this is reached at import, not at print.
  *
  * NOT an open proxy: only https URLs on the allowlisted art hosts below are relayed, only
  * image/* responses are returned, and bodies are capped. Public (no JWT) — it serves the same
@@ -13,20 +14,25 @@
  */
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
-/** Exact hostnames (or *.suffixes) art may be relayed from — the hosts real binders use. */
+/**
+ * Exact hostnames (or *.suffixes) art may be relayed from. THE BROWSER DOES THE FETCHING (owner,
+ * 2026-11-05: "can we make the user's browser do the fetching instead?"): this relay serves only
+ * the two free-photo libraries the app searches itself (Pexels and Pixabay, whose terms allow the
+ * use) and Wikimedia Commons. Every other host is fetched by the user's own browser with a plain
+ * CORS request; a site that refuses means the user saves the picture and uploads it, which is
+ * the purest form of bringing their own art. The art-site hosts this list used to carry
+ * (artofpkm.com, pokemoncenter.com, pinimg.com, DeviantArt's wixmp CDN) were removed with the
+ * Find art directory (docs/roadmap/ART-RIGHTS.md): the app does not copy from them on anyone's
+ * behalf.
+ */
 const ALLOWED_HOSTS = new Set([
-  'www.artofpkm.com',
-  'artofpkm.com',
-  'cdn.artofpkm.com',
   'commons.wikimedia.org',
   'upload.wikimedia.org',
-  'www.pokemoncenter.com',
   'images.pexels.com',
   'pixabay.com',
   'cdn.pixabay.com',
-  'i.pinimg.com',
 ]);
-const ALLOWED_SUFFIXES = ['.wixmp.com', '.wikimedia.org', '.pixabay.com'];
+const ALLOWED_SUFFIXES = ['.wikimedia.org', '.pixabay.com'];
 
 const MAX_BYTES = 25 * 1024 * 1024;
 

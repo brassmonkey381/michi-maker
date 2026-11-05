@@ -57,6 +57,7 @@ const EVENT_LABELS: Record<string, string> = {
   'binder.add': 'Created a binder',
   'card.add': 'Added cards to a binder',
   'page.view': 'Viewed a page',
+  'page.leave': 'Left a page',
   'card.search': 'Searched cards',
   'csv.import': 'Imported a CSV',
   'demo.csv_import': 'Tried the example import',

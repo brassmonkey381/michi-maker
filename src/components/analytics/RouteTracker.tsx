@@ -12,7 +12,7 @@
 import { usePathname } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
-import { track } from '@/lib/analytics';
+import { notePageView, track } from '@/lib/analytics';
 
 export function RouteTracker() {
   const pathname = usePathname();
@@ -22,6 +22,8 @@ export function RouteTracker() {
     if (!pathname) return; // undefined/empty on the very first render → nothing to record yet
     if (pathname === lastPath.current) return; // genuine back-to-back repeat → already recorded
     lastPath.current = pathname;
+    // The previous page's page.leave ('route') goes first, then this page.view opens its span.
+    notePageView(pathname);
     track('page.view', { route: pathname });
   }, [pathname]);
 

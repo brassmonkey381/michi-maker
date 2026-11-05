@@ -254,6 +254,118 @@ let webUnbind: (() => void) | null = null;
 /** Native AppState subscription; null when unbound or off native. */
 let appStateSub: { remove: () => void } | null = null;
 
+/**
+ * PAGE.LEAVE: HOW LONG THE PAGE WAS ON SCREEN (analytics-studio work order, 2026-11-05). 241 of
+ * 368 paid arrivals fired nothing after page.view, and the stream could not tell stared-then-left
+ * from bounced. One row per SPAN of a page.view: the span opens at the page.view (or when the tab
+ * comes back to the front after a hidden fire) and closes when the tab is hidden, the document is
+ * unloaded, or the app navigates to another route. A session that tabs away twice has two rows
+ * and the lane sums them.
+ *   route       the page.view's route, as RouteTracker recorded it
+ *   dwell_ms    wall time since the span opened (capped at four hours)
+ *   visible_ms  of that, the time the document was visible (capped the same)
+ *   via         'hidden' | 'pagehide' | 'route'
+ * Hidden and unload rides a keepalive POST, like the other unload beacons here, because an
+ * ordinary insert is cancelled as the document goes away. No URL, no referrer: session.start has
+ * those. Nothing extra on the row; user_id and ts are the server's.
+ */
+const DWELL_CAP_MS = 4 * 60 * 60 * 1000;
+let dwell: { route: string; spanStart: number; visibleSince: number | null; hiddenFiredAt: number } | null = null;
+
+function documentVisible(): boolean {
+  try {
+    return Platform.OS !== 'web' || typeof document === 'undefined' || document.visibilityState !== 'hidden';
+  } catch {
+    return true;
+  }
+}
+
+/** RouteTracker, just before each page.view: the previous page's span closes ('route'), the new one opens. */
+export function notePageView(route: string): void {
+  try {
+    if (dwell) leavePage('route');
+    const now = Date.now();
+    dwell = { route, spanStart: now, visibleSince: documentVisible() ? now : null, hiddenFiredAt: 0 };
+  } catch {
+    // swallow
+  }
+}
+
+/** The tab is back in front: a new span, so the next hide reports only the time since now. */
+function resumeDwell(): void {
+  try {
+    if (!dwell || dwell.visibleSince != null) return;
+    const now = Date.now();
+    if (dwell.hiddenFiredAt) dwell.spanStart = now;
+    dwell.visibleSince = now;
+  } catch {
+    // swallow
+  }
+}
+
+function leavePage(via: 'hidden' | 'pagehide' | 'route'): void {
+  try {
+    const d = dwell;
+    if (!d) return;
+    const now = Date.now();
+    // A span already closed by a hidden fire is not reported again by the pagehide that follows
+    // it on a tab close, nor by a second hidden while still hidden.
+    if (via !== 'route' && d.visibleSince == null) {
+      if (via === 'pagehide') dwell = null;
+      return;
+    }
+    const visible = d.visibleSince != null ? now - d.visibleSince : 0;
+    const props = {
+      route: d.route,
+      dwell_ms: Math.min(DWELL_CAP_MS, Math.max(0, now - d.spanStart)),
+      visible_ms: Math.min(DWELL_CAP_MS, Math.max(0, visible)),
+      via,
+    };
+    if (via === 'route') {
+      dwell = null;
+      // The hidden fire a moment ago already said it (a tab hidden, then the app routed away).
+      if (d.hiddenFiredAt && now - d.hiddenFiredAt < 1000) return;
+      track('page.leave', props);
+      return;
+    }
+    d.visibleSince = null;
+    d.hiddenFiredAt = now;
+    if (via === 'pagehide') dwell = null;
+    beaconEvent('page.leave', props);
+  } catch {
+    // swallow — this runs inside lifecycle handlers
+  }
+}
+
+/**
+ * One event on a keepalive POST, for the moments an ordinary insert is cancelled (the document
+ * going away). Falls back to track() off the web or before the session and token exist, where the
+ * ordinary path is fine or buffers.
+ */
+function beaconEvent(name: string, props: Record<string, unknown>): void {
+  try {
+    if (Platform.OS !== 'web' || typeof fetch !== 'function' || !supabaseUrl || !supabasePublishableKey || !accessToken || !sessionId) {
+      track(name, props);
+      return;
+    }
+    void fetch(`${supabaseUrl}/rest/v1/analytics_events`, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        apikey: supabasePublishableKey,
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify([{ app: APP, name, props: props as Json, session_id: sessionId }]),
+    }).catch(() => {
+      // swallow — best effort on unload
+    });
+  } catch {
+    // swallow
+  }
+}
+
 /** Is this Supabase user an anonymous guest? Prefer the flag, fall back to the missing email. */
 function guestOf(user: { is_anonymous?: boolean; email?: string | null }): boolean {
   return user.is_anonymous ?? !user.email;
@@ -545,7 +657,12 @@ function bindLifecycleListeners(): void {
       if (typeof window === 'undefined' || typeof document === 'undefined') return;
       const onVisibility = () => {
         try {
-          if (document.visibilityState === 'hidden') flushLastSeen();
+          if (document.visibilityState === 'hidden') {
+            flushLastSeen();
+            leavePage('hidden');
+          } else {
+            resumeDwell();
+          }
         } catch {
           // swallow — a listener must never throw
         }
@@ -556,6 +673,7 @@ function bindLifecycleListeners(): void {
           // is the thing that has no other chance to be recorded.
           abandonOpenPromptsBeacon();
           flushLastSeenBeacon();
+          leavePage('pagehide');
         } catch {
           // swallow
         }
@@ -570,7 +688,12 @@ function bindLifecycleListeners(): void {
     } else {
       appStateSub = AppState.addEventListener('change', (state: AppStateStatus) => {
         try {
-          if (state === 'background' || state === 'inactive') flushLastSeen();
+          if (state === 'background' || state === 'inactive') {
+            flushLastSeen();
+            leavePage('hidden');
+          } else if (state === 'active') {
+            resumeDwell();
+          }
         } catch {
           // swallow — a listener must never throw
         }

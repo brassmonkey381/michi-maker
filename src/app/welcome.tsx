@@ -35,6 +35,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { trackLandingCta, trackLandingSkip } from '@/lib/analytics';
 import { SHOW_CROSS_APP } from '@/lib/crossApp';
 import { landingSkipTarget, markLandingSeen } from '@/lib/landing';
+import { PHONE_MAX_WIDTH } from '@/data/binderLayout';
 
 /**
  * The marketing landing page. First-time web visitors land here from `/` (see lib/landing);
@@ -177,7 +178,9 @@ export default function WelcomeScreen() {
   const enterApp = (where: 'hero' | 'closing') => {
     trackLandingCta(where === 'hero' ? 'enter_hero' : 'enter_closing');
     markLandingSeen();
-    router.replace('/');
+    // A PHONE GOES TO THE WIZARD (owner, 2026-11-05): three taps to a full binder, not an empty
+    // editor. A wide screen keeps the plain path. Reddit arrivals never see this page (above).
+    router.replace(windowW < PHONE_MAX_WIDTH ? ('/new-binder' as Href) : '/');
   };
   const browseBinders = () => {
     trackLandingCta('discover');

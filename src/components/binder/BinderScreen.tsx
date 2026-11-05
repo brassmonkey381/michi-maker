@@ -39,7 +39,7 @@ import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { AuthSheet } from '@/components/auth/AuthSheet';
-import { PocketRing, type PocketRect } from '@/components/binder/PocketRing';
+import { PocketRing, sameRect, type PocketRect } from '@/components/binder/PocketRing';
 import { AddArtSheet } from '@/components/binder/AddArtSheet';
 import { SliceStudio, type SliceStudioHandle, type StudioPiece } from '@/components/binder/SliceStudio';
 import { Tipped, ToolTip } from '@/components/binder/ToolTip';
@@ -850,6 +850,8 @@ export function BinderScreen({
    * first self-directed action is one click. Once per mount; the step's own effect reports it.
    */
   const wantSearch = walkthrough.step === 'search';
+  // On a narrow screen the card browser is a sheet over the page: the step's line goes in it.
+  const searchInSheet = width < 500;
   const searchStarted = useRef(false);
   useEffect(() => {
     if (!wantSearch || searchStarted.current || !binder) return;
@@ -876,10 +878,20 @@ export function BinderScreen({
   }, [wantSearch, binder, seeded]);
   useEffect(() => {
     if (!wantComplete) return;
-    const t = setTimeout(() => {
-      completeRef.current?.measureInWindow((x, y, w, h) => setCompleteRect(w > 0 ? { x, y, width: w, height: h } : null));
-    }, 60);
-    return () => clearTimeout(t);
+    // MEASURED WHILE SHOWN, not once (owner, 2026-11-05: "sometimes it's up top, when the UI to
+    // click on is near the bottom"). A measurement taken once goes stale the moment the window
+    // scrolls, a picture finishes loading, or a dock opens; the deps below catch some of that and
+    // a short interval catches the rest. State only changes when the box does, so the interval
+    // costs no renders while nothing moves.
+    const measure = () => {
+      completeRef.current?.measureInWindow((x, y, w, h) => setCompleteRect((prev) => sameRect(prev, w > 0 ? { x, y, width: w, height: h } : null)));
+    };
+    const t = setTimeout(measure, 60);
+    const every = setInterval(measure, 350);
+    return () => {
+      clearTimeout(t);
+      clearInterval(every);
+    };
   }, [wantComplete, walkthrough.step, width, binder?.pages.length, pageIndex, artworkOpen, cardsCollapsed]);
   // Step three points at the card that just landed, so the same measurement serves both: an EMPTY
   // pocket to ring, or the FIRST FILLED one to point at.
@@ -891,7 +903,7 @@ export function BinderScreen({
     // re-measure taken in the same tick as a layout change reads the old box, and setting state
     // straight from an effect body is the pattern the React rules forbid; a frame's delay solves
     // both. Until it fires the render is gated on `wantRing`, so no stale ring is drawn.
-    const t = setTimeout(() => {
+    const measure = () => {
       let cell: { row: number; col: number } | null = null;
       if (wantPlaced) {
         const filled = ringPage.slots.find((sl) => sl.type === 'card' && sl.cardId);
@@ -908,9 +920,16 @@ export function BinderScreen({
         setRingRect(null);
         return;
       }
-      curRef.current?.measureCell(cell.row, cell.col, (r) => setRingRect(r));
-    }, 60);
-    return () => clearTimeout(t);
+      curRef.current?.measureCell(cell.row, cell.col, (r) => setRingRect((prev) => sameRect(prev, r)));
+    };
+    // A frame late, then on a short interval while the ring shows (see the Complete anchor above):
+    // the pocket moves when the window scrolls or the browser docks, and the ring has to follow.
+    const t = setTimeout(measure, 60);
+    const every = setInterval(measure, 350);
+    return () => {
+      clearTimeout(t);
+      clearInterval(every);
+    };
     // Anything that MOVES THE GRID has to re-measure, not just anything that changes the page:
     // adding a page brings in the page strip, which shifts the binder sideways and left a ring
     // hanging over empty space. Page count and index are in here for exactly that.
@@ -3172,6 +3191,9 @@ export function BinderScreen({
           banner={
             walkthrough.copy && walkthrough.step === 'card' ? (
               <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
+            ) : walkthrough.copy && wantSearch && searchInSheet ? (
+              // The sheet covers the ringed pocket, so the line names the ＋ below it instead.
+              <WalkthroughBanner copy={{ ...walkthrough.copy, arrow: 'down', body: 'Press the ＋ on any card below and it lands in the first empty pocket of page two.' }} onDismiss={walkthrough.dismiss} />
             ) : undefined
           }
           // Same on a phone: the sheet is up while a pocket has asked for it, and gone otherwise.
@@ -3586,7 +3608,7 @@ export function BinderScreen({
             UNDER the pocket they point at, arrow up, and clamped to the window so a pocket near
             the right edge still shows its callout whole. Step two lives in the browser instead,
             because that is where the control it names is. */}
-        {(wantPlaced || wantRing || wantSearch) && ringRect && walkthrough.copy ? (
+        {(wantPlaced || wantRing || (wantSearch && !searchInSheet)) && ringRect && walkthrough.copy ? (
           <View
             style={[
               styles.walkthroughFloat,

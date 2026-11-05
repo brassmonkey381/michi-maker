@@ -19,6 +19,13 @@ import { StyleSheet, View } from 'react-native';
 
 import { Palette, Radii } from '@/constants/theme';
 
+/** The previous rect when the new one matches it (within a pixel), so a repeated measurement is a no-op for React. */
+export function sameRect(prev: PocketRect | null, next: PocketRect | null): PocketRect | null {
+  if (!prev || !next) return next;
+  const near = (a: number, b: number) => Math.abs(a - b) < 1;
+  return near(prev.x, next.x) && near(prev.y, next.y) && near(prev.width, next.width) && near(prev.height, next.height) ? prev : next;
+}
+
 export interface PocketRect {
   x: number;
   y: number;

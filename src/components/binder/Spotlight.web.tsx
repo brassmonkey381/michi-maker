@@ -3,7 +3,8 @@
  * walkthrough's last step points at the Theme button inside the card browser, which is the shared
  * kit's and sits in its own dock above the page; a veil drawn in the page's layer never reaches
  * it. This one is rendered straight into document.body, so no dock or stacking context sits over
- * it, and the holes (the button, the ringed pocket, the callout) stay bright. Nothing here takes a
+ * it, and the holes (the button, the ringed pocket, the callout) stay bright. Above a phone's
+ * bottom-sheet Modal too (react-native-web puts those at 9999). Nothing here takes a
  * pointer event.
  */
 import { createPortal } from 'react-dom';
@@ -35,7 +36,7 @@ export function Spotlight({ holes }: { holes: PocketRect[] }) {
       width={w}
       height={h}
       viewBox={`0 0 ${w} ${h}`}
-      style={{ position: 'fixed', inset: 0, zIndex: 9000, pointerEvents: 'none' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 100000, pointerEvents: 'none' }}
       aria-hidden="true">
       <path d={d} fill="rgba(20, 18, 24, 0.32)" fillRule="evenodd" />
     </svg>,

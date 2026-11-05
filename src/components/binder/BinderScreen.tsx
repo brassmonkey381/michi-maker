@@ -931,14 +931,15 @@ export function BinderScreen({
    */
   const [themeRect, setThemeRect] = useState<PocketRect | null>(null);
   const [searchBannerRect, setSearchBannerRect] = useState<PocketRect | null>(null);
-  const searchBannerRef = useRef<View>(null);
   useEffect(() => {
     if (!wantSearch || Platform.OS !== 'web' || typeof document === 'undefined') return;
     const measure = () => {
       const el = document.querySelector('[aria-label^="Theme: "]');
       const r = el?.getBoundingClientRect();
       setThemeRect((prev) => sameRect(prev, r && r.width > 0 ? { x: r.left, y: r.top, width: r.width, height: r.height } : null));
-      searchBannerRef.current?.measureInWindow((x, y, bw, bh) => setSearchBannerRect((prev) => sameRect(prev, bw > 0 ? { x, y, width: bw, height: bh } : null)));
+      // The callout, wherever it is: floating under the pocket, or inside a phone's sheet.
+      const b = document.querySelector('[data-testid="walkthrough-banner"]')?.getBoundingClientRect();
+      setSearchBannerRect((prev) => sameRect(prev, b && b.width > 0 ? { x: b.left, y: b.top, width: b.width, height: b.height } : null));
     };
     const t = setTimeout(measure, 120);
     const every = setInterval(measure, 350);
@@ -3699,7 +3700,7 @@ export function BinderScreen({
         />
         {/* STEP THREE'S SPOTLIGHT: the Theme button in the card browser, the ringed pocket and the
             callout stay bright; everything else, the docks included, sits in the dim. */}
-        {wantSearch && themeRect ? <Spotlight holes={[themeRect, ...(ringRect ? [ringRect] : []), ...(searchBannerRect ? [searchBannerRect] : [])]} /> : null}
+        {wantSearch && themeRect ? <Spotlight holes={[themeRect, ...(ringRect && !searchInSheet ? [ringRect] : []), ...(searchBannerRect ? [searchBannerRect] : [])]} /> : null}
         {wantSearch && themeRect ? <PocketRing rect={themeRect} /> : null}
         {/* THE SEEDED VARIANT: both steps hang under the Complete tool, step one with the ring on
             it. Clamped to the window like the pocket callouts. */}
@@ -3726,8 +3727,6 @@ export function BinderScreen({
             because that is where the control it names is. */}
         {(wantPlaced || wantRing || (wantSearch && !searchInSheet)) && ringRect && walkthrough.copy ? (
           <View
-            ref={searchBannerRef}
-            collapsable={false}
             style={[
               styles.walkthroughFloat,
               {

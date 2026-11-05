@@ -33,7 +33,7 @@ export interface PocketRect {
   height: number;
 }
 
-export function PocketRing({ rect, dim = false }: { rect: PocketRect | null; dim?: boolean }) {
+export function PocketRing({ rect, dim = false, ring = true }: { rect: PocketRect | null; dim?: boolean; ring?: boolean }) {
   const { width: winW, height: winH } = useWindowDimensions();
   // An unmeasured grid gives null, and a ring at a guessed position is worse than no ring: it
   // would point confidently at the wrong pocket. The banner is the step that carries the meaning.
@@ -57,11 +57,13 @@ export function PocketRing({ rect, dim = false }: { rect: PocketRect | null; dim
           <View style={[styles.veil, { left: right, top, width: Math.max(0, winW - right), height: Math.max(0, bottom - top) }]} />
         </View>
       ) : null}
-      <View
-        pointerEvents="none"
-        testID="walkthrough-pocket-ring"
-        style={[styles.ring, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }]}
-      />
+      {ring ? (
+        <View
+          pointerEvents="none"
+          testID="walkthrough-pocket-ring"
+          style={[styles.ring, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }]}
+        />
+      ) : null}
     </>
   );
 }

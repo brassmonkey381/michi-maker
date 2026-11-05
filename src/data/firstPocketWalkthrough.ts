@@ -250,7 +250,7 @@ export const SEEDED_COPY = {
     index: 3,
     total: SEEDED_TOTAL,
     title: 'Add a card of your own',
-    body: 'The search beside your binder is already looking. Press the ＋ on any card and it lands in the ringed pocket.',
+    body: 'This is page 2, the arrow keys turn pages. The search beside your binder is already looking: press the ＋ on any card and it lands in the ringed pocket.',
     arrow: 'up',
   },
 } as const satisfies Record<SeededStep, WalkthroughCopy>;

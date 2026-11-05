@@ -13,7 +13,7 @@
  * by the column or the scroller and closes on a tap anywhere else.
  */
 import { Image } from 'expo-image';
-import { useRef, useState } from 'react';
+import { useRef, useState, type Ref } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type View as ViewType } from 'react-native';
 
 import { PillButton, Seg, WearRow } from '@/components/binder/inspector/controls';
@@ -56,9 +56,12 @@ export function PageWearBar({
   select,
   artViews,
   hint = false,
+  barRef,
 }: {
   binder: DemoBinder;
   page: DemoPage;
+  /** The bar's own box, for the host's one-time hint to sit just above it. */
+  barRef?: Ref<ViewType>;
   /** The Art view chip (owner, 2026-10-24): how this page shows its cards, on the page's own bar. */
   artViews?: PageArtViews;
   /** A one-time hint is pointing at this bar (data/editorHints): ring it. */
@@ -121,7 +124,7 @@ export function PageWearBar({
 
   return (
     <>
-      <View style={styles.bar} pointerEvents="box-none" testID="page-bar">
+      <View ref={barRef} collapsable={false} style={styles.bar} pointerEvents="box-none" testID="page-bar">
         {hint ? <View pointerEvents="none" style={styles.hintRing} /> : null}
         {/* SCROLLS ON A PHONE, CENTRED ON A DESK (owner, 2026-10-29): a centred row wider than the
             window lost a chip off each side. The content grows to fill and centres when it fits,

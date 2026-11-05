@@ -59,6 +59,7 @@ export function useFirstPocketWalkthrough({
   completed = false,
   pageFull = false,
   cardCount = 0,
+  onEnded,
 }: {
   hasCard: boolean;
   editing: boolean;
@@ -77,7 +78,13 @@ export function useFirstPocketWalkthrough({
   pageFull?: boolean;
   /** Seeded only: cards in the binder, so the search step can tell when one of their own lands. */
   cardCount?: number;
+  /** How it ended, once, for the host (the seeded celebration card opens on 'placed'). */
+  onEnded?: (via: WalkthroughEnding) => void;
 }): FirstPocketWalkthrough {
+  const endedRef = useRef(onEnded);
+  useEffect(() => {
+    endedRef.current = onEnded;
+  }, [onEnded]);
   const { user, profile, updateProfile } = useAuth();
   const userId = user?.id ?? null;
   const isGuest = !!user?.is_anonymous;
@@ -169,6 +176,7 @@ export function useFirstPocketWalkthrough({
       // `not-needed` is silent: nothing was shown, so there is nothing to report an ending for.
       if (via !== 'not-needed' && lastStep.current) {
         track('walkthrough.done', { walkthrough: variant, via, last_step: lastStep.current });
+        endedRef.current?.(via);
       }
       write({ ...record, retiredAt: new Date().toISOString() });
     },

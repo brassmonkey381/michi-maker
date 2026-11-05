@@ -43,6 +43,7 @@ import { PocketRing, sameRect, type PocketRect } from '@/components/binder/Pocke
 import { AddArtSheet } from '@/components/binder/AddArtSheet';
 import { SliceStudio, type SliceStudioHandle, type StudioPiece } from '@/components/binder/SliceStudio';
 import { Tipped, ToolTip } from '@/components/binder/ToolTip';
+import { FirstPageDoneSheet } from '@/components/binder/FirstPageDoneSheet';
 import { WalkthroughBanner } from '@/components/binder/WalkthroughBanner';
 import { ShortcutsCard } from '@/components/binder/ShortcutsCard';
 import { BinderFields, BinderLook } from '@/components/binder/inspector/BinderSection';
@@ -759,6 +760,16 @@ export function BinderScreen({
   const [fillPlaced, setFillPlaced] = useState(false);
   // The seeded payoff card opens account creation on a tap (owner, 2026-10-30).
   const [walkthroughAuthOpen, setWalkthroughAuthOpen] = useState(false);
+  // THE CELEBRATION (owner, 2026-11-05): a seeded arrival's own card lands, and a card says what
+  // to try next. A beat after the "added" toast, so the two do not land in the same frame.
+  const [doneOpen, setDoneOpen] = useState(false);
+  const onWalkthroughEnded = useCallback(
+    (via: string) => {
+      if (!seeded || via !== 'placed') return;
+      setTimeout(() => setDoneOpen(true), 900);
+    },
+    [seeded],
+  );
   const wtPage = binder?.pages[Math.max(0, Math.min(pageIndex, (binder?.pages.length ?? 1) - 1))];
   const wtPageFull = !!wtPage && wtPage.slots.reduce((n, s) => n + s.rowSpan * s.colSpan, 0) >= wtPage.rows * wtPage.cols;
   const walkthrough = useFirstPocketWalkthrough({
@@ -773,6 +784,7 @@ export function BinderScreen({
     completed: fillPlaced,
     pageFull: wtPageFull,
     cardCount,
+    onEnded: onWalkthroughEnded,
   });
   /**
    * A NEW PAGE WHEN THE LAST EMPTY POCKET GOES (owner, 2026-11-05: "always create a new page
@@ -804,6 +816,39 @@ export function BinderScreen({
     editing && !studio && !walkthrough.copy && !moving && !selectedSlotId && pickerCell === null && !!hintPage && pageHalfFull(hintPage) && width >= PHONE_MAX_WIDTH,
   );
   const editorHint = pocketHint.copy ? pocketHint : pageHint.copy ? pageHint : null;
+  /**
+   * WHERE THE HINT CARD SITS (owner, 2026-11-05): just above the thing it names. The pocket bar
+   * sits on the top edge of the selected pocket, so the card hangs above that pocket; the page
+   * bar is measured through its own ref. Both are re-measured on a short interval while shown,
+   * like the walkthrough's anchors, and the rest of the screen dims behind them.
+   */
+  const pageBarRef = useRef<View>(null);
+  const [hintRect, setHintRect] = useState<PocketRect | null>(null);
+  const [hintH, setHintH] = useState(0);
+  const hintSlotRow = hintSlot?.row;
+  const hintSlotCol = hintSlot?.col;
+  const hintKind = pocketHint.copy ? 'pocket' : pageHint.copy ? 'page' : null;
+  useEffect(() => {
+    if (!hintKind) {
+      // Cleared a tick later, not in the effect body (the React rule), so the next hint starts fresh.
+      const clear = setTimeout(() => setHintRect(null), 0);
+      return () => clearTimeout(clear);
+    }
+    const measure = () => {
+      if (hintKind === 'pocket') {
+        if (hintSlotRow == null || hintSlotCol == null) return;
+        curRef.current?.measureCell(hintSlotRow, hintSlotCol, (r) => setHintRect((prev) => sameRect(prev, r)));
+      } else {
+        pageBarRef.current?.measureInWindow((x, y, w, h) => setHintRect((prev) => sameRect(prev, w > 0 ? { x, y, width: w, height: h } : null)));
+      }
+    };
+    const t = setTimeout(measure, 60);
+    const every = setInterval(measure, 350);
+    return () => {
+      clearTimeout(t);
+      clearInterval(every);
+    };
+  }, [hintKind, hintSlotRow, hintSlotCol]);
 
   // The shortcuts card's one unprompted showing: the first edit on this device, on a wide web
   // screen. Above the early returns with the other hooks, so hook order cannot vary. Deferred a
@@ -2528,6 +2573,7 @@ export function BinderScreen({
           // In beta (betaFeatures.ts): the page bar's Art view chip is offered to the testing accounts only.
           artViews={canEditArtView(user?.id) ? { locked: artViewsLocked, onLocked: onArtViewsLocked } : undefined}
           hint={!pocketHint.copy && !!pageHint.copy}
+          barRef={p.id === page.id ? pageBarRef : undefined}
           // SELECT SEVERAL POCKETS acts on a SELECTION on this page. Gone while the picker is
           // aimed at a pocket (the two modes are mutually exclusive in code) and on an empty
           // page, which has nothing to select.
@@ -2706,11 +2752,25 @@ export function BinderScreen({
       {/* SAYS WHERE IT GOES. Called "Close" it read as closing something ON this page (the cards
           dock, the art dock) and people pressed it and lost the binder they were editing (owner
           decision 2026-09-09). On a phone the arrow alone carries it; the words stay in the label. */}
-      <Text style={[styles.headerAction, phone && styles.phoneBack, { color: theme.text }]}>
-        {phone ? '\u2190' : '\u2190 Back to My Binders'}
-      </Text>
+      {phone ? (
+        <Text style={[styles.headerAction, styles.phoneBack, { color: theme.text }]}>{'\u2190'}</Text>
+      ) : (
+        // A chip, like the mode button across from it (owner, 2026-11-05): outlined, so the one
+        // filled pill in the header stays the primary action.
+        <View style={styles.backChip}>
+          <Text style={styles.backChipText}>{'\u2190 Back to My Binders'}</Text>
+        </View>
+      )}
     </Pressable>
   );
+  /** A guest can sign in or sign up at any time (owner, 2026-11-05), not only when a wall asks. */
+  const signInChip = user?.is_anonymous ? (
+    <Pressable onPress={() => setWalkthroughAuthOpen(true)} hitSlop={8} accessibilityRole="button" testID="binder-sign-in">
+      <View style={styles.signInChip}>
+        <Text style={styles.signInChipText}>Sign in</Text>
+      </View>
+    </Pressable>
+  ) : null;
   /** The art panel's own button, phone only: with no rail there is nothing else to press. */
   const artToggle =
     phone && editing ? (
@@ -2926,6 +2986,7 @@ export function BinderScreen({
               </View>
               {/* Navigation only: the one primary action sits here, every tool is on the row below. */}
               <View style={styles.headerRight} onLayout={(e) => setHeaderRightW(e.nativeEvent.layout.width)}>
+                {signInChip}
                 {primaryAction}
               </View>
             </View>
@@ -3621,17 +3682,34 @@ export function BinderScreen({
           </View>
         ) : null}
         <AuthSheet visible={walkthroughAuthOpen} onClose={() => setWalkthroughAuthOpen(false)} />
+        <FirstPageDoneSheet
+          visible={doneOpen}
+          guest={!!user?.is_anonymous}
+          onAccount={() => {
+            setDoneOpen(false);
+            setWalkthroughAuthOpen(true);
+          }}
+          onClose={() => setDoneOpen(false)}
+        />
         {/* Sits with the other always-mounted overlays: the dropper outlives the sheet that
             armed it (that sheet has to close to let you reach the pockets), so its way out cannot
             live inside the picker. */}
         <View style={EYEDROPPER_BANNER} pointerEvents="box-none">
           <EyedropperBanner />
         </View>
+        {editorHint?.copy && hintRect ? <PocketRing rect={hintRect} dim ring={false} /> : null}
         {editorHint?.copy ? (
           // INSIDE THE PAGE AREA, not the window (QA, 2026-11-05: the card ran under the docked
           // browser and its Got it was unreachable). The docks are above it, so it keeps clear.
-          <View style={[EYEDROPPER_BANNER, { left: 12 + (artworkDocked ? artworkWidth : 0), right: 12 + (pickerDocked ? pickerWidth : 0) }]} pointerEvents="box-none">
-            <View style={styles.hintCard} testID="editor-hint">
+          // Just above its target when that has been measured; the top of the page area until then.
+          <View
+            style={[
+              EYEDROPPER_BANNER,
+              { left: 12 + (artworkDocked ? artworkWidth : 0), right: 12 + (pickerDocked ? pickerWidth : 0), zIndex: 66 },
+              hintRect && hintH > 0 ? { top: Math.max(8, hintRect.y - hintH - 8) } : null,
+            ]}
+            pointerEvents="box-none">
+            <View style={styles.hintCard} testID="editor-hint" onLayout={(e) => setHintH(e.nativeEvent.layout.height)}>
               <View style={styles.hintText}>
                 <Text style={styles.hintTitle}>{editorHint.copy.title}</Text>
                 <Text style={styles.hintBody}>{editorHint.copy.body}</Text>
@@ -4237,6 +4315,10 @@ const styles = StyleSheet.create({
   headerPrimary: { color: Palette.accent },
   // The Edit/Done mode toggle — filled pill, same voice as the studio's "Save slices".
   modeBtn: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: Radius.pill, backgroundColor: Palette.accent },
+  backChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: Radius.pill, borderWidth: 1.5, borderColor: Palette.accent },
+  backChipText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accent },
+  signInChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: Radius.pill, borderWidth: 1.5, borderColor: Palette.accent, marginRight: 8 },
+  signInChipText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accent },
   modeBtnText: { fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.accentText },
   // The public/private chip: a filled accent pill when public, an outlined one when private, so
   // the two read as different states and not as two colours of the same thing.

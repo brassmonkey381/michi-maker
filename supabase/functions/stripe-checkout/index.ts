@@ -81,6 +81,10 @@ const ALLOWED_RETURN_ORIGINS = new Set([
   'https://michi-maker.com',
   'https://www.tcgscan.ai',
   'https://tcgscan.ai',
+  // BiBo's domain (TCGScan's new name, owner 2026-11-05). Live before launch, so checkout from
+  // either address returns home; tcgscan.ai becomes a redirect at launch and stays listed.
+  'https://www.biboscan.com',
+  'https://biboscan.com',
   // legacy tcgscan domain — kept while it still serves/redirects
   'https://www.idontgitit.com',
   'https://idontgitit.com',

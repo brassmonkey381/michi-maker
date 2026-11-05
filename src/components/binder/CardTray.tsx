@@ -24,6 +24,8 @@ import { cardThumbUrl } from '@/lib/catalogConfig';
 
 const CHIP_W = 56;
 const CHIP_H = 78;
+/** Twice the chip (owner, 2026-11-05: "a large image for all the cards in the tray"). */
+const LARGE = 2;
 
 export function CardTray({
   slots,
@@ -33,6 +35,8 @@ export function CardTray({
   onDrop,
   onRemove,
   onClear,
+  large,
+  onToggleLarge,
   ghostOn,
   ghostX,
   ghostY,
@@ -46,6 +50,9 @@ export function CardTray({
   onRemove: (slot: DemoSlot) => void;
   /** Empty the tray in one go (owner, 2026-10-22): one commit, one Undo. */
   onClear: () => void;
+  /** Chips at twice the size; the switch sits in the header row, so the tray grows no taller shut. */
+  large: boolean;
+  onToggleLarge: () => void;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
   ghostY: SharedValue<number>;
@@ -77,9 +84,32 @@ export function CardTray({
         <Text style={styles.headerTitle}>Tray{ordered.length ? ` · ${ordered.length}` : ''}</Text>
         <View style={styles.headerRight}>
           {ordered.length ? (
-            <Pressable onPress={onClear} hitSlop={8} style={styles.clearBtn} accessibilityRole="button" accessibilityLabel="Clear the tray">
-              <Text style={styles.clearBtnText}>Clear tray</Text>
-            </Pressable>
+            <>
+              {/* SMALL OR LARGE PICTURES, in the row the header already has. */}
+              <View style={styles.sizeGroup} accessibilityRole="radiogroup">
+                {(['S', 'L'] as const).map((k) => {
+                  const on = (k === 'L') === large;
+                  return (
+                    <Pressable
+                      key={k}
+                      onPress={() => {
+                        if (!on) onToggleLarge();
+                      }}
+                      hitSlop={6}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: on }}
+                      accessibilityLabel={k === 'L' ? 'Large pictures' : 'Small pictures'}
+                      testID={`tray-size-${k}`}
+                      style={[styles.sizeBtn, on && styles.sizeBtnOn]}>
+                      <Text style={[styles.sizeText, on && styles.sizeTextOn]}>{k}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Pressable onPress={onClear} hitSlop={8} style={styles.clearBtn} accessibilityRole="button" accessibilityLabel="Clear the tray">
+                <Text style={styles.clearBtnText}>Clear tray</Text>
+              </Pressable>
+            </>
           ) : null}
           <Text style={styles.chevron}>{open ? '▾' : '▸'}</Text>
         </View>
@@ -95,6 +125,7 @@ export function CardTray({
               <TrayChip
                 key={slot.id}
                 slot={slot}
+                large={large}
                 armed={slot.id === armedId}
                 onArm={onArm}
                 onDragStart={onDragStart}
@@ -114,6 +145,7 @@ export function CardTray({
 
 const TrayChip = memo(function TrayChip({
   slot,
+  large,
   armed,
   onArm,
   onDragStart,
@@ -124,6 +156,7 @@ const TrayChip = memo(function TrayChip({
   ghostY,
 }: {
   slot: DemoSlot;
+  large: boolean;
   armed: boolean;
   onArm: (slotId: string | null) => void;
   onDragStart: (slot: DemoSlot) => void;
@@ -163,9 +196,9 @@ const TrayChip = memo(function TrayChip({
   return (
     <View style={styles.chipWrap}>
       <GestureDetector gesture={gesture}>
-        <View style={[styles.chip, armed && styles.chipArmed]} accessibilityRole="button" accessibilityLabel={armed ? 'Tray card, armed: tap a pocket to place it' : 'Tray card: tap to arm, or drag to a pocket'}>
+        <View style={[styles.chip, large && styles.chipLarge, armed && styles.chipArmed]} accessibilityRole="button" accessibilityLabel={armed ? 'Tray card, armed: tap a pocket to place it' : 'Tray card: tap to arm, or drag to a pocket'}>
           {slot.cardId ? (
-            <Image source={{ uri: cardThumbUrl(slot.cardId, 245) }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+            <Image source={{ uri: cardThumbUrl(slot.cardId, large ? 'full' : 245) }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
           ) : null}
         </View>
       </GestureDetector>
@@ -206,7 +239,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Palette.controlBorder,
   },
+  chipLarge: { width: CHIP_W * LARGE, height: CHIP_H * LARGE },
   chipArmed: { borderWidth: 2, borderColor: Palette.accent },
+  sizeGroup: { flexDirection: 'row', borderRadius: Radius.pill, backgroundColor: Palette.panel, padding: 2 },
+  sizeBtn: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: Radius.pill },
+  sizeBtnOn: { backgroundColor: Palette.accent },
+  sizeText: { fontSize: FontSize.sm, fontWeight: Weight.bold, color: Palette.ink2 },
+  sizeTextOn: { color: Palette.accentText },
   remove: {
     position: 'absolute',
     top: 0,

@@ -32,6 +32,8 @@ export interface ViewPrefs {
    * the pocket, covering nothing of it. Beside: a column to its right (or left at the edge).
    */
   pocketBar: PocketBarPlacement;
+  /** The card tray's chips at twice the size (owner, 2026-11-05): a switch in the tray's header. */
+  trayLarge: boolean;
   /**
    * How much of the WINDOW each side dock takes, 0..1, when its edge has been dragged.
    *
@@ -85,6 +87,7 @@ export const VIEW_PREF_DEFAULTS: ViewPrefs = {
   doubleSided: true,
   navDock: 'left',
   pocketBar: 'over',
+  trayLarge: false,
   cardsDockPct: 0,
   artDockPct: 0,
   coverSnap: true,
@@ -113,7 +116,7 @@ function applyEpoch(prefs: ViewPrefs): ViewPrefs {
 export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const raw = value as Record<string, unknown>;
-  const flag = (k: 'owned' | 'scans' | 'doubleSided' | 'coverSnap' | 'coverGrid' | 'cutLines') =>
+  const flag = (k: 'owned' | 'scans' | 'doubleSided' | 'coverSnap' | 'coverGrid' | 'cutLines' | 'trayLarge') =>
     typeof raw[k] === 'boolean' ? (raw[k] as boolean) : VIEW_PREF_DEFAULTS[k];
   // A bag with none of our keys is not a preference we wrote; treat it as absent so the next
   // source in the precedence chain gets its say.
@@ -150,6 +153,7 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
     navDock:
       raw.navDock === 'left' || raw.navDock === 'bottom' ? raw.navDock : VIEW_PREF_DEFAULTS.navDock,
     pocketBar: POCKET_BAR_PLACEMENTS.includes(raw.pocketBar as PocketBarPlacement) ? (raw.pocketBar as PocketBarPlacement) : VIEW_PREF_DEFAULTS.pocketBar,
+    trayLarge: flag('trayLarge'),
     cardsDockPct: pct('cardsDockPct'),
     artDockPct: pct('artDockPct'),
     coverSnap: flag('coverSnap'),
@@ -178,6 +182,7 @@ export function storedViewPrefs(prefs: ViewPrefs): {
   doubleSided: boolean;
   navDock: 'bottom' | 'left';
   pocketBar: PocketBarPlacement;
+  trayLarge: boolean;
   cardsDockPct: number;
   artDockPct: number;
   coverSnap: boolean;
@@ -192,6 +197,7 @@ export function storedViewPrefs(prefs: ViewPrefs): {
     doubleSided: prefs.doubleSided,
     navDock: prefs.navDock,
     pocketBar: prefs.pocketBar,
+    trayLarge: prefs.trayLarge,
     cardsDockPct: prefs.cardsDockPct,
     artDockPct: prefs.artDockPct,
     coverSnap: prefs.coverSnap,

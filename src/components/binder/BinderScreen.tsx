@@ -3438,6 +3438,8 @@ export function BinderScreen({
                 onDragStart={handleTrayDragStart}
                 onDrop={handleTrayDrop}
                 onRemove={handleTrayRemove}
+                large={view.trayLarge}
+                onToggleLarge={() => view.setPref('trayLarge', !view.trayLarge)}
                 onClear={() => {
                   const n = store.clearTray(binder.id);
                   if (n) showToast(`Tray cleared, ${n} card${n === 1 ? '' : 's'} removed`, true);

@@ -21,7 +21,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
-import { CardBrowse } from '@/components/binder/CardBrowse';
 import { CapGateOffer } from '@/components/monetization/CapGateOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -41,8 +40,6 @@ import { IconBtn, Seg } from '@/components/binder/StudioControls';
 import { hasMoreSliceShapes, shapeKey, shapeLabel, visibleSliceShapes } from '@/data/sliceShapes';
 import { TIER_LIMITS } from '@/data/tiers';
 import { TRIAL_DAYS_TEXT } from '@/data/trialLength';
-import { useCatalog } from '@/hooks/use-catalog';
-import { cardThumbUrl } from '@/lib/catalogConfig';
 
 const CARD_ASPECT = 88 / 63;
 
@@ -303,9 +300,6 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   const [sourcesOpen, setSourcesOpen] = useState(false);
   // The controls/shortcuts reference now lives behind a header "?" (was a permanent right column).
   const [guideOpen, setGuideOpen] = useState(false);
-  // Pick official card art from the catalog as the source image (then crop/zoom to the art).
-  const [cardPickOpen, setCardPickOpen] = useState(false);
-  const { catalog } = useCatalog(cardPickOpen);
   const [dropActive, setDropActive] = useState(false);
   // Measured width of the canvas column (two-column layout) — the accurate box to size the canvas
   // into once laid out; 0 until the first onLayout, when we fall back to an estimate.
@@ -1234,11 +1228,12 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           ) : null}
           {showSource ? (
             <>
-          {/* WHERE THE PICTURE COMES FROM: three choices, each saying what it is (owner,
-              2026-10-22: "less clicks, more clarity, less buttons"). Card art, a picture of your
-              own, or go looking. The paste-a-URL row stays under them for the drag-friendly sites. */}
+          {/* WHERE THE PICTURE COMES FROM: a picture of your own, or go looking (owner,
+              2026-10-22: "less clicks, more clarity, less buttons"). The paste-a-URL row stays under
+              them for the drag-friendly sites. THE USER BRINGS THE ART (owner, 2026-11-05): the
+              catalog's card scans are no longer offered as a source picture. The app does not
+              supply pictures to slice and print; what it shows in a pocket, it shows as a card. */}
           <View style={styles.sourceTiles}>
-            <Tile title="Card art" sub="A card from the catalog" onPress={() => setCardPickOpen(true)} primary testID="studio-src-card" />
             <View style={styles.tileUpload}>
               <ArtUploadButton
                 onUploaded={(url) => loadImage(url, { sourceName: 'your upload', origin: 'upload' })}
@@ -1320,8 +1315,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
             </Text>
           ) : hasImage && origin === 'card' ? (
             <Text style={styles.attribHint}>
-              Official card art from the catalog, this can go in binders you share, the same as
-              showing the whole card.
+              Official card art from the catalog, placed before 2026-11-05. It shows in binders you
+              share, the same as the whole card, and prints as a labelled placeholder.
             </Text>
           ) : null}
 
@@ -1464,7 +1459,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
             {!hasImage ? (
               <View style={[styles.canvas, { width: canvasW, height: canvasH }, styles.empty]}>
                 <Text style={styles.emptyTitle}>Bring in some art</Text>
-                <Text style={styles.emptySub}>Pick card art, upload, or paste a URL to begin.</Text>
+                <Text style={styles.emptySub}>Upload a picture, or paste a URL to begin.</Text>
                 {Platform.OS === 'web' ? (
                   <Text style={styles.emptyDrag}>…or drag an image straight onto this window.</Text>
                 ) : null}
@@ -1614,37 +1609,6 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           <FindArtSheet cardIds={pageArt?.cardIds ?? NO_CARDS} pageTitle={pageArt?.title} onClose={() => setSourcesOpen(false)} />
         ) : null}
 
-        {cardPickOpen ? (
-          <Modal visible transparent animationType="slide" onRequestClose={() => setCardPickOpen(false)}>
-            <View style={sheet.bottomBackdrop}>
-              <Pressable style={StyleSheet.absoluteFill} onPress={() => setCardPickOpen(false)} />
-              <ThemedView type="backgroundElement" style={[sheet.bottomSheet, styles.cardPickSheet]}>
-                <View style={styles.cardPickHeader}>
-                  <ThemedText type="subtitle">Choose card art</ThemedText>
-                  <Pressable onPress={() => setCardPickOpen(false)} hitSlop={10}>
-                    <Text style={[styles.headerAction, styles.primary]}>Close</Text>
-                  </Pressable>
-                </View>
-                {/* Rendered even without the catalog: CatalogBrowser runs cold (server search +
-                    taxonomy drill-down) for guests, a `catalog ?` gate here left guests staring
-                    at a spinner that never resolved (the catalog is a signed-in perk). */}
-                <CardBrowse
-                  catalog={catalog}
-                  onPickCard={(id) => {
-                    // Our own catalog art: stamp origin 'card' so the sharing gate treats it as
-                    // public-eligible (the app already shows these images publicly). Without this
-                    // the generic URL path files it as 'external' and the binder can't be shared.
-                    loadImage(cardThumbUrl(id, 'full'), {
-                      sourceName: 'official card art',
-                      origin: 'card',
-                    });
-                    setCardPickOpen(false);
-                  }}
-                />
-              </ThemedView>
-            </View>
-          </Modal>
-        ) : null}
     </>
   );
 
@@ -1949,7 +1913,6 @@ const styles = StyleSheet.create({
   guideAction: { fontSize: FontSize.base, color: Palette.ink4 },
   guideNote: { fontSize: FontSize.sm, color: Palette.muted3, marginTop: 6, lineHeight: 16 },
 
-  cardPickSheet: { height: '82%' },
   cardPickHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   sourcesCard: { width: '100%', maxWidth: 520, maxHeight: '80%' },
   dragHint: { fontSize: FontSize.sm, color: Palette.muted3, lineHeight: 16 },

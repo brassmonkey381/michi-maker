@@ -63,7 +63,7 @@ export function ImageProperties({
       : d.attribution?.origin === 'upload'
         ? 'Your upload'
         : d.attribution?.origin === 'card'
-          ? 'Card art'
+          ? 'Card art, preview only'
           : d.attribution?.origin === 'external'
             ? 'From a link'
             : d.attribution?.origin === 'copied'

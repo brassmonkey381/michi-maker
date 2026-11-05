@@ -41,7 +41,7 @@ stamped `attribution.printable = true`, image properties say "prints as shown", 
 prints the picture as it would an upload. Pieces placed before the switch keep the stamp they were
 placed with. The owner's account (@fakemichi) is the first such artist (`state/apply-artist-prints.ps1`).
 
-What prints today: art slots and picture inserts. Sleeves, art backings, page backgrounds and
+What prints today: art slots and picture inserts, except a catalog card scan placed as a picture (`origin: 'card'`, the picker was removed 2026-11-05), which prints as a placeholder labelled Card art. Sleeves, art backings, page backgrounds and
 covers are screen decoration with no print path for anyone; a mat prints as a plain black or white
 card with the card's facts, its picture and style not yet.
 

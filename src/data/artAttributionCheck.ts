@@ -55,9 +55,10 @@ export function isBucketHostedArt(imageUrl?: string | null): boolean {
 
 /**
  * Is this image OUR OWN card art — served from the configured catalog image base (the tcgscan
- * card bucket)? Slice Studio's "Card art" picker crops straight from those URLs, and the app
- * already renders the very same images publicly in every binder and in Browse, so a crop of one
- * carries no rights posture the app hasn't already taken. Keyed off `imgBase` rather than a
+ * card bucket)? Slice Studio's "Card art" picker (removed 2026-11-05; pieces placed before then
+ * remain) cropped straight from those URLs, and the app already renders the very same images
+ * publicly in every binder and in Browse, so a crop of one carries no rights posture the app
+ * hasn't already taken ON SCREEN. It never prints as a picture (printsAsPicture). Keyed off `imgBase` rather than a
  * hardcoded host so it follows the configured catalog.
  */
 export function isCardCatalogArt(imageUrl?: string | null): boolean {

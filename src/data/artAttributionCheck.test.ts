@@ -10,6 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { isCardCatalogArt, isPrivateArt, markCopiedArtBorrowed, privateArtInBinder } from './artAttributionCheck.ts';
+import { printsAsPicture } from './artworkLibrary.ts';
 import type { DemoBinder, DemoSlot } from './binderTypes.ts';
 
 const CARD = 'https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/cards/sv1/25.png';
@@ -131,4 +132,13 @@ test('the gate sees the covers: a hotlinked cover picture is listed with its sur
   };
   const refs = privateArtInBinder(b);
   assert.deepEqual(refs.map((r) => [r.slotId, r.surface, r.page]), [['hot', 'front', 0]]);
+});
+
+test('a catalog card scan placed as a picture prints as a placeholder, not as the picture (2026-11-05)', () => {
+  assert.equal(printsAsPicture({ origin: 'card', sourceName: 'official card art' }), false);
+  assert.equal(printsAsPicture({ origin: 'upload', sourceName: 'your upload' }), true);
+  assert.equal(printsAsPicture({ origin: 'external', sourceName: 'example.com', sourceUrl: 'https://example.com/a.png' }), true);
+  assert.equal(printsAsPicture({ origin: 'artist', artist: 'someone', sourceName: 'Artist' }), false);
+  assert.equal(printsAsPicture({ origin: 'artist', artist: 'someone', sourceName: 'Artist', printable: true }), true);
+  assert.equal(printsAsPicture(undefined), true);
 });

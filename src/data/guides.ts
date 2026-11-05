@@ -135,7 +135,7 @@ export const GUIDE_LIST: Guide[] = [
       },
       {
         title: 'Bring in a picture',
-        body: 'Card art from the catalog, an upload, a pasted URL, or an image dragged in from another tab.',
+        body: 'An upload, a pasted URL, or an image dragged in from another tab. The art is yours to bring.',
       },
       {
         title: 'Frame it',

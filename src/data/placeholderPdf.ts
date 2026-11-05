@@ -561,14 +561,15 @@ export function collectFillTiles(
           owned: ownedIds?.has(slot.cardId) ?? false,
         });
       } else if (slot.type === 'artwork' && slot.imageUrl && !printsAsPicture(slot.attribution)) {
-        // One placeholder per covered pocket, naming the artist, so the page still cuts and
-        // assembles and the collector knows whose piece goes there.
+        // One placeholder per covered pocket, naming the artist (or the catalog card scan, which
+        // never prints as a picture), so the page still cuts and assembles and the collector
+        // knows whose piece goes there.
         for (let i = 0; i < slot.rowSpan; i += 1) {
           for (let j = 0; j < slot.colSpan; j += 1) {
             byCell.set(`${slot.row + i},${slot.col + j}`, {
               kind: 'card', page: pageIndex + 1, row: slot.row + i + 1, col: slot.col + j + 1,
               span: slot.rowSpan > 1 || slot.colSpan > 1 ? `${slot.colSpan}×${slot.rowSpan}` : '',
-              name: slot.attribution?.artist ? `Art by ${slot.attribution.artist}` : 'Artist piece',
+              name: slot.attribution?.origin === 'card' ? 'Card art' : slot.attribution?.artist ? `Art by ${slot.attribution.artist}` : 'Artist piece',
               setName: slot.attribution?.sourceName ?? '',
               number: 'preview only',
               owned: false,

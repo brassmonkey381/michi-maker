@@ -84,8 +84,15 @@ export interface ArtAttribution {
   printable?: boolean;
 }
 
-/** Whether a placed piece prints as its picture: everything but an artist piece whose artist has not allowed printing. */
+/**
+ * Whether a placed piece prints as its picture. Not an artist piece whose artist has not allowed
+ * printing, and not a catalog card scan (`origin: 'card'`, placed through the Card art picker
+ * that was removed on 2026-11-05): THE USER BRINGS WHAT PRINTS. The app arranges and cuts; it
+ * does not supply a copyrighted picture and then put it on paper. Those pieces still show on
+ * screen, the same as the whole card does, and print as a labelled placeholder.
+ */
 export function printsAsPicture(a: ArtAttribution | null | undefined): boolean {
+  if (a?.origin === 'card') return false;
   return a?.origin !== 'artist' || a.printable === true;
 }
 

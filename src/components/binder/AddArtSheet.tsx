@@ -3,32 +3,27 @@
  * and resizing and edits in the Binder Page itself ... advanced/studio button tucked behind a
  * button that says advanced editing").
  *
- * Three ways in, Card art, Upload, Find art, plus a paste-a-URL row. Choosing a picture is the
+ * Two ways in, Upload and Find art, plus a paste-a-URL row (Card art, the catalog's own scan as
+ * a picture, was removed on 2026-11-05: the user brings the art, the app never supplies a
+ * picture to slice and print). Choosing a picture is the
  * whole job: the host seats it on the page as one pocket and the sheet closes. Dragging and the
  * corner handle do the rest on the page. The Slice Studio, with its zoom, rotate, flip and cut,
  * is one link away as Advanced editing, with the chosen picture already loaded when there is one.
  *
- * The rights rules are the studio's, unchanged: catalog art is 'card' (public-eligible), an upload
- * is 'upload', a remote URL is fetched into the user's own bucket and filed 'external' (private),
+ * The rights rules are the studio's, unchanged: an upload is 'upload', a remote URL is fetched into the user's own bucket and filed 'external' (private),
  * and a stock photo carries its provider credit.
  */
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ArtistShelf } from '@/components/binder/ArtistShelf';
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
-import { CardBrowse } from '@/components/binder/CardBrowse';
 import { FindArtSheet, openArtSearch, useArtLead } from '@/components/binder/FindArtSheet';
 import { artSearchLinks } from '@/data/pageArtSubject';
 import { StockArtSearch } from '@/components/binder/StockArtSearch';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { sheet } from '@/constants/ui';
 import { deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
-import { useCatalog } from '@/hooks/use-catalog';
-import { cardThumbUrl } from '@/lib/catalogConfig';
 import { importRemoteArtToBucket } from '@/lib/importArt';
 import { stockAttribution, type StockHit } from '@/lib/stockArt';
 
@@ -48,7 +43,6 @@ export function AddArtSheet({
   onAdvanced: () => void;
   onClose: () => void;
 }) {
-  const [cardPickOpen, setCardPickOpen] = useState(false);
   // Open on arrival (owner, 2026-10-27): an empty panel should be one tap from art of what the
   // page shows, with the species already typed and every site one tap away.
   const [findOpen, setFindOpen] = useState(true);
@@ -56,7 +50,6 @@ export function AddArtSheet({
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { catalog } = useCatalog(cardPickOpen);
   const lead = useArtLead(cardIds, pageTitle, findOpen);
 
   /** A remote picture: a copy goes to the user's bucket, the original stays as the credit. */
@@ -90,14 +83,6 @@ export function AddArtSheet({
         <Text style={styles.lead}>Pick a picture and it lands on this page. Drag its corner there to make it bigger.</Text>
 
         <View style={styles.tiles}>
-          <Pressable
-            onPress={() => setCardPickOpen(true)}
-            accessibilityRole="button"
-            testID="add-art-card"
-            style={({ pressed }) => [styles.tile, styles.tilePrimary, pressed && styles.pressed]}>
-            <Text style={[styles.tileTitle, styles.tileTitlePrimary]}>Card art</Text>
-            <Text style={[styles.tileSub, styles.tileSubPrimary]}>A card from the catalog</Text>
-          </Pressable>
           <View style={styles.tile}>
             <ArtUploadButton onUploaded={(hosted) => onPick(hosted, { sourceName: 'your upload', origin: 'upload' })} onError={setError} />
             <Text style={styles.tileSub}>A picture of your own</Text>
@@ -179,29 +164,6 @@ export function AddArtSheet({
 
       {sitesOpen ? <FindArtSheet cardIds={cardIds} pageTitle={pageTitle} onClose={() => setSitesOpen(false)} /> : null}
 
-      {cardPickOpen ? (
-        <Modal visible transparent animationType="slide" onRequestClose={() => setCardPickOpen(false)}>
-          <View style={sheet.bottomBackdrop}>
-            <Pressable style={StyleSheet.absoluteFill} onPress={() => setCardPickOpen(false)} />
-            <ThemedView type="backgroundElement" style={[sheet.bottomSheet, styles.cardPick]}>
-              <View style={styles.cardPickHead}>
-                <ThemedText type="subtitle">Choose card art</ThemedText>
-                <Pressable onPress={() => setCardPickOpen(false)} hitSlop={10}>
-                  <Text style={styles.link}>Close</Text>
-                </Pressable>
-              </View>
-              <CardBrowse
-                catalog={catalog}
-                onPickCard={(id) => {
-                  // Catalog art is 'card': public-eligible, as the app already shows it publicly.
-                  setCardPickOpen(false);
-                  onPick(cardThumbUrl(id, 'full'), { sourceName: 'official card art', origin: 'card' });
-                }}
-              />
-            </ThemedView>
-          </View>
-        </Modal>
-      ) : null}
     </DialogCard>
   );
 }
@@ -233,6 +195,4 @@ const styles = StyleSheet.create({
   note: { flexShrink: 1, fontSize: FontSize.xs, color: Palette.muted2, lineHeight: 15 },
   error: { fontSize: FontSize.sm, color: Palette.danger, lineHeight: 17 },
   foot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 4 },
-  cardPick: { height: '82%' },
-  cardPickHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
 });

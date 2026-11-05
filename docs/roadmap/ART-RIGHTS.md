@@ -69,6 +69,17 @@ still generated client-side. Linking OUT to art sources stays (linking is not re
 sources list is framed neutrally ("art you have the right to use", responsibility on the user), and
 we do not encourage copying art the user hasn't sourced and licensed.
 
+### No card scans as pictures — SHIPPED (2026-11-05)
+The one place the app itself SUPPLIED a copyrighted picture that then printed was the "Card art"
+source in the Slice Studio and the Add art sheet: the catalog's own card scan, sliced to the art
+and printed as an insert. That is the supply side of the crux above, with reproduction on paper.
+Owner decision 2026-11-05 ("option 2"): the picker is gone from both surfaces, and a piece already
+placed from it (`attribution.origin: 'card'`) stays on screen (the binder shows the whole card
+anyway) but prints as a placeholder labelled Card art (`printsAsPicture` in
+`src/data/artworkLibrary.ts`). Uploads, pasted URLs and the finder are unchanged: the user brings
+the art. The upload copy stays neutral ("art you have the right to use"); copy that tells users to
+go download card art or fan art and drop it in would be inducement and was declined.
+
 ### The finder, not the library — SHIPPED (2026-10-13)
 The owner asked for "intelligently add custom artwork" (a page of Pikachu gets Pikachu fan art
 from artofpkm and the like). That is Option A again, so the intelligence went into the SEARCH

@@ -232,25 +232,26 @@ export const SEEDED_COPY = {
   complete: {
     index: 1,
     total: SEEDED_TOTAL,
-    title: 'Tap Complete to fill the rest of the page',
-    body: 'Pick how the empty pockets are filled. Or tap an empty pocket to add a card of your own.',
+    title: 'Tap Complete to fill the page',
+    body: 'Pick a fill and the empty pockets get matching cards. Or tap a pocket and pick a card yourself.',
     arrow: 'up',
   },
   /** The same place, once the page is full. The owner's line (2026-10-30). */
   filled: {
     index: 2,
     total: SEEDED_TOTAL,
-    title: 'Create an account to save your binder and keep working',
+    title: 'Create an account to save your binder',
     highlight: 'Create an account',
-    body: 'It is free, and this page comes with you.',
+    body: 'It is free. Your page comes with you.',
     arrow: 'up',
   },
-  /** Under page two's first empty pocket, ringed, the search beside it already showing cards. */
+  /** Under page two's first empty pocket, ringed; the card browser is open beside it with its
+   *  Theme button lit (owner, 2026-11-05: "CTA them to click the theme demo button"). */
   search: {
     index: 3,
     total: SEEDED_TOTAL,
-    title: 'Add a card of your own',
-    body: 'This is page 2, the arrow keys turn pages. The search beside your binder is already looking: press the ＋ on any card and it lands in the ringed pocket.',
+    title: 'Add a card yourself',
+    body: 'This is page 2. In the card browser, tap the Theme button to search card art by theme. Then press ＋ on a card and it lands in the ringed pocket.',
     arrow: 'up',
   },
 } as const satisfies Record<SeededStep, WalkthroughCopy>;

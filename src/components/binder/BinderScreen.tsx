@@ -40,6 +40,7 @@ import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersShe
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { PocketRing, sameRect, type PocketRect } from '@/components/binder/PocketRing';
+import { Spotlight } from '@/components/binder/Spotlight';
 import { AddArtSheet } from '@/components/binder/AddArtSheet';
 import { SliceStudio, type SliceStudioHandle, type StudioPiece } from '@/components/binder/SliceStudio';
 import { Tipped, ToolTip } from '@/components/binder/ToolTip';
@@ -58,7 +59,6 @@ import { loadPokemonColorIndexes } from '@/lib/colorIndexes';
 import { MovePageSheet } from '@/components/binder/MovePageSheet';
 import { QuickPreviewModal, SharePictureChooser } from '@/components/binder/SharePreview';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
-import { seedSetFor } from '@/data/seedPages';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { pillChip, sheet } from '@/constants/ui';
 import { ContestLockBanner } from '@/components/contest/ContestLockBanner';
@@ -115,7 +115,7 @@ import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
-import { landingCampaignParams, track, type CardAddVia } from '@/lib/analytics';
+import { track, type CardAddVia } from '@/lib/analytics';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
@@ -912,7 +912,8 @@ export function BinderScreen({
       }
     }
     if (!cell) return;
-    if (seeded) browseState.cardQuery = seedSetFor(landingCampaignParams()?.code).query;
+    // The box starts empty: the step asks for the Theme button, whose example is the search.
+    if (seeded) browseState.cardQuery = '';
     const at = cell;
     const t = setTimeout(() => {
       setPageIndex(idx);
@@ -921,6 +922,49 @@ export function BinderScreen({
     }, 80);
     return () => clearTimeout(t);
   }, [wantSearch, binder, seeded]);
+  /**
+   * THE THEME BUTTON LIT (owner, 2026-11-05: "a focus fade bringing attention to the theme demo
+   * button"). The card browser is the shared kit's, which gives no ref to its buttons, so on the
+   * web the button is found by its accessible name (the kit labels it "Theme: <word>") and
+   * measured on the same short interval as the other anchors. Native has no DOM; the ring on the
+   * pocket and the words carry the step there.
+   */
+  const [themeRect, setThemeRect] = useState<PocketRect | null>(null);
+  const [searchBannerRect, setSearchBannerRect] = useState<PocketRect | null>(null);
+  const searchBannerRef = useRef<View>(null);
+  useEffect(() => {
+    if (!wantSearch || Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const measure = () => {
+      const el = document.querySelector('[aria-label^="Theme: "]');
+      const r = el?.getBoundingClientRect();
+      setThemeRect((prev) => sameRect(prev, r && r.width > 0 ? { x: r.left, y: r.top, width: r.width, height: r.height } : null));
+      searchBannerRef.current?.measureInWindow((x, y, bw, bh) => setSearchBannerRect((prev) => sameRect(prev, bw > 0 ? { x, y, width: bw, height: bh } : null)));
+    };
+    const t = setTimeout(measure, 120);
+    const every = setInterval(measure, 350);
+    return () => {
+      clearTimeout(t);
+      clearInterval(every);
+    };
+  }, [wantSearch, pickerCell, cardsCollapsed, width]);
+  /**
+   * THE SHORTCUTS CARD AFTER THE CELEBRATION (owner, 2026-11-05: "if the user continues to edit
+   * the binder after closing the modal, pop up the keyboard shortcuts"). Armed when the card
+   * closes; the next edit (a card placed, a pocket selected) opens the card once, on a wide web
+   * screen, where the shortcuts exist.
+   */
+  const shortcutsArmed = useRef(false);
+  useEffect(() => {
+    if (!shortcutsArmed.current) return;
+    if (Platform.OS !== 'web' || width < PHONE_MAX_WIDTH) {
+      shortcutsArmed.current = false;
+      return;
+    }
+    shortcutsArmed.current = false;
+    const t = setTimeout(() => setShortcutsOpen(true), 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the next edit after arming, not every render
+  }, [cardCount, selectedSlotId]);
   useEffect(() => {
     if (!wantComplete) return;
     // MEASURED WHILE SHOWN, not once (owner, 2026-11-05: "sometimes it's up top, when the UI to
@@ -3258,7 +3302,7 @@ export function BinderScreen({
               <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
             ) : walkthrough.copy && wantSearch && searchInSheet ? (
               // The sheet covers the ringed pocket, so the line names the ＋ below it instead.
-              <WalkthroughBanner copy={{ ...walkthrough.copy, arrow: 'down', body: 'Press the ＋ on any card below and it lands in the first empty pocket of page two.' }} onDismiss={walkthrough.dismiss} />
+              <WalkthroughBanner copy={{ ...walkthrough.copy, arrow: 'down', body: 'Tap the Theme button below to search card art by theme. Then press ＋ on a card and it goes into page 2.' }} onDismiss={walkthrough.dismiss} />
             ) : undefined
           }
           // Same on a phone: the sheet is up while a pocket has asked for it, and gone otherwise.
@@ -3649,7 +3693,14 @@ export function BinderScreen({
           </View>
         ) : null}
 
-        <PocketRing rect={wantRing || wantSearch ? ringRect : walkthrough.step === 'complete' ? completeRect : null} dim={walkthrough.variant === 'seeded'} />
+        <PocketRing
+          rect={wantRing || wantSearch ? ringRect : walkthrough.step === 'complete' ? completeRect : null}
+          dim={walkthrough.variant === 'seeded' && !(wantSearch && themeRect)}
+        />
+        {/* STEP THREE'S SPOTLIGHT: the Theme button in the card browser, the ringed pocket and the
+            callout stay bright; everything else, the docks included, sits in the dim. */}
+        {wantSearch && themeRect ? <Spotlight holes={[themeRect, ...(ringRect ? [ringRect] : []), ...(searchBannerRect ? [searchBannerRect] : [])]} /> : null}
+        {wantSearch && themeRect ? <PocketRing rect={themeRect} /> : null}
         {/* THE SEEDED VARIANT: both steps hang under the Complete tool, step one with the ring on
             it. Clamped to the window like the pocket callouts. */}
         {wantComplete && completeRect && walkthrough.copy ? (
@@ -3675,6 +3726,8 @@ export function BinderScreen({
             because that is where the control it names is. */}
         {(wantPlaced || wantRing || (wantSearch && !searchInSheet)) && ringRect && walkthrough.copy ? (
           <View
+            ref={searchBannerRef}
+            collapsable={false}
             style={[
               styles.walkthroughFloat,
               {
@@ -3694,7 +3747,10 @@ export function BinderScreen({
             setDoneOpen(false);
             setWalkthroughAuthOpen(true);
           }}
-          onClose={() => setDoneOpen(false)}
+          onClose={() => {
+            setDoneOpen(false);
+            shortcutsArmed.current = true;
+          }}
         />
         {/* Sits with the other always-mounted overlays: the dropper outlives the sheet that
             armed it (that sheet has to close to let you reach the pockets), so its way out cannot
@@ -4155,7 +4211,8 @@ const styles = StyleSheet.create({
   moveBannerText: { color: Palette.accentText, fontSize: FontSize.label, fontWeight: Weight.semibold },
   moveBannerCancel: { textDecorationLine: 'underline' },
   /** Above the page (60) and the ring (65), below the docks (70): it must never cover a panel. */
-  walkthroughFloat: { position: 'absolute', width: 440, maxWidth: '92%', zIndex: 66 },
+  // Above the docks (70) and the Theme button's veil (75): the words must never sit in the dim.
+  walkthroughFloat: { position: 'absolute', width: 440, maxWidth: '92%', zIndex: 80 },
   flex: { flex: 1 },
   dismiss: { flex: 1, backgroundColor: Palette.scrim30 },
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },

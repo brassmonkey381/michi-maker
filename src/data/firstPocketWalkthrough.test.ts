@@ -152,5 +152,6 @@ test('seeded copy: three steps, numbered, short, no em-dashes, never PRO, the ac
     assert.ok(c.title.length <= 60, c.title);
   }
   assert.match(SEEDED_COPY.complete.title, /Complete/);
-  assert.equal(SEEDED_COPY.filled.title, 'Create an account to save your binder and keep working');
+  assert.equal(SEEDED_COPY.filled.title, 'Create an account to save your binder');
+  assert.match(SEEDED_COPY.search.body, /Theme button/);
 });

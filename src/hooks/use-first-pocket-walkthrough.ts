@@ -58,7 +58,7 @@ export function useFirstPocketWalkthrough({
   variant = 'first-pocket',
   completed = false,
   pageFull = false,
-  artDone = true,
+  cardCount = 0,
 }: {
   hasCard: boolean;
   editing: boolean;
@@ -75,8 +75,8 @@ export function useFirstPocketWalkthrough({
   completed?: boolean;
   /** Seeded only: the page being edited has no empty pocket. */
   pageFull?: boolean;
-  /** Seeded only: the picture in pocket 4 has been dragged two wide or more, or removed. */
-  artDone?: boolean;
+  /** Seeded only: cards in the binder, so the search step can tell when one of their own lands. */
+  cardCount?: number;
 }): FirstPocketWalkthrough {
   const { user, profile, updateProfile } = useAuth();
   const userId = user?.id ?? null;
@@ -141,11 +141,23 @@ export function useFirstPocketWalkthrough({
   // The seeded variant latches its own arrival fact the same way: a page already full when the
   // editor opened is a second visit, and there is nothing left to show.
   const [arrivedFull] = useState(pageFull);
+  // THE SEARCH STEP (analytics-studio, 2026-11-05): the payoff card's cross, or the account being
+  // made, passes to it rather than ending the walkthrough. The card count at that moment is the
+  // baseline; one more card is a card of their own, and the walkthrough is over, via 'placed'.
+  const [searchBaseline, setSearchBaseline] = useState<number | null>(null);
+  const searching = searchBaseline != null;
   const state =
     variant === 'seeded'
-      ? resolveSeededState({ record, editing, studio, completed, pageFull, arrivedFull, artDone })
+      ? resolveSeededState({ record, editing, studio, completed, pageFull, arrivedFull, searching, placedOwn: searching && cardCount > searchBaseline })
       : resolveState({ hasCard, hadCardOnArrival, record, editing, studio, pickerOpen, filled: fillSeen || fillOpen || (!narrow && !pickerOpen) });
   const step = state.show ? state.step : null;
+  // An account made on the payoff card passes it the same as its cross would.
+  const wasGuest = useRef(isGuest);
+  useEffect(() => {
+    if (wasGuest.current && !isGuest && step === 'filled') setSearchBaseline(cardCount);
+    wasGuest.current = isGuest;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the guest flag flipping, not the count
+  }, [isGuest]);
 
   /** The furthest step this session actually reached, for the ending event. Written in the effect
    *  that reports each step, never during render. */
@@ -211,13 +223,23 @@ export function useFirstPocketWalkthrough({
 
   const copy = (): WalkthroughCopy | null => {
     if (!step) return null;
-    if (step === 'art' || step === 'complete' || step === 'filled') return SEEDED_COPY[step];
+    if (step === 'complete' || step === 'filled' || step === 'search') return SEEDED_COPY[step];
     return step === 'placed' && isGuest ? WALKTHROUGH_COPY_GUEST_PLACED : WALKTHROUGH_COPY[step];
   };
+  const stepRef = useRef(step);
+  const countRef = useRef(cardCount);
+  useEffect(() => {
+    stepRef.current = step;
+    countRef.current = cardCount;
+  }, [step, cardCount]);
   return {
     variant,
     step,
     copy: copy(),
-    dismiss: useCallback(() => retireRef.current('dismissed'), []),
+    // The payoff card's cross passes to the search step; every other cross is the end (via 'dismissed').
+    dismiss: useCallback(() => {
+      if (stepRef.current === 'filled') setSearchBaseline(countRef.current);
+      else retireRef.current('dismissed');
+    }, []),
   };
 }

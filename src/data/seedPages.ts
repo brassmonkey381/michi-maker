@@ -47,8 +47,10 @@ export interface SeedSet {
   theme: string;
   /** Three card ids, reading order, pockets 1 to 3 of a 3x3 page. */
   cardIds: readonly [string, string, string];
-  /** The picture in pocket 4, to be dragged across row two. */
+  /** The picture already placed down column one, rows two and three. */
   picture: SeedPicture;
+  /** What the card search opens on for the walkthrough's last step, in the browser's own grammar. */
+  query: string;
 }
 
 const BUCKET = 'https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/29a6e25c-c5a0-4c2a-9a5b-62c98e288605';
@@ -66,16 +68,16 @@ const PICTURES = {
 
 export const SEED_SETS = {
   /** Magby, Numel, Groudon: lava and volcano scenes, the Lidi volcano spread the first ads show. */
-  volcano: { theme: 'volcano', cardIds: ['523867', '676035', '523880'], picture: PICTURES.volcano },
+  volcano: { theme: 'volcano', cardIds: ['523867', '676035', '523880'], picture: PICTURES.volcano, query: 'type:fire' },
   /** Dedenne, Shiftry, Leafeon V: autumn leaves, the garden painting behind the Rainbow image ad. */
-  autumn: { theme: 'autumn', cardIds: ['684413', '542884', '246688'], picture: PICTURES.autumn },
+  autumn: { theme: 'autumn', cardIds: ['684413', '542884', '246688'], picture: PICTURES.autumn, query: 'type:grass' },
   /**
    * Mewtwo ☆, Mew ☆ δ, Shining Tyranitar: three of the grails on "Top 8 TCGs" page one, the page
    * the coverflow ads show (owner, 2026-10-30, who chose them over the Pikachu trio: the ad
    * promised expensive cards, so the page starts with three). The fill is whatever Complete
    * finds; no price-aware fill, by the owner's decision.
    */
-  grails: { theme: 'grails', cardIds: ['87427', '87408', '89171'], picture: PICTURES.meadow },
+  grails: { theme: 'grails', cardIds: ['87427', '87408', '89171'], picture: PICTURES.meadow, query: 'mewtwo' },
 } as const satisfies Record<string, SeedSet>;
 
 export type SeedTheme = keyof typeof SEED_SETS;
@@ -99,18 +101,25 @@ export function seedSetFor(code: string | null | undefined): SeedSet {
   return SEED_SETS[key ?? DEFAULT_SEED];
 }
 
-/** Where the picture starts: row two, column one, one pocket wide. */
-export const SEED_ART_CELL = { row: 1, col: 0 } as const;
+/** Where the picture sits: row two, column one, two pockets tall. */
+export const SEED_ART_CELL = { row: 1, col: 0, rowSpan: 2, colSpan: 1 } as const;
 
-/** One 3x3 page: the three seeds in pockets 1 to 3, the theme's picture in pocket 4. */
+/**
+ * Two 3x3 pages. Page one: the three seeds in pockets 1 to 3 and the theme's picture already
+ * placed down column one, two pockets tall (analytics-studio, 2026-11-05: 305 arrivals saw the
+ * "drag the picture" step and 4 dragged it, so nobody is asked to). Four empty pockets are left
+ * for Complete. Page two is empty beside it: the binder opens double-sided by default, and the
+ * walkthrough's last step rings page two's first pocket with the search open. A guest's binder
+ * holds three pages, so one is still in hand.
+ */
 export function seedPages(set: SeedSet): DemoPage[] {
   const pages = pagesForCards([...set.cardIds]);
   const art: DemoSlot = {
     id: uuidv4(),
     row: SEED_ART_CELL.row,
     col: SEED_ART_CELL.col,
-    rowSpan: 1,
-    colSpan: 1,
+    rowSpan: SEED_ART_CELL.rowSpan,
+    colSpan: SEED_ART_CELL.colSpan,
     type: 'artwork',
     imageUrl: set.picture.url,
     attribution: {
@@ -121,23 +130,15 @@ export function seedPages(set: SeedSet): DemoPage[] {
     },
   };
   pages[0].slots.push(art);
+  pages.push({ id: uuidv4(), rows: 3, cols: 3, slots: [] });
   return pages;
 }
 
 const SEED_PICTURE_URLS = new Set<string>(Object.values(PICTURES).map((p) => p.url));
 
-/** The seeded picture on a page, wherever it has been dragged to, or undefined once removed. */
+/** The seeded picture on a page, wherever it has been moved to, or undefined once removed. */
 export function seedArtSlot(page: Pick<DemoPage, 'slots'>): DemoSlot | undefined {
   return page.slots.find((s) => s.type === 'artwork' && !!s.imageUrl && SEED_PICTURE_URLS.has(s.imageUrl));
-}
-
-/**
- * Is the walkthrough's drag done? Two pockets wide or more (owner: "let them drag to either
- * column 2 or column 3 to pass"), or the picture is gone, which is a choice too.
- */
-export function seedArtDone(page: Pick<DemoPage, 'slots'>): boolean {
-  const art = seedArtSlot(page);
-  return !art || art.colSpan >= 2;
 }
 
 /** How many pockets a seed set fills, for the card.add { kind: 'seed' } count. */

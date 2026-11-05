@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { DEFAULT_SEED, SEED_ART_CELL, SEED_BY_CODE, SEED_SETS, seedArtDone, seedArtSlot, seedCount, seedPages, seedSetFor } from './seedPages.ts';
+import { DEFAULT_SEED, SEED_ART_CELL, SEED_BY_CODE, SEED_SETS, seedArtSlot, seedCount, seedPages, seedSetFor } from './seedPages.ts';
 
 test('every seed set is three distinct real-looking ids under one theme name', () => {
   for (const [key, set] of Object.entries(SEED_SETS)) {
@@ -12,6 +12,7 @@ test('every seed set is three distinct real-looking ids under one theme name', (
     assert.match(set.picture.url, /^https:\/\/piikwvntldytjejxmcla\.supabase\.co\/storage\/v1\/object\/public\/binder-art\//, key);
     assert.equal((set.picture as { origin?: string }).origin, key === 'grails' ? 'external' : undefined, key);
     assert.ok(set.picture.artist && set.picture.sourceUrl.startsWith('https://'), key);
+    assert.ok(set.query.trim().length > 0, `${key}: the search step needs a query`);
   }
 });
 
@@ -30,10 +31,11 @@ test('seedSetFor: the code picks the theme, case and spaces forgiven; unknown or
   assert.equal(seedSetFor('').theme, DEFAULT_SEED);
 });
 
-test('seedPages: one 3x3 page, the three seeds in pockets 1 to 3, the picture in pocket 4, five empties left for Complete', () => {
+test('seedPages: page one holds the three seeds and the tall picture with four empties for Complete; page two is empty', () => {
   const pages = seedPages(SEED_SETS.volcano);
-  assert.equal(pages.length, 1);
-  const [page] = pages;
+  assert.equal(pages.length, 2);
+  const [page, second] = pages;
+  assert.deepEqual([second.rows, second.cols, second.slots.length], [3, 3, 0]);
   assert.equal(page.rows, 3);
   assert.equal(page.cols, 3);
   assert.deepEqual(
@@ -47,19 +49,12 @@ test('seedPages: one 3x3 page, the three seeds in pockets 1 to 3, the picture in
   const art = seedArtSlot(page);
   assert.ok(art);
   assert.equal(art.type, 'artwork');
-  assert.deepEqual([art.row, art.col, art.rowSpan, art.colSpan], [SEED_ART_CELL.row, SEED_ART_CELL.col, 1, 1]);
+  assert.deepEqual([art.row, art.col, art.rowSpan, art.colSpan], [1, 0, 2, 1]);
+  assert.deepEqual([SEED_ART_CELL.row, SEED_ART_CELL.col, SEED_ART_CELL.rowSpan, SEED_ART_CELL.colSpan], [1, 0, 2, 1]);
+  assert.equal(page.slots.reduce((n, s) => n + s.rowSpan * s.colSpan, 0), 5, 'four pockets left for Complete');
   assert.equal(art.imageUrl, SEED_SETS.volcano.picture.url);
   assert.equal(art.attribution?.sourceName, 'Pexels');
   assert.equal(art.attribution?.origin, undefined);
   assert.equal(seedCount(pages), 3, 'the picture is not a card.add');
 });
 
-test('seedArtDone: two pockets wide or more passes, so does removing the picture; one wide does not', () => {
-  const [page] = seedPages(SEED_SETS.autumn);
-  assert.equal(seedArtDone(page), false);
-  const art = seedArtSlot(page)!;
-  assert.equal(seedArtDone({ slots: page.slots.map((s) => (s.id === art.id ? { ...s, colSpan: 2 } : s)) }), true);
-  assert.equal(seedArtDone({ slots: page.slots.map((s) => (s.id === art.id ? { ...s, colSpan: 3 } : s)) }), true);
-  assert.equal(seedArtDone({ slots: page.slots.filter((s) => s.id !== art.id) }), true);
-  assert.equal(seedArtDone({ slots: [...page.slots, { ...art, id: 'x', row: 2, imageUrl: 'https://example.com/other.jpg' }] }), false);
-});

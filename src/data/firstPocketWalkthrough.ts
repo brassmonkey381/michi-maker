@@ -33,8 +33,8 @@ export type WalkthroughStep = 'ring' | 'card' | 'placed';
  */
 export type WalkthroughVariant = 'first-pocket' | 'seeded';
 
-/** The seeded variant's steps: drag the picture across, tap Complete, then the payoff over the filled page. */
-export type SeededStep = 'art' | 'complete' | 'filled';
+/** The seeded variant's steps: tap Complete, the payoff over the filled page, then a search into an empty pocket. */
+export type SeededStep = 'complete' | 'filled' | 'search';
 
 /** Why it will never show again. */
 export type WalkthroughEnding = 'not-needed' | 'placed' | 'dismissed' | 'ignored' | 'paged';
@@ -220,31 +220,37 @@ export const WALKTHROUGH_COPY_GUEST_PLACED: WalkthroughCopy = {
  */
 export const SEEDED_TOTAL = 3;
 
+/**
+ * THE 2026-11-05 SHAPE (analytics-studio, from 368 paid desktop arrivals): the "drag the picture"
+ * step that used to come first is gone and the picture arrives already placed, two pockets tall.
+ * Complete is step one, the account ask is step two, and a third step follows it: page two's
+ * first empty pocket, ringed, with the card search already open on the theme, so the first
+ * self-directed action is one click.
+ */
 export const SEEDED_COPY = {
-  /** Under the picture in pocket 4, ringed, its resize handle already showing (owner, 2026-10-30:
-   *  the first act is the editor's best trick). Done at two pockets wide, so the pull is short. */
-  art: {
-    index: 1,
-    total: SEEDED_TOTAL,
-    title: 'Drag the picture across the row',
-    body: 'Pull the handle on its corner to the right until it covers two or three pockets.',
-    arrow: 'up',
-  },
   /** Under the Complete tool in the page bar, ringed, arrow up at it. */
   complete: {
-    index: 2,
+    index: 1,
     total: SEEDED_TOTAL,
-    title: 'Tap Complete to fill this page',
-    body: 'Pick how the rest of the page is filled. Or tap an empty pocket to add a card of your own.',
+    title: 'Tap Complete to fill the rest of the page',
+    body: 'Pick how the empty pockets are filled. Or tap an empty pocket to add a card of your own.',
     arrow: 'up',
   },
   /** The same place, once the page is full. The owner's line (2026-10-30). */
   filled: {
-    index: 3,
+    index: 2,
     total: SEEDED_TOTAL,
     title: 'Create an account to save your binder and keep working',
     highlight: 'Create an account',
     body: 'It is free, and this page comes with you.',
+    arrow: 'up',
+  },
+  /** Under page two's first empty pocket, ringed, the search beside it already showing cards. */
+  search: {
+    index: 3,
+    total: SEEDED_TOTAL,
+    title: 'Add a card of your own',
+    body: 'The search beside your binder is already looking. Press the ＋ on any card and it lands in the ringed pocket.',
     arrow: 'up',
   },
 } as const satisfies Record<SeededStep, WalkthroughCopy>;
@@ -260,19 +266,22 @@ export interface SeededInputs {
   pageFull: boolean;
   /** Was it already full when this editor session began? Nothing to teach, retire in silence. */
   arrivedFull: boolean;
-  /** Is the seeded picture two pockets wide or more, or gone? (data/seedPages seedArtDone) */
-  artDone: boolean;
+  /** Has the payoff step been passed (its cross, or the account made)? Then the search step. */
+  searching: boolean;
+  /** Searching, and a card of their own has landed since: the walkthrough's success, it ends. */
+  placedOwn: boolean;
 }
 
 export type SeededState = { show: false; retire: WalkthroughEnding | null } | { show: true; step: SeededStep };
 
 /** The seeded variant's resolveState: the same endings, three steps. A fill or a full page is the
- *  payoff whatever became of the picture, so Complete first never strands anyone on step one. */
-export function resolveSeededState({ record, editing, studio, completed, pageFull, arrivedFull, artDone }: SeededInputs): SeededState {
+ *  payoff; once that card is passed, the search step holds until a card of their own lands. */
+export function resolveSeededState({ record, editing, studio, completed, pageFull, arrivedFull, searching, placedOwn }: SeededInputs): SeededState {
   if (record.retiredAt) return { show: false, retire: null };
   if (arrivedFull) return { show: false, retire: 'not-needed' };
   if (!editing || studio) return { show: false, retire: null };
   if (record.opens > MAX_EDITOR_OPENS) return { show: false, retire: 'ignored' };
+  if (searching) return placedOwn ? { show: false, retire: 'placed' } : { show: true, step: 'search' };
   if (completed || pageFull) return { show: true, step: 'filled' };
-  return { show: true, step: artDone ? 'complete' : 'art' };
+  return { show: true, step: 'complete' };
 }

@@ -69,6 +69,19 @@ still generated client-side. Linking OUT to art sources stays (linking is not re
 sources list is framed neutrally ("art you have the right to use", responsibility on the user), and
 we do not encourage copying art the user hasn't sourced and licensed.
 
+### No art-site directory — SHIPPED (2026-11-05)
+The Find art sheet listed fan-art and official-art sites (Art of Pokémon, Bulbagarden, Pokémon
+Center sleeves, Pinterest, Pixiv, Bluesky, DeviantArt) with a per-page search for each and hints
+on how to copy from them ("drag-drop OK", "save it, then Upload", "may block direct loading").
+That is affirmative help with copying from named sources, and the "you are responsible" line does
+not offset it. Owner decision 2026-11-05 ("3, remove it"): the sheet, its sources list and the
+per-site searches are gone from both the Add art sheet and the Slice Studio. What remains: Upload,
+the free-photo search (Pexels and Pixabay, whose terms allow the use), the artists shelf, and the
+paste-a-URL row. The URL row gives no instructions and names no site; the user chooses one
+picture, one copy is stored in their own bucket, and the binder is forced private. That is the
+user-directed storage the safe harbor covers and it stays. Moving the directory to a blog was
+considered and declined: inducement is the operator's conduct, not the domain.
+
 ### No card scans as pictures — SHIPPED (2026-11-05)
 The one place the app itself SUPPLIED a copyrighted picture that then printed was the "Card art"
 source in the Slice Studio and the Add art sheet: the catalog's own card scan, sliced to the art

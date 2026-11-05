@@ -24,9 +24,9 @@ import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { CapGateOffer } from '@/components/monetization/CapGateOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useArtLead } from '@/hooks/use-art-lead';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
-import { FindArtSheet, useArtLead } from '@/components/binder/FindArtSheet';
 import { StockArtSearch } from '@/components/binder/StockArtSearch';
 import { importRemoteArtToBucket } from '@/lib/importArt';
 import { stockAttribution, type StockHit } from '@/lib/stockArt';
@@ -208,7 +208,7 @@ interface SliceStudioProps {
   /** Render inline (inside the picker's Artwork tab) instead of as a full-screen modal: no outer
    *  Modal/SafeAreaView chrome and no Close button — the host sheet's tab bar handles navigation. */
   embedded?: boolean;
-  /** The page the studio was opened from, so Art sources can lead with searches for its subject. */
+  /** The page the studio was opened from, so the free-photo search can start on its subject. */
   pageArt?: { cardIds: readonly string[]; title?: string | null };
   /**
    * EDITING A PLACED POCKET (owner, 2026-10-22: "we could always go back to editing it"). The
@@ -297,7 +297,6 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   const [rot, setRot] = useState<Rot>(initial?.transform?.rot ?? 0);
   const [flipH, setFlipH] = useState(!!initial?.transform?.flipH);
   const [flipV, setFlipV] = useState(!!initial?.transform?.flipV);
-  const [sourcesOpen, setSourcesOpen] = useState(false);
   // The controls/shortcuts reference now lives behind a header "?" (was a permanent right column).
   const [guideOpen, setGuideOpen] = useState(false);
   const [dropActive, setDropActive] = useState(false);
@@ -384,8 +383,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     [loadImage],
   );
 
-  // WHAT THIS PAGE WANTS ART OF (owner, 2026-10-22): the last search, the last card placed, or
-  // the page's cards. It starts the free-photo search and leads the Art sources sheet.
+  // WHAT THIS PAGE WANTS PICTURES OF (owner, 2026-10-22): the last search, the last card placed,
+  // or the page's cards. It starts the free-photo search.
   const artLead = useArtLead(pageArt?.cardIds ?? NO_CARDS, pageArt?.title, !!pageArt);
 
   // Resolve the image's natural size — re-runs per source. getSize failing (odd host / blob
@@ -1241,7 +1240,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
               />
               <Text style={styles.tileSubOut}>A picture of your own</Text>
             </View>
-            <Tile title={stockOpen ? 'Find art ▴' : 'Find art'} sub="Free photos, and where to look" onPress={() => setStockOpen((v) => !v)} testID="studio-src-find" />
+            <Tile title={stockOpen ? 'Free photos ▴' : 'Free photos'} sub="Pexels and Pixabay" onPress={() => setStockOpen((v) => !v)} testID="studio-src-find" />
           </View>
           <View style={styles.sourceBar}>
             <View style={styles.urlWrap}>
@@ -1258,17 +1257,12 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
             </View>
           </View>
 
-          {/* FIND ART: the free-photo library, open on what the page is about, with the tuned
-              searches of other sites one link away (FindArtSheet). One place to go looking,
-              instead of a band and a button that said two different things. */}
+          {/* FREE PHOTOS: the Pexels and Pixabay search, open on what the page is about. The
+              directory of other art sites that used to sit one link away (FindArtSheet) was
+              removed on 2026-11-05: the app does not point at where to copy pictures. */}
           {stockOpen ? (
             <View style={styles.stockWrap}>
-              <View style={styles.stockHeadRow}>
-                <Text style={styles.stockTitle}>Free photos</Text>
-                <Pressable onPress={() => setSourcesOpen(true)} hitSlop={6} testID="studio-other-sites">
-                  <Text style={styles.stockLink}>Other sites ↗</Text>
-                </Pressable>
-              </View>
+              <Text style={styles.stockTitle}>Free photos</Text>
               <StockArtSearch
                 initialQuery={artLead.query}
                 onPick={(hit: StockHit) => {
@@ -1605,10 +1599,6 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           </Modal>
         ) : null}
 
-        {sourcesOpen ? (
-          <FindArtSheet cardIds={pageArt?.cardIds ?? NO_CARDS} pageTitle={pageArt?.title} onClose={() => setSourcesOpen(false)} />
-        ) : null}
-
     </>
   );
 
@@ -1766,8 +1756,6 @@ const styles = StyleSheet.create({
   tileSubPrimary: { color: Palette.accentText, opacity: 0.85 },
   tileUpload: { flexGrow: 1, flexBasis: 110, gap: 2, justifyContent: 'center' },
   tileSubOut: { fontSize: FontSize.xs, lineHeight: 15, color: Palette.ink3, paddingHorizontal: 2 },
-  stockHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  stockLink: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.accent },
   cutLink: { paddingVertical: 4 },
   cutLinkText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.accent },
   actionPair: { flexDirection: 'row', alignItems: 'center', gap: 8 },

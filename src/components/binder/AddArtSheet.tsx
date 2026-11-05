@@ -3,9 +3,11 @@
  * and resizing and edits in the Binder Page itself ... advanced/studio button tucked behind a
  * button that says advanced editing").
  *
- * Two ways in, Upload and Find art, plus a paste-a-URL row (Card art, the catalog's own scan as
- * a picture, was removed on 2026-11-05: the user brings the art, the app never supplies a
- * picture to slice and print). Choosing a picture is the
+ * Two ways in, Upload and Free photos (Pexels and Pixabay), plus a paste-a-URL row. Card art
+ * (the catalog's own scan as a picture) and Find art (a directory of fan-art and official-art
+ * sites with per-page searches and how-to-copy hints) were both removed on 2026-11-05: the user
+ * brings the art, the app never supplies a picture to slice and print and never points at where
+ * to copy one (docs/roadmap/ART-RIGHTS.md). Choosing a picture is the
  * whole job: the host seats it on the page as one pocket and the sheet closes. Dragging and the
  * corner handle do the rest on the page. The Slice Studio, with its zoom, rotate, flip and cut,
  * is one link away as Advanced editing, with the chosen picture already loaded when there is one.
@@ -18,14 +20,13 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { ArtistShelf } from '@/components/binder/ArtistShelf';
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
-import { FindArtSheet, openArtSearch, useArtLead } from '@/components/binder/FindArtSheet';
-import { artSearchLinks } from '@/data/pageArtSubject';
 import { StockArtSearch } from '@/components/binder/StockArtSearch';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { importRemoteArtToBucket } from '@/lib/importArt';
 import { stockAttribution, type StockHit } from '@/lib/stockArt';
+import { useArtLead } from '@/hooks/use-art-lead';
 
 export function AddArtSheet({
   cardIds,
@@ -34,7 +35,7 @@ export function AddArtSheet({
   onAdvanced,
   onClose,
 }: {
-  /** The page's cards, for what Find art starts on. */
+  /** The page's cards, for what the free-photo search starts on. */
   cardIds: readonly string[];
   pageTitle?: string | null;
   /** A picture was chosen: seat it on the page. The host closes the sheet. */
@@ -43,10 +44,9 @@ export function AddArtSheet({
   onAdvanced: () => void;
   onClose: () => void;
 }) {
-  // Open on arrival (owner, 2026-10-27): an empty panel should be one tap from art of what the
-  // page shows, with the species already typed and every site one tap away.
+  // Open on arrival (owner, 2026-10-27): an empty panel should be one tap from pictures of what
+  // the page shows, with the subject already typed.
   const [findOpen, setFindOpen] = useState(true);
-  const [sitesOpen, setSitesOpen] = useState(false);
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,29 +93,14 @@ export function AddArtSheet({
             accessibilityState={{ expanded: findOpen }}
             testID="add-art-find"
             style={({ pressed }) => [styles.tile, pressed && styles.pressed]}>
-            <Text style={styles.tileTitle}>{findOpen ? 'Find art ▴' : 'Find art'}</Text>
-            <Text style={styles.tileSub}>Free photos, and where to look</Text>
+            <Text style={styles.tileTitle}>{findOpen ? 'Free photos ▴' : 'Free photos'}</Text>
+            <Text style={styles.tileSub}>Pexels and Pixabay</Text>
           </Pressable>
         </View>
 
         {findOpen ? (
           <View style={styles.find}>
-            <View style={styles.findHead}>
-              <Text style={styles.findTitle}>{lead.label ? `Art of ${lead.label}` : 'Find art'}</Text>
-              <Pressable onPress={() => setSitesOpen(true)} hitSlop={6}>
-                <Text style={styles.link}>About the sites ↗</Text>
-              </Pressable>
-            </View>
-            {lead.query ? (
-              <View style={styles.siteRow} testID="add-art-sites">
-                {artSearchLinks(lead.query).map((l) => (
-                  <Pressable key={l.title} onPress={() => openArtSearch(l.url)} accessibilityRole="link" hitSlop={4} style={({ pressed }) => [styles.siteChip, pressed && styles.pressed]}>
-                    <Text style={styles.siteChipText}>{l.title} ↗</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-            <Text style={styles.findSub}>Free photos</Text>
+            <Text style={styles.findTitle}>{lead.label ? `Photos for ${lead.label}` : 'Free photos'}</Text>
             <StockArtSearch
               initialQuery={lead.query}
               busyId={busy}
@@ -162,8 +147,6 @@ export function AddArtSheet({
         </View>
       </View>
 
-      {sitesOpen ? <FindArtSheet cardIds={cardIds} pageTitle={pageTitle} onClose={() => setSitesOpen(false)} /> : null}
-
     </DialogCard>
   );
 }
@@ -180,13 +163,8 @@ const styles = StyleSheet.create({
   tileSubPrimary: { color: Palette.accentText, opacity: 0.85 },
   pressed: { opacity: 0.75 },
   find: { gap: 6 },
-  findHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   findTitle: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink },
   link: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.accent },
-  siteRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  siteChip: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: Palette.selectionSoft },
-  siteChipText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.accent },
-  findSub: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.muted3, marginTop: 4 },
   urlRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: { flex: 1, minWidth: 0, height: 36, paddingHorizontal: 10, borderRadius: Radius.control, backgroundColor: Palette.panel, color: Palette.ink, fontSize: FontSize.label },
   loadBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: Radius.control, backgroundColor: Palette.panel },

@@ -1254,7 +1254,7 @@ export function BinderScreen({
     };
     return placeStudioPieces([{ r: 0, c: 0, slice }]);
   };
-  // What the studio's Find art sheet reads: the page's cards, by id.
+  // What the free-photo search starts on: the page's cards, by id.
   const pageCardIds = page.slots.flatMap((s) => (s.cardId ? [s.cardId] : []));
 
   // Example binders are read-only: they can't be edited in place, only duplicated into the

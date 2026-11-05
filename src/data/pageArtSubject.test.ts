@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { artSearchLinks, pageSubject, speciesOf } from './pageArtSubject.ts';
+import { pageSubject, speciesOf } from './pageArtSubject.ts';
 
 const pk = (name: string) => ({ name, isPokemon: true });
 
@@ -38,12 +38,3 @@ test('a mixed page falls back to its title, then to nothing; trainers never coun
   assert.equal(pageSubject([{ name: "Rocket's Admin.", isPokemon: false }, { name: "Rocket's Admin.", isPokemon: false }], null).basis, 'none');
 });
 
-test('every search link carries the query, and the Art of Pokémon one is its real search', () => {
-  const links = artSearchLinks('alolan raichu');
-  assert.ok(links.length >= 6);
-  for (const l of links) {
-    assert.ok(l.url.startsWith('https://'), l.title);
-    assert.ok(/alolan%20raichu|alolan\+raichu/.test(l.url), `${l.title}: ${l.url}`);
-  }
-  assert.equal(links[0].url, 'https://www.artofpkm.com/artwork/all?q=alolan%20raichu');
-});

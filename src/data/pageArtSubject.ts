@@ -1,14 +1,14 @@
 /**
- * WHAT A PAGE IS ABOUT, and where to look for art of it.
+ * WHAT A PAGE IS ABOUT.
  *
  * THE FINDER, NOT THE LIBRARY (owner, 2026-10-13: "intelligently add custom artwork ... on a page
  * with all Pikachu, add Pikachu related artwork"). docs/roadmap/ART-RIGHTS.md records why the app
  * must not supply Pokémon art itself: the legal posture rests on the user bringing the art and
  * michi-maker hosting it. So the intelligence goes into the SEARCH. This reads the cards on a
- * page, names the thing they share, and builds one tuned search per source the Art sources list
- * already links to. The user opens a result, picks a piece, and the existing paste or upload path
- * hosts it as their own external, private art with the credit kept. Linking out is not
- * reproduction; nothing here fetches a picture.
+ * page and names the thing they share; that seeds the free-photo search (Pexels and Pixabay,
+ * hooks/use-art-lead.ts). It used to build one tuned search per fan-art and official-art site as
+ * well, with hints on how to copy from each; that directory was removed on 2026-11-05 as an
+ * inducement risk (docs/roadmap/ART-RIGHTS.md). Nothing here fetches a picture.
  *
  * PURE ON PURPOSE: no imports, so `npm test` covers the name parsing, which is the fiddly part.
  */
@@ -85,98 +85,3 @@ export function pageSubject(cards: readonly SubjectCard[], title?: string | null
   return { label: '', query: '', basis: 'none' };
 }
 
-/** Places to browse with no subject in mind. The tuned searches above are built per subject. */
-export const ART_BROWSE_SOURCES: { title: string; blurb: string; url: string; dragFriendly: boolean }[] = [
-  {
-    title: 'Art of Pokémon',
-    url: 'https://www.artofpkm.com/artwork/all',
-    blurb: 'Curated official artwork, browsable by artist and era.',
-    dragFriendly: true,
-  },
-  {
-    title: 'Bulbagarden Archives',
-    url: 'https://archives.bulbagarden.net/wiki/Main_Page',
-    blurb: 'The Bulbapedia media library: official art, set logos, and scans for every Pokémon.',
-    dragFriendly: true,
-  },
-  {
-    title: 'Pokémon Center card sleeves',
-    url: 'https://www.pokemoncenter.com/category/card-sleeves',
-    blurb: 'Official sleeve art: ready-made card-shaped designs.',
-    dragFriendly: true,
-  },
-  {
-    title: 'Pinterest',
-    url: 'https://www.pinterest.com/ideas/pokemon-pictures/931192954917/',
-    blurb: 'Broad fan-curated feed. Open a pin full-size before dragging it over.',
-    dragFriendly: false,
-  },
-  {
-    title: 'DeviantArt',
-    url: 'https://www.deviantart.com/search?q=pokemon',
-    blurb: 'Fan art in every style. May block direct loading. Save it, then Upload.',
-    dragFriendly: false,
-  },
-];
-
-export interface ArtSearchLink {
-  title: string;
-  url: string;
-  blurb: string;
-  /** Hosts whose pictures load when dragged straight into the studio; the rest need save + Upload. */
-  dragFriendly: boolean;
-}
-
-/**
- * One search per source, for a query. The same sources the Art sources list offers in general,
- * each opened on its own search for this page's subject, plus two that only make sense with a
- * subject to search for.
- */
-export function artSearchLinks(query: string): ArtSearchLink[] {
-  const q = encodeURIComponent(query.trim());
-  const qp = encodeURIComponent(`pokemon ${query.trim()}`);
-  return [
-    {
-      title: 'Art of Pokémon',
-      url: `https://www.artofpkm.com/artwork/all?q=${q}`,
-      blurb: 'Curated official artwork, with the artist named on every piece.',
-      dragFriendly: true,
-    },
-    {
-      title: 'Bulbagarden Archives',
-      url: `https://archives.bulbagarden.net/w/index.php?search=${q}&title=Special:Search&profile=images&fulltext=1`,
-      blurb: 'Official art and scans, every form and every era.',
-      dragFriendly: true,
-    },
-    {
-      title: 'DeviantArt',
-      url: `https://www.deviantart.com/search?q=${qp}`,
-      blurb: 'Fan art in every style. May block direct loading; save it, then Upload.',
-      dragFriendly: false,
-    },
-    {
-      title: 'Pixiv',
-      url: `https://www.pixiv.net/en/tags/${q}/artworks`,
-      blurb: 'Japanese fan art, tagged by Pokémon. Save it, then Upload.',
-      dragFriendly: false,
-    },
-    {
-      title: 'Bluesky',
-      url: `https://bsky.app/search?q=${qp}`,
-      blurb: 'Artists posting new work daily. Open the post, save the picture, then Upload.',
-      dragFriendly: false,
-    },
-    {
-      title: 'Pinterest',
-      url: `https://www.pinterest.com/search/pins/?q=${qp}`,
-      blurb: 'Broad fan-curated feed. Open a pin full-size before dragging it over.',
-      dragFriendly: false,
-    },
-    {
-      title: 'Google Images, licensed to reuse',
-      url: `https://www.google.com/search?tbm=isch&tbs=il:cl&q=${qp}`,
-      blurb: 'Only pictures marked with a Creative Commons licence.',
-      dragFriendly: false,
-    },
-  ];
-}

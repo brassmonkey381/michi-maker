@@ -7,7 +7,7 @@
  * the search they just ran, or the card they just placed, is what they are thinking about.
  *
  * Two small things live here: the words of a browse query with its operators stripped, and a
- * memory of the last card that landed in a pocket. The sheet that asks (FindArtSheet.useArtLead)
+ * memory of the last card that landed in a pocket. The hook that asks (hooks/use-art-lead.ts useArtLead)
  * reads the kit's live browse query first, this memory second, the page's cards third.
  *
  * PURE except for the one-slot memory, so the parsing is under `npm test`.

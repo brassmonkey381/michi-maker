@@ -183,7 +183,10 @@ export default function NewBinderScreen() {
       setCards([]);
       setPicked([]);
       setSet(null);
-    } else router.back();
+    } else if (router.canGoBack()) router.back();
+    // Arrived by replace (the landing page's Start building): there is no history to go back to,
+    // so Cancel did nothing (owner, 2026-11-05). Home is where a guest without a binder belongs.
+    else router.replace('/');
   };
 
   const gridW = Math.min(width - Spacing.three * 2, 420);

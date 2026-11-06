@@ -71,9 +71,9 @@ test('all three cap messages point an account at PRO, not a sign-in, and say wha
   }
 });
 
-test('free hits the documented 9-page cap, and a legacy account its 16', () => {
-  assert.equal(TIER_LIMITS.free.pagesPerBinder, 9);
-  assert.match(pageLimitMessage('free', TIER_LIMITS.free), /9-page limit/);
+test('free hits the documented 20-page cap, and a legacy account its 16', () => {
+  assert.equal(TIER_LIMITS.free.pagesPerBinder, 20);
+  assert.match(pageLimitMessage('free', TIER_LIMITS.free), /20-page limit/);
   // The message quotes the limits it is HANDED, so an account on the legacy set is told its own cap.
   assert.equal(LEGACY_FREE_LIMITS.pagesPerBinder, 16);
   assert.match(pageLimitMessage('free', LEGACY_FREE_LIMITS), /16-page limit/);

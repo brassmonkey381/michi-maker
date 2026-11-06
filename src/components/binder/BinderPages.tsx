@@ -279,6 +279,8 @@ export interface BinderPagesProps {
    * the other "how this binder shows itself" choices rather than in a page-by-page tools card.
    */
   settingsExtras?: ReactNode;
+  /** This page's tools, first in the sheet (a phone, editing): a row of pills from the caller. */
+  settingsActions?: ReactNode;
   /**
    * EVERYTHING NEEDED TO DRAW THE COVER'S TOOLS SOMEWHERE ELSE — or null when no cover surface is
    * being decorated. Reported after each commit, never during render, because this component
@@ -326,6 +328,7 @@ export function BinderPages({
   settingsOpen = false,
   onCloseSettings,
   settingsExtras,
+  settingsActions,
   onCoverContext,
   view: viewProp,
   dragCol,
@@ -1463,7 +1466,7 @@ export function BinderPages({
               <View style={styles.settingsHead}>
                 {/* "Binder" when the binder's own look is in here (editing); "View" when only how
                     you look at it is. A sheet of zips and sleeves called View said the wrong thing. */}
-                <ThemedText type="subtitle">{settingsExtras ? 'Binder' : 'View'}</ThemedText>
+                <ThemedText type="subtitle">{settingsExtras ? 'Settings' : 'View'}</ThemedText>
                 <Pressable onPress={onCloseSettings} hitSlop={10}>
                   <Text style={styles.fieldsDone}>Done</Text>
                 </Pressable>
@@ -1483,6 +1486,14 @@ export function BinderPages({
         {/* THE BINDER'S LOOK FIRST, in its own groups (Pages, Binder, Pockets), then how YOU view
             it. The view rows are a group of their own with a note, because they are the one thing
             in this sheet that is not saved in the binder and the heading alone could not say so. */}
+        {settingsActions ? (
+          <View style={styles.settingsGroups}>
+            <View style={styles.settingsGroupHead}>
+              <Text style={styles.settingsGroupTitle}>This page</Text>
+            </View>
+            <View style={styles.settingsRowControls}>{settingsActions}</View>
+          </View>
+        ) : null}
         {settingsExtras}
         {toolPills ? <View style={styles.settingsRowControls}>{toolPills}</View> : null}
         <View style={[styles.settingsGroups, settingsExtras ? styles.settingsGroupsAfter : null]}>
@@ -1527,28 +1538,6 @@ export function BinderPages({
               </View>
             </View>
           ) : null}
-
-          {/* THE POCKET BAR'S PLACE (owner, 2026-11-05): over the pocket, under it, or beside it. */}
-          <View style={styles.settingsRow}>
-            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
-              Pocket bar
-            </ThemedText>
-            <View style={styles.settingsRowControls}>
-              {(['over', 'below', 'beside'] as const).map((p) => (
-                <Pressable
-                  key={p}
-                  onPress={() => view.setPref('pocketBar', p)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: view.pocketBar === p }}
-                  testID={`pocket-bar-${p}`}
-                  style={[pillChip.base, view.pocketBar === p && pillChip.active]}>
-                  <Text style={[pillChip.text, view.pocketBar === p && pillChip.textActive]}>
-                    {p === 'over' ? 'Over the card' : p === 'below' ? 'Under the card' : 'Beside the card'}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
 
           {phone ? null : (
           <View style={styles.settingsRow}>

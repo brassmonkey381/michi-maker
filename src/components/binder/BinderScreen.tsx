@@ -41,7 +41,7 @@ import { ShareSheet } from '@/components/binder/ShareSheet';
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { PocketRing, sameRect, type PocketRect } from '@/components/binder/PocketRing';
 import { Spotlight } from '@/components/binder/Spotlight';
-import { PhoneMoreSheet, PhoneToolBar } from '@/components/binder/PhoneToolBar';
+import { PhoneToolBar } from '@/components/binder/PhoneToolBar';
 import { AddArtSheet } from '@/components/binder/AddArtSheet';
 import { SliceStudio, type SliceStudioHandle, type StudioPiece } from '@/components/binder/SliceStudio';
 import { Tipped, ToolTip } from '@/components/binder/ToolTip';
@@ -462,7 +462,6 @@ export function BinderScreen({
   const [artworkOpen, setArtworkOpen] = useState(false);
   // THE PHONE TOOL BAR (owner, 2026-11-05, option C): its More sheet, and its height, which the
   // page's height budget has to leave free.
-  const [moreOpen, setMoreOpen] = useState(false);
   const [phoneBarH, setPhoneBarH] = useState(0);
   const [completeBannerH, setCompleteBannerH] = useState(96);
   /**
@@ -3184,6 +3183,47 @@ export function BinderScreen({
               settingsOpen={settingsOpen}
               onCloseSettings={() => setSettingsOpen(false)}
               settingsExtras={binderLookSettings}
+              // THIS PAGE'S TOOLS, IN THE SETTINGS SHEET ON A PHONE (owner, 2026-11-05: Settings
+              // "will have everything"): what the bar has no room for, one row of pills.
+              settingsActions={
+                phone && editing && canEdit ? (
+                  <>
+                    <Pressable onPress={() => { setSettingsOpen(false); store.redo(); }} disabled={!store.canRedo} accessibilityRole="button" testID="phone-more-redo" style={[pillChip.base, !store.canRedo && styles.pillOff]}>
+                      <Text style={pillChip.text}>↷ Redo</Text>
+                    </Pressable>
+                    <Pressable onPress={() => { setSettingsOpen(false); setArtworkOpen(true); }} accessibilityRole="button" testID="phone-more-art" style={pillChip.base}>
+                      <Text style={pillChip.text}>Your art and inserts</Text>
+                    </Pressable>
+                    {store.userBinders.some((b) => b.id !== binder.id) ? (
+                      <Pressable onPress={() => { setSettingsOpen(false); setSendPageOpen(true); }} accessibilityRole="button" testID="phone-more-send" style={pillChip.base}>
+                        <Text style={pillChip.text}>Send page to another binder</Text>
+                      </Pressable>
+                    ) : null}
+                    {binder.pages.length > 1 ? (
+                      <Pressable
+                        onPress={() => {
+                          setSettingsOpen(false);
+                          setConfirm({
+                            title: 'Delete this page?',
+                            message: 'The page and everything on it will be removed.',
+                            confirmLabel: 'Delete page',
+                            destructive: true,
+                            onConfirm: () => {
+                              const result = store.removePage(binder.id, page.id);
+                              changePage(0);
+                              showToast(parityNote('Page deleted', result?.blanksInserted), true);
+                            },
+                          });
+                        }}
+                        accessibilityRole="button"
+                        testID="phone-more-delete"
+                        style={[pillChip.base, styles.pillDanger]}>
+                        <Text style={[pillChip.text, styles.pillDangerText]}>Delete this page</Text>
+                      </Pressable>
+                    ) : null}
+                  </>
+                ) : null
+              }
               view={view}
               onCoverContext={onCoverContext}
               renderGrid={renderGrid}
@@ -3227,7 +3267,7 @@ export function BinderScreen({
               completeDisabled={!page.slots.some((s) => s.cardId) || page.slots.length >= page.rows * page.cols}
               completeRef={completeRef}
               onArrange={() => setArrangeOpen(true)}
-              onMore={() => setMoreOpen(true)}
+              onSettings={() => setSettingsOpen(true)}
               onLayoutHeight={setPhoneBarH}
             />
           ) : null}
@@ -3818,38 +3858,6 @@ export function BinderScreen({
             <WalkthroughBanner copy={walkthrough.copy} arrowX={ringRect.x + ringRect.width / 2 - ringLeft} onDismiss={walkthrough.dismiss} />
           </View>
         ) : null}
-        <PhoneMoreSheet
-          visible={moreOpen}
-          onClose={() => setMoreOpen(false)}
-          items={[
-            { key: 'redo', glyph: '↷', label: 'Redo', onPress: store.redo, disabled: !store.canRedo },
-            { key: 'art', glyph: '🖼', label: 'Your art and inserts', onPress: () => setArtworkOpen(true) },
-            ...(store.userBinders.some((b) => b.id !== binder.id) ? [{ key: 'send', glyph: '➦', label: 'Send this page to another binder', onPress: () => setSendPageOpen(true) }] : []),
-            { key: 'settings', glyph: '⚙', label: 'How this binder looks', onPress: () => setSettingsOpen(true) },
-            ...(binder.pages.length > 1
-              ? [
-                  {
-                    key: 'delete',
-                    glyph: '✕',
-                    label: 'Delete this page',
-                    danger: true,
-                    onPress: () =>
-                      setConfirm({
-                        title: 'Delete this page?',
-                        message: 'The page and everything on it will be removed.',
-                        confirmLabel: 'Delete page',
-                        destructive: true,
-                        onConfirm: () => {
-                          const result = store.removePage(binder.id, page.id);
-                          changePage(0);
-                          showToast(parityNote('Page deleted', result?.blanksInserted), true);
-                        },
-                      }),
-                  },
-                ]
-              : []),
-          ]}
-        />
         <AuthSheet visible={walkthroughAuthOpen} onClose={() => setWalkthroughAuthOpen(false)} />
         <FirstPageDoneSheet
           visible={doneOpen}
@@ -4384,6 +4392,9 @@ const styles = StyleSheet.create({
   phoneBack: { fontSize: FontSize.h2, lineHeight: 26, paddingRight: 2 },
   phoneUndo: { fontSize: FontSize.h2, lineHeight: 26, color: Palette.ink, paddingHorizontal: 4 },
   phoneUndoOff: { opacity: 0.3 },
+  pillOff: { opacity: 0.35 },
+  pillDanger: { borderColor: Palette.dangerAlt },
+  pillDangerText: { color: Palette.dangerAlt },
   /** In the flow and taking what is left, so it truncates rather than drawing over its neighbours. */
   phoneTitlePress: { flex: 1, minWidth: 0 },
   phoneTitleText: { fontFamily: Fonts?.brand, fontSize: FontSize.lg, lineHeight: 24 },

@@ -16,11 +16,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BinderCoverSheet } from '@/components/binder/BinderCoverSheet';
 import { SoundtrackField } from '@/components/binder/SoundtrackField';
-import { Group, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
+import { GroupSummary, Group, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
 import { MatPanel } from '@/components/binder/inspector/MatPanel';
 import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { BinderTrack, DemoBinder, DemoPage } from '@/data/binderTypes';
-import { BINDER_PRESETS } from '@/data/binderPresets';
+import { BINDER_PRESETS, binderPreset } from '@/data/binderPresets';
 import { coverForPreset, coverLabel } from '@/data/presetCovers';
 import { reflowSummary } from '@/data/pageReflow';
 import { Palette } from '@/constants/theme';
@@ -119,7 +119,7 @@ export function BinderLook({
     <View style={styles.groups}>
       {/* THREE GROUPS, BY WHAT THEY ARE MADE OF (owner, 2026-09-15): the pages, the binder round
           them, and the pockets on them. One column of nine rows said none of that. */}
-      <Group title="Pages" testID="binder-group-pages">
+      <Group title="Pages" testID="binder-group-pages" summary={<GroupSummary swatch={page.backgroundColor ?? '#FFFFFF'} text={sizeId} />}>
         <Row label="Page size">
           <Seg
             options={PAGE_SIZE_OPTIONS}
@@ -162,6 +162,7 @@ export function BinderLook({
       <Group
         title={binderLocked ? 'Binder · PRO' : 'Binder'}
         note={binderLocked ? 'Named binders, hardware and covers come with PRO.' : undefined}
+        summary={<GroupSummary swatch={binderPreset(ps?.binder)?.cloth ?? null} text={binderPreset(ps?.binder)?.label ?? 'Plain'} />}
         testID="binder-group-binder">
         {/* THE NAMED BINDERS (owner, 2026-09-15): one tap sets the cloth, the zip and the spine
             together, and fixes the zip's colours to the binder's own (the gold one). The rows
@@ -251,7 +252,11 @@ export function BinderLook({
           onClose={() => setCoverOpen(false)}
         />
       ) : null}
-      <Group title="Pockets" note="What every page's pockets wear unless a page or pocket says otherwise." testID="binder-group-pockets">
+      <Group
+        title="Pockets"
+        note="What every page's pockets wear unless a page or pocket says otherwise."
+        summary={<GroupSummary swatch={ps?.sleeve && ps.sleeve !== WEAR_NONE ? ps.sleeve : null} text={ps?.sleeve && ps.sleeve !== WEAR_NONE ? 'Sleeves' : 'No sleeves'} />}
+        testID="binder-group-pockets">
         <WearRow
           label="Sleeves"
           fieldKey={`${binder.id}-sleeve`}
@@ -305,7 +310,7 @@ export function BinderLook({
         </Group>
       ) : null}
       {/* ONE TRACK PER BINDER (owner, 2026-10-14). It plays from the first page to the last. */}
-      <Group title="Soundtrack" note="Plays while anyone has this binder open." testID="binder-group-soundtrack">
+      <Group title="Soundtrack" note="Plays while anyone has this binder open." summary={<GroupSummary text={binder.track ? `♪ ${binder.track.name}` : 'None'} />} testID="binder-group-soundtrack">
         <SoundtrackField
           label="Track"
           track={binder.track}

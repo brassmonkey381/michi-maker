@@ -86,7 +86,7 @@ export const VIEW_PREF_DEFAULTS: ViewPrefs = {
   scans: false,
   doubleSided: true,
   navDock: 'left',
-  pocketBar: 'over',
+  pocketBar: 'beside',
   trayLarge: false,
   cardsDockPct: 0,
   artDockPct: 0,
@@ -152,7 +152,9 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
     // An enum, not a boolean: anything that is not one of the two known values is not an answer.
     navDock:
       raw.navDock === 'left' || raw.navDock === 'bottom' ? raw.navDock : VIEW_PREF_DEFAULTS.navDock,
-    pocketBar: POCKET_BAR_PLACEMENTS.includes(raw.pocketBar as PocketBarPlacement) ? (raw.pocketBar as PocketBarPlacement) : VIEW_PREF_DEFAULTS.pocketBar,
+    // BESIDE, FOR EVERYONE (owner, 2026-11-05: "make beside the default and remove the option
+    // picker"): with no picker, a value stored by the old one no longer counts.
+    pocketBar: VIEW_PREF_DEFAULTS.pocketBar,
     trayLarge: flag('trayLarge'),
     cardsDockPct: pct('cardsDockPct'),
     artDockPct: pct('artDockPct'),

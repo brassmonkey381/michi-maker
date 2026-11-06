@@ -4,8 +4,9 @@
  * binder wizard"). Three screens, one question each, one button at the foot:
  *
  *   1. What kind of binder?   One Pokémon · One set · One artist · Three cards I like
- *   2. Which one?             a search box, or the set list; the count updates as they type
- *   3. Preview                page one drawn, the count, Create binder
+ *   2. Which one?             a search box, or the set list; the count updates as they type,
+ *                             and Create binder is the foot of the same screen (owner,
+ *                             2026-11-05: no preview step)
  *
  * The cards come from the same anonymous questions guest fill asks the data server (cards by a
  * filter on the public columns, cards of a set, cards by id), so a guest gets a full binder with
@@ -16,11 +17,10 @@
  */
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { fetchSetCards, getApiKey, getApiUrl, type CatalogCard } from 'tcgscan-browse';
 
-import { BinderGrid } from '@/components/binder/BinderGrid';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -100,7 +100,6 @@ export default function NewBinderScreen() {
   const [sets, setSets] = useState<SetMeta[]>([]);
   const [set, setSet] = useState<SetMeta | null>(null);
   const [loading, setLoading] = useState(false);
-  const [preview, setPreview] = useState(false);
   const [refused, setRefused] = useState(false);
   // THE THREE PICKS COME FROM THE KIT'S BROWSER (owner, 2026-11-05: "use the browse kit to find
   // the cards. its so much more user friendly"): the same browser as a pocket's Add, its ＋ pill
@@ -160,8 +159,6 @@ export default function NewBinderScreen() {
   const pageCap = store.limits.pagesPerBinder;
   const cardCap = pageCap * 9;
   const capped = chosen.slice(0, cardCap);
-  const pageCount = Math.max(1, Math.ceil(capped.length / 9));
-  const previewPage = useMemo(() => pagesForCards(capped.slice(0, 9).map((c) => c.id))[0], [capped]);
   const title =
     kind === 'set' ? (set?.name ?? 'New binder') : kind === 'three' ? 'My picks' : query.trim() ? query.trim().replace(/^\w/, (ch) => ch.toUpperCase()) : 'New binder';
   const ready = kind === 'three' ? picked.length === 3 : capped.length > 0;
@@ -178,10 +175,9 @@ export default function NewBinderScreen() {
     router.replace(`/binder/${made.id}?edit=1${kind === 'three' ? '&seeded=1' : ''}` as Href);
   };
 
-  const step = preview ? 3 : kind ? 2 : 1;
+  const step = kind ? 2 : 1;
   const back = () => {
-    if (preview) setPreview(false);
-    else if (kind) {
+    if (kind) {
       setKind(null);
       setQuery('');
       setCards([]);
@@ -199,7 +195,7 @@ export default function NewBinderScreen() {
         <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel={step === 1 ? 'Cancel' : 'Back'} testID="wizard-back">
           <Text style={styles.topLink}>{step === 1 ? 'Cancel' : '‹ Back'}</Text>
         </Pressable>
-        <Text style={styles.stepText}>STEP {step} / 3</Text>
+        <Text style={styles.stepText}>STEP {step} / 2</Text>
       </View>
 
       {step === 1 ? (
@@ -345,19 +341,8 @@ export default function NewBinderScreen() {
         </View>
       ) : null}
 
-      {step === 3 && kind ? (
-        <View style={styles.body}>
-          <ThemedText type="title" style={styles.h1}>
-            {title}
-          </ThemedText>
-          <Text style={styles.countLine}>
-            {capped.length} cards · {pageCount} {pageCount === 1 ? 'page' : 'pages'}
-            {chosen.length > capped.length ? ` · the first ${cardCap}; a free account holds more` : ''}
-          </Text>
-          <View style={styles.previewWrap}>
-            <BinderGrid page={previewPage} width={gridW} />
-          </View>
-          {pageCount > 1 ? <Text style={styles.pageLine}>page 1 of {pageCount}</Text> : null}
+      {step > 1 ? (
+        <View style={styles.foot}>
           {refused ? (
             <View style={styles.refused}>
               <Text style={styles.refusedText}>You already have a binder. Open it, or make room for another with a free account.</Text>
@@ -366,24 +351,15 @@ export default function NewBinderScreen() {
               </Pressable>
             </View>
           ) : null}
-        </View>
-      ) : null}
-
-      {step > 1 ? (
-        <View style={styles.foot}>
+          {chosen.length > capped.length ? <Text style={styles.capLine}>The first {cardCap} cards go in. A free account holds more.</Text> : null}
           <Pressable
-            onPress={() => {
-              if (step === 2) {
-                track('wizard.preview', { wizard: 'new-binder', kind, cards: capped.length });
-                setPreview(true);
-              } else create();
-            }}
+            onPress={create}
             disabled={!ready || loading}
             accessibilityRole="button"
             accessibilityState={{ disabled: !ready || loading }}
-            testID={step === 2 ? 'wizard-preview' : 'wizard-create'}
+            testID="wizard-create"
             style={({ pressed }) => [styles.primary, (!ready || loading) && styles.primaryOff, pressed && styles.pressed]}>
-            <Text style={styles.primaryText}>{step === 2 ? 'Preview binder' : `Create binder · ${capped.length} ${capped.length === 1 ? 'card' : 'cards'}`}</Text>
+            <Text style={styles.primaryText}>{ready ? `Create binder · ${capped.length} ${capped.length === 1 ? 'card' : 'cards'}` : 'Create binder'}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -451,7 +427,8 @@ const styles = StyleSheet.create({
   refusedText: { fontSize: FontSize.body, color: Palette.ink2, lineHeight: 20 },
   secondary: { alignSelf: 'flex-start', paddingVertical: 10, paddingHorizontal: 16, borderRadius: Radius.pill, borderWidth: 1.5, borderColor: Palette.accent },
   secondaryText: { color: Palette.accent, fontWeight: Weight.bold },
-  foot: { padding: Spacing.three, paddingBottom: Spacing.four },
+  foot: { padding: Spacing.three, paddingBottom: Spacing.four, gap: Spacing.two },
+  capLine: { fontSize: FontSize.sm, color: Palette.muted, textAlign: 'center' },
   primary: { height: 50, borderRadius: Radius.control, backgroundColor: Palette.accent, alignItems: 'center', justifyContent: 'center' },
   primaryOff: { opacity: 0.4 },
   primaryText: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.accentText },

@@ -82,8 +82,9 @@ test('a paid entitlement is what actually unlocks it', () => {
 
 test('the 2026-09 rework: new Free, legacy Free, unlimited PRO, prints in no plan', () => {
   assert.deepEqual(
+    // 20 pages since 2026-11-05 (the new-binder wizard); 9 from the 2026-09 rework.
     [TIER_LIMITS.free.binders, TIER_LIMITS.free.pagesPerBinder, TIER_LIMITS.free.artUploads],
-    [2, 9, 25],
+    [2, 20, 25],
   );
   assert.deepEqual(
     [LEGACY_FREE_LIMITS.binders, LEGACY_FREE_LIMITS.pagesPerBinder, LEGACY_FREE_LIMITS.artUploads],

@@ -27,15 +27,62 @@ import { useTheme } from '@/hooks/use-theme';
  * optional note for the one thing a heading cannot say (that the view rows are yours, not the
  * binder's).
  */
-export function Group({ title, note, children, testID }: { title: string; note?: string; children: React.ReactNode; testID?: string }) {
+export function Group({
+  title,
+  note,
+  children,
+  testID,
+  summary,
+  defaultOpen = false,
+}: {
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+  testID?: string;
+  /**
+   * FOLDED BY DEFAULT, WITH A GLIMPSE (owner, 2026-11-05: "every thing involving a picker needs
+   * to be collapsable, collapsed by default ... showing just a small image / ui element next to
+   * it"). The summary is that glimpse: a swatch, the chosen name, the track; it sits beside the
+   * title while the group is folded and gives way to the note when it is open.
+   */
+  summary?: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <View style={styles.group} testID={testID}>
-      <View style={styles.groupHead}>
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`${title}: ${open ? 'fold' : 'open'}`}
+        testID={testID ? `${testID}-head` : undefined}
+        style={styles.groupHead}>
         <Text style={styles.groupTitle}>{title}</Text>
-        {note ? <Text style={styles.groupNote}>{note}</Text> : null}
-      </View>
-      <View style={styles.section}>{children}</View>
+        {open ? (note ? <Text style={styles.groupNote}>{note}</Text> : null) : summary ? <View style={styles.groupSummary}>{summary}</View> : null}
+        <Text style={styles.groupChevron}>{open ? '▾' : '▸'}</Text>
+      </Pressable>
+      {open ? <View style={styles.section}>{children}</View> : null}
     </View>
+  );
+}
+
+/** The glimpse a folded group shows: a swatch (a colour, a picture, or nothing) and a few words. */
+export function GroupSummary({ swatch, text }: { swatch?: string | null; text?: string }) {
+  const picture = isImageRef(swatch) ? swatch : undefined;
+  return (
+    <>
+      {swatch === undefined ? null : picture ? (
+        <Image source={{ uri: picture }} style={styles.swatch} contentFit="cover" />
+      ) : (
+        <View style={[styles.swatch, { backgroundColor: swatch ?? 'transparent' }]} />
+      )}
+      {text ? (
+        <Text style={styles.summaryText} numberOfLines={1}>
+          {text}
+        </Text>
+      ) : null}
+    </>
   );
 }
 
@@ -340,6 +387,10 @@ export const styles = StyleSheet.create({
   group: { alignSelf: 'stretch', gap: 8, paddingTop: 10, paddingBottom: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Palette.hairline },
   groupHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8 },
   groupTitle: { fontSize: FontSize.xs, fontWeight: Weight.semibold, textTransform: 'uppercase', letterSpacing: 0.6, color: Palette.muted },
+  groupChevron: { marginLeft: 'auto', fontSize: 14, color: Palette.muted },
+  groupSummary: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, minWidth: 0 },
+  summaryText: { fontSize: FontSize.sm, color: Palette.ink2 },
+  swatch: { width: 16, height: 16, borderRadius: 4, borderWidth: 1, borderColor: Palette.hairlineStrong },
   groupNote: { fontSize: FontSize.xs, color: Palette.muted },
   inlineRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   /** A fixed column, so every row's first control starts at the same x whatever its name's length. */

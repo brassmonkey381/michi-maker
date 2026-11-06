@@ -9,6 +9,7 @@
  */
 import { Link, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { pageSide } from '@/data/binderPhysics';
+import { TIER_LIMITS } from '@/data/tiers';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -415,7 +416,7 @@ function Viewer({
                 const n = binder.pages.length;
                 setCopyHint(
                   result.refused === 'pages'
-                    ? `This binder has ${n} pages. ${store.tier === 'guest' ? 'Guests get 6 per binder; a free account gets 16.' : `Your plan allows ${store.limits.pagesPerBinder} per binder.`}`
+                    ? `This binder has ${n} pages. ${store.tier === 'guest' ? `Guests get ${store.limits.pagesPerBinder} per binder; a free account gets ${TIER_LIMITS.free.pagesPerBinder}.` : `Your plan allows ${store.limits.pagesPerBinder} per binder.`}`
                     : result.refused === 'binders'
                       ? 'You are at your binder limit, so there is no room for a copy.'
                       : result.refused === 'save'

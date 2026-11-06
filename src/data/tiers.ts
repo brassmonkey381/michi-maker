@@ -194,10 +194,11 @@ export interface TierLimits {
 export const TIER_LIMITS: Record<Tier, TierLimits> = {
   // Guest is NOT an advertised plan — a taste before the sign-in prompt (SignInPerk, not
   // UpgradePerk): 1 binder, 6 pages (3 double-sided sheets), 10 artworks (owner set 2026-07-17).
-  // 3 pages since 2026-10-30 (owner: "make guests 3 pages binder cap"); 6 before.
+  // 9 pages since 2026-11-05 (owner, with the new-binder wizard: a one-Pokémon binder needs the
+  // room); 3 from 2026-10-30, 6 before that.
   guest: {
     binders: 1,
-    pagesPerBinder: 3,
+    pagesPerBinder: 9,
     composerPagesPerMonth: 0,
     artUploads: 10,
     fullPrint: false,
@@ -217,7 +218,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
   // cutover read LEGACY_FREE_LIMITS below and keep what they signed up under.
   free: {
     binders: 2,
-    pagesPerBinder: 9,
+    pagesPerBinder: 20,
     composerPagesPerMonth: Infinity,
     artUploads: 25,
     fullPrint: false,

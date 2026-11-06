@@ -8,13 +8,14 @@
  *   Select   multi-select, the way Similar is searched over one or several cards.
  *   Complete the raised one: fills the empty pockets from what the page holds.
  *   Arrange  the cards this page has, seated several ways.
- *   More     redo, your art tray, send or delete the page, view settings.
+ *   Settings everything else: this page's tools (redo, your art, send, delete) and how the
+ *            binder looks, in one sheet (owner, 2026-11-05: "replace More with Settings").
  *
  * No "+ Page" here: a turn past the last page grows the binder (BinderPages' step), as long as
  * that page holds something.
  */
 import { forwardRef } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontSize, Palette, Radius, Shadows, Weight } from '@/constants/theme';
@@ -27,7 +28,7 @@ export function PhoneToolBar({
   completeDisabled,
   completeRef,
   onArrange,
-  onMore,
+  onSettings,
   onLayoutHeight,
 }: {
   onAdd: () => void;
@@ -38,7 +39,7 @@ export function PhoneToolBar({
   /** The seeded walkthrough measures Complete through this (BinderScreen's completeRef). */
   completeRef: React.RefObject<View | null>;
   onArrange: () => void;
-  onMore: () => void;
+  onSettings: () => void;
   onLayoutHeight: (h: number) => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -65,7 +66,7 @@ export function PhoneToolBar({
         <Text style={[styles.word, styles.wordHot]}>Complete</Text>
       </View>
       <Tab glyph="☷" word="Arrange" label="Arrange the cards on this page" onPress={onArrange} testID="tool-arrange" />
-      <Tab glyph="⋯" word="More" label="More: redo, your art, this page, settings" onPress={onMore} testID="phone-tab-more" />
+      <Tab glyph="⚙" word="Settings" label="Settings: this page's tools and how the binder looks" onPress={onSettings} testID="binder-settings-btn" />
     </View>
   );
 }
@@ -91,44 +92,6 @@ const Tab = forwardRef<View, { glyph: string; word: string; label: string; on?: 
     </Pressable>
   );
 });
-
-/** What "More" holds: one row per action, the destructive one last and red. */
-export function PhoneMoreSheet({
-  visible,
-  onClose,
-  items,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  items: { key: string; label: string; glyph: string; onPress: () => void; disabled?: boolean; danger?: boolean }[];
-}) {
-  const insets = useSafeAreaInsets();
-  if (!visible) return null;
-  return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
-      <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]} testID="phone-more-sheet">
-        <View style={styles.grab} />
-        {items.map((it) => (
-          <Pressable
-            key={it.key}
-            onPress={() => {
-              onClose();
-              it.onPress();
-            }}
-            disabled={it.disabled}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: it.disabled }}
-            testID={`phone-more-${it.key}`}
-            style={({ pressed }) => [styles.row, pressed && styles.pressed, it.disabled && styles.rowOff]}>
-            <Text style={[styles.rowGlyph, it.danger && styles.danger]}>{it.glyph}</Text>
-            <Text style={[styles.rowText, it.danger && styles.danger]}>{it.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </Modal>
-  );
-}
 
 const styles = StyleSheet.create({
   bar: {
@@ -162,18 +125,4 @@ const styles = StyleSheet.create({
   raisedOff: { opacity: 0.35 },
   raisedGlyph: { fontSize: 24, lineHeight: 28, color: Palette.accentText },
   pressed: { opacity: 0.6 },
-  scrim: { flex: 1, backgroundColor: 'rgba(20, 18, 24, 0.4)' },
-  sheet: {
-    backgroundColor: Palette.surface,
-    borderTopLeftRadius: Radius.panel,
-    borderTopRightRadius: Radius.panel,
-    paddingTop: 8,
-    paddingHorizontal: 12,
-  },
-  grab: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: Palette.hairlineStrong, marginBottom: 6 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 6 },
-  rowOff: { opacity: 0.35 },
-  rowGlyph: { width: 24, textAlign: 'center', fontSize: FontSize.md, color: Palette.ink },
-  rowText: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.ink },
-  danger: { color: Palette.dangerAlt },
 });

@@ -3263,6 +3263,8 @@ export function BinderScreen({
                 setSelectedSlotId(null);
               }}
               selectOn={selectMode}
+              selectCount={multiIds.size}
+              onSelectActions={() => setMultiActionsOpen(true)}
               onComplete={() => setCompleteOpen(true)}
               completeDisabled={!page.slots.some((s) => s.cardId) || page.slots.length >= page.rows * page.cols}
               completeRef={completeRef}

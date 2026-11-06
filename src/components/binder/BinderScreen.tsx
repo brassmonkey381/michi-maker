@@ -778,9 +778,9 @@ export function BinderScreen({
   const onWalkthroughEnded = useCallback(
     (via: string, last: string | null) => {
       if (!seeded) return;
-      // A card of their own landed in the search step, or (the wizard's binder, which has no
-      // search step) the payoff card was crossed or an account made on it.
-      if (via === 'placed' || (seeded === 'wizard' && last === 'filled')) setTimeout(() => setDoneOpen(true), 900);
+      // The payoff card was crossed or an account made on it (owner, 2026-11-06: every seeded
+      // arrival ends at step two, the ad's included); 'placed' is kept for an old session mid-search.
+      if (via === 'placed' || last === 'filled') setTimeout(() => setDoneOpen(true), 900);
     },
     [seeded],
   );
@@ -798,7 +798,8 @@ export function BinderScreen({
     completed: fillPlaced,
     pageFull: wtPageFull,
     cardCount,
-    searchStep: seeded !== 'wizard',
+    // No search step for any seeded arrival (owner, 2026-11-06): two steps, then the celebration.
+    searchStep: false,
     onEnded: onWalkthroughEnded,
   });
   /**
@@ -3946,7 +3947,7 @@ export function BinderScreen({
           visible={doneOpen}
           cardIds={binder.pages.flatMap((p) => p.slots.flatMap((s) => (s.cardId ? [s.cardId] : []))).slice(0, 6)}
           guest={!!user?.is_anonymous}
-          ownCard={seeded !== 'wizard'}
+          ownCard={false}
           onAccount={() => {
             setDoneOpen(false);
             setWalkthroughAuthOpen(true);

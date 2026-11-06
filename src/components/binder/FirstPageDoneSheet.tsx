@@ -68,7 +68,7 @@ export function FirstPageDoneSheet({
         <Text style={styles.lead}>
           {ownCard
             ? 'You started with three cards, filled the page, and added one yourself. That is how every page here gets made. Things to try next:'
-            : 'You picked three cards and filled the page around them. That is how every page here gets made. Things to try next:'}
+            : 'You started with three cards and filled the page around them. That is how every page here gets made. Things to try next:'}
         </Text>
         <View style={styles.list}>
           {NEXT.map((n, i) => (

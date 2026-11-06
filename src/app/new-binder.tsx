@@ -21,6 +21,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { fetchSetCards, getApiKey, getApiUrl, type CatalogCard } from 'tcgscan-browse';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
+import { CardBrowse } from '@/components/binder/CardBrowse';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -31,6 +32,7 @@ import { fetchCardsWhere } from '@/data/guestFill';
 import { where } from '@/data/guestFillQuery';
 import { track } from '@/lib/analytics';
 import { cardThumbUrl } from '@/lib/catalogConfig';
+import { useCatalog } from '@/hooks/use-catalog';
 import { useBinders } from '@/store/binders';
 
 type Kind = 'pokemon' | 'set' | 'artist' | 'three';
@@ -74,10 +76,9 @@ const KINDS: { key: Kind; title: string; body: string; note?: string }[] = [
   { key: 'three', title: 'Three cards I like', body: 'Pick three. Complete fills the page to match them, and you take it from there.' },
 ];
 
-const PLACEHOLDER: Record<Exclude<Kind, 'set'>, string> = {
+const PLACEHOLDER: Record<Exclude<Kind, 'set' | 'three'>, string> = {
   pokemon: 'Pikachu, Charizard, Eevee…',
   artist: 'Mitsuhiro Arita, Kagemaru Himeno…',
-  three: 'Search a card by name',
 };
 
 /** The question the second screen asks, by kind. */
@@ -101,6 +102,10 @@ export default function NewBinderScreen() {
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState(false);
   const [refused, setRefused] = useState(false);
+  // THE THREE PICKS COME FROM THE KIT'S BROWSER (owner, 2026-11-05: "use the browse kit to find
+  // the cards. its so much more user friendly"): the same browser as a pocket's Add, its ＋ pill
+  // picking a card, up to three.
+  const { catalog } = useCatalog(kind === 'three');
 
   const shown = useRef(false);
   useEffect(() => {
@@ -121,7 +126,7 @@ export default function NewBinderScreen() {
 
   // The search, debounced: cards by name, by illustrator, or by name for the three picks.
   useEffect(() => {
-    if (!kind || kind === 'set') return;
+    if (!kind || kind === 'set' || kind === 'three') return;
     const q = query.trim();
     if (q.length < 2) return;
     let live = true;
@@ -234,7 +239,34 @@ export default function NewBinderScreen() {
           <ThemedText type="title" style={styles.h1}>
             {ASK[kind]}
           </ThemedText>
-          {kind === 'set' ? (
+          {kind === 'three' ? (
+            <>
+              <Text style={styles.countLine}>{picked.length === 3 ? 'Three picked. Swap one by tapping it below, or go on.' : `Press ＋ on a card to pick it · ${picked.length} of 3`}</Text>
+              {picked.length ? (
+                <View style={styles.picks}>
+                  {picked.map((c) => (
+                    <Pressable key={c.id} onPress={() => setPicked((p) => p.filter((x) => x.id !== c.id))} accessibilityRole="button" accessibilityLabel={`Remove ${c.name}`}>
+                      <Image source={{ uri: cardThumbUrl(c.id, 'full') }} style={styles.pickThumb} contentFit="cover" />
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+              <View style={styles.browse} testID="wizard-browse">
+                <CardBrowse
+                  catalog={catalog}
+                  onPickCard={(_id, card) => {
+                    if (!card) return;
+                    setPicked((p) => (p.some((x) => x.id === card.id) ? p.filter((x) => x.id !== card.id) : p.length < 3 ? [...p, card] : p));
+                  }}
+                  quickAction={(card) => ({
+                    key: 'wizard-pick',
+                    label: picked.some((x) => x.id === card.id) ? '✓' : '＋',
+                    onPress: (c) => setPicked((p) => (p.some((x) => x.id === c.id) ? p.filter((x) => x.id !== c.id) : p.length < 3 ? [...p, c] : p)),
+                  })}
+                />
+              </View>
+            </>
+          ) : kind === 'set' ? (
             <>
               <TextInput
                 value={query}
@@ -294,46 +326,18 @@ export default function NewBinderScreen() {
                 {loading
                   ? 'Searching…'
                   : query.trim().length < 2
-                    ? kind === 'three'
-                      ? 'Type a name to see its cards. Tap three.'
-                      : 'Type a name to see every printing across all sets.'
+                    ? 'Type a name to see every printing across all sets.'
                     : found.length
-                      ? kind === 'three'
-                        ? `${found.length} cards · ${picked.length} of 3 picked`
-                        : `${found.length} cards · ${Math.max(1, Math.ceil(found.length / 9))} pages`
+                      ? `${found.length} cards · ${Math.max(1, Math.ceil(found.length / 9))} pages`
                       : 'Nothing found. Try another spelling.'}
               </Text>
-              {kind === 'three' && picked.length ? (
-                <View style={styles.picks}>
-                  {picked.map((c) => (
-                    <Pressable key={c.id} onPress={() => setPicked((p) => p.filter((x) => x.id !== c.id))} accessibilityRole="button" accessibilityLabel={`Remove ${c.name}`}>
-                      <Image source={{ uri: cardThumbUrl(c.id, 'full') }} style={styles.pickThumb} contentFit="cover" />
-                    </Pressable>
-                  ))}
-                </View>
-              ) : null}
               <ScrollView style={styles.results} keyboardShouldPersistTaps="handled">
                 <View style={styles.grid}>
-                  {found.slice(0, 60).map((c) => {
-                    const on = picked.some((p) => p.id === c.id);
-                    return (
-                      <Pressable
-                        key={c.id}
-                        disabled={kind !== 'three'}
-                        onPress={() => setPicked((p) => (on ? p.filter((x) => x.id !== c.id) : p.length < 3 ? [...p, c] : p))}
-                        accessibilityRole={kind === 'three' ? 'button' : undefined}
-                        accessibilityState={kind === 'three' ? { selected: on } : undefined}
-                        testID={`wizard-card-${c.id}`}
-                        style={[styles.tile, { width: (gridW - 16) / 3 }, on && styles.tileOn]}>
-                        <Image source={{ uri: cardThumbUrl(c.id, 'full') }} style={styles.tileImg} contentFit="cover" />
-                        {on ? (
-                          <View style={styles.tick}>
-                            <Text style={styles.tickText}>✓</Text>
-                          </View>
-                        ) : null}
-                      </Pressable>
-                    );
-                  })}
+                  {found.slice(0, 60).map((c) => (
+                    <View key={c.id} testID={`wizard-card-${c.id}`} style={[styles.tile, { width: (gridW - 16) / 3 }]}>
+                      <Image source={{ uri: cardThumbUrl(c.id, 'full') }} style={styles.tileImg} contentFit="cover" />
+                    </View>
+                  ))}
                 </View>
               </ScrollView>
             </>
@@ -424,6 +428,7 @@ const styles = StyleSheet.create({
   picks: { flexDirection: 'row', gap: 8 },
   pickThumb: { width: 54, height: 75, borderRadius: 6, borderWidth: 2, borderColor: Palette.accent },
   results: { flex: 1, minHeight: 200 },
+  browse: { flex: 1, minHeight: 320, marginHorizontal: -Spacing.three },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 100 },
   tile: { aspectRatio: 63 / 88, borderRadius: 8, overflow: 'hidden', backgroundColor: Palette.panel },
   tileOn: { borderWidth: 3, borderColor: Palette.accent },

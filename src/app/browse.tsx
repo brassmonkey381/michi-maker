@@ -10,7 +10,7 @@
  * the pending command lands the moment this page's CatalogBrowser subscribes.
  */
 import { useRouter, type Href } from 'expo-router';
-import { affiliateConfigured, productUrl, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
+import { affiliateConfigured, productUrl, type CardAction, type CardActionsFactory, getPriceSummary } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -129,7 +129,16 @@ export default function BrowseScreen() {
       onPress: (c) => {
         void (async () => {
           try {
-            const blob = await buildCardImage({ cardId: c.id, name: c.name, caption: `${c.setName} · ${c.number}`, mat: BinderSurface.mat });
+            const prices = await getPriceSummary().catch(() => ({}) as Record<string, { cur: number }>);
+            const blob = await buildCardImage({
+              cardId: c.id,
+              name: c.name,
+              caption: `${c.setName} · ${c.number}`,
+              illustrator: c.illustrator || undefined,
+              price: prices[c.id]?.cur ?? null,
+              date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              mat: BinderSurface.mat,
+            });
             const out = await sharePageImage(blob, pageImageFileName(c.name, 0).replace(/-page-0/, ''), `${c.name} · https://michi-maker.com`);
             track('card.picture', { via: out, surface: 'browse' });
             if (out === 'copied') showToast('Picture copied. Paste it anywhere.');

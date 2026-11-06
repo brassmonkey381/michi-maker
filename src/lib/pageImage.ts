@@ -191,14 +191,25 @@ export async function buildPageImage(input: PageImageInput): Promise<Blob> {
  * ONE CARD AS A PICTURE (owner, 2026-11-06: "sharing cards from the browser"): the card at full
  * resolution on a mat with a caption (name · set) and the same stamp. 1200px wide.
  */
-export async function buildCardImage(input: { cardId: string; name: string; caption?: string; mat: string }): Promise<Blob> {
+export async function buildCardImage(input: {
+  cardId: string;
+  name: string;
+  /** The set and number, under the name. */
+  caption?: string;
+  /** Bold, under the caption, when the data has it (owner, 2026-11-06). */
+  illustrator?: string;
+  /** Beside the name, with today's date under it: a price is a snapshot. USD. */
+  price?: number | null;
+  date?: string;
+  mat: string;
+}): Promise<Blob> {
   if (Platform.OS !== 'web' || typeof document === 'undefined') throw new Error('The card picture is drawn in a browser.');
   const bmp = await bitmapOf(cardThumbUrl(input.cardId, 'full'));
   if (!bmp) throw new Error('The card picture did not load.');
   const cardW = 1000;
   const cardH = Math.round(cardW * CARD_ASPECT);
   const pad = 100;
-  const capH = input.caption || input.name ? 110 : 0;
+  const capH = input.caption || input.name ? (input.illustrator ? 150 : 110) : 0;
   const W = cardW + pad * 2;
   const H = cardH + pad * 2 + capH;
   const canvas = document.createElement('canvas');
@@ -226,15 +237,36 @@ export async function buildCardImage(input: { cardId: string; name: string; capt
   const ink = dark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)';
   const muted = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)';
   if (capH) {
-    ctx.textAlign = 'left';
+    const top = pad + cardH;
     ctx.textBaseline = 'alphabetic';
+    // The price, right of the name on the same line; today's date under it, where the set line is.
+    let priceW = 0;
+    if (typeof input.price === 'number' && input.price > 0) {
+      const text = `$${input.price.toFixed(2)}`;
+      ctx.textAlign = 'right';
+      ctx.fillStyle = ink;
+      ctx.font = `700 40px "Segoe UI", -apple-system, Arial, sans-serif`;
+      ctx.fillText(text, W - pad, top + 58);
+      priceW = ctx.measureText(text).width + 40;
+      if (input.date) {
+        ctx.fillStyle = muted;
+        ctx.font = `500 26px "Segoe UI", -apple-system, Arial, sans-serif`;
+        ctx.fillText(input.date, W - pad, top + 98);
+      }
+    }
+    ctx.textAlign = 'left';
     ctx.fillStyle = ink;
     ctx.font = `700 40px "Segoe UI", -apple-system, Arial, sans-serif`;
-    ctx.fillText(input.name, pad, pad + cardH + 58, W - pad * 2 - 360);
+    ctx.fillText(input.name, pad, top + 58, W - pad * 2 - priceW);
     if (input.caption) {
       ctx.fillStyle = muted;
       ctx.font = `500 28px "Segoe UI", -apple-system, Arial, sans-serif`;
-      ctx.fillText(input.caption, pad, pad + cardH + 98, W - pad * 2 - 360);
+      ctx.fillText(input.caption, pad, top + 98, W - pad * 2 - priceW);
+    }
+    if (input.illustrator) {
+      ctx.fillStyle = ink;
+      ctx.font = `700 28px "Segoe UI", -apple-system, Arial, sans-serif`;
+      ctx.fillText(`Illus. ${input.illustrator}`, pad, top + 138, W - pad * 2 - 360);
     }
   }
   const stampH = 48;

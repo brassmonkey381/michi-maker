@@ -208,20 +208,22 @@ export async function buildCardImage(input: {
   if (!bmp) throw new Error('The card picture did not load.');
   const cardW = 1000;
   const cardH = Math.round(cardW * CARD_ASPECT);
-  const pad = 100;
+  // A slim mat around the card (owner, 2026-11-06: the card takes the room); the band's text sits
+  // further in than the card's edge.
+  const pad = 36;
+  const inset = 64;
   // THE FOOTER IS A GRID (owner, 2026-11-06): three rows on shared baselines, two columns. Left:
   // name, set · number, illustrator. Right: price, date, and the stamp on the third row. The
   // rows are ROW apart and the whole block sits a pad above the bottom edge, like the card above.
   const ROW = 44;
   const capH = ROW * 3;
   const W = cardW + pad * 2;
-  const H = pad + cardH + Math.round(pad * 0.6) + capH + Math.round(pad * 0.7);
+  const H = pad + cardH + pad + 48 + capH + 36;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('This browser gave no 2D canvas.');
-  const dark = isDark(input.mat);
   ctx.fillStyle = input.mat;
   ctx.fillRect(0, 0, W, H);
   ctx.save();
@@ -238,11 +240,16 @@ export async function buildCardImage(input: {
   ctx.drawImage(bmp, pad, pad, cardW, cardH);
   ctx.restore();
   bmp.close();
-  const ink = dark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)';
-  const muted = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)';
-  const left = pad;
-  const right = W - pad;
-  const y1 = pad + cardH + Math.round(pad * 0.6) + 36; // baseline of row 1
+  // THE DARK BAND (owner, 2026-11-06, option C): the footer is a near-black label under the
+  // card, whatever the mat, so the card pops and the facts read as a plate.
+  const bandTop = pad + cardH + pad;
+  ctx.fillStyle = '#17191d';
+  ctx.fillRect(0, bandTop, W, H - bandTop);
+  const ink = 'rgba(255,255,255,0.92)';
+  const muted = 'rgba(255,255,255,0.62)';
+  const left = inset;
+  const right = W - inset;
+  const y1 = bandTop + 48 + 36; // baseline of row 1
   const y2 = y1 + ROW;
   const y3 = y2 + ROW;
   const FONT = '"Segoe UI", -apple-system, Arial, sans-serif';
@@ -263,29 +270,30 @@ export async function buildCardImage(input: {
       rightW2 = ctx.measureText(input.date).width + 48;
     }
   }
-  // The stamp, on the third row's baseline: the mark sits on the same line as the address.
+  // The stamp, on the third row's baseline, at the illustrator's weight and size so the two
+  // columns' rows match; the mark is as tall as the capitals beside it.
   ctx.textAlign = 'right';
-  ctx.fillStyle = dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.62)';
-  ctx.font = `600 26px ${FONT}`;
+  ctx.fillStyle = ink;
+  ctx.font = `700 26px ${FONT}`;
   ctx.fillText(SITE, right, y3);
   const siteW = ctx.measureText(SITE).width;
-  const markS = 30;
-  drawMark(ctx, right - siteW - 12 - markS, y3 - markS + 4, markS, dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.28)');
+  const markS = 26;
+  drawMark(ctx, right - siteW - 12 - markS, y3 - markS + 3, markS, 'rgba(255,255,255,0.5)');
   const rightW3 = siteW + 12 + markS + 48;
   // Left column.
   ctx.textAlign = 'left';
   ctx.fillStyle = ink;
   ctx.font = `700 36px ${FONT}`;
-  ctx.fillText(input.name, left, y1, W - pad * 2 - rightW1);
+  ctx.fillText(input.name, left, y1, W - inset * 2 - rightW1);
   if (input.caption) {
     ctx.fillStyle = muted;
     ctx.font = `500 26px ${FONT}`;
-    ctx.fillText(input.caption, left, y2, W - pad * 2 - rightW2);
+    ctx.fillText(input.caption, left, y2, W - inset * 2 - rightW2);
   }
   if (input.illustrator) {
     ctx.fillStyle = ink;
     ctx.font = `700 26px ${FONT}`;
-    ctx.fillText(`Illus. ${input.illustrator}`, left, y3, W - pad * 2 - rightW3);
+    ctx.fillText(`Illus. ${input.illustrator}`, left, y3, W - inset * 2 - rightW3);
   }
   return await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The picture could not be encoded.'))), 'image/jpeg', 0.92);

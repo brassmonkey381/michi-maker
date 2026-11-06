@@ -15,6 +15,7 @@
  */
 import { Pressable, StyleSheet } from 'react-native';
 
+import { AuthSheet } from '@/components/auth/AuthSheet';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { CapGateOffer } from '@/components/monetization/CapGateOffer';
 import { ThemedText } from '@/components/themed-text';
@@ -85,12 +86,17 @@ export function CapGateDialog({
   wall,
   onDismiss,
   onResolve,
+  guestAuth = false,
+  onCloseGuestAuth,
 }: {
   wall: CapWall | null;
   onDismiss: (via: CapDismissal) => void;
   onResolve: () => void;
+  /** useCapGate's guest answer: the account sheet, over the toast that said why. */
+  guestAuth?: boolean;
+  onCloseGuestAuth?: () => void;
 }) {
-  if (!wall) return null;
+  if (!wall) return <AuthSheet visible={guestAuth} onClose={onCloseGuestAuth ?? (() => {})} />;
   return (
     <DialogCard visible title={<WallTitle text={wall.title} />} onClose={() => onDismiss('close')} maxWidth={420}>
       {wall.isGuest ? (

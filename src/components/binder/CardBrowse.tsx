@@ -131,6 +131,8 @@ export function CardBrowse({
   // all. The offer below is the only thing it gates.
   const unmetered = searchesArtworkUnmetered(tier, hasTcgscanPro);
   const [colorOpen, setColorOpen] = useState(false);
+  /** The host's similarity seed this browser has already let through (see onLockedFeature). */
+  const hostSeed = useRef<string[] | undefined>(undefined);
   /**
    * True while a tile tap should take the card's colours instead of placing it — READ FROM THE
    * STORE, because the React Compiler memoises a bare `eyedropperArmed()` call (it cannot know
@@ -511,6 +513,13 @@ export function CardBrowse({
         // its own richer path (the tri-colour upsell below), so it is deliberately not sent to
         // the plans page — a live demo converts better than a price table.
         onLockedFeature={(f) => {
+          // A SEED THE HOST HANDED IN WAS GATED BY THE HOST (owner, 2026-11-06: a guest's one
+          // Similar sample was taken by the pocket's Similar, then refused here as a second one).
+          // The first locked check for a new `initialSimilar` runs; a later tap pays its own way.
+          if (f === 'findSimilar' && initialSimilar && hostSeed.current !== initialSimilar) {
+            hostSeed.current = initialSimilar;
+            return true;
+          }
           // The free taste first (store.taste). Find similar is counted per use: spend a sample
           // and return true so the kit runs this very search. Advanced search is one visit: the
           // unlock lands through lockedFeatures and this tap is refused as before.

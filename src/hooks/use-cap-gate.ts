@@ -55,6 +55,11 @@ export interface CapHit extends CapWall {
 
 export function useCapGate(onToast: (message: string) => void) {
   const [wall, setWall] = useState<CapWall | null>(null);
+  // A GUEST'S WALL IS THE ACCOUNT SHEET (owner, 2026-11-06): the toast says why, and the sheet
+  // opens over it, since making the account is the whole answer and takes a few seconds. Closing
+  // the sheet leaves the toast underneath. No dialog for a guest any more.
+  const [guestAuth, setGuestAuth] = useState(false);
+  const closeGuestAuth = useCallback(() => setGuestAuth(false), []);
   // The boolean, not the object: useTrial returns a fresh literal each render, and depending on
   // it directly would rebuild `hit` on every one.
   const offersTrial = trialOfferVisible(useTrial());
@@ -79,8 +84,11 @@ export function useCapGate(onToast: (message: string) => void) {
   const hit = useCallback(
     (h: CapHit) => {
       const { tier, used, cap, always, never, ...w } = h;
-      const asDialog = always === true || (never !== true && shouldPromptCap(w.limit));
-      if (asDialog) {
+      const asDialog = !w.isGuest && (always === true || (never !== true && shouldPromptCap(w.limit)));
+      if (w.isGuest) {
+        onToast(w.message);
+        setGuestAuth(true);
+      } else if (asDialog) {
         markCapPrompted(w.limit);
         offeredTrialRef.current = !w.isGuest && offersTrial && w.offersTrial !== false;
         setWall(w);
@@ -147,5 +155,5 @@ export function useCapGate(onToast: (message: string) => void) {
     setWall(null);
   }, []);
 
-  return { hit, wall, closeWall, dismissWall, resolveWall };
+  return { hit, wall, closeWall, dismissWall, resolveWall, guestAuth, closeGuestAuth };
 }

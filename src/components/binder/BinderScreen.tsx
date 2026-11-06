@@ -3997,7 +3997,7 @@ export function BinderScreen({
           </View>
         ) : null}
         <Toast spec={toast} onDismiss={() => setToast(null)} bottomInset={phone && editing && canEdit ? phoneBarH + (phoneSheetShown ? pocketSheetH : 0) : 0} />
-        <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
+        <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} guestAuth={capGate.guestAuth} onCloseGuestAuth={capGate.closeGuestAuth} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
         {multiActionsOpen ? (
           <SlotMultiActions

@@ -334,7 +334,7 @@ export default function HomeScreen() {
         />
       ) : null}
       <Toast spec={toast} onDismiss={() => setToast(null)} />
-      <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
+      <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} guestAuth={capGate.guestAuth} onCloseGuestAuth={capGate.closeGuestAuth} />
       {/* See ProTrialPrompt: a fixed cohort, asked once. Null for everyone else. */}
       <ProTrialPrompt surface="home" />
     </ThemedView>

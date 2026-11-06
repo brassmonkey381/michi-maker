@@ -588,7 +588,7 @@ export default function MyBindersScreen() {
           }}
         />
       ) : null}
-      <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
+      <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} guestAuth={capGate.guestAuth} onCloseGuestAuth={capGate.closeGuestAuth} />
     </ThemedView>
   );
 }

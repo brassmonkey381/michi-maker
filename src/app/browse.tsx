@@ -372,7 +372,7 @@ export default function BrowseScreen() {
         />
       ) : null}
       <Toast spec={toast} onDismiss={() => setToast(null)} />
-      <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
+      <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} guestAuth={capGate.guestAuth} onCloseGuestAuth={capGate.closeGuestAuth} />
     </ThemedView>
   );
 }

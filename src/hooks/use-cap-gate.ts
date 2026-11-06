@@ -59,7 +59,15 @@ export function useCapGate(onToast: (message: string) => void) {
   // opens over it, since making the account is the whole answer and takes a few seconds. Closing
   // the sheet leaves the toast underneath. No dialog for a guest any more.
   const [guestAuth, setGuestAuth] = useState(false);
-  const closeGuestAuth = useCallback(() => setGuestAuth(false), []);
+  // The toast fires when the sheet closes: a toast is itself a modal layer and would sit over the
+  // sheet's button; shown on the way out it is the reason, still there, for whoever said no.
+  const guestToast = useRef<string | null>(null);
+  const closeGuestAuth = useCallback(() => {
+    setGuestAuth(false);
+    const msg = guestToast.current;
+    guestToast.current = null;
+    if (msg) onToast(msg);
+  }, [onToast]);
   // The boolean, not the object: useTrial returns a fresh literal each render, and depending on
   // it directly would rebuild `hit` on every one.
   const offersTrial = trialOfferVisible(useTrial());
@@ -86,7 +94,7 @@ export function useCapGate(onToast: (message: string) => void) {
       const { tier, used, cap, always, never, ...w } = h;
       const asDialog = !w.isGuest && (always === true || (never !== true && shouldPromptCap(w.limit)));
       if (w.isGuest) {
-        onToast(w.message);
+        guestToast.current = w.message;
         setGuestAuth(true);
       } else if (asDialog) {
         markCapPrompted(w.limit);

@@ -107,7 +107,7 @@ export default function BinderRoute() {
         binderId={local.id}
         initialPrintOpen={print === '1'}
         initialEditing={edit === '1' || slice === '1' || !!fill}
-        seeded={seeded === '1'}
+        seeded={seeded === 'wizard' ? 'wizard' : seeded === '1'}
         initialStudioOpen={slice === '1'}
         initialFillAt={fill || null}
         initialPageIndex={openAt}

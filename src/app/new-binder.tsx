@@ -18,7 +18,7 @@
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { fetchSetCards, getApiKey, getApiUrl, type CatalogCard } from 'tcgscan-browse';
 
 import { AuthSheet } from '@/components/auth/AuthSheet';
@@ -102,9 +102,12 @@ export default function NewBinderScreen() {
   const [set, setSet] = useState<SetMeta | null>(null);
   const [loading, setLoading] = useState(false);
   const [refused, setRefused] = useState(false);
-  // A GUEST WHOSE BINDER WANTS MORE THAN THE GUEST CAP (owner, 2026-11-05): say so once, with
-  // two ways on: an account, or the first pages of what they chose.
+  // A GUEST WHOSE BINDER WANTS MORE THAN THE GUEST CAP (owner, 2026-11-05): a modal, as soon as a
+  // set over the cap is picked or Create is pressed on a search, with two ways on: an account, or
+  // the first pages of what they chose. `capSeen` is the selection it was shown for, so it asks
+  // once per pick and not again on the way back.
   const [capAsk, setCapAsk] = useState(false);
+  const [capSeen, setCapSeen] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   // THE THREE PICKS COME FROM THE KIT'S BROWSER (owner, 2026-11-05: "use the browse kit to find
   // the cards. its so much more user friendly"): the same browser as a pocket's Add, its ＋ pill
@@ -169,11 +172,24 @@ export default function NewBinderScreen() {
   const ready = kind === 'three' ? picked.length === 3 : capped.length > 0;
 
   const wantPages = pagesForCards(chosen.map((c) => c.id)).length;
+  const overCap = store.tier === 'guest' && chosen.length > capped.length;
+  const askCap = () => {
+    setCapAsk(true);
+    track('wizard.cap_ask', { wizard: 'new-binder', kind, cards: chosen.length, pages: wantPages, cap: pageCap });
+  };
+  // A set is one pick, so the question comes with it; a typed name settles only on Create.
+  const setKey = kind === 'set' && set && overCap && !loading ? set.id : null;
+  if (setKey && capSeen !== setKey) {
+    setCapSeen(setKey);
+    askCap();
+  }
+  const createLabel = ready
+    ? `Create binder · ${overCap ? `${capped.length} / ${chosen.length}` : capped.length} ${chosen.length === 1 ? 'card' : 'cards'}`
+    : 'Create binder';
   const create = (truncate = false) => {
     if (!kind) return;
     if (!truncate && store.tier === 'guest' && chosen.length > capped.length) {
-      setCapAsk(true);
-      track('wizard.cap_ask', { wizard: 'new-binder', kind, cards: chosen.length, pages: wantPages, cap: pageCap });
+      askCap();
       return;
     }
     const pages = pagesForCards(capped.map((c) => c.id));
@@ -183,7 +199,7 @@ export default function NewBinderScreen() {
       setRefused(true);
       return;
     }
-    router.replace(`/binder/${made.id}?edit=1${kind === 'three' ? '&seeded=1' : ''}` as Href);
+    router.replace(`/binder/${made.id}?edit=1${kind === 'three' ? '&seeded=wizard' : ''}` as Href);
   };
 
   const step = kind ? 2 : 1;
@@ -368,22 +384,7 @@ export default function NewBinderScreen() {
               </Pressable>
             </View>
           ) : null}
-          {capAsk ? (
-            <View style={styles.capAsk} testID="wizard-cap-ask">
-              <Text style={styles.capAskTitle}>This binder wants {wantPages} pages</Text>
-              <Text style={styles.refusedText}>A guest binder holds {pageCap}. Try unlimited pages with a free account.</Text>
-              <View style={styles.capAskRow}>
-                <Pressable onPress={() => setAuthOpen(true)} accessibilityRole="button" testID="wizard-cap-account" style={({ pressed }) => [styles.primary, styles.capAskBtn, pressed && styles.pressed]}>
-                  <Text style={styles.primaryText}>Create an account</Text>
-                </Pressable>
-                <Pressable onPress={() => create(true)} accessibilityRole="button" testID="wizard-cap-truncate" style={({ pressed }) => [styles.secondary, styles.capAskBtn, styles.capAskSecondary, pressed && styles.pressed]}>
-                  <Text style={styles.secondaryText}>Keep the first {pageCap} pages</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-          {chosen.length > capped.length && !capAsk && store.tier !== 'guest' ? <Text style={styles.capLine}>The first {cardCap} cards go in. PRO holds more.</Text> : null}
-          {capAsk ? null : (
+          {chosen.length > capped.length && store.tier !== 'guest' ? <Text style={styles.capLine}>The first {cardCap} cards go in. PRO holds more.</Text> : null}
           <Pressable
             onPress={() => create()}
             disabled={!ready || loading}
@@ -391,11 +392,30 @@ export default function NewBinderScreen() {
             accessibilityState={{ disabled: !ready || loading }}
             testID="wizard-create"
             style={({ pressed }) => [styles.primary, (!ready || loading) && styles.primaryOff, pressed && styles.pressed]}>
-            <Text style={styles.primaryText}>{ready ? `Create binder · ${capped.length} ${capped.length === 1 ? 'card' : 'cards'}` : 'Create binder'}</Text>
+            <Text style={styles.primaryText}>{createLabel}</Text>
           </Pressable>
-          )}
         </View>
       ) : null}
+      {/* THE GUEST CAP (owner, 2026-11-05): a modal over the picks. Create keeps the first pages;
+          an account lifts the cap; the cross goes back to the picks, where the button still says
+          81 / NNN. */}
+      <Modal visible={capAsk} transparent animationType="fade" onRequestClose={() => setCapAsk(false)}>
+        <View style={styles.capBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCapAsk(false)} accessibilityLabel="Close" />
+          <View style={styles.capAsk} testID="wizard-cap-ask">
+            <Text style={styles.capAskTitle}>This binder wants {wantPages} pages</Text>
+            <Text style={styles.refusedText}>A guest binder holds {pageCap}. Try unlimited pages with a free account.</Text>
+            <View style={styles.capAskRow}>
+              <Pressable onPress={() => { setCapAsk(false); create(true); }} accessibilityRole="button" testID="wizard-cap-truncate" style={({ pressed }) => [styles.primary, styles.capAskBtn, pressed && styles.pressed]}>
+                <Text style={styles.primaryText}>Create binder · {capped.length} / {chosen.length} cards</Text>
+              </Pressable>
+              <Pressable onPress={() => { setCapAsk(false); setAuthOpen(true); }} accessibilityRole="button" testID="wizard-cap-account" style={({ pressed }) => [styles.secondary, styles.capAskBtn, styles.capAskSecondary, pressed && styles.pressed]}>
+                <Text style={styles.secondaryText}>Create an account</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
       </SafeAreaView>
     </ThemedView>
@@ -459,7 +479,8 @@ const styles = StyleSheet.create({
   previewWrap: { alignItems: 'center', marginTop: Spacing.two },
   pageLine: { textAlign: 'center', fontSize: FontSize.sm, color: Palette.muted },
   refused: { gap: Spacing.two, marginTop: Spacing.two },
-  capAsk: { gap: Spacing.two, padding: Spacing.three, borderRadius: Radius.control, borderWidth: 2, borderColor: Palette.accent, backgroundColor: Palette.surface },
+  capBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: Spacing.three },
+  capAsk: { alignSelf: 'stretch', maxWidth: 440, gap: Spacing.two, padding: Spacing.three, borderRadius: Radius.sheet, backgroundColor: Palette.surface },
   capAskTitle: { fontSize: FontSize.md, fontWeight: Weight.bold, color: Palette.ink },
   capAskRow: { gap: Spacing.two },
   capAskBtn: { alignSelf: 'stretch', alignItems: 'center' },

@@ -167,9 +167,10 @@ interface BinderScreenProps {
    * This binder was just made for a tagged ad arrival with three themed cards on page one
    * (`?seeded=1`, my-binders open=seeded, data/seedPages): the walkthrough is the seeded variant,
    * pointing at Complete. Only the creating navigation sets it; a later open from the shelf meets
-   * the ordinary rules.
+   * the ordinary rules. 'wizard' is the new-binder wizard's three-card binder (`?seeded=wizard`):
+   * two steps, no search step; the payoff's cross or sign-up ends it on the celebration card.
    */
-  seeded?: boolean;
+  seeded?: boolean | 'wizard';
   /** Arrive with the Slice Studio open on the current page (`?slice=1`, from the slice guide). */
   initialStudioOpen?: boolean;
   /**
@@ -772,9 +773,11 @@ export function BinderScreen({
   // to try next. A beat after the "added" toast, so the two do not land in the same frame.
   const [doneOpen, setDoneOpen] = useState(false);
   const onWalkthroughEnded = useCallback(
-    (via: string) => {
-      if (!seeded || via !== 'placed') return;
-      setTimeout(() => setDoneOpen(true), 900);
+    (via: string, last: string | null) => {
+      if (!seeded) return;
+      // A card of their own landed in the search step, or (the wizard's binder, which has no
+      // search step) the payoff card was crossed or an account made on it.
+      if (via === 'placed' || (seeded === 'wizard' && last === 'filled')) setTimeout(() => setDoneOpen(true), 900);
     },
     [seeded],
   );
@@ -792,6 +795,7 @@ export function BinderScreen({
     completed: fillPlaced,
     pageFull: wtPageFull,
     cardCount,
+    searchStep: seeded !== 'wizard',
     onEnded: onWalkthroughEnded,
   });
   /**
@@ -3897,6 +3901,7 @@ export function BinderScreen({
           visible={doneOpen}
           cardIds={binder.pages.flatMap((p) => p.slots.flatMap((s) => (s.cardId ? [s.cardId] : []))).slice(0, 6)}
           guest={!!user?.is_anonymous}
+          ownCard={seeded !== 'wizard'}
           onAccount={() => {
             setDoneOpen(false);
             setWalkthroughAuthOpen(true);

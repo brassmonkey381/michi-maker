@@ -30,6 +30,7 @@ export function FirstPageDoneSheet({
   visible,
   cardIds,
   guest,
+  ownCard = true,
   onAccount,
   onClose,
 }: {
@@ -38,6 +39,8 @@ export function FirstPageDoneSheet({
   cardIds: readonly string[];
   /** A guest gets the account ask as the primary button; an account holder just keeps building. */
   guest: boolean;
+  /** False for the wizard's three-card binder: the page was filled, no card of their own landed. */
+  ownCard?: boolean;
   onAccount: () => void;
   onClose: () => void;
 }) {
@@ -58,7 +61,11 @@ export function FirstPageDoneSheet({
             ))}
           </View>
         ) : null}
-        <Text style={styles.lead}>You started with three cards, filled the page, and added one yourself. That is how every page here gets made. Things to try next:</Text>
+        <Text style={styles.lead}>
+          {ownCard
+            ? 'You started with three cards, filled the page, and added one yourself. That is how every page here gets made. Things to try next:'
+            : 'You picked three cards and filled the page around them. That is how every page here gets made. Things to try next:'}
+        </Text>
         <View style={styles.list}>
           {NEXT.map((n, i) => (
             <View key={n.title} style={styles.row}>

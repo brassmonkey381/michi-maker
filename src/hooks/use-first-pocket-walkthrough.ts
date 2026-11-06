@@ -59,6 +59,7 @@ export function useFirstPocketWalkthrough({
   completed = false,
   pageFull = false,
   cardCount = 0,
+  searchStep = true,
   onEnded,
 }: {
   hasCard: boolean;
@@ -78,8 +79,15 @@ export function useFirstPocketWalkthrough({
   pageFull?: boolean;
   /** Seeded only: cards in the binder, so the search step can tell when one of their own lands. */
   cardCount?: number;
-  /** How it ended, once, for the host (the seeded celebration card opens on 'placed'). */
-  onEnded?: (via: WalkthroughEnding) => void;
+  /**
+   * Seeded only: does the payoff card pass to the search step? False for the wizard's three-card
+   * binder (owner, 2026-11-05): its payoff's cross, or the account made on it, ends the
+   * walkthrough, and the host shows the celebration card instead.
+   */
+  searchStep?: boolean;
+  /** How it ended, once, for the host, with the last step shown (the seeded celebration card
+   *  opens on 'placed', or on the payoff when there is no search step). */
+  onEnded?: (via: WalkthroughEnding, lastStep: WalkthroughStep | SeededStep | null) => void;
 }): FirstPocketWalkthrough {
   const endedRef = useRef(onEnded);
   useEffect(() => {
@@ -158,13 +166,6 @@ export function useFirstPocketWalkthrough({
       ? resolveSeededState({ record, editing, studio, completed, pageFull, arrivedFull, searching, placedOwn: searching && cardCount > searchBaseline })
       : resolveState({ hasCard, hadCardOnArrival, record, editing, studio, pickerOpen, filled: fillSeen || fillOpen || (!narrow && !pickerOpen) });
   const step = state.show ? state.step : null;
-  // An account made on the payoff card passes it the same as its cross would.
-  const wasGuest = useRef(isGuest);
-  useEffect(() => {
-    if (wasGuest.current && !isGuest && step === 'filled') setSearchBaseline(cardCount);
-    wasGuest.current = isGuest;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the guest flag flipping, not the count
-  }, [isGuest]);
 
   /** The furthest step this session actually reached, for the ending event. Written in the effect
    *  that reports each step, never during render. */
@@ -176,7 +177,7 @@ export function useFirstPocketWalkthrough({
       // `not-needed` is silent: nothing was shown, so there is nothing to report an ending for.
       if (via !== 'not-needed' && lastStep.current) {
         track('walkthrough.done', { walkthrough: variant, via, last_step: lastStep.current });
-        endedRef.current?.(via);
+        endedRef.current?.(via, lastStep.current);
       }
       write({ ...record, retiredAt: new Date().toISOString() });
     },
@@ -198,6 +199,22 @@ export function useFirstPocketWalkthrough({
   useEffect(() => {
     if (pendingRetire) retireRef.current(pendingRetire);
   }, [pendingRetire]);
+
+  // WHAT THE PAYOFF CARD'S CROSS DOES: passes to the search step, or (no search step) ends it.
+  const passPayoff = useCallback(
+    (count: number) => {
+      if (searchStep) setSearchBaseline(count);
+      else retireRef.current('dismissed');
+    },
+    [searchStep],
+  );
+  // An account made on the payoff card passes it the same as its cross would.
+  const wasGuest = useRef(isGuest);
+  useEffect(() => {
+    if (wasGuest.current && !isGuest && step === 'filled') passPayoff(cardCount);
+    wasGuest.current = isGuest;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the guest flag flipping, not the count
+  }, [isGuest]);
 
   // ONE OPEN PER MOUNT, counted only while this is still live. Not stamped on first paint: the
   // people it is for are exactly the ones who stall and leave, and stamping on show would give
@@ -246,8 +263,8 @@ export function useFirstPocketWalkthrough({
     copy: copy(),
     // The payoff card's cross passes to the search step; every other cross is the end (via 'dismissed').
     dismiss: useCallback(() => {
-      if (stepRef.current === 'filled') setSearchBaseline(countRef.current);
+      if (stepRef.current === 'filled') passPayoff(countRef.current);
       else retireRef.current('dismissed');
-    }, []),
+    }, [passPayoff]),
   };
 }

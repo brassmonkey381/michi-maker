@@ -164,6 +164,9 @@ export function CardBrowse({
    */
   const demoPresses = useRef(0);
   const [energyOpen, setEnergyOpen] = useState(false);
+  // An eyedropper armed here points at THIS browser's colour sheet; once this browser is gone
+  // (the phone's sheet closed) the arm would only swallow the next card tap, so it goes too.
+  useEffect(() => () => cancelEyedropper(), []);
   // A palette seed from a pocket's Colors button, applied once per seed object. Adjusted during
   // render (not in an effect) so the sheet is up in the same commit the dock opens in, and held
   // until the tier is known: locking a subscriber out on an entitlement read that has not landed

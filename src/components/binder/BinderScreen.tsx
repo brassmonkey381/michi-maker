@@ -68,7 +68,7 @@ import { fetchLockState, type Finalist } from '@/data/contestRepo';
 import { EditLockBanner } from '@/components/binder/EditLockBanner';
 import { EyedropperBanner } from '@/components/color/EyedropperBanner';
 import { SaveErrorBanner } from '@/components/binder/SaveErrorBanner';
-import { pickWithEyedropper } from '@/lib/eyedropper';
+import { cancelEyedropper, pickWithEyedropper } from '@/lib/eyedropper';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
@@ -1561,6 +1561,11 @@ export function BinderScreen({
   const closePicker = () => {
     setPickerCell(null);
     setSimilarSeed(null); // consume the one-shot seed so a later normal open doesn't re-run it
+    // THE COLOUR SEED TOO (owner, 2026-11-06, phone): it stayed set after Colors, and the sheet
+    // remounts the browser on every open, so Replace kept reopening the colour picker. And an
+    // eyedropper armed inside a sheet that has since gone would swallow the next card tap.
+    setPaletteSeed(null);
+    cancelEyedropper();
     // "Done" on the cards panel folds it back to its rail rather than removing it. The panel is a
     // permanent side of the editor now; closing it means putting it away, not making it vanish.
     setCardsCollapsed(true);

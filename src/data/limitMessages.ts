@@ -19,7 +19,7 @@ export function binderLimitMessage(tier: Tier, limits: TierLimits): string {
 
 export function pageLimitMessage(tier: Tier, limits: TierLimits): string {
   if (tier === 'guest') {
-    return `Guests get ${limits.pagesPerBinder} pages per binder. Create a free account for ${TIER_LIMITS.free.pagesPerBinder}.`;
+    return `Guests get ${limits.pagesPerBinder} pages per binder. Create a free account to experience unlimited pages.`;
   }
   return `You’ve reached the ${limits.pagesPerBinder}-page limit. Every page you have stays. PRO has no page limit.`;
 }

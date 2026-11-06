@@ -74,7 +74,7 @@ const KINDS: { key: Kind; title: string; body: string; note?: string }[] = [
   { key: 'pokemon', title: 'One Pokémon', body: 'Every card of one Pokémon, across every set.', note: 'Most made' },
   { key: 'set', title: 'One set', body: 'Every card from one set, in order.' },
   { key: 'artist', title: 'One artist', body: 'Every card one illustrator drew.' },
-  { key: 'three', title: 'Three cards I like', body: 'Pick three. Complete fills the page to match them, and you take it from there.' },
+  { key: 'three', title: 'Three cards I like', body: 'Pick three. Use tools to complete the page by color, similarity, and theme.' },
 ];
 
 const PLACEHOLDER: Record<Exclude<Kind, 'set' | 'three'>, string> = {

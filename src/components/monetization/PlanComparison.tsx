@@ -13,7 +13,7 @@
  * "coming soon" note (CHECKOUT_OPEN in src/data/subscriptions.ts flips them into real checkout
  * launches later).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { AuthSheet } from '@/components/auth/AuthSheet';
@@ -43,6 +43,7 @@ import {
 } from '@/data/subscriptions';
 import { BUNDLE_PERCENT_OFF, formatMinor, PERCENT_OFF, promoActive, promoPriceMinor } from '@/data/promo';
 import { useTier } from '@/hooks/use-tier';
+import { rememberAuthReturn } from '@/lib/authReturn';
 import { useTrial } from '@/hooks/use-trial';
 import { useAuth } from '@/store/auth';
 
@@ -109,7 +110,7 @@ function saleSub(head: PlanHeader, percentOff: number): string {
   return `about ${perMonth} a month, billed yearly${monthly ? ` · or ${monthly} month to month` : ''}`;
 }
 
-export function PlanComparison() {
+export function PlanComparison({ resumeKey }: { resumeKey?: string | null } = {}) {
   const { tier: heldTier, capSet, loading, refresh, isPaid, tcgscanIsPaid, tcgscanIsYearly } = useTier();
   // VIP is retired from sale; a VIP row that still exists is PRO as far as this page is concerned.
   const tier = heldTier === 'vip' ? 'pro' : heldTier;
@@ -159,6 +160,13 @@ export function PlanComparison() {
   const [note, setNote] = useState<{ tier: string; text: string; error?: boolean } | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
+  const [freeHead, proHead] = PLAN_HEADERS;
+  // A GUEST'S TRY PRO (owner, 2026-11-06): the account sheet opens, and the moment the account
+  // exists checkout starts, on this page, with the plan they pressed. If the sheet's path leaves
+  // the page (email confirmation, Google), the return lands on /plans?resume=<key> and the effect
+  // below picks it up once the session is a real one.
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const planOfKey = (key: string) => PLAN_HEADERS.find((p) => p.yearlyKey === key || p.monthlyKey === key) ?? proHead;
   const buy = async (plan: PlanHeader, lookupKey?: string) => {
     if (!CHECKOUT_OPEN) {
       setNote({ tier: plan.tier, text: CHECKOUT_CLOSED_NOTE });
@@ -166,9 +174,15 @@ export function PlanComparison() {
     }
     if (!lookupKey || busyKey) return;
     if (!isSignedIn) {
-      setNote({ tier: plan.tier, text: 'Create a free account first, plans attach to it.' });
+      setNote(null);
+      setPendingKey(lookupKey);
+      rememberAuthReturn(`/plans?resume=${encodeURIComponent(lookupKey)}`, true);
+      setAuthOpen(true);
       return;
     }
+    await checkoutNow(plan, lookupKey);
+  };
+  const checkoutNow = async (plan: PlanHeader, lookupKey: string) => {
     setNote(null);
     setBusyKey(lookupKey);
     try {
@@ -183,7 +197,13 @@ export function PlanComparison() {
     }
   };
 
-  const [freeHead, proHead] = PLAN_HEADERS;
+  // The return from an off-page sign-up (see buy): once, when the session is real.
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (!resumeKey || !isSignedIn || loading || resumed.current) return;
+    resumed.current = true;
+    void checkoutNow(PLAN_HEADERS.find((p) => p.yearlyKey === resumeKey || p.monthlyKey === resumeKey) ?? PLAN_HEADERS[1], resumeKey);
+  }, [resumeKey, isSignedIn, loading]);
   // Twelve months at the monthly rate, and what the yearly plan saves against it. Always true while
   // both prices are, so it needs no promotion behind it and nothing expires.
   const annualList = annualAnchor(proHead);
@@ -618,7 +638,16 @@ export function PlanComparison() {
           </Text>
         ))}
       </View>
-      <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
+      <AuthSheet
+        visible={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onAuthed={() => {
+          const key = pendingKey;
+          setPendingKey(null);
+          setAuthOpen(false);
+          if (key) void checkoutNow(planOfKey(key), key);
+        }}
+      />
     </View>
   );
 }

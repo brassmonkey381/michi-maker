@@ -39,7 +39,13 @@ import { pruneAvatars, uploadAvatarImage } from '@/lib/uploadAvatar';
 import { useAuth, type OAuthProvider } from '@/store/auth';
 import type { Profile } from '@/types/domain';
 
-export function AuthSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+/**
+ * `onAuthed` fires once a session is established IN the sheet (password sign-in, or a guest's
+ * account link), before it closes: the surface that opened it continues what the person was doing
+ * (owner, 2026-11-06: Try PRO as a guest makes the account, then goes straight to checkout). The
+ * email-confirmation and OAuth paths leave the page instead; those return through auth-callback.
+ */
+export function AuthSheet({ visible, onClose, onAuthed }: { visible: boolean; onClose: () => void; onAuthed?: () => void }) {
   const auth = useAuth();
 
   return (
@@ -54,7 +60,7 @@ export function AuthSheet({ visible, onClose }: { visible: boolean; onClose: () 
               {auth.isSignedIn ? (
                 <ProfileView onClose={onClose} />
               ) : (
-                <AuthForm onClose={onClose} isGuest={auth.isGuest} />
+                <AuthForm onClose={onClose} onAuthed={onAuthed} isGuest={auth.isGuest} />
               )}
             </ThemedView>
           </Pressable>
@@ -70,7 +76,7 @@ export function AuthSheet({ visible, onClose }: { visible: boolean; onClose: () 
 
 type Method = 'password' | 'code';
 
-function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean }) {
+function AuthForm({ onClose, onAuthed, isGuest }: { onClose: () => void; onAuthed?: () => void; isGuest: boolean }) {
   const auth = useAuth();
   const theme = useTheme();
 
@@ -105,6 +111,7 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
         setInfo(`Check ${email.trim()} for a link to confirm your account.`);
         return;
       }
+      onAuthed?.();
       onClose(); // session established, onAuthStateChange updates the app
     } finally {
       setBusy(false);
@@ -156,6 +163,7 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
       // A session exists now → claim the username, then close (gate re-prompts if it was taken).
       const c = await auth.claimUsername(uname);
       if (c.error) setError(c.error);
+      onAuthed?.();
       onClose();
     } finally {
       setBusy(false);

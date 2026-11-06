@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -14,7 +14,7 @@ const THUMB_W = 58;
 /** The width a strip thumbnail is drawn at, for callers supplying their own (a cover). */
 export const STRIP_THUMB_W = THUMB_W;
 /** The phone's shorter strip (owner, 2026-11-05): the height it saves goes to the page. */
-const THUMB_W_COMPACT = 44;
+const THUMB_W_COMPACT = 38;
 export const STRIP_THUMB_W_COMPACT = THUMB_W_COMPACT;
 
 /**
@@ -78,11 +78,28 @@ export function PageStrip({
   axis = 'horizontal',
   compact = false,
 }: PageStripProps) {
+  const vertical = axis === 'vertical';
+  // THE CURRENT PAGE STAYS CENTRED (owner, 2026-11-06): the arrows turn pages the strip could not
+  // see, so on every change the strip scrolls the current thumbnail to its middle. Horizontal
+  // only; the rail scrolls itself.
+  const scroller = useRef<ScrollView>(null);
+  const [viewportW, setViewportW] = useState(0);
+  const pitch = compact ? THUMB_W_COMPACT + 8 : ITEM_W;
+  const lead = leading?.length ?? 0;
+  useEffect(() => {
+    if (vertical || viewportW <= 0 || currentIndex < 0) return;
+    const centre = 2 + (lead + currentIndex) * pitch + (pitch - 8) / 2;
+    const total = 4 + (lead + pages.length + (trailing?.length ?? 0)) * pitch - 8;
+    if (total <= viewportW) return;
+    const x = Math.max(0, Math.min(total - viewportW, centre - viewportW / 2));
+    scroller.current?.scrollTo({ x, animated: true });
+  }, [currentIndex, viewportW, vertical, pitch, lead, pages.length, trailing?.length]);
   // One page is nothing to choose between, unless there are covers to choose as well.
   if (pages.length <= 1 && !leading?.length && !trailing?.length) return null;
-  const vertical = axis === 'vertical';
   return (
     <ScrollView
+      ref={scroller}
+      onLayout={(e) => setViewportW(e.nativeEvent.layout.width)}
       horizontal={!vertical}
       showsHorizontalScrollIndicator={false}
       // Shown on the vertical rail only. It is now full height and really does overflow on a long

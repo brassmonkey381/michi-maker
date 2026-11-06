@@ -2175,6 +2175,9 @@ export function BinderPages({
           onLayout={(e) => setStripHeight(e.nativeEvent.layout.height)}
           style={[
             styles.stripDock,
+            // A phone: clear of the page bar's chips, which hang 15px below the page's edge
+            // (owner, 2026-11-06: the strip sat over them).
+            phone && editable && styles.stripDockPhoneEditing,
             // Opaque, because the page now scrolls UNDER it: a transparent dock would let card art
             // slide through the page numbers.
             { backgroundColor: theme.background },
@@ -2699,6 +2702,7 @@ const styles = StyleSheet.create({
   /** In a row the page has to be told to take the rest; on its own it already does. */
   pageWrapRailed: { minWidth: 0 },
   stripDock: { paddingTop: 4 },
+  stripDockPhoneEditing: { paddingTop: 22 },
   /** The rail is a column now: the auto-flip controls, then the strip taking the rest. */
   railStrip: { flex: 1, minHeight: 0, alignSelf: 'stretch' },
   dockRow: { flexDirection: 'row', alignItems: 'center' },

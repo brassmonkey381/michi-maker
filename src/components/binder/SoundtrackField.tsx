@@ -97,7 +97,6 @@ export function SoundtrackField({
     <View style={styles.wrap}>
       <ThemedText type="smallBold" style={styles.label}>
         {label}
-        <Text style={styles.vip}> · PRO</Text>
       </ThemedText>
       <PresetTrackGrid value={track?.url} onPick={pickPreset} testID="track-presets" />
       {track ? (

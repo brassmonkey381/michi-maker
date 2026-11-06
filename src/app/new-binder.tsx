@@ -86,7 +86,7 @@ const ASK: Record<Kind, string> = {
   pokemon: 'Which Pokémon?',
   set: 'Which set?',
   artist: 'Which artist?',
-  three: 'Which three cards?',
+  three: 'Pick three cards',
 };
 
 export default function NewBinderScreen() {
@@ -237,9 +237,12 @@ export default function NewBinderScreen() {
           </ThemedText>
           {kind === 'three' ? (
             <>
-              <Text style={styles.countLine}>{picked.length === 3 ? 'Three picked. Swap one by tapping it below, or go on.' : `Press ＋ on a card to pick it · ${picked.length} of 3`}</Text>
+              {/* NOTHING SAID UNTIL A CARD IS PICKED (owner, 2026-11-05: "let them drill down and
+                  figure out how to add cards themselves"). The browser is the whole screen; the
+                  picks row appears with the first pick and carries the count. */}
               {picked.length ? (
                 <View style={styles.picks}>
+                  <Text style={styles.pickCount}>{picked.length} of 3</Text>
                   {picked.map((c) => (
                     <Pressable key={c.id} onPress={() => setPicked((p) => p.filter((x) => x.id !== c.id))} accessibilityRole="button" accessibilityLabel={`Remove ${c.name}`}>
                       <Image source={{ uri: cardThumbUrl(c.id, 'full') }} style={styles.pickThumb} contentFit="cover" />
@@ -401,7 +404,8 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.surface,
   },
   countLine: { fontSize: FontSize.body, color: Palette.ink2, lineHeight: 20 },
-  picks: { flexDirection: 'row', gap: 8 },
+  picks: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pickCount: { fontSize: FontSize.sm, fontWeight: Weight.bold, color: Palette.ink2, width: 44 },
   pickThumb: { width: 54, height: 75, borderRadius: 6, borderWidth: 2, borderColor: Palette.accent },
   results: { flex: 1, minHeight: 200 },
   browse: { flex: 1, minHeight: 320, marginHorizontal: -Spacing.three },

@@ -1500,7 +1500,7 @@ export function BinderPages({
           {settingsExtras ? (
             <View style={styles.settingsGroupHead}>
               <Text style={styles.settingsGroupTitle}>Your view</Text>
-              <Text style={styles.settingsGroupNote}>How you look at binders. Not saved in this one.</Text>
+              <Text style={styles.settingsGroupNote}>How you look at binders.</Text>
             </View>
           ) : null}
 

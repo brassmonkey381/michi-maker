@@ -160,7 +160,7 @@ export function BinderLook({
           a pick: a binder can have a zip AND a spine. The zip's colour and its pull's are the
           cover colour's (owner, 2026-09-15: zipCloth), as the stitching is; none of those is a setting. */}
       <Group
-        title={binderLocked ? 'Binder · PRO' : 'Binder'}
+        title="Binder"
         note={binderLocked ? 'Named binders, hardware and covers come with PRO.' : undefined}
         summary={<GroupSummary swatch={binderPreset(ps?.binder)?.cloth ?? null} text={binderPreset(ps?.binder)?.label ?? 'Plain'} />}
         testID="binder-group-binder">
@@ -275,7 +275,7 @@ export function BinderLook({
             its cards this way unless a page or a pocket says otherwise. PRO's, like the page's.
             In beta (betaFeatures.ts): offered to the testing accounts only. */}
         {artViewBeta ? (
-        <Row label={hasArtViews(store.tier) || store.taste.active('artViews') ? 'Art view' : 'Art view \u00b7 PRO'} testID="binder-art-view">
+        <Row label="Art view" testID="binder-art-view">
           <View style={hasArtViews(store.tier) || store.taste.active('artViews') ? undefined : local.locked}>
             <Seg
               options={ART_VIEWS}
@@ -294,7 +294,7 @@ export function BinderLook({
           like. Shown whenever the binder or any page uses the art window, so the group is not a
           puzzle on a binder of plain cards. PRO's, as the art view is. In beta, as the art view is. */}
       {artViewBeta && (ps?.artView === 'window' || binder.pages.some((p) => p.artView === 'window' || p.slots.some((s) => s.artView === 'window'))) ? (
-        <Group title={hasArtViews(store.tier) || store.taste.active('artViews') ? 'Art window mats' : 'Art window mats · PRO'} note="The card every art window sits on, on every page unless a page says otherwise." testID="binder-group-mats">
+        <Group title="Art window mats" note="The card every art window sits on, on every page unless a page says otherwise." testID="binder-group-mats">
           <View style={hasArtViews(store.tier) || store.taste.active('artViews') ? undefined : local.locked}>
             <MatPanel
               value={ps?.mat}

@@ -95,7 +95,7 @@ import { usePriceSummaryWhen } from '@/lib/prices';
 import { chipFor, effectiveFinish, finishIsAskable, nextFinish } from '@/constants/printVariant';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
+import { BinderSurface, Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import {
   canPlaceSlot,
   firstFreePlacement,
@@ -118,6 +118,7 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
 import { track, type CardAddVia } from '@/lib/analytics';
+import { buildPageImage, pageImageFileName, sharePageImage } from '@/lib/pageImage';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
@@ -314,6 +315,8 @@ export function BinderScreen({
   // Q and F go through THE EXTRA STEP first (owner, 2026-10-27): style and which cards, then the
   // quick look (`quick` holds its options while it is open) or the download.
   const [pictureStep, setPictureStep] = useState<'quick' | 'download' | null>(null);
+  // The page picture is being drawn (lib/pageImage); the button says so and refuses a second tap.
+  const [picturing, setPicturing] = useState(false);
   const [quick, setQuick] = useState<ShareImageOptions | null>(null);
   const quickOpen = quick !== null;
   const [movePageOpen, setMovePageOpen] = useState(false);
@@ -2858,6 +2861,32 @@ export function BinderScreen({
     </Pressable>
   );
   /**
+   * THIS PAGE AS A PICTURE (owner, 2026-11-05): drawn here at full resolution, our mark bottom
+   * right, and handed to the phone's share sheet (or the clipboard, or a download). Private
+   * binders too: nothing leaves the device until the person posts it.
+   */
+  const sharePicture = async () => {
+    if (picturing) return;
+    setPicturing(true);
+    try {
+      const blob = await buildPageImage({ page, title: binder.title, pageNo: idx + 1, mat: BinderSurface.mat });
+      const out = await sharePageImage(blob, pageImageFileName(binder.title, idx + 1), `${binder.title} · page ${idx + 1} · https://michi-maker.com`);
+      track('page.picture', { via: out, cards: page.slots.filter((s) => s.cardId).length });
+      if (out === 'copied') showToast('Picture copied. Paste it anywhere.');
+      else if (out === 'saved') showToast('Picture saved.');
+    } catch {
+      showToast('The picture did not draw. Try again in a moment.');
+    } finally {
+      setPicturing(false);
+    }
+  };
+  const pictureLink =
+    Platform.OS === 'web' ? (
+      <Pressable onPress={() => void sharePicture()} disabled={picturing} hitSlop={10} accessibilityRole="button" accessibilityLabel="Share this page as a picture" testID="page-picture-btn">
+        <Text style={[styles.headerAction, { color: theme.text }, picturing && styles.headerActionOff]}>{picturing ? 'Drawing…' : 'Picture'}</Text>
+      </Pressable>
+    ) : null;
+  /**
    * THE TOOLS ROW (owner, 2026-09-14). The header used to hold every control in one strip: back,
    * title, history, the page group, likes, settings, select, the track, Print, Share and the mode
    * button, fourteen things with no priority among them. Now the header row is navigation only
@@ -2893,7 +2922,7 @@ export function BinderScreen({
         {/* PUBLIC OR PRIVATE, SAID OUT LOUD (owner, 2026-10-13): the owner's binders carry a chip
             beside Share, so which way a binder faces is read at a glance rather than found inside
             the sheet. Owner only: to anyone else a binder they can see is public by definition. */}
-        {!editing && isSupabaseConfigured && store.canEdit ? (
+        {!editing && isSupabaseConfigured && store.canEdit && !phone ? (
           <Tipped text={binder.isPublic ? 'Anyone with the link can see this binder' : 'Only you can see this binder'}>
             <Pressable
               onPress={() => setShareOpen(true)}
@@ -2913,6 +2942,7 @@ export function BinderScreen({
             <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
           </Pressable>
         ) : null}
+        {!editing ? pictureLink : null}
         {/* The shortcuts card, on request. A keyboard thing, so only where there is one, and an
             editing thing, so only while editing. */}
         {editing && Platform.OS === 'web' && !phone ? (
@@ -2939,7 +2969,7 @@ export function BinderScreen({
             testID="binder-settings-btn">
             {/* On a phone while editing the row is full, and the name is what pushed it past the
                 edge; the gear keeps its accessible name. Everywhere else it is named. */}
-            <Text style={[styles.headerAction, { color: theme.text }]}>{phone && editing ? '⚙' : '⚙ Settings'}</Text>
+            <Text style={[styles.headerAction, { color: theme.text }]}>{phone ? '⚙' : '⚙ Settings'}</Text>
           </Pressable>
         </Tipped>
       </>
@@ -2969,6 +2999,7 @@ export function BinderScreen({
       <>
         <TrackPill />
         {printLink}
+        {pictureLink}
       </>
     );
     primaryAction = (
@@ -4015,6 +4046,7 @@ export function BinderScreen({
           onSetPagePublic={(pageId, v) => store.updatePage(binder.id, pageId, { isPublic: v })}
           onSetSharePages={(ids) => store.updateBinder(binder.id, { sharePageIds: ids })}
           onToast={showToast}
+          onPicture={Platform.OS === 'web' ? () => { setShareOpen(false); void sharePicture(); } : undefined}
         />
         {sendPageOpen && (
           <AddToBinderSheet
@@ -4563,6 +4595,7 @@ const styles = StyleSheet.create({
   visChipText: { fontSize: FontSize.xs, fontWeight: Weight.bold, letterSpacing: 0.6 },
   visChipTextPublic: { color: Palette.accentText },
   visChipTextPrivate: { color: Palette.muted },
+  headerActionOff: { opacity: 0.5 },
   likeChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   likeChipHeart: { color: Palette.accent, fontSize: FontSize.md, lineHeight: 18 },
   likeChipText: { color: Palette.ink2, fontSize: FontSize.control, fontWeight: Weight.semibold },

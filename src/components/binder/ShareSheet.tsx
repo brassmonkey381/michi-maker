@@ -44,6 +44,7 @@ export function ShareSheet({
   onSetPagePublic,
   onSetSharePages,
   onToast,
+  onPicture,
 }: {
   visible: boolean;
   binder: DemoBinder;
@@ -56,6 +57,8 @@ export function ShareSheet({
   onSetSharePages: (pageIds: string[]) => void;
   /** Surface a blocked action (e.g. the contest public-page cap) as a toast in the host screen. */
   onToast?: (message: string) => void;
+  /** Draw the open page as a picture and hand it to the share sheet (lib/pageImage). Web only. */
+  onPicture?: () => void;
 }) {
   const theme = useTheme();
   // The up-to-2 pages featured in the link preview ([] = auto), as a comparable string. It is also
@@ -614,6 +617,11 @@ export function ShareSheet({
                     </ThemedText>
                   </View>
                   <View style={styles.pictureBtns}>
+                    {onPicture ? (
+                      <Pressable onPress={onPicture} accessibilityRole="button" testID="share-page-picture" style={({ pressed }) => [styles.hiresBtn, { borderColor: theme.backgroundSelected }, pressed && styles.dim]}>
+                        <ThemedText type="smallBold" style={styles.hiresText}>Share this page as a picture</ThemedText>
+                      </Pressable>
+                    ) : null}
                     <QuickPreviewButton binder={binder} options={imageOpts} label="Quick look" />
                     <Pressable
                       onPress={() => void downloadHires()}
@@ -636,9 +644,20 @@ export function ShareSheet({
                 <ShareBackdropField binder={binder} />
               </>
             ) : (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-                Turn on public sharing to get a link you can send to anyone.
-              </ThemedText>
+              <>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+                  Turn on public sharing to get a link you can send to anyone.
+                </ThemedText>
+                {/* A PRIVATE binder can still hand out a picture of the open page (owner, 2026-11-05):
+                    it is drawn on this device and nothing is published. */}
+                {onPicture ? (
+                  <View style={styles.pictureBtns}>
+                    <Pressable onPress={onPicture} accessibilityRole="button" testID="share-page-picture" style={({ pressed }) => [styles.hiresBtn, { borderColor: theme.backgroundSelected }, pressed && styles.dim]}>
+                      <ThemedText type="smallBold" style={styles.hiresText}>Share this page as a picture</ThemedText>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </>
             )}
     </DialogCard>
   );

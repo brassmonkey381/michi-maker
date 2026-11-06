@@ -471,7 +471,9 @@ export function BinderPages({
       COLUMN_LABEL_H -
       // A phone spends none of these (owner, 2026-11-05: the page was not reaching the screen's
       // width because the chrome around it was taking the height). The style agrees: pageWrapPhone.
-      (phone ? 0 : PAGE_WRAP_BOTTOM_MARGIN + PAGE_WRAP_TOP_MARGIN + PAGE_BREATHING_ROOM),
+      (phone ? 0 : PAGE_WRAP_BOTTOM_MARGIN + PAGE_WRAP_TOP_MARGIN + PAGE_BREATHING_ROOM) -
+      // The viewer's caption line under the page (phoneCaption: 16 + 4).
+      (phone && !editable ? 20 : 0),
   );
   /**
    * THE RAIL IS SIZED BY THE WINDOW, NOT BY THE PAGE.
@@ -1496,6 +1498,14 @@ export function BinderPages({
         ) : null}
         {settingsExtras}
         {toolPills ? <View style={styles.settingsRowControls}>{toolPills}</View> : null}
+        {phone && autoFlip ? (
+          <View style={styles.settingsRow}>
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
+              Autoplay
+            </ThemedText>
+            <View style={styles.settingsRowControls}>{autoFlip}</View>
+          </View>
+        ) : null}
         <View style={[styles.settingsGroups, settingsExtras ? styles.settingsGroupsAfter : null]}>
           {settingsExtras ? (
             <View style={styles.settingsGroupHead}>
@@ -2125,6 +2135,13 @@ export function BinderPages({
             );
           })()
         : null}
+      {/* THE CAPTION (owner, 2026-11-05): on a phone while viewing, one quiet line under the page
+          so a screenshot carries the binder's name, the page and where it was made. */}
+      {phone && !editable && page ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.phoneCaption} numberOfLines={1} testID="page-caption">
+          {`${binder.title} · Page ${idx + 1} of ${count} · michi-maker.com`}
+        </ThemedText>
+      ) : null}
       {/* One page at a time: nothing beside it to sweep over, so the outgoing page lifts on the
           same hinge and the page underneath — already the new one — is revealed. */}
       {pageTurn && !doubleSided && !showSpread && pageTurn.fromPage ? (
@@ -2164,7 +2181,9 @@ export function BinderPages({
             Platform.OS === 'web' ? (WEB_STICKY as object) : null,
           ]}>
         <View style={styles.dockRow}>
-        {autoFlip}
+        {/* On a phone the autoplay controls live in Settings (owner, 2026-11-05: the viewer's
+            bottom is for the strip and the arrows; the page gets the rest). */}
+        {phone ? null : autoFlip}
         {phone ? turnArrow(-1) : null}
         <View style={styles.dockStrip}>
         <PageStrip
@@ -2628,6 +2647,7 @@ const styles = StyleSheet.create({
   // art. 36px of it was the difference between a 700px window fitting and not.
   pageWrap: { alignItems: 'center', marginVertical: 8 },
   pageWrapPhone: { marginVertical: 0 },
+  phoneCaption: { marginTop: 4, fontSize: FontSize.xs, lineHeight: 16, letterSpacing: 0.2 },
   // The turning layer must not clip its own entry animation, and must not change the layout it
   // wraps — it only carries the transition.
   turnLayer: { alignItems: 'center', alignSelf: 'stretch' },

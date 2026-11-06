@@ -187,6 +187,70 @@ export async function buildPageImage(input: PageImageInput): Promise<Blob> {
   });
 }
 
+/**
+ * ONE CARD AS A PICTURE (owner, 2026-11-06: "sharing cards from the browser"): the card at full
+ * resolution on a mat with a caption (name · set) and the same stamp. 1200px wide.
+ */
+export async function buildCardImage(input: { cardId: string; name: string; caption?: string; mat: string }): Promise<Blob> {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') throw new Error('The card picture is drawn in a browser.');
+  const bmp = await bitmapOf(cardThumbUrl(input.cardId, 'full'));
+  if (!bmp) throw new Error('The card picture did not load.');
+  const cardW = 1000;
+  const cardH = Math.round(cardW * CARD_ASPECT);
+  const pad = 100;
+  const capH = input.caption || input.name ? 110 : 0;
+  const W = cardW + pad * 2;
+  const H = cardH + pad * 2 + capH;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('This browser gave no 2D canvas.');
+  const dark = isDark(input.mat);
+  ctx.fillStyle = input.mat;
+  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.25)';
+  ctx.shadowBlur = 40;
+  ctx.shadowOffsetY = 12;
+  roundRect(ctx, pad, pad, cardW, cardH, Math.round(cardW * 0.045));
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.restore();
+  ctx.save();
+  roundRect(ctx, pad, pad, cardW, cardH, Math.round(cardW * 0.045));
+  ctx.clip();
+  ctx.drawImage(bmp, pad, pad, cardW, cardH);
+  ctx.restore();
+  bmp.close();
+  const ink = dark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)';
+  const muted = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)';
+  if (capH) {
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = ink;
+    ctx.font = `700 40px "Segoe UI", -apple-system, Arial, sans-serif`;
+    ctx.fillText(input.name, pad, pad + cardH + 58, W - pad * 2 - 360);
+    if (input.caption) {
+      ctx.fillStyle = muted;
+      ctx.font = `500 28px "Segoe UI", -apple-system, Arial, sans-serif`;
+      ctx.fillText(input.caption, pad, pad + cardH + 98, W - pad * 2 - 360);
+    }
+  }
+  const stampH = 48;
+  ctx.font = `600 ${Math.round(stampH * 0.72)}px "Segoe UI", -apple-system, Arial, sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  const textW = ctx.measureText(SITE).width;
+  const cy = H - pad / 2 - (capH ? 10 : 0);
+  ctx.fillStyle = dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.62)';
+  ctx.fillText(SITE, W - pad * 0.55, cy);
+  drawMark(ctx, W - pad * 0.55 - textW - stampH * 1.35, cy - stampH / 2, stampH, dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.28)');
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The picture could not be encoded.'))), 'image/jpeg', 0.92);
+  });
+}
+
 export type PageImageOutcome = 'shared' | 'copied' | 'saved';
 
 async function toPng(blob: Blob): Promise<Blob> {
@@ -211,10 +275,11 @@ export function pageImageFileName(title: string, pageNo: number): string {
  * Android Chrome); the clipboard on a desktop that allows pictures; a download otherwise. Called
  * from a tap, because both the share sheet and the clipboard insist on one.
  */
-export async function sharePageImage(blob: Blob, fileName: string, text: string): Promise<PageImageOutcome> {
+export async function sharePageImage(blob: Blob, fileName: string, text: string, prefer: 'share' | 'clipboard' = 'share'): Promise<PageImageOutcome> {
   const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-  if (typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
+  // `prefer: 'clipboard'` is the desktop's explicit Copy: it skips the share sheet.
+  if (prefer === 'share' && typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
     try {
       await nav.share({ files: [file], text });
       return 'shared';

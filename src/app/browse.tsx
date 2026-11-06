@@ -15,7 +15,8 @@ import { useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { trackAffiliateClick } from '@/lib/analytics';
+import { track, trackAffiliateClick } from '@/lib/analytics';
+import { buildCardImage, pageImageFileName, sharePageImage } from '@/lib/pageImage';
 import { ebayCardQuery, ebaySearchLink } from '@/lib/ebay';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
@@ -33,7 +34,7 @@ import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
 import { useAvailableCopies, useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
+import { BinderSurface, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
 import { useTrial } from '@/hooks/use-trial';
@@ -71,6 +72,10 @@ export default function BrowseScreen() {
   const [addCardIds, setAddCardIds] = useState<string[] | null>(null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
+  const showToast = (message: string) => {
+    toastId.current += 1;
+    setToast({ id: toastId.current, message });
+  };
 
   const showAdded = (binderId: string, title: string, count: number, note = '') => {
     toastId.current += 1;
@@ -115,6 +120,26 @@ export default function BrowseScreen() {
     // every tier. The lock is the kit's (CardBrowse passes `findSimilar` in lockedFeatures), which
     // is what makes the card picker obey it too — so there is nothing to wrap here: a locked tap
     // comes back through onSimilarLocked below.
+    // THE CARD AS A PICTURE (owner, 2026-11-06): full resolution on a mat with our mark, to the
+    // phone's share sheet, the clipboard or a file (lib/pageImage). Web only: a canvas draws it.
+    const picture: CardAction = {
+      key: 'picture',
+      label: 'Share picture',
+      available: () => Platform.OS === 'web',
+      onPress: (c) => {
+        void (async () => {
+          try {
+            const blob = await buildCardImage({ cardId: c.id, name: c.name, caption: `${c.setName} · ${c.number}`, mat: BinderSurface.mat });
+            const out = await sharePageImage(blob, pageImageFileName(c.name, 0).replace(/-page-0/, ''), `${c.name} · https://michi-maker.com`);
+            track('card.picture', { via: out, surface: 'browse' });
+            if (out === 'copied') showToast('Picture copied. Paste it anywhere.');
+            else if (out === 'saved') showToast('Picture saved.');
+          } catch {
+            showToast('The picture did not draw. Try again in a moment.');
+          }
+        })();
+      },
+    };
     return [
       add,
       builtins.moreLikeThis,
@@ -122,6 +147,7 @@ export default function BrowseScreen() {
       builtins.findSimilar,
       builtins.viewSet,
       builtins.viewIllustrator,
+      picture,
       viewOnTcgplayer,
       findOnEbay,
     ].filter(Boolean) as CardAction[];

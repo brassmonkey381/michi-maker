@@ -2865,12 +2865,12 @@ export function BinderScreen({
    * right, and handed to the phone's share sheet (or the clipboard, or a download). Private
    * binders too: nothing leaves the device until the person posts it.
    */
-  const sharePicture = async () => {
+  const sharePicture = async (prefer: 'share' | 'clipboard' = 'share') => {
     if (picturing) return;
     setPicturing(true);
     try {
       const blob = await buildPageImage({ page, title: binder.title, pageNo: idx + 1, mat: BinderSurface.mat });
-      const out = await sharePageImage(blob, pageImageFileName(binder.title, idx + 1), `${binder.title} · page ${idx + 1} · https://michi-maker.com`);
+      const out = await sharePageImage(blob, pageImageFileName(binder.title, idx + 1), `${binder.title} · page ${idx + 1} · https://michi-maker.com`, prefer);
       track('page.picture', { via: out, cards: page.slots.filter((s) => s.cardId).length });
       if (out === 'copied') showToast('Picture copied. Paste it anywhere.');
       else if (out === 'saved') showToast('Picture saved.');
@@ -2882,9 +2882,18 @@ export function BinderScreen({
   };
   const pictureLink =
     Platform.OS === 'web' ? (
-      <Pressable onPress={() => void sharePicture()} disabled={picturing} hitSlop={10} accessibilityRole="button" accessibilityLabel="Share this page as a picture" testID="page-picture-btn">
-        <Text style={[styles.headerAction, { color: theme.text }, picturing && styles.headerActionOff]}>{picturing ? 'Drawing…' : 'Picture'}</Text>
-      </Pressable>
+      <>
+        <Pressable onPress={() => void sharePicture()} disabled={picturing} hitSlop={10} accessibilityRole="button" accessibilityLabel="Share this page as a picture" testID="page-picture-btn">
+          <Text style={[styles.headerAction, { color: theme.text }, picturing && styles.headerActionOff]}>{picturing ? 'Drawing…' : 'Picture'}</Text>
+        </Pressable>
+        {/* AN EXPLICIT COPY ON A DESKTOP (owner, 2026-11-06): Picture shares or saves; this one
+            puts the picture on the clipboard and says so. A phone has the share sheet instead. */}
+        {!phone ? (
+          <Pressable onPress={() => void sharePicture('clipboard')} disabled={picturing} hitSlop={10} accessibilityRole="button" accessibilityLabel="Copy this page as a picture" testID="page-copy-btn">
+            <Text style={[styles.headerAction, { color: theme.text }, picturing && styles.headerActionOff]}>Copy</Text>
+          </Pressable>
+        ) : null}
+      </>
     ) : null;
   /**
    * THE TOOLS ROW (owner, 2026-09-14). The header used to hold every control in one strip: back,

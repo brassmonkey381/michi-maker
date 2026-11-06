@@ -34,7 +34,7 @@ import {
 import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Weave } from '@/components/binder/BinderGrid';
-import { PageStrip, STRIP_THUMB_W, type StripExtra } from '@/components/binder/PageStrip';
+import { PageStrip, STRIP_THUMB_W, STRIP_THUMB_W_COMPACT, type StripExtra } from '@/components/binder/PageStrip';
 import { CoverDecorationLayer, type LiveDrag } from '@/components/binder/CoverDecorationLayer';
 import { COVER_ABBR, withSurface } from '@/components/binder/CoverEditor';
 import { patchDecoration, removeDecoration } from '@/data/coverDecorations';
@@ -469,9 +469,9 @@ export function BinderPages({
       contentAbove -
       (railLeft ? 0 : stripHeight) -
       COLUMN_LABEL_H -
-      PAGE_WRAP_BOTTOM_MARGIN -
-      PAGE_WRAP_TOP_MARGIN -
-      PAGE_BREATHING_ROOM,
+      // A phone spends none of these (owner, 2026-11-05: the page was not reaching the screen's
+      // width because the chrome around it was taking the height). The style agrees: pageWrapPhone.
+      (phone ? 0 : PAGE_WRAP_BOTTOM_MARGIN + PAGE_WRAP_TOP_MARGIN + PAGE_BREATHING_ROOM),
   );
   /**
    * THE RAIL IS SIZED BY THE WINDOW, NOT BY THE PAGE.
@@ -1152,7 +1152,7 @@ export function BinderPages({
                 model={coverModel}
                 colourwayId={coverColour.id}
                 surface={id}
-                width={STRIP_THUMB_W}
+                width={phone ? STRIP_THUMB_W_COMPACT : STRIP_THUMB_W}
                 stickers={binder.cover?.surfaces?.[id]}
               />
             ),
@@ -1685,7 +1685,7 @@ export function BinderPages({
       <GestureDetector gesture={swipe} touchAction="pan-y">
       <View
         ref={pageWrapRef}
-        style={[styles.pageWrap, railLeft && styles.pageWrapRailed]}
+        style={[styles.pageWrap, railLeft && styles.pageWrapRailed, phone && styles.pageWrapPhone]}
         testID="binder-page-wrap">
       {/* THE PAGE TURNS ON A HINGE. This used to slide the whole spread in from the side, which read
           as lifting the binder away and sliding a different one back rather than as turning a page.
@@ -2128,17 +2128,19 @@ export function BinderPages({
       {/* One page at a time: nothing beside it to sweep over, so the outgoing page lifts on the
           same hinge and the page underneath — already the new one — is revealed. */}
       {pageTurn && !doubleSided && !showSpread && pageTurn.fromPage ? (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.turnLayer]}>
           {/* Centred the same way the page beneath is (turnLayer), or the lifting sheet starts from
-              the left edge of the wrap rather than from the page. */}
-          <View style={styles.turnLayer}>
-            <View style={{ width: pageWidth }}>
+              the left edge of the wrap rather than from the page. FULL HEIGHT (owner, 2026-11-05,
+              phone): the leaf is absolute inside this column, so a column with no height of its
+              own put the sheet's bottom edge at the page's top and the whole turn played above it. */}
+          <View style={{ width: pageWidth, flex: 1 }}>
+            {(() => (
               <SingleTurnLeaf
                 t={turnT}
                 width={pageWidth}
                 page={renderGrid({ page: pageTurn.fromPage, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf, decorative: true })}
               />
-            </View>
+            ))()}
           </View>
         </View>
       ) : null}
@@ -2172,6 +2174,7 @@ export function BinderPages({
           currentIndex={shut || coverFocus ? -1 : idx}
           onSelect={selectPage}
           onReorder={onReorderPages}
+          compact={phone}
           {...coverStripExtras}
         />
         </View>
@@ -2624,6 +2627,7 @@ const styles = StyleSheet.create({
   // that the page is fitted to the height it has, every pixel of margin comes straight off the card
   // art. 36px of it was the difference between a 700px window fitting and not.
   pageWrap: { alignItems: 'center', marginVertical: 8 },
+  pageWrapPhone: { marginVertical: 0 },
   // The turning layer must not clip its own entry animation, and must not change the layout it
   // wraps — it only carries the transition.
   turnLayer: { alignItems: 'center', alignSelf: 'stretch' },
@@ -2680,7 +2684,7 @@ const styles = StyleSheet.create({
   dockRow: { flexDirection: 'row', alignItems: 'center' },
   turnArrow: {
     width: 36,
-    height: 44,
+    height: 34,
     marginHorizontal: 4,
     borderRadius: Radius.control,
     backgroundColor: Palette.panel,

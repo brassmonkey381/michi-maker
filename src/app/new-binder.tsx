@@ -21,6 +21,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { fetchSetCards, getApiKey, getApiUrl, type CatalogCard } from 'tcgscan-browse';
 
+import { AuthSheet } from '@/components/auth/AuthSheet';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -101,6 +102,10 @@ export default function NewBinderScreen() {
   const [set, setSet] = useState<SetMeta | null>(null);
   const [loading, setLoading] = useState(false);
   const [refused, setRefused] = useState(false);
+  // A GUEST WHOSE BINDER WANTS MORE THAN THE GUEST CAP (owner, 2026-11-05): say so once, with
+  // two ways on: an account, or the first pages of what they chose.
+  const [capAsk, setCapAsk] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   // THE THREE PICKS COME FROM THE KIT'S BROWSER (owner, 2026-11-05: "use the browse kit to find
   // the cards. its so much more user friendly"): the same browser as a pocket's Add, its ＋ pill
   // picking a card, up to three.
@@ -163,8 +168,14 @@ export default function NewBinderScreen() {
     kind === 'set' ? (set?.name ?? 'New binder') : kind === 'three' ? 'My picks' : query.trim() ? query.trim().replace(/^\w/, (ch) => ch.toUpperCase()) : 'New binder';
   const ready = kind === 'three' ? picked.length === 3 : capped.length > 0;
 
-  const create = () => {
+  const wantPages = pagesForCards(chosen.map((c) => c.id)).length;
+  const create = (truncate = false) => {
     if (!kind) return;
+    if (!truncate && store.tier === 'guest' && chosen.length > capped.length) {
+      setCapAsk(true);
+      track('wizard.cap_ask', { wizard: 'new-binder', kind, cards: chosen.length, pages: wantPages, cap: pageCap });
+      return;
+    }
     const pages = pagesForCards(capped.map((c) => c.id));
     const made = store.createBinder({ title, pages }, kind === 'three' ? { seed: { theme: 'wizard-three' } } : undefined);
     track('wizard.create', { wizard: 'new-binder', kind, cards: capped.length, pages: pages.length, capped: chosen.length > capped.length, ok: !!made });
@@ -357,9 +368,24 @@ export default function NewBinderScreen() {
               </Pressable>
             </View>
           ) : null}
-          {chosen.length > capped.length ? <Text style={styles.capLine}>The first {cardCap} cards go in. A free account holds more.</Text> : null}
+          {capAsk ? (
+            <View style={styles.capAsk} testID="wizard-cap-ask">
+              <Text style={styles.capAskTitle}>This binder wants {wantPages} pages</Text>
+              <Text style={styles.refusedText}>A guest binder holds {pageCap}. With a free account, pages are unlimited.</Text>
+              <View style={styles.capAskRow}>
+                <Pressable onPress={() => setAuthOpen(true)} accessibilityRole="button" testID="wizard-cap-account" style={({ pressed }) => [styles.primary, styles.capAskBtn, pressed && styles.pressed]}>
+                  <Text style={styles.primaryText}>Create an account</Text>
+                </Pressable>
+                <Pressable onPress={() => create(true)} accessibilityRole="button" testID="wizard-cap-truncate" style={({ pressed }) => [styles.secondary, styles.capAskBtn, styles.capAskSecondary, pressed && styles.pressed]}>
+                  <Text style={styles.secondaryText}>Keep the first {pageCap} pages</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+          {chosen.length > capped.length && !capAsk && store.tier !== 'guest' ? <Text style={styles.capLine}>The first {cardCap} cards go in. PRO holds more.</Text> : null}
+          {capAsk ? null : (
           <Pressable
-            onPress={create}
+            onPress={() => create()}
             disabled={!ready || loading}
             accessibilityRole="button"
             accessibilityState={{ disabled: !ready || loading }}
@@ -367,8 +393,10 @@ export default function NewBinderScreen() {
             style={({ pressed }) => [styles.primary, (!ready || loading) && styles.primaryOff, pressed && styles.pressed]}>
             <Text style={styles.primaryText}>{ready ? `Create binder · ${capped.length} ${capped.length === 1 ? 'card' : 'cards'}` : 'Create binder'}</Text>
           </Pressable>
+          )}
         </View>
       ) : null}
+      <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
       </SafeAreaView>
     </ThemedView>
   );
@@ -431,6 +459,11 @@ const styles = StyleSheet.create({
   previewWrap: { alignItems: 'center', marginTop: Spacing.two },
   pageLine: { textAlign: 'center', fontSize: FontSize.sm, color: Palette.muted },
   refused: { gap: Spacing.two, marginTop: Spacing.two },
+  capAsk: { gap: Spacing.two, padding: Spacing.three, borderRadius: Radius.control, borderWidth: 2, borderColor: Palette.accent, backgroundColor: Palette.surface },
+  capAskTitle: { fontSize: FontSize.md, fontWeight: Weight.bold, color: Palette.ink },
+  capAskRow: { gap: Spacing.two },
+  capAskBtn: { alignSelf: 'stretch', alignItems: 'center' },
+  capAskSecondary: { height: 50, justifyContent: 'center', borderRadius: Radius.control },
   refusedText: { fontSize: FontSize.body, color: Palette.ink2, lineHeight: 20 },
   secondary: { alignSelf: 'flex-start', paddingVertical: 10, paddingHorizontal: 16, borderRadius: Radius.pill, borderWidth: 1.5, borderColor: Palette.accent },
   secondaryText: { color: Palette.accent, fontWeight: Weight.bold },

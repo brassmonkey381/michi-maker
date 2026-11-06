@@ -41,6 +41,7 @@ import { ShareSheet } from '@/components/binder/ShareSheet';
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { PocketRing, sameRect, type PocketRect } from '@/components/binder/PocketRing';
 import { Spotlight } from '@/components/binder/Spotlight';
+import { PhonePocketSheet } from '@/components/binder/PhonePocketSheet';
 import { PhoneToolBar } from '@/components/binder/PhoneToolBar';
 import { AddArtSheet } from '@/components/binder/AddArtSheet';
 import { SliceStudio, type SliceStudioHandle, type StudioPiece } from '@/components/binder/SliceStudio';
@@ -463,6 +464,8 @@ export function BinderScreen({
   // THE PHONE TOOL BAR (owner, 2026-11-05, option C): its More sheet, and its height, which the
   // page's height budget has to leave free.
   const [phoneBarH, setPhoneBarH] = useState(0);
+  // The phone's pocket sheet, measured for whatever has to sit above it (the toast).
+  const [pocketSheetH, setPocketSheetH] = useState(0);
   const [completeBannerH, setCompleteBannerH] = useState(96);
   /**
    * BOTH SIDES ARE ALWAYS THERE WHILE EDITING — collapsed to a rail, or open.
@@ -1505,6 +1508,8 @@ export function BinderScreen({
   const selectedSlot = selectedSlotId
     ? (page.slots.find((s) => s.id === selectedSlotId) ?? null)
     : null;
+  // The phone's pocket sheet is up: the grid's bar is off and the pocket hint lives in the sheet.
+  const phoneSheetShown = phone && editing && canEdit && !!selectedSlot && !moving;
 
   const showToast = (message: string, withUndo = false) => {
     toastId.current += 1;
@@ -2605,6 +2610,7 @@ export function BinderScreen({
         onTraySlot={selectedSlot?.type === 'card' && selectedSlot.rowSpan === 1 && selectedSlot.colSpan === 1 ? trayToSelected : undefined}
         hintToolbar={!!pocketHint.copy}
         toolbarPlacement={view.pocketBar}
+        slotToolbar={!(phone && editing && canEdit)}
         onSplitSlot={selectedSlot && canSplitSlice(selectedSlot) ? splitSelected : undefined}
         onSimilarSlot={similarAvailable() ? findSimilarToSelected : undefined}
         onColorsSlot={findColorsOfSelected}
@@ -3236,6 +3242,32 @@ export function BinderScreen({
                 inside the thing you are working on. */}
           </ScrollView>
 
+          {/* THE PICKED POCKET'S ACTIONS, as a sheet on the tool bar (owner, 2026-11-05): the
+              grid's own bar is off on a phone (slotToolbar above), where it wrapped into a column
+              over the page. Not while a move is armed: the banner says what to do then. */}
+          {phoneSheetShown && selectedSlot ? (
+            <PhonePocketSheet
+              slot={selectedSlot}
+              name={selectedSlot.cardId ? resolveCard(selectedSlot.cardId)?.name : null}
+              bottom={phoneBarH}
+              onLayoutHeight={setPocketSheetH}
+              hint={pocketHint.copy ? { title: pocketHint.copy.title, body: pocketHint.copy.body, onDone: pocketHint.dismiss } : null}
+              onReplace={replaceSelected}
+              onEditArt={selectedSlot.type === 'artwork' && selectedSlot.imageUrl ? editSelectedArt : undefined}
+              onAutoFill={selectedSlot.cardId ? () => setAutoFillOpen(true) : undefined}
+              onSimilar={selectedSlot.cardId && similarAvailable() ? findSimilarToSelected : undefined}
+              onColors={selectedSlot.cardId ? findColorsOfSelected : undefined}
+              onMove={armMove}
+              onToTray={selectedSlot.type === 'card' && selectedSlot.rowSpan === 1 && selectedSlot.colSpan === 1 ? trayToSelected : undefined}
+              onDuplicate={duplicateSelected}
+              onPickCopy={selectedSlot.cardId ? pickCopyForSelected : undefined}
+              hasCopy={!!selectedSlot.sourceEntryId}
+              onStyle={() => setSlotStyleOpen(true)}
+              onSplit={canSplitSlice(selectedSlot) ? splitSelected : undefined}
+              onRemove={removeSelected}
+              onDeselect={() => setSelectedSlotId(null)}
+            />
+          ) : null}
           {phone && editing && canEdit ? (
             <PhoneToolBar
               onAdd={() => {
@@ -3881,7 +3913,7 @@ export function BinderScreen({
           <EyedropperBanner />
         </View>
         {editorHint?.copy && hintRect ? <PocketRing rect={hintRect} dim ring={false} /> : null}
-        {editorHint?.copy ? (
+        {editorHint?.copy && !phoneSheetShown ? (
           // INSIDE THE PAGE AREA, not the window (QA, 2026-11-05: the card ran under the docked
           // browser and its Got it was unreachable). The docks are above it, so it keeps clear.
           // Just above its target when that has been measured; the top of the page area until then.
@@ -3913,7 +3945,7 @@ export function BinderScreen({
             </View>
           </View>
         ) : null}
-        <Toast spec={toast} onDismiss={() => setToast(null)} bottomInset={phone && editing && canEdit ? phoneBarH : 0} />
+        <Toast spec={toast} onDismiss={() => setToast(null)} bottomInset={phone && editing && canEdit ? phoneBarH + (phoneSheetShown ? pocketSheetH : 0) : 0} />
         <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
         {multiActionsOpen ? (

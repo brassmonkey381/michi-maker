@@ -13,6 +13,9 @@ const ITEM_W = 66; // width of each page thumbnail (incl. its margin step)
 const THUMB_W = 58;
 /** The width a strip thumbnail is drawn at, for callers supplying their own (a cover). */
 export const STRIP_THUMB_W = THUMB_W;
+/** The phone's shorter strip (owner, 2026-11-05): the height it saves goes to the page. */
+const THUMB_W_COMPACT = 44;
+export const STRIP_THUMB_W_COMPACT = THUMB_W_COMPACT;
 
 /**
  * A VERTICAL THUMB'S BOX IS PINNED, and a horizontal one's is not.
@@ -59,6 +62,8 @@ interface PageStripProps {
   trailing?: StripExtra[];
   /** Which way the strip runs. Vertical is the left rail; horizontal is the bottom dock. */
   axis?: StripAxis;
+  /** Smaller thumbnails and tighter padding: the phone's bottom dock. Horizontal only. */
+  compact?: boolean;
 }
 
 /** Horizontal filmstrip of page thumbnails: tap to jump, and (when editable) long-press-drag to reorder. */
@@ -71,6 +76,7 @@ export function PageStrip({
   leading,
   trailing,
   axis = 'horizontal',
+  compact = false,
 }: PageStripProps) {
   // One page is nothing to choose between, unless there are covers to choose as well.
   if (pages.length <= 1 && !leading?.length && !trailing?.length) return null;
@@ -84,9 +90,9 @@ export function PageStrip({
       showsVerticalScrollIndicator={vertical}
       // flexGrow centres the strip under the page when it's narrower than the screen, while a
       // long strip still scrolls normally from its left edge.
-      contentContainerStyle={vertical ? styles.column : styles.row}>
+      contentContainerStyle={[vertical ? styles.column : styles.row, compact && styles.rowCompact]}>
       {(leading ?? []).map((x) => (
-        <ExtraThumb key={x.key} extra={x} />
+        <ExtraThumb key={x.key} extra={x} compact={compact} />
       ))}
       {pages.map((page, index) => (
         <PageThumb
@@ -99,19 +105,20 @@ export function PageStrip({
           onSelect={onSelect}
           onReorder={onReorder}
           vertical={vertical}
+          compact={compact}
         />
       ))}
       {(trailing ?? []).map((x) => (
-        <ExtraThumb key={x.key} extra={x} />
+        <ExtraThumb key={x.key} extra={x} compact={compact} />
       ))}
     </ScrollView>
   );
 }
 
 /** A cover in the strip. Same footprint as a page thumb, so the drag pitch the pages use holds. */
-function ExtraThumb({ extra }: { extra: StripExtra }) {
+function ExtraThumb({ extra, compact = false }: { extra: StripExtra; compact?: boolean }) {
   return (
-    <Pressable onPress={extra.onSelect} style={styles.thumb} accessibilityLabel={extra.label}>
+    <Pressable onPress={extra.onSelect} style={[styles.thumb, compact && styles.thumbCompact]} accessibilityLabel={extra.label}>
       <View style={[styles.thumbInner, extra.current && styles.thumbCurrent]} pointerEvents="none">
         {extra.thumb}
       </View>
@@ -129,9 +136,11 @@ interface PageThumbProps {
   onSelect: (index: number) => void;
   onReorder?: (from: number, to: number) => void;
   vertical?: boolean;
+  compact?: boolean;
 }
 
-function PageThumb({ page, pageStyle, index, count, current, onSelect, onReorder, vertical = false }: PageThumbProps) {
+function PageThumb({ page, pageStyle, index, count, current, onSelect, onReorder, vertical = false, compact = false }: PageThumbProps) {
+  const thumbW = compact ? THUMB_W_COMPACT : THUMB_W;
   // One offset, along whichever axis the strip runs. Two shared values would be two ways to be
   // half-reset.
   const drag = useSharedValue(0);
@@ -141,7 +150,7 @@ function PageThumb({ page, pageStyle, index, count, current, onSelect, onReorder
     const tap = Gesture.Tap().onEnd(() => runOnJS(onSelect)(index));
     // Read-only strip (inspecting): tap-to-jump only, no drag-to-reorder.
     if (!onReorder) return tap;
-    const step = vertical ? ITEM_H : ITEM_W;
+    const step = vertical ? ITEM_H : compact ? THUMB_W_COMPACT + 8 : ITEM_W;
     const pan = Gesture.Pan()
       // Long-press to lift, so ordinary scrolling of the strip still works. Load-bearing on both
       // axes and more so vertically, where a drag would otherwise contend with the page's own
@@ -163,7 +172,7 @@ function PageThumb({ page, pageStyle, index, count, current, onSelect, onReorder
         lifted.value = 0;
       });
     return Gesture.Exclusive(pan, tap);
-  }, [index, count, onReorder, onSelect, drag, lifted, vertical]);
+  }, [index, count, onReorder, onSelect, drag, lifted, vertical, compact]);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [
@@ -183,11 +192,11 @@ function PageThumb({ page, pageStyle, index, count, current, onSelect, onReorder
       {/* testID becomes data-testid on web: scripts/export-instagram.mjs turns pages by clicking these. */}
       <Animated.View
         testID={`binder-strip-page-${index + 1}`}
-        style={[styles.thumb, vertical && styles.thumbBoxed, animStyle]}>
+        style={[styles.thumb, vertical && styles.thumbBoxed, compact && styles.thumbCompact, animStyle]}>
         <View style={[styles.thumbInner, current && styles.thumbCurrent]} pointerEvents="none">
-          <BinderGrid page={page} width={THUMB_W} pageStyle={pageStyle} outerEdge={pageSide(index) === 'left' ? 'left' : 'right'} />
+          <BinderGrid page={page} width={thumbW} pageStyle={pageStyle} outerEdge={pageSide(index) === 'left' ? 'left' : 'right'} />
         </View>
-        <Text style={[styles.num, current && styles.numCurrent]}>{index + 1}</Text>
+        <Text style={[styles.num, current && styles.numCurrent, compact && styles.numCompact]}>{index + 1}</Text>
       </Animated.View>
     </GestureDetector>
   );
@@ -217,6 +226,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   thumb: { width: THUMB_W, alignItems: 'center' },
+  thumbCompact: { width: THUMB_W_COMPACT },
+  rowCompact: { paddingVertical: 2 },
+  numCompact: { fontSize: FontSize.xs, marginTop: 0 },
   /** Vertical only: a fixed box, so the drop calculation has a constant pitch. See THUMB_BOX_H. */
   thumbBoxed: { height: THUMB_BOX_H, justifyContent: 'center' },
   thumbInner: {

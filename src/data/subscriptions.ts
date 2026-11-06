@@ -300,7 +300,8 @@ export const COMPARISON: CompareRow[] = [
     // THE THREE ROWS THE PLAN IS SOLD ON. Free has a number here and PRO does not, which is the
     // whole pitch, so they read as a band rather than as three rows among eight.
     highlight: true,
-    free: { text: '9' },
+    // tiers.ts TIER_LIMITS.free.pagesPerBinder (20 since 2026-11-05); check:caps guards the table.
+    free: { text: '20' },
     freeLegacy: { text: '16' },
     pro: { text: 'Unlimited', strong: true },
   },

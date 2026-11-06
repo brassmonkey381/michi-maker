@@ -62,7 +62,7 @@ function Tick() {
   );
 }
 
-function ValueCell({ cell, vip, pro }: { cell: CompareCell; vip?: boolean; pro?: boolean }) {
+function ValueCell({ cell, vip, pro, right }: { cell: CompareCell; vip?: boolean; pro?: boolean; right?: boolean }) {
   const isTick = cell.text === '✓';
   return (
     <>
@@ -79,6 +79,7 @@ function ValueCell({ cell, vip, pro }: { cell: CompareCell; vip?: boolean; pro?:
             // "No" is information the reader does not need to dwell on. Muted, so the eye slides
             // past it to the column that says yes.
             !pro && cell.text === 'No' && styles.valueNo,
+            right && styles.phoneValueText,
           ]}>
           {cell.text}
         </Text>
@@ -91,7 +92,7 @@ function ValueCell({ cell, vip, pro }: { cell: CompareCell; vip?: boolean; pro?:
           </View>
         ) : null}
       </View>
-      {cell.sub ? <Text style={[styles.valueSub, vip && styles.vipSubText]}>{cell.sub}</Text> : null}
+      {cell.sub ? <Text style={[styles.valueSub, vip && styles.vipSubText, right && styles.phoneValueText]}>{cell.sub}</Text> : null}
     </>
   );
 }
@@ -325,7 +326,7 @@ export function PlanComparison() {
                   {row.mark ? <Text style={styles.mark}>{row.mark}</Text> : ''}
                 </Text>
                 <View style={styles.phoneRowValue}>
-                  <ValueCell cell={col.cell(row)} pro={col.pro} />
+                  <ValueCell cell={col.cell(row)} pro={col.pro} right />
                 </View>
               </View>
             ))}
@@ -683,7 +684,10 @@ const styles = StyleSheet.create({
   },
   phoneRowHl: { backgroundColor: Palette.selectionSoft },
   phoneRowLabel: { fontSize: FontSize.body, color: Palette.ink2, flexShrink: 1, minWidth: 0 },
-  phoneRowValue: { alignItems: 'flex-end', flexShrink: 0 },
+  // Shrinks and wraps (owner, 2026-11-05): "Covers, stitchings, soundtracks, stickers and more"
+  // ran past the card's edge when the value could not give way.
+  phoneRowValue: { flex: 1, minWidth: 0, alignItems: 'flex-end' },
+  phoneValueText: { textAlign: 'right' },
   phoneFoot: { padding: Spacing.four },
   row: { flexDirection: 'row', alignItems: 'stretch' },
 

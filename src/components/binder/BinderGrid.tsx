@@ -244,6 +244,8 @@ interface BinderGridProps {
   hintToolbar?: boolean;
   /** Where the selected pocket's bar sits (viewPrefs.pocketBar). Over the pocket by default. */
   toolbarPlacement?: PocketBarPlacement;
+  /** False when the host draws the pocket's actions itself (the phone's PhonePocketSheet). */
+  slotToolbar?: boolean;
   /** "Move" — arm this pocket so the next pocket tapped, on any page, receives it. */
   onMoveSlot?: () => void;
   /** "Tray" — take this card off the page into the binder's tray (one-by-one card pockets only). */
@@ -361,6 +363,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onSplitSlot,
     hintToolbar = false,
     toolbarPlacement = 'over',
+    slotToolbar = true,
     onMoveSlot,
     onTraySlot,
     onColorsSlot,
@@ -1111,7 +1114,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           : null}
 
         {/* Quick-action toolbar anchored to the selected pocket (edit mode). */}
-        {onReplaceSlot && resizeSlot ? (
+        {onReplaceSlot && resizeSlot && slotToolbar ? (
           <SlotToolbar
             key={`toolbar-${resizeSlot.id}`}
             slot={resizeSlot}

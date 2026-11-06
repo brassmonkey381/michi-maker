@@ -371,7 +371,7 @@ export default function NewBinderScreen() {
           {capAsk ? (
             <View style={styles.capAsk} testID="wizard-cap-ask">
               <Text style={styles.capAskTitle}>This binder wants {wantPages} pages</Text>
-              <Text style={styles.refusedText}>A guest binder holds {pageCap}. With a free account, pages are unlimited.</Text>
+              <Text style={styles.refusedText}>A guest binder holds {pageCap}. Try unlimited pages with a free account.</Text>
               <View style={styles.capAskRow}>
                 <Pressable onPress={() => setAuthOpen(true)} accessibilityRole="button" testID="wizard-cap-account" style={({ pressed }) => [styles.primary, styles.capAskBtn, pressed && styles.pressed]}>
                   <Text style={styles.primaryText}>Create an account</Text>

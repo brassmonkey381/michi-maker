@@ -209,9 +209,13 @@ export async function buildCardImage(input: {
   const cardW = 1000;
   const cardH = Math.round(cardW * CARD_ASPECT);
   const pad = 100;
-  const capH = input.caption || input.name ? (input.illustrator ? 150 : 110) : 0;
+  // THE FOOTER IS A GRID (owner, 2026-11-06): three rows on shared baselines, two columns. Left:
+  // name, set · number, illustrator. Right: price, date, and the stamp on the third row. The
+  // rows are ROW apart and the whole block sits a pad above the bottom edge, like the card above.
+  const ROW = 44;
+  const capH = ROW * 3;
   const W = cardW + pad * 2;
-  const H = cardH + pad * 2 + capH;
+  const H = pad + cardH + Math.round(pad * 0.6) + capH + Math.round(pad * 0.7);
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -236,48 +240,53 @@ export async function buildCardImage(input: {
   bmp.close();
   const ink = dark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)';
   const muted = dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)';
-  if (capH) {
-    const top = pad + cardH;
-    ctx.textBaseline = 'alphabetic';
-    // The price, right of the name on the same line; today's date under it, where the set line is.
-    let priceW = 0;
-    if (typeof input.price === 'number' && input.price > 0) {
-      const text = `$${input.price.toFixed(2)}`;
-      ctx.textAlign = 'right';
-      ctx.fillStyle = ink;
-      ctx.font = `700 40px "Segoe UI", -apple-system, Arial, sans-serif`;
-      ctx.fillText(text, W - pad, top + 58);
-      priceW = ctx.measureText(text).width + 40;
-      if (input.date) {
-        ctx.fillStyle = muted;
-        ctx.font = `500 26px "Segoe UI", -apple-system, Arial, sans-serif`;
-        ctx.fillText(input.date, W - pad, top + 98);
-      }
-    }
-    ctx.textAlign = 'left';
+  const left = pad;
+  const right = W - pad;
+  const y1 = pad + cardH + Math.round(pad * 0.6) + 36; // baseline of row 1
+  const y2 = y1 + ROW;
+  const y3 = y2 + ROW;
+  const FONT = '"Segoe UI", -apple-system, Arial, sans-serif';
+  ctx.textBaseline = 'alphabetic';
+  // Right column first, so the left column knows how much room it has on each row.
+  let rightW1 = 0, rightW2 = 0;
+  if (typeof input.price === 'number' && input.price > 0) {
+    const text = `$${input.price.toFixed(2)}`;
+    ctx.textAlign = 'right';
     ctx.fillStyle = ink;
-    ctx.font = `700 40px "Segoe UI", -apple-system, Arial, sans-serif`;
-    ctx.fillText(input.name, pad, top + 58, W - pad * 2 - priceW);
-    if (input.caption) {
+    ctx.font = `700 36px ${FONT}`;
+    ctx.fillText(text, right, y1);
+    rightW1 = ctx.measureText(text).width + 48;
+    if (input.date) {
       ctx.fillStyle = muted;
-      ctx.font = `500 28px "Segoe UI", -apple-system, Arial, sans-serif`;
-      ctx.fillText(input.caption, pad, top + 98, W - pad * 2 - priceW);
-    }
-    if (input.illustrator) {
-      ctx.fillStyle = ink;
-      ctx.font = `700 28px "Segoe UI", -apple-system, Arial, sans-serif`;
-      ctx.fillText(`Illus. ${input.illustrator}`, pad, top + 138, W - pad * 2 - 360);
+      ctx.font = `500 26px ${FONT}`;
+      ctx.fillText(input.date, right, y2);
+      rightW2 = ctx.measureText(input.date).width + 48;
     }
   }
-  const stampH = 48;
-  ctx.font = `600 ${Math.round(stampH * 0.72)}px "Segoe UI", -apple-system, Arial, sans-serif`;
+  // The stamp, on the third row's baseline: the mark sits on the same line as the address.
   ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  const textW = ctx.measureText(SITE).width;
-  const cy = H - pad / 2 - (capH ? 10 : 0);
   ctx.fillStyle = dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.62)';
-  ctx.fillText(SITE, W - pad * 0.55, cy);
-  drawMark(ctx, W - pad * 0.55 - textW - stampH * 1.35, cy - stampH / 2, stampH, dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.28)');
+  ctx.font = `600 26px ${FONT}`;
+  ctx.fillText(SITE, right, y3);
+  const siteW = ctx.measureText(SITE).width;
+  const markS = 30;
+  drawMark(ctx, right - siteW - 12 - markS, y3 - markS + 4, markS, dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.28)');
+  const rightW3 = siteW + 12 + markS + 48;
+  // Left column.
+  ctx.textAlign = 'left';
+  ctx.fillStyle = ink;
+  ctx.font = `700 36px ${FONT}`;
+  ctx.fillText(input.name, left, y1, W - pad * 2 - rightW1);
+  if (input.caption) {
+    ctx.fillStyle = muted;
+    ctx.font = `500 26px ${FONT}`;
+    ctx.fillText(input.caption, left, y2, W - pad * 2 - rightW2);
+  }
+  if (input.illustrator) {
+    ctx.fillStyle = ink;
+    ctx.font = `700 26px ${FONT}`;
+    ctx.fillText(`Illus. ${input.illustrator}`, left, y3, W - pad * 2 - rightW3);
+  }
   return await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The picture could not be encoded.'))), 'image/jpeg', 0.92);
   });

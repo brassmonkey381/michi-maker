@@ -31,8 +31,9 @@ export function HomeSection({
   const theme = useTheme();
   const open = collapsible ? !collapsed : true;
   return (
-    <View style={styles.section}>
-      <View style={styles.header}>
+    <View style={[styles.section, !open && styles.sectionClosed]}>
+      {/* A folded section is one line, not a line and the gap its body would have left. */}
+      <View style={[styles.header, !open && styles.headerClosed]}>
         {collapsible ? (
           <Pressable
             onPress={() => setCollapsed((c) => !c)}
@@ -62,6 +63,8 @@ export function HomeSection({
 
 const styles = StyleSheet.create({
   section: { marginBottom: Spacing.five },
+  sectionClosed: { marginBottom: Spacing.three },
+  headerClosed: { marginBottom: 0 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -88,6 +88,8 @@ export const NAV_EXPLORE: NavItem[] = [
 export const NAV_LEARN: NavItem[] = [
   { label: 'How-To', href: '/learn' as Href, icon: 'howto', match: (p) => p.startsWith('/learn') },
   { label: 'The Michi Method', href: '/michi-method', icon: 'method', match: (p) => p.startsWith('/michi-method') },
+  // In the menu since 2026-11-05: the phone's home page no longer carries it in the header.
+  { label: 'Search Guide', href: '/search-guide' as Href, icon: 'howto', match: (p) => p.startsWith('/search-guide') },
   { label: 'What’s New', href: '/whats-new' as Href, icon: 'news', match: (p) => p.startsWith('/whats-new') },
 ];
 

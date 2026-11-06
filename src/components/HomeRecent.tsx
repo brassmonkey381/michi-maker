@@ -25,11 +25,14 @@ import { useBrowseTheme } from '@/lib/browseTheme';
 import { useLanguagePref } from '@/store/languagePref';
 
 export function HomeRecent({
+  collapsed = false,
   onFindSimilar,
   onViewSet,
   onOpenSet,
   onAddToBinder,
 }: {
+  /** Start folded (a phone, owner 2026-11-05: the feed is not what the page is for). */
+  collapsed?: boolean;
   onFindSimilar?: (cardId: string) => void;
   onViewSet?: (cardId: string) => void;
   /** Open a whole set (from a set tile tap) in the home browser below. */
@@ -47,6 +50,7 @@ export function HomeRecent({
     // + disclosure, so the feed's own header is suppressed (title="").
     <HomeSection
       title="Recent & Upcoming"
+      initiallyCollapsed={collapsed}
       action={<LanguageToggle value={langs} onChange={changeLangs} theme={browseTheme} />}>
       <RecentProducts
         theme={browseTheme}

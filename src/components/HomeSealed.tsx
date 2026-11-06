@@ -10,7 +10,7 @@
  */
 import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import {
   affiliateConfigured,
@@ -128,6 +128,9 @@ export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
 
   // Measured once the row has a width; until then assume wide, which is the fuller list.
   const narrow = width > 0 && width < NARROW_W;
+  // The fold is decided on the FIRST render (HomeSection reads initiallyCollapsed once), before
+  // the row has measured, so it reads the window instead of the row.
+  const phone = useWindowDimensions().width < NARROW_W;
   const perSet = narrow ? PER_SET_NARROW : PER_SET;
   const maxSets = narrow ? MAX_SETS_NARROW : Infinity;
   const items = useMemo<Item[]>(() => {
@@ -151,7 +154,8 @@ export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
   for (let i = 0; i < items.length; i += perPage) pages.push(items.slice(i, i + perPage));
 
   return (
-    <HomeSection title="Sealed Products" collapsible={false}>
+    // Folded on a phone (owner, 2026-11-05): tappable, not leading. Always open on a wide page.
+    <HomeSection title="Sealed Products" collapsible={phone} initiallyCollapsed={phone}>
       <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
         <PagedCarousel
           width={width}

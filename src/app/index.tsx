@@ -73,6 +73,10 @@ export default function HomeScreen() {
   // Where the web rail isn't present (native, or narrow web) Home carries the quick-nav to the
   // personal + browse pages, so nothing the rail links to becomes unreachable.
   const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
+  // A PHONE'S HOME IS SHORTER (owner, 2026-11-05: "consolidate the top five rows down to two or
+  // three"): the guide links live in the menu, the quick chips fit one row, and the product feeds
+  // start folded. The menu button says Menu, so people know it is how the site is navigated.
+  const phone = width < Breakpoints.phone;
   const openBinder = (id: string) => router.push(`/binder/${id}`);
 
   const [toast, setToast] = useState<ToastSpec | null>(null);
@@ -227,18 +231,22 @@ export default function HomeScreen() {
               <Wordmark />
             </ThemedText>
             <View style={styles.headerActions}>
-              <Pressable
-                onPress={() => router.push('/michi-method')}
-                hitSlop={8}
-                style={({ pressed }) => [styles.headerLink, pressed && styles.pressed]}>
-                <ThemedText style={styles.headerLinkText}>Michi Method</ThemedText>
-              </Pressable>
-              <Pressable
-                onPress={() => router.push('/search-guide' as Href)}
-                hitSlop={8}
-                style={({ pressed }) => [styles.headerLink, pressed && styles.pressed]}>
-                <ThemedText style={styles.headerLinkText}>Search Guide</ThemedText>
-              </Pressable>
+              {phone ? null : (
+                <>
+                  <Pressable
+                    onPress={() => router.push('/michi-method')}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.headerLink, pressed && styles.pressed]}>
+                    <ThemedText style={styles.headerLinkText}>Michi Method</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push('/search-guide' as Href)}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.headerLink, pressed && styles.pressed]}>
+                    <ThemedText style={styles.headerLinkText}>Search Guide</ThemedText>
+                  </Pressable>
+                </>
+              )}
               <PeopleButton />
               <SettingsButton />
               <AccountButton />
@@ -247,21 +255,21 @@ export default function HomeScreen() {
 
           {/* Quick-nav to the personal + browse pages, only where the rail isn't shown. */}
           {railHidden ? (
-            <View style={styles.quickNav}>
+            <View style={styles.quickNav} testID="home-quick-nav">
               <Pressable
                 onPress={() => router.push('/my-binders' as Href)}
-                style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}>
+                style={({ pressed }) => [styles.quickChip, phone && styles.quickChipPhone, pressed && styles.pressed]}>
                 <Text style={styles.quickChipText}>My Binders ›</Text>
               </Pressable>
               <Pressable
                 onPress={() => router.push('/discover' as Href)}
-                style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}>
-                <Text style={styles.quickChipText}>Discover Binders ›</Text>
+                style={({ pressed }) => [styles.quickChip, phone && styles.quickChipPhone, pressed && styles.pressed]}>
+                <Text style={styles.quickChipText}>{phone ? 'Discover ›' : 'Discover Binders ›'}</Text>
               </Pressable>
               <Pressable
                 onPress={openBrowse}
-                style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}>
-                <Text style={styles.quickChipText}>Browse All Cards ›</Text>
+                style={({ pressed }) => [styles.quickChip, phone && styles.quickChipPhone, pressed && styles.pressed]}>
+                <Text style={styles.quickChipText}>{phone ? 'Browse Cards ›' : 'Browse All Cards ›'}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -293,6 +301,7 @@ export default function HomeScreen() {
               ONE feed for every auth state: the kit's RecentProducts runs catalog-free for guests
               and from the catalog once signed in. */}
           <HomeRecent
+            collapsed={phone}
             onFindSimilar={driveSimilar}
             onViewSet={driveViewSet}
             onOpenSet={driveViewSetById}
@@ -375,6 +384,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
   },
+  // Three on one row at 375 wide.
+  quickChipPhone: { paddingHorizontal: Spacing.two, paddingVertical: 10 },
   quickChipText: { color: Palette.ink2, fontSize: FontSize.label, fontWeight: Weight.semibold },
   pressed: { opacity: 0.7 },
 });

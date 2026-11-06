@@ -20,7 +20,7 @@
  */
 import { usePathname, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LogoMark } from '@/components/brand/LogoMark';
@@ -141,6 +141,9 @@ export function MobileNav() {
             <View style={styles.bar} />
             <View style={styles.bar} />
           </View>
+          {/* SAYS WHAT IT IS (owner, 2026-11-05): a bare glyph read as decoration; the word tells
+              a first visit that this is how the site is navigated. */}
+          <Text style={styles.fabWord}>Menu</Text>
         </Pressable>
       </Animated.View>
 
@@ -257,14 +260,18 @@ const styles = StyleSheet.create({
   fabWrap: { position: 'absolute', zIndex: 40 },
   /** 52pt: comfortably past the 44pt minimum, and still small enough to ignore. */
   fab: {
-    width: 52,
     height: 52,
+    minWidth: 52,
+    paddingHorizontal: 16,
     borderRadius: 26,
     backgroundColor: Palette.accent,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     boxShadow: '0 4px 16px rgba(0, 0, 0, 0.28)',
   },
+  fabWord: { color: Palette.accentText, fontSize: 15, fontWeight: '700', letterSpacing: 0.2 },
   bars: { gap: 4 },
   bar: { width: 20, height: 2, borderRadius: 1, backgroundColor: Palette.accentText },
   pressed: { opacity: 0.75 },

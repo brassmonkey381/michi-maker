@@ -304,7 +304,6 @@ export default function HomeScreen() {
               ONE feed for every auth state: the kit's RecentProducts runs catalog-free for guests
               and from the catalog once signed in. */}
           <HomeRecent
-            collapsed={phone}
             onFindSimilar={driveSimilar}
             onViewSet={driveViewSet}
             onOpenSet={driveViewSetById}

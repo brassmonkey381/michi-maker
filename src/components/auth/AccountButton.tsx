@@ -14,7 +14,12 @@ import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useAuth } from '@/store/auth';
 
-export function AccountButton() {
+/**
+ * `compact`: the phone home page (owner, 2026-11-06) keeps the pill on one row with People and
+ * Settings, so a guest's door is the two-word call to action; the sheet still opens on Create
+ * account with Sign in a tap away.
+ */
+export function AccountButton({ compact = false }: { compact?: boolean } = {}) {
   const auth = useAuth();
   const [open, setOpen] = useState(false);
 
@@ -50,11 +55,11 @@ export function AccountButton() {
         ) : (
           // A guest's pill is the page's main call to action (owner, 2026-10-29), so it is sized
           // like one; a signed-out visitor's Sign in stays the quiet chip it was.
-          <View style={[styles.pill, auth.isGuest && styles.pillBig]}>
-            <ThemedText type="smallBold" style={[styles.pillText, auth.isGuest && styles.pillTextBig]}>
+          <View style={[styles.pill, auth.isGuest && !compact && styles.pillBig]}>
+            <ThemedText type="smallBold" style={[styles.pillText, auth.isGuest && !compact && styles.pillTextBig]}>
               {/* Both doors in one pill (owner, 2026-11-02): a returning member who landed as a
                   guest was reading "Create account" and not finding their way in. */}
-              {auth.isGuest ? 'Create account or sign in' : 'Sign in'}
+              {auth.isGuest ? (compact ? 'Sign up' : 'Create account or sign in') : 'Sign in'}
             </ThemedText>
           </View>
         )}

@@ -249,7 +249,7 @@ export default function HomeScreen() {
               )}
               <PeopleButton />
               <SettingsButton />
-              <AccountButton />
+              <AccountButton compact={phone} />
             </View>
           </View>
 
@@ -310,7 +310,7 @@ export default function HomeScreen() {
 
           {/* Where a collection comes from. The curator card that sat above this moved to My
               binders (2026-09-06), where it greets an account with no collection yet. */}
-          <View style={styles.curate}>
+          <View style={phone ? styles.curatePhone : styles.curate}>
             <TcgscanPairing surface="home" />
           </View>
 
@@ -341,6 +341,8 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   curate: { marginTop: 8, marginBottom: 20 },
+  // No band of its own between two folded feeds (owner, 2026-11-06).
+  curatePhone: { marginTop: 0, marginBottom: 0 },
   container: { flex: 1 },
   flex: { flex: 1 },
   scroll: {

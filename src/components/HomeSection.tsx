@@ -63,7 +63,7 @@ export function HomeSection({
 
 const styles = StyleSheet.create({
   section: { marginBottom: Spacing.five },
-  sectionClosed: { marginBottom: Spacing.three },
+  sectionClosed: { marginBottom: Spacing.two },
   headerClosed: { marginBottom: 0 },
   header: {
     flexDirection: 'row',

@@ -45,6 +45,7 @@ export function ShareSheet({
   onSetSharePages,
   onToast,
   onPicture,
+  pictureLabel = 'Share this page as a picture',
 }: {
   visible: boolean;
   binder: DemoBinder;
@@ -59,6 +60,8 @@ export function ShareSheet({
   onToast?: (message: string) => void;
   /** Draw the open page as a picture and hand it to the share sheet (lib/pageImage). Web only. */
   onPicture?: () => void;
+  /** What the picture button says: a phone shares, a desktop copies (owner, 2026-11-06). */
+  pictureLabel?: string;
 }) {
   const theme = useTheme();
   // The up-to-2 pages featured in the link preview ([] = auto), as a comparable string. It is also
@@ -619,7 +622,7 @@ export function ShareSheet({
                   <View style={styles.pictureBtns}>
                     {onPicture ? (
                       <Pressable onPress={onPicture} accessibilityRole="button" testID="share-page-picture" style={({ pressed }) => [styles.hiresBtn, { borderColor: theme.backgroundSelected }, pressed && styles.dim]}>
-                        <ThemedText type="smallBold" style={styles.hiresText}>Share this page as a picture</ThemedText>
+                        <ThemedText type="smallBold" style={styles.hiresText}>{pictureLabel}</ThemedText>
                       </Pressable>
                     ) : null}
                     <QuickPreviewButton binder={binder} options={imageOpts} label="Quick look" />
@@ -653,7 +656,7 @@ export function ShareSheet({
                 {onPicture ? (
                   <View style={styles.pictureBtns}>
                     <Pressable onPress={onPicture} accessibilityRole="button" testID="share-page-picture" style={({ pressed }) => [styles.hiresBtn, { borderColor: theme.backgroundSelected }, pressed && styles.dim]}>
-                      <ThemedText type="smallBold" style={styles.hiresText}>Share this page as a picture</ThemedText>
+                      <ThemedText type="smallBold" style={styles.hiresText}>{pictureLabel}</ThemedText>
                     </Pressable>
                   </View>
                 ) : null}

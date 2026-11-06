@@ -104,7 +104,7 @@ function drawMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
   }
 }
 
-export async function buildPageImage(input: PageImageInput): Promise<Blob> {
+export async function buildPageImage(input: PageImageInput, type: 'image/jpeg' | 'image/png' = 'image/jpeg'): Promise<Blob> {
   if (Platform.OS !== 'web' || typeof document === 'undefined') throw new Error('The page picture is drawn in a browser.');
   const { page } = input;
   const gap = Math.round(POCKET_W * POCKET_GAP_RATIO);
@@ -181,9 +181,11 @@ export async function buildPageImage(input: PageImageInput): Promise<Blob> {
   ctx.fillText(SITE, right, cy);
   drawMark(ctx, right - textW - stampH * 1.35, cy - stampH / 2, stampH, dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.28)');
 
-  // JPEG, not PNG: the same page was 7MB as PNG and about 1.5MB here, and a phone posts it.
+  // JPEG, not PNG, for a file: the same page was 7MB as PNG and about 1.5MB here, and a phone
+  // posts it. The clipboard takes PNG only, so the copy asks for PNG straight from the canvas
+  // instead of encoding a JPEG and decoding it again.
   return await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The picture could not be encoded.'))), 'image/jpeg', 0.92);
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The picture could not be encoded.'))), type, type === 'image/jpeg' ? 0.92 : undefined);
   });
 }
 
@@ -301,6 +303,29 @@ export async function buildCardImage(input: {
 }
 
 export type PageImageOutcome = 'shared' | 'copied' | 'saved';
+
+/** Whether this browser's clipboard takes a picture at all (Chrome, Edge, Safari, Firefox 127+). */
+export function canCopyPicture(): boolean {
+  return typeof ClipboardItem === 'function' && typeof navigator !== 'undefined' && typeof navigator.clipboard?.write === 'function';
+}
+
+/**
+ * COPY A PICTURE THAT IS STILL BEING DRAWN. The clipboard only takes a write made during the
+ * tap, and drawing nine full-size cards takes seconds, so by the time the picture existed the tap
+ * had expired and the write was refused: 'Share this page as a picture' on a desktop spun, then
+ * did nothing (owner, 2026-11-06). ClipboardItem accepts a PROMISE of the picture, so the write
+ * is made at once, inside the tap, and the browser waits for the drawing itself. Resolves true
+ * when the page is on the clipboard; false when the clipboard refused or is missing.
+ */
+export async function copyPictureToClipboard(draw: () => Promise<Blob>): Promise<boolean> {
+  if (!canCopyPicture()) return false;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': draw() })]);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function toPng(blob: Blob): Promise<Blob> {
   if (blob.type === 'image/png') return blob;

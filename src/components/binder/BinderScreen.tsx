@@ -118,7 +118,7 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
 import { track, type CardAddVia } from '@/lib/analytics';
-import { buildPageImage, pageImageFileName, sharePageImage } from '@/lib/pageImage';
+import { buildPageImage, canCopyPicture, copyPictureToClipboard, pageImageFileName, sharePageImage } from '@/lib/pageImage';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
@@ -2871,14 +2871,40 @@ export function BinderScreen({
    * right, and handed to the phone's share sheet (or the clipboard, or a download). Private
    * binders too: nothing leaves the device until the person posts it.
    */
+  const pictureInput = () => ({ page, title: binder.title, pageNo: idx + 1, mat: BinderSurface.mat });
+  /**
+   * A DESKTOP COPIES (owner, 2026-11-06: 'Copy page to Clipboard ... quickly copy to clipboard for
+   * pasting elsewhere'). The clipboard write is made inside the tap with a promise of the picture,
+   * because a write made after the drawing is refused; see copyPictureToClipboard. A browser whose
+   * clipboard takes no pictures saves the file instead.
+   */
+  const copyPicture = () => {
+    if (picturing) return;
+    if (!canCopyPicture()) {
+      void sharePicture('clipboard');
+      return;
+    }
+    setPicturing(true);
+    showToast('Copying the page…');
+    void copyPictureToClipboard(() => buildPageImage(pictureInput(), 'image/png')).then((ok) => {
+      setPicturing(false);
+      if (ok) {
+        track('page.picture', { via: 'copied', cards: page.slots.filter((s) => s.cardId).length });
+        showToast('Page copied. Paste it anywhere.');
+      } else {
+        // Refused (Safari without a gesture, a blocked permission): the file is the fallback.
+        void sharePicture('clipboard');
+      }
+    });
+  };
   const sharePicture = async (prefer: 'share' | 'clipboard' = 'share') => {
     if (picturing) return;
     setPicturing(true);
     try {
-      const blob = await buildPageImage({ page, title: binder.title, pageNo: idx + 1, mat: BinderSurface.mat });
+      const blob = await buildPageImage(pictureInput());
       const out = await sharePageImage(blob, pageImageFileName(binder.title, idx + 1), `${binder.title} · page ${idx + 1} · https://michi-maker.com`, prefer);
       track('page.picture', { via: out, cards: page.slots.filter((s) => s.cardId).length });
-      if (out === 'copied') showToast('Picture copied. Paste it anywhere.');
+      if (out === 'copied') showToast('Page copied. Paste it anywhere.');
       else if (out === 'saved') showToast('Picture saved.');
     } catch {
       showToast('The picture did not draw. Try again in a moment.');
@@ -2886,21 +2912,6 @@ export function BinderScreen({
       setPicturing(false);
     }
   };
-  const pictureLink =
-    Platform.OS === 'web' ? (
-      <>
-        <Pressable onPress={() => void sharePicture()} disabled={picturing} hitSlop={10} accessibilityRole="button" accessibilityLabel="Share this page as a picture" testID="page-picture-btn">
-          <Text style={[styles.headerAction, { color: theme.text }, picturing && styles.headerActionOff]}>{picturing ? 'Drawing…' : 'Picture'}</Text>
-        </Pressable>
-        {/* AN EXPLICIT COPY ON A DESKTOP (owner, 2026-11-06): Picture shares or saves; this one
-            puts the picture on the clipboard and says so. A phone has the share sheet instead. */}
-        {!phone ? (
-          <Pressable onPress={() => void sharePicture('clipboard')} disabled={picturing} hitSlop={10} accessibilityRole="button" accessibilityLabel="Copy this page as a picture" testID="page-copy-btn">
-            <Text style={[styles.headerAction, { color: theme.text }, picturing && styles.headerActionOff]}>Copy</Text>
-          </Pressable>
-        ) : null}
-      </>
-    ) : null;
   /**
    * THE TOOLS ROW (owner, 2026-09-14). The header used to hold every control in one strip: back,
    * title, history, the page group, likes, settings, select, the track, Print, Share and the mode
@@ -2957,7 +2968,6 @@ export function BinderScreen({
             <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
           </Pressable>
         ) : null}
-        {!editing ? pictureLink : null}
         {/* The shortcuts card, on request. A keyboard thing, so only where there is one, and an
             editing thing, so only while editing. */}
         {editing && Platform.OS === 'web' && !phone ? (
@@ -3014,7 +3024,6 @@ export function BinderScreen({
       <>
         <TrackPill />
         {printLink}
-        {pictureLink}
       </>
     );
     primaryAction = (
@@ -4062,7 +4071,10 @@ export function BinderScreen({
           onSetPagePublic={(pageId, v) => store.updatePage(binder.id, pageId, { isPublic: v })}
           onSetSharePages={(ids) => store.updateBinder(binder.id, { sharePageIds: ids })}
           onToast={showToast}
-          onPicture={Platform.OS === 'web' ? () => { setShareOpen(false); void sharePicture(); } : undefined}
+          // A phone hands the picture to its share sheet; a desktop puts it on the clipboard
+          // (owner, 2026-11-06: Picture and Copy left the tools row; this is the one place).
+          onPicture={Platform.OS === 'web' ? () => { setShareOpen(false); if (phone) void sharePicture(); else copyPicture(); } : undefined}
+          pictureLabel={phone ? 'Share this page as a picture' : 'Copy page to clipboard'}
         />
         {sendPageOpen && (
           <AddToBinderSheet

@@ -20,8 +20,12 @@ function nextMoves(narrow: boolean): { title: string; body: string }[] {
   return [
     { title: 'Fill a page from one card', body: 'Tap any card, then Fill page. The empty pockets get cards that match it.' },
     { title: 'Search card art by theme', body: 'In the card browser, type theme: and a word, like theme:rain. The Theme button runs an example.' },
-    { title: 'Search by color or by look', body: 'Color Search finds cards in the colors you pick. Similar, on a card, finds cards that look like it.' },
-    { title: 'Add your own picture', body: narrow ? 'Tap Art above the page. Upload a picture and crop it to a pocket.' : 'Open Art on the left. Upload a picture and crop it to a pocket.' },
+    { title: 'Search by look', body: 'Tap a card, then Similar: cards that look like it.' },
+    // Owner, 2026-11-06: on a phone Art is a tab in the card browser; Arrange gets a mention.
+    {
+      title: 'Add a picture, then Arrange',
+      body: narrow ? 'Add, then the Artwork tab: upload and crop. Arrange seats the page.' : 'Open Art on the left: upload and crop. Arrange seats the page.',
+    },
     { title: narrow ? 'Swipe to turn pages' : 'Use the arrow keys to turn pages', body: 'When a page is full, a new one is added for you.' },
   ];
 }

@@ -3791,6 +3791,7 @@ export function BinderScreen({
           onToggleArt={phone ? undefined : () => setArtworkOpen((v) => !v)}
           onToggleCards={phone ? undefined : () => setCardsCollapsed((v) => !v)}
           onToggleSettings={() => setSettingsOpen((v) => !v)}
+          onToggleShortcuts={phone ? undefined : () => setShortcutsOpen((v) => !v)}
           onQuickPreview={() => (quickOpen ? setQuick(null) : setPictureStep((v) => (v ? null : 'quick')))}
           onShare={isSupabaseConfigured ? () => setShareOpen((v) => !v) : undefined}
           onPrint={() => {
@@ -4133,6 +4134,7 @@ function EditorKeyboardShortcuts({
   onToggleArt,
   onToggleCards,
   onToggleSettings,
+  onToggleShortcuts,
   onQuickPreview,
   onShare,
   onPrint,
@@ -4162,6 +4164,8 @@ function EditorKeyboardShortcuts({
   onToggleCards?: () => void;
   /** S: the settings sheet (owner, 2026-09-16), which everyone opens every session. */
   onToggleSettings?: () => void;
+  /** H: the shortcuts card itself (owner, 2026-11-06), absent on a phone where there is none. */
+  onToggleShortcuts?: () => void;
   /** Q: the quick share image. */
   onQuickPreview?: () => void;
   /** R: the Share panel (owner, 2026-10-13), where the binder goes public or private. */
@@ -4227,6 +4231,11 @@ function EditorKeyboardShortcuts({
         onToggleSettings();
         return;
       }
+      if (!meta && !e.altKey && key === PLAIN_KEYS.shortcuts && onToggleShortcuts) {
+        e.preventDefault();
+        onToggleShortcuts();
+        return;
+      }
       if (!meta && !e.altKey && key === PLAIN_KEYS.share && onShare) {
         e.preventDefault();
         onShare();
@@ -4283,7 +4292,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onPrint, onDownloadFullImage, onMovePage, onNewPage, onArrange, onComplete, onGoToPage, onEscape]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onToggleShortcuts, onQuickPreview, onShare, onPrint, onDownloadFullImage, onMovePage, onNewPage, onArrange, onComplete, onGoToPage, onEscape]);
   return null;
 }
 

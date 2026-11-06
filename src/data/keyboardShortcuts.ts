@@ -32,6 +32,8 @@ export function shortcutList(mod: 'Ctrl' | '⌘'): Shortcut[] {
     { keys: 'E', does: 'Edit / View', group: 'Binder' },
     { keys: 'S', does: 'Settings', group: 'Binder' },
     { keys: 'Esc', does: 'Close', group: 'Binder' },
+    // Owner, 2026-11-06: the card itself gets a key, so it can be shown and hidden without the mouse.
+    { keys: 'H', does: 'This card', group: 'Binder' },
     { keys: `${mod} Z`, does: 'Undo (Shift: redo)', group: 'Editing' },
     { keys: `${mod} click`, does: 'Multi-select', group: 'Editing' },
     { keys: 'Delete', does: 'Clear pocket', group: 'Editing' },
@@ -56,7 +58,7 @@ export function shortcutGroups(mod: 'Ctrl' | '⌘'): { title: ShortcutGroup; ite
 
 /** The plain keys (no modifier) the editor listens for, so a handler and the card agree. */
 // C moved from the Cards dock to Complete page (owner, 2026-10-22); D alone opens the dock.
-export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['d'], settings: 's', quickPreview: 'q', share: 'r', print: 'p', fullImage: 'f', movePage: 'w', newPage: 'n', arrange: 'g', complete: 'c' } as const;
+export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['d'], settings: 's', shortcuts: 'h', quickPreview: 'q', share: 'r', print: 'p', fullImage: 'f', movePage: 'w', newPage: 'n', arrange: 'g', complete: 'c' } as const;
 /** How long after the last digit a typed page number is acted on. Long enough for a two-digit number, short enough to feel like a jump. */
 export const PAGE_NUMBER_DEBOUNCE_MS = 650;
 

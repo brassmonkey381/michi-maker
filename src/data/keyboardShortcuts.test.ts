@@ -21,6 +21,7 @@ test('the card lists the plain keys the editor listens for, under the same lette
   assert.equal(list.find((s) => s.keys === 'C')?.does, 'Complete page');
   assert.ok(keys.some((k) => k.includes('wheel')));
   assert.ok(keys.includes(PLAIN_KEYS.settings.toUpperCase()));
+  assert.ok(keys.includes(PLAIN_KEYS.shortcuts.toUpperCase()));
   assert.ok(keys.includes(PLAIN_KEYS.quickPreview.toUpperCase()));
   assert.ok(keys.includes(PLAIN_KEYS.share.toUpperCase()));
   assert.ok(keys.includes(PLAIN_KEYS.print.toUpperCase()));
@@ -38,7 +39,8 @@ test('the card stays short, and swaps only the modifier word between platforms',
   // when S, Q, W and Esc did): still one screen, though the card is due a grouping.
   // M (merge / split) left the same day: fifteen.
   // Seventeen on 2026-10-22, when C became Complete page and D kept the Cards dock alone.
-  assert.ok(win.length >= 5 && win.length <= 17, `${win.length} shortcuts`);
+  // Eighteen on 2026-11-06, when H (this card) joined.
+  assert.ok(win.length >= 5 && win.length <= 18, `${win.length} shortcuts`);
   assert.ok(!win.some((s) => s.keys === 'M'), 'M is gone');
   assert.deepEqual(
     win.map((s) => s.does),

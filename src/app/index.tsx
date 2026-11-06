@@ -226,11 +226,11 @@ export default function HomeScreen() {
           {/* Today's puzzle, when this person has not seen it. Renders nothing otherwise, including
               for guests and for anyone who said no once. */}
           <DailyPuzzleCard />
-          <View style={styles.headerRow}>
-            <ThemedText type="title" style={styles.h1}>
+          <View style={[styles.headerRow, phone && styles.headerRowPhone]}>
+            <ThemedText type="title" style={[styles.h1, phone && styles.h1Phone]}>
               <Wordmark />
             </ThemedText>
-            <View style={styles.headerActions}>
+            <View style={[styles.headerActions, phone && styles.headerActionsPhone]}>
               {phone ? null : (
                 <>
                   <Pressable
@@ -247,8 +247,11 @@ export default function HomeScreen() {
                   </Pressable>
                 </>
               )}
-              <PeopleButton />
-              <SettingsButton />
+              {/* ONE ROW ON A PHONE (owner, 2026-11-06): the gear and the door sit with the
+                  title, top right, where the avatar lives once signed in. People is under the
+                  avatar's own sheet and the menu on a phone. */}
+              {phone ? null : <PeopleButton />}
+              <SettingsButton icon={phone} />
               <AccountButton compact={phone} />
             </View>
           </View>
@@ -366,6 +369,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40, flexShrink: 1 },
+  // The phone header is one row with even spacing above and below (owner, 2026-11-06).
+  headerRowPhone: { flexWrap: 'nowrap', marginBottom: Spacing.three, paddingTop: Spacing.two },
+  h1Phone: { fontSize: 30, lineHeight: 36 },
+  headerActionsPhone: { flexWrap: 'nowrap', flexShrink: 0, gap: Spacing.three },
   // `minWidth: 0` and a shrink because react-native-web defaults every flex child to
   // `flexShrink: 0`: without them the row is wider than its parent, and a row that cannot shrink
   // never reaches the point where its own flexWrap would fire.

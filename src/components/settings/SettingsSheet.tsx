@@ -25,7 +25,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth';
 
 /** Gear entry point for the home header. Owns the sheet's open state. */
-export function SettingsButton() {
+/** `icon`: a bare gear, for the phone home page's one-row header (owner, 2026-11-06). */
+export function SettingsButton({ icon = false }: { icon?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -33,8 +34,9 @@ export function SettingsButton() {
         onPress={() => setOpen(true)}
         accessibilityLabel="Settings"
         hitSlop={8}
+        testID="home-settings-btn"
         style={({ pressed }) => [styles.gearBtn, pressed && styles.pressed]}>
-        <ThemedText style={styles.gear}>Settings</ThemedText>
+        <ThemedText style={[styles.gear, icon && styles.gearIcon]}>{icon ? '⚙' : 'Settings'}</ThemedText>
       </Pressable>
       <SettingsSheet visible={open} onClose={() => setOpen(false)} />
     </>
@@ -145,6 +147,7 @@ function ThemePreview({ id }: { id: VariantId }) {
 const styles = StyleSheet.create({
   gearBtn: { padding: Spacing.one },
   gear: { fontSize: FontSize.control, fontWeight: '600', lineHeight: 28 },
+  gearIcon: { fontSize: 22, lineHeight: 28 },
   pressed: { opacity: 0.7 },
 
   cardWrap: { width: '100%', maxWidth: 380 },

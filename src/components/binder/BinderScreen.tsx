@@ -384,8 +384,23 @@ export function BinderScreen({
   // card's palette from the on-device blob, and the first press used to be what started that
   // download, so the sheet opened on the old mix. Load-once in the kit, about 900 KB per language,
   // cached after. English and Japanese both (lib/colorIndexes).
+  // AFTER THE PAGE IS UP (MIC-017, 2026-11-07): on a phone over slow 4G these 1.3 MB competed with
+  // the page's own card pictures, which took 37 s to appear. Six seconds, then the browser's next
+  // idle moment: the cards are in by then, and the Colors button is rarely pressed sooner.
   useEffect(() => {
-    void loadPokemonColorIndexes();
+    let idle: number | null = null;
+    const w = globalThis as typeof globalThis & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (h: number) => void;
+    };
+    const t = setTimeout(() => {
+      if (typeof w.requestIdleCallback === 'function') idle = w.requestIdleCallback(() => void loadPokemonColorIndexes(), { timeout: 4000 });
+      else void loadPokemonColorIndexes();
+    }, 6000);
+    return () => {
+      clearTimeout(t);
+      if (idle != null) w.cancelIdleCallback?.(idle);
+    };
   }, []);
   // Held so a dismiss can commit unsaved framing before the studio unmounts.
   const studioRef = useRef<SliceStudioHandle>(null);

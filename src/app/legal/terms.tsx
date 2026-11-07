@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { PageShell } from '@/components/layout/PageShell';
 import { FAN_DISCLAIMER } from '@/components/layout/SiteFooter';
 import { ThemedText } from '@/components/themed-text';
-import { Fonts, FontSize, Spacing } from '@/constants/theme';
+import { FontSize, Spacing } from '@/constants/theme';
 
 const LAST_UPDATED = 'July 22, 2026';
 
@@ -109,13 +109,7 @@ const SECTIONS: Section[] = [
 
 export default function TermsScreen() {
   return (
-    <PageShell title="Terms of Service" description="michi-maker terms of service.">
-      <ThemedText type="subtitle" style={styles.h1}>
-        Terms of Service
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.updated}>
-        Last updated {LAST_UPDATED}
-      </ThemedText>
+    <PageShell title="Terms of Service" description="michi-maker terms of service." heading="Terms of Service" lede={`Last updated ${LAST_UPDATED}`}>
 
       {SECTIONS.map((s) => (
         <View key={s.heading} style={styles.section}>
@@ -134,8 +128,6 @@ export default function TermsScreen() {
 }
 
 const styles = StyleSheet.create({
-  h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.one },
-  updated: { fontSize: FontSize.sm, marginBottom: Spacing.five },
   section: { marginBottom: Spacing.four, gap: Spacing.two },
   heading: { fontSize: FontSize.control },
   para: { lineHeight: 20 },

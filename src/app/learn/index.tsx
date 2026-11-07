@@ -11,7 +11,7 @@ import { GuideHook } from '@/components/learn/GuideFigure';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Fonts, FontSize, Radius, Shadows, Spacing, MaxContentWidthDoc } from '@/constants/theme';
+import { FontSize, Radius, Shadows, Spacing, MaxContentWidthDoc } from '@/constants/theme';
 import { GUIDE_LIST } from '@/data/guides';
 
 export default function LearnHubScreen() {
@@ -26,14 +26,9 @@ export default function LearnHubScreen() {
     <PageShell
       maxWidth={MaxContentWidthDoc}
       title="Pokémon binder how-to guides"
-      description="Short illustrated guides to building a Pokémon binder the michi way: fill a page around one card, cut art into pockets, print at true card size, and search your cards.">
-      <ThemedText type="subtitle" style={styles.h1}>
-        Pokémon binder how-to guides
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-        Short, practical walkthroughs of the craft: building a binder, cutting art into pockets,
-        and getting it onto paper at true size.
-      </ThemedText>
+      description="Short illustrated guides to building a Pokémon binder the michi way: fill a page around one card, cut art into pockets, print at true card size, and search your cards."
+      heading="Pokémon binder how-to guides"
+      lede="Short, practical walkthroughs of the craft: building a binder, cutting art into pockets, and getting it onto paper at true size.">
 
       <View style={[styles.list, twoUp && styles.listTwoUp]}>
         {GUIDE_LIST.map((g) => {
@@ -85,8 +80,6 @@ export default function LearnHubScreen() {
 
 const styles = StyleSheet.create({
   callout: { marginTop: 28 },
-  h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.two },
-  lede: { lineHeight: 22, marginBottom: Spacing.four },
   list: { gap: Spacing.three },
   listTwoUp: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch' },
   // Two per row with one gap between: each takes half of what is left. Percentages would ignore

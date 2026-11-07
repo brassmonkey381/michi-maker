@@ -10,18 +10,15 @@ import { Pressable, StyleSheet } from 'react-native';
 import { PageShell } from '@/components/layout/PageShell';
 import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
-import { Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
 export default function NotFound() {
   const router = useRouter();
   return (
-    <PageShell title="Page not found">
-      <ThemedText type="subtitle" style={styles.h1}>
-        This page doesn’t exist
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-        The link may be mistyped or out of date. Head back home and pick up from there.
-      </ThemedText>
+    <PageShell
+      title="Page not found"
+      heading="This page doesn’t exist"
+      lede="The link may be mistyped or out of date. Head back home and pick up from there.">
       <Pressable
         onPress={() => router.replace('/' as Href)}
         style={({ pressed }) => [styles.cta, pressed && styles.pressed]}>
@@ -34,8 +31,6 @@ export default function NotFound() {
 }
 
 const styles = StyleSheet.create({
-  h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.two },
-  lede: { lineHeight: 22, marginBottom: Spacing.four },
   cta: {
     backgroundColor: Palette.accent,
     paddingVertical: Spacing.three,

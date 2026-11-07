@@ -161,15 +161,9 @@ export default function WhatsNewScreen() {
     <PageShell
       maxWidth={MaxContentWidthDoc}
       title={SHOW_CROSS_APP ? 'What’s new in michi-maker and TCGScan' : 'What’s new in michi-maker'}
-      description={`New features, improvements and fixes in ${SHOW_CROSS_APP ? 'michi-maker and TCGScan' : 'michi-maker'}, grouped by release date.`}>
-      <ThemedText type="subtitle" style={styles.h1}>
-        What’s New
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-        {SHOW_CROSS_APP
-          ? 'Newest first. Both products share an account and a card catalogue, so plenty of this lands in both.'
-          : 'Newest first.'}
-      </ThemedText>
+      description={`New features, improvements and fixes in ${SHOW_CROSS_APP ? 'michi-maker and TCGScan' : 'michi-maker'}, grouped by release date.`}
+      heading="What’s New"
+      lede={SHOW_CROSS_APP ? 'Newest first. Both products share an account and a card catalogue, so plenty of this lands in both.' : 'Newest first.'}>
 
       <View style={styles.filters}>
         <View style={[styles.filterRow, styles.topRow]}>
@@ -403,8 +397,6 @@ export default function WhatsNewScreen() {
 }
 
 const styles = StyleSheet.create({
-  h1: { fontSize: FontSize.title, lineHeight: 34, marginBottom: Spacing.two },
-  lede: { lineHeight: 20, marginBottom: Spacing.three },
   // Above the list, so the open recency menu draws over the first card rather than under it.
   filters: { gap: Spacing.two, marginBottom: Spacing.four, zIndex: 2 },
   filterGroup: { gap: Spacing.two },

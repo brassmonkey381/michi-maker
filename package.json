@@ -36,7 +36,7 @@
     "sharp": "^0.34.5",
     "tcgscan-browse": "github:brassmonkey381/tcgscan-browse#977e9358048ad1658613bd29b0b41b717509e5d5",
     "tcgscan-theme": "github:brassmonkey381/tcgscan-theme#d36ec2ccd011283f1b7478e1d72ee9249996446b",
-    "tcgscan-ui": "github:brassmonkey381/tcgscan-ui#af01889964e608375ced32db3692b61ccc2b0371"
+    "tcgscan-ui": "github:brassmonkey381/tcgscan-ui#0cdd54c008f6dd08e7c4a095aaad6b91fdc16597"
   },
   "devDependencies": {
     "@tensorflow/tfjs": "^4.22.0",

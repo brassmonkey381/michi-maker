@@ -9,7 +9,7 @@ import { ExternalLink } from '@/components/external-link';
 import { GuideFigure } from '@/components/learn/GuideFigure';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { Fonts, FontSize, Palette, Radius, Spacing, Weight, MaxContentWidthDoc } from '@/constants/theme';
+import { FontSize, Palette, Radius, Spacing, Weight, MaxContentWidthDoc } from '@/constants/theme';
 import { GUIDES } from '@/data/guides';
 
 export default function GuideScreen() {
@@ -19,13 +19,7 @@ export default function GuideScreen() {
 
   if (!guide) {
     return (
-      <PageShell title="Guide not found">
-        <ThemedText type="subtitle" style={styles.h1}>
-          Guide not found
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-          That guide doesn’t exist (or moved). Every guide lives on the how-to hub.
-        </ThemedText>
+      <PageShell title="Guide not found" heading="Guide not found" lede="That guide doesn’t exist (or moved). Every guide lives on the how-to hub.">
         <Pressable onPress={() => router.push('/learn' as Href)} style={({ pressed }) => [styles.cta, pressed && styles.pressed]}>
           <ThemedText style={styles.ctaText}>Browse the guides</ThemedText>
         </Pressable>
@@ -34,13 +28,7 @@ export default function GuideScreen() {
   }
 
   return (
-    <PageShell title={guide.title} description={guide.lede} maxWidth={MaxContentWidthDoc}>
-      <ThemedText type="subtitle" style={styles.h1}>
-        {guide.title}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-        {guide.lede}
-      </ThemedText>
+    <PageShell title={guide.title} description={guide.lede} maxWidth={MaxContentWidthDoc} heading={guide.title} lede={guide.lede}>
 
       {guide.ctaHref ? (
         guide.ctaExternal ? (
@@ -129,8 +117,6 @@ export default function GuideScreen() {
 }
 
 const styles = StyleSheet.create({
-  h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.two },
-  lede: { lineHeight: 22, marginBottom: Spacing.four },
   hero: { marginBottom: Spacing.five },
   closing: { marginTop: Spacing.five, alignItems: 'center' },
   figure: { marginTop: Spacing.two },

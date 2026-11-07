@@ -9,7 +9,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { Fonts, FontSize, Spacing } from '@/constants/theme';
+import { FontSize, Spacing } from '@/constants/theme';
 
 const LAST_UPDATED = 'July 22, 2026';
 
@@ -56,13 +56,7 @@ const SECTIONS: Section[] = [
 
 export default function DmcaScreen() {
   return (
-    <PageShell title="Copyright / DMCA" description="How to file a copyright takedown on michi-maker.">
-      <ThemedText type="subtitle" style={styles.h1}>
-        Copyright &amp; DMCA policy
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.updated}>
-        Last updated {LAST_UPDATED}
-      </ThemedText>
+    <PageShell title="Copyright / DMCA" description="How to file a copyright takedown on michi-maker." heading="Copyright & DMCA policy" lede={`Last updated ${LAST_UPDATED}`}>
 
       {SECTIONS.map((s) => (
         <View key={s.heading} style={styles.section}>
@@ -81,8 +75,6 @@ export default function DmcaScreen() {
 }
 
 const styles = StyleSheet.create({
-  h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.one },
-  updated: { fontSize: FontSize.sm, marginBottom: Spacing.five },
   section: { marginBottom: Spacing.four, gap: Spacing.two },
   heading: { fontSize: FontSize.control },
   para: { lineHeight: 20 },

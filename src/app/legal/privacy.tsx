@@ -16,7 +16,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { Fonts, FontSize, Spacing } from '@/constants/theme';
+import { FontSize, Spacing } from '@/constants/theme';
 
 const LAST_UPDATED = 'September 22, 2026';
 
@@ -99,13 +99,7 @@ const SECTIONS: Section[] = [
 
 export default function PrivacyScreen() {
   return (
-    <PageShell title="Privacy Policy" description="How michi-maker handles your data.">
-      <ThemedText type="subtitle" style={styles.h1}>
-        Privacy Policy
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.updated}>
-        Last updated {LAST_UPDATED}
-      </ThemedText>
+    <PageShell title="Privacy Policy" description="How michi-maker handles your data." heading="Privacy Policy" lede={`Last updated ${LAST_UPDATED}`}>
 
       {SECTIONS.map((s) => (
         <View key={s.heading} style={styles.section}>
@@ -124,8 +118,6 @@ export default function PrivacyScreen() {
 }
 
 const styles = StyleSheet.create({
-  h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.one },
-  updated: { fontSize: FontSize.sm, marginBottom: Spacing.five },
   section: { marginBottom: Spacing.four, gap: Spacing.two },
   heading: { fontSize: FontSize.control },
   para: { lineHeight: 20 },

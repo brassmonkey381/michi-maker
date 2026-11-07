@@ -19,9 +19,9 @@
  * SEEN IS RECORDED ON ARRIVAL, so the home page stops offering a puzzle this person has opened.
  */
 import { useRouter, type Href } from 'expo-router';
-import { sendBrowseCommand } from 'tcgscan-browse';
+import { fetchCardsByIds, sendBrowseCommand, type CatalogCard } from 'tcgscan-browse';
 import { Image } from 'expo-image';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions,
 } from 'react-native';
@@ -88,6 +88,27 @@ export default function DailyScreen() {
   const [artView, setArtView] = useState<ArtView | 'card'>('card');
   const { catalog } = useCatalog(artView !== 'card');
   const frames = useFrames(artView !== 'card');
+  /**
+   * A GUEST HAS NO CATALOGUE (use-catalog's tier gate), so the stock cards drew the window over a
+   * blank: no name, no set, no dex number (owner, 2026-11-07, on a phone as a guest). The nine cards
+   * come by id from the data server instead, the same call every cold-mode surface makes.
+   */
+  const [fetchedCards, setFetchedCards] = useState<Record<string, CatalogCard>>({});
+  const puzzleIdsKey = puzzle?.cardIds.join(',') ?? '';
+  useEffect(() => {
+    if (artView === 'card' || catalog || !puzzleIdsKey) return;
+    let cancelled = false;
+    fetchCardsByIds(puzzleIdsKey.split(','))
+      .then((cards) => {
+        if (!cancelled && cards.length) setFetchedCards(Object.fromEntries(cards.map((c) => [c.id, c])));
+      })
+      .catch(() => {
+        // Fails soft: the window still draws; the text waits for the catalogue, if it ever comes.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [artView, catalog, puzzleIdsKey]);
   /** A burst for every right word, a bigger one for the last (owner, 2026-10-22). */
   const [confetti, setConfetti] = useState<ConfettiPiece[] | null>(null);
   /**
@@ -255,7 +276,7 @@ export default function DailyScreen() {
     (Math.min(width, MaxContentWidthDoc) - gutter - Spacing.two * (cols - 1)) / cols,
   );
   const remaining = puzzle ? puzzle.themeCount - found.length : 0;
-  const puzzleCards = puzzle ? puzzle.cardIds.map((id) => resolveCatalogCardWith(catalog, id)) : [];
+  const puzzleCards = puzzle ? puzzle.cardIds.map((id) => resolveCatalogCardWith(catalog, id) ?? fetchedCards[id]) : [];
   const cut = connectedCut(puzzleCards, frames);
   const connected = artView === 'connected';
   // Between the cards: the pocket gap, nothing on a connected sheet, or the silver bands a sheet

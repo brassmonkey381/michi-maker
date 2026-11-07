@@ -149,6 +149,16 @@ function msg(error: unknown, fallback = 'Something went wrong. Please try again.
   return fallback;
 }
 
+/** The delete-account function's refusals, in the user's words. */
+const DELETE_WORDS: Record<string, string> = {
+  server_misconfigured: 'the server is missing a key (server_misconfigured). Email us.',
+  unauthorized: 'the session has expired. Sign in again and retry.',
+  guest_account: 'a guest account has nothing to delete.',
+  billing_unavailable: 'billing is unreachable right now (billing_unavailable). Try again shortly.',
+  subscription_cancel_failed: 'the paid plan could not be cancelled (subscription_cancel_failed). Email us.',
+  delete_failed: 'the server refused the deletion (delete_failed). Email us.',
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(!isSupabaseConfigured);
   const [session, setSession] = useState<Session | null>(null);
@@ -535,7 +545,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const deleteAccount = useCallback(async (): Promise<AuthResult> => {
     if (!supabase) return NOT_CONFIGURED;
     const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>('delete-account', { body: {} });
-    if (error) return { error: `Could not delete the account: ${error.message}` };
+    if (error) {
+      // THE FUNCTION'S OWN WORD (owner, 2026-11-06: the sheet said only "non-2xx status code",
+      // which names nothing). A refused call carries its response; its body says which step failed.
+      const ctx = (error as { context?: unknown }).context;
+      let code: string | undefined;
+      if (ctx instanceof Response) {
+        code = await ctx
+          .clone()
+          .json()
+          .then((b: { error?: string }) => b?.error)
+          .catch(() => undefined);
+      }
+      return { error: `Could not delete the account: ${DELETE_WORDS[code ?? ''] ?? code ?? error.message}` };
+    }
     if (!data?.ok) return { error: data?.error ?? 'Could not delete the account. Try again, or email us.' };
     await AsyncStorage.setItem(OPTED_OUT_KEY, '1');
     await supabase.auth.signOut().catch(() => {

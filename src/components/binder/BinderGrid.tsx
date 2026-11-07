@@ -1,10 +1,10 @@
 import { useHoverSuspended } from '@/components/binder/hoverGate';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode, type Ref, Fragment } from 'react';
+import { createContext, forwardRef, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode, type Ref, Fragment } from 'react';
 import type { PocketBarPlacement } from '@/data/viewPrefs';
 import { useRouter } from 'expo-router';
-import { Linking, Pressable, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
+import { Linking, PixelRatio, Pressable, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 import { affiliateConfigured, productUrl, sendBrowseCommand } from 'tcgscan-browse';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -180,6 +180,11 @@ export function pageBoxHeight(width: number, rows: number, cols: number): number
 }
 
 interface BinderGridProps {
+  /**
+   * This grid is the page on screen: its card pictures load eagerly and ahead of everything else
+   * (MIC-018). Every other grid (neighbour pages, thumbnails, the turn overlay) stays lazy.
+   */
+  eagerImages?: boolean;
   page: DemoPage;
   /** Outer page width in px (padding is added internally). */
   width: number;
@@ -364,6 +369,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     hintToolbar = false,
     toolbarPlacement = 'over',
     slotToolbar = true,
+    eagerImages = false,
     onMoveSlot,
     onTraySlot,
     onColorsSlot,
@@ -638,8 +644,14 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       if (!occupied.has(`${r},${c}`)) emptyCells.push({ row: r, col: c });
     }
   }
+  // THE SMALLEST PICTURE THAT FITS THE POCKET (MIC-018, 2026-11-07). Pockets used to choose by the
+  // PAGE's width, so every pocket of a 370 px phone page fetched the 640 px picture to show it
+  // 108 px wide. The pocket's own width now decides, at no more than 2x pixel density: the 245 px
+  // thumbnail covers a pocket up to about 130 px, which is every pocket on a phone.
+  const pocketImages = { tier: (cellW * Math.min(PixelRatio.get(), 2) <= 260 ? 245 : 640) as 245 | 640, eager: eagerImages };
 
   return (
+    <PocketImages.Provider value={pocketImages}>
     <View
       ref={rootRef}
       // Marks the page rectangle for the editor's wheel-to-flip hit test (web): only a wheel
@@ -1144,6 +1156,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
         ) : null}
       </View>
     </View>
+    </PocketImages.Provider>
   );
 });
 
@@ -2375,6 +2388,9 @@ function ArtCaption({
  * and 640px for the larger binder-page view, falling back to the full jpg if a webp tier 404s.
  * A shimmering skeleton shows until the image loads, so a pocket never reads as blank/broken.
  */
+/** Which thumbnail a pocket asks for and whether it loads first (see BinderGrid's pocketImages). */
+const PocketImages = createContext<{ tier: 245 | 640; eager: boolean }>({ tier: 640, eager: false });
+
 function CardImage({
   id,
   radius,
@@ -2415,7 +2431,9 @@ function CardImage({
    */
   const [boxW, setBoxW] = useState(0);
   const clipRadius = trim ? Math.max(radius, boxW * 0.052) : radius;
-  const tier: 245 | 640 = small ? 245 : 640;
+  const pocket = useContext(PocketImages);
+  // A picture across several pockets (cover fit) is wider than one pocket: it keeps the larger file.
+  const tier: 245 | 640 = small ? 245 : contentFit === 'cover' ? 640 : pocket.tier;
   // THE fix for blank slots on a cold refresh: cardThumbUrl reads the image manifest, which is
   // mutable MODULE state the React Compiler can't track. A plain `const uri = cardThumbUrl(...)`
   // gets memoised on [id, tier, stage] and returns the first '' forever — the slot only fills in
@@ -2494,6 +2512,9 @@ function CardImage({
         contentFit={contentFit}
         cachePolicy="memory-disk"
         recyclingKey={`${id}-${stage}`}
+        // The page on screen asks first and never waits for a scroll; the rest stay lazy.
+        priority={pocket.eager ? 'high' : 'normal'}
+        loading={pocket.eager ? 'eager' : undefined}
         // A DECORATIVE COPY DOES NOT FADE IN. The page-turn overlay mounts fresh copies of pages
         // that are already on screen, and a 150ms fade on each one is exactly the "page visibly
         // refreshing" flash a turn was reported to have. The image is in the memory cache by then,

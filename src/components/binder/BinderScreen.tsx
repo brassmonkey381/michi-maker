@@ -2532,7 +2532,7 @@ export function BinderScreen({
     }
     if (!editing) {
       return (
-        <BinderGrid page={p} width={width} pageStyle={binder.pageStyle} cutLines={view.cutLines} outerEdge={outerEdgeOf(p)} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} onOwnedPress={ownedToggle(ownedIds)} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} />
+        <BinderGrid page={p} width={width} pageStyle={binder.pageStyle} cutLines={view.cutLines} outerEdge={outerEdgeOf(p)} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} onOwnedPress={ownedToggle(ownedIds)} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} eagerImages={role !== 'prev' && role !== 'next'} />
       );
     }
     if (role === 'prev' || role === 'next') {
@@ -2608,6 +2608,7 @@ export function BinderScreen({
       // is sized by the grid and positions nothing else, so the grid's own measurements stand.
       <View style={{ width }}>
       <BinderGrid
+        eagerImages
         // The active-page grid in both the spread ('current') and the narrow single view — curRef
         // must point to it either way so a tray slice can hit-test its drop cell.
         ref={curRef}

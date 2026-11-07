@@ -35,7 +35,8 @@
     "react-native-worklets": "0.8.3",
     "sharp": "^0.34.5",
     "tcgscan-browse": "github:brassmonkey381/tcgscan-browse#977e9358048ad1658613bd29b0b41b717509e5d5",
-    "tcgscan-theme": "github:brassmonkey381/tcgscan-theme#35c23bee3e36842a8734727aa5b547b02b1548dc"
+    "tcgscan-theme": "github:brassmonkey381/tcgscan-theme#d36ec2ccd011283f1b7478e1d72ee9249996446b",
+    "tcgscan-ui": "github:brassmonkey381/tcgscan-ui#af01889964e608375ced32db3692b61ccc2b0371"
   },
   "devDependencies": {
     "@tensorflow/tfjs": "^4.22.0",

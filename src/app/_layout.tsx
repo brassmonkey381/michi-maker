@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Platform, useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { AppKitProvider } from '@/components/layout/AppKit';
 import { RouteTracker } from '@/components/analytics/RouteTracker';
 import { initRedditPixel } from '@/lib/redditPixel';
 import { AvatarConsentPrompt } from '@/components/auth/AvatarConsentPrompt';
@@ -54,6 +55,8 @@ export default function TabLayout() {
     // page reordering) to receive touches — required on web and native.
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        {/* The shared kit's palette and michi's skin (tcgscan-ui), for every route on the Shell. */}
+        <AppKitProvider>
         <AuthProvider>
           <BinderProvider>
             <AnimatedSplashOverlay />
@@ -92,6 +95,7 @@ export default function TabLayout() {
             <AvatarConsentPrompt />
           </BinderProvider>
         </AuthProvider>
+        </AppKitProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

@@ -43,14 +43,28 @@ const SKIP_LANDING_SOURCES = new Set(['reddit']);
 export const LANDING_SKIP_TARGET = '/my-binders?open=seeded';
 
 /**
+ * THE WIZARD ARM (analytics-studio work order, owner-approved, 2026-11-07): the Reddit ad group
+ * `michi_wizard_2026_11` is an A/B read of the seeded binder against the /new-binder wizard on the
+ * same phone audience, so arrivals tagged with it go to the wizard instead. Keyed on utm_campaign
+ * (exact, case-insensitive) under the same utm_source gate; every other reddit campaign keeps the
+ * seeded binder. No viewport special-casing: the ad group is phone-only, a desktop click is rare
+ * and takes the same path. landing.skip fires here too, with `to` naming the route.
+ */
+const WIZARD_CAMPAIGNS = new Set(['michi_wizard_2026_11']);
+export const LANDING_WIZARD_TARGET = '/new-binder';
+
+/**
  * The route a FIRST-TIME tagged visitor should land on instead of /welcome, or null to show the
  * landing page as usual. Null on native, for untagged visitors, and for anyone who has already
  * entered the app (shouldShowLanding). The caller marks the landing seen and records landing.skip.
  */
-export function landingSkipTarget(): typeof LANDING_SKIP_TARGET | null {
+export function landingSkipTarget(): typeof LANDING_SKIP_TARGET | typeof LANDING_WIZARD_TARGET | null {
   if (!shouldShowLanding()) return null;
-  const source = landingCampaignParams()?.utm_source?.toLowerCase();
-  return source && SKIP_LANDING_SOURCES.has(source) ? LANDING_SKIP_TARGET : null;
+  const params = landingCampaignParams();
+  const source = params?.utm_source?.toLowerCase();
+  if (!source || !SKIP_LANDING_SOURCES.has(source)) return null;
+  const campaign = params?.utm_campaign?.toLowerCase();
+  return campaign && WIZARD_CAMPAIGNS.has(campaign) ? LANDING_WIZARD_TARGET : LANDING_SKIP_TARGET;
 }
 
 /** Call from any landing CTA that enters the app, BEFORE navigating. */

@@ -71,6 +71,13 @@ export type GridRole = 'single' | 'prev' | 'current' | 'next' | 'partner';
 // RN's style types only admit 'absolute' | 'relative'; sticky is a web-only value that react-native-web
 // passes straight through to CSS. Declared once here so the cast has a name and a reason.
 const WEB_STICKY = { position: 'sticky', bottom: 0, zIndex: 5 };
+/**
+ * A phone, editing: the page bar's chips hang 15px below the page's edge, so the dock keeps this
+ * much clear as a MARGIN, not padding (owner, 2026-11-07: the opaque dock painted over the lower
+ * half of the chips, which sat under its padding). A margin is outside the dock's box, so the
+ * chips stay on top and tappable. The budget adds it back, since onLayout does not measure it.
+ */
+const STRIP_CHIP_CLEARANCE = 18;
 
 /**
  * A few pixels between the bottom of the page and the strip beneath it.
@@ -467,7 +474,7 @@ export function BinderPages({
       viewportTop -
       viewportBottom -
       contentAbove -
-      (railLeft ? 0 : stripHeight) -
+      (railLeft ? 0 : stripHeight + (phone && editable ? STRIP_CHIP_CLEARANCE : 0)) -
       COLUMN_LABEL_H -
       // A phone spends none of these (owner, 2026-11-05: the page was not reaching the screen's
       // width because the chrome around it was taking the height). The style agrees: pageWrapPhone.
@@ -2702,7 +2709,7 @@ const styles = StyleSheet.create({
   /** In a row the page has to be told to take the rest; on its own it already does. */
   pageWrapRailed: { minWidth: 0 },
   stripDock: { paddingTop: 4 },
-  stripDockPhoneEditing: { paddingTop: 22 },
+  stripDockPhoneEditing: { paddingTop: 0, marginTop: STRIP_CHIP_CLEARANCE },
   /** The rail is a column now: the auto-flip controls, then the strip taking the rest. */
   railStrip: { flex: 1, minHeight: 0, alignSelf: 'stretch' },
   dockRow: { flexDirection: 'row', alignItems: 'center' },

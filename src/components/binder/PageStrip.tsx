@@ -14,7 +14,8 @@ const THUMB_W = 58;
 /** The width a strip thumbnail is drawn at, for callers supplying their own (a cover). */
 export const STRIP_THUMB_W = THUMB_W;
 /** The phone's shorter strip (owner, 2026-11-05): the height it saves goes to the page. */
-const THUMB_W_COMPACT = 38;
+// 32, from 38 (owner, 2026-11-07: the phone's page bar was 'a little too high').
+const THUMB_W_COMPACT = 32;
 export const STRIP_THUMB_W_COMPACT = THUMB_W_COMPACT;
 
 /**
@@ -244,7 +245,7 @@ const styles = StyleSheet.create({
   },
   thumb: { width: THUMB_W, alignItems: 'center' },
   thumbCompact: { width: THUMB_W_COMPACT },
-  rowCompact: { paddingVertical: 2 },
+  rowCompact: { paddingVertical: 0 },
   numCompact: { fontSize: FontSize.xs, marginTop: 0 },
   /** Vertical only: a fixed box, so the drop calculation has a constant pitch. See THUMB_BOX_H. */
   thumbBoxed: { height: THUMB_BOX_H, justifyContent: 'center' },

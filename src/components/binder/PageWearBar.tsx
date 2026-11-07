@@ -167,7 +167,8 @@ export function PageWearBar({
             }
             testID="binder-select-toggle"
             style={({ pressed }) => [styles.chip, select.on && styles.chipOn, pressed && styles.pressed]}>
-            <Text style={[styles.chipGlyph, select.on && styles.chipTextOn]}>{'⊕'}</Text>
+            {/* Two overlapping squares: several pockets (owner, 2026-11-07: the ⊕ said nothing about 'multiple'). */}
+            <Text style={[styles.chipGlyph, select.on && styles.chipTextOn]}>{'⧉'}</Text>
             {narrow && !select.on ? null : <Text style={[styles.chipText, select.on && styles.chipTextOn]}>Select</Text>}
             {select.on && select.count > 0 ? (
               <View style={styles.count} testID="binder-select-count">

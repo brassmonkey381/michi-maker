@@ -57,8 +57,8 @@ export function PhoneToolBar({
       testID="phone-tool-bar">
       <Tab glyph="＋" word="Add" label="Add a card or a picture to this page" onPress={onAdd} testID="phone-tab-add" />
       <Tab
-        glyph="⊕"
-        word="Select"
+        glyph="⧉"
+        word="Multi-select"
         label={selectOn ? (selectCount > 0 ? `Actions for ${selectCount} selected pockets` : 'Stop selecting') : 'Select several pockets'}
         on={selectOn}
         count={selectOn ? selectCount : 0}
@@ -117,16 +117,20 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-around',
+    // THE TABS SHARE THE WIDTH (owner, 2026-11-07: "they look kind of odd at their current
+    // spacing ... dynamically stretch"): each tab is a flex column and its button fills it, so
+    // five pads span a small phone edge to edge; Complete's column is a little wider.
+    justifyContent: 'space-between',
+    gap: 6,
     paddingTop: 6,
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
     borderTopWidth: 1,
     borderTopColor: Palette.hairline,
     backgroundColor: Palette.surface,
     zIndex: 30,
   },
-  tab: { alignItems: 'center', gap: 2, minWidth: 56, paddingVertical: 2 },
-  icon: { width: 30, height: 30, borderRadius: Radius.control, backgroundColor: Palette.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  tab: { flex: 1, minWidth: 0, alignItems: 'center', gap: 2, paddingVertical: 2 },
+  icon: { alignSelf: 'stretch', height: 34, borderRadius: Radius.control, backgroundColor: Palette.accentSoft, alignItems: 'center', justifyContent: 'center' },
   iconOn: { backgroundColor: Palette.accent },
   count: {
     position: 'absolute',
@@ -145,9 +149,9 @@ const styles = StyleSheet.create({
   glyphOn: { color: Palette.accentText },
   word: { fontSize: FontSize.xs, fontWeight: Weight.semibold, color: Palette.ink2 },
   wordHot: { color: Palette.accent },
-  raisedWrap: { alignItems: 'center', gap: 2, minWidth: 64, marginTop: -18 },
+  raisedWrap: { flex: 1.25, minWidth: 0, alignItems: 'center', gap: 2, marginTop: -18 },
   raised: {
-    width: 48,
+    alignSelf: 'stretch',
     height: 48,
     borderRadius: 16,
     backgroundColor: Palette.accent,

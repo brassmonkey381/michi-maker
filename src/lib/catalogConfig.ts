@@ -52,6 +52,10 @@ configureBrowse({
     getItem: (k) => AsyncStorage.getItem(k),
     setItem: (k, v) => AsyncStorage.setItem(k, v),
   },
+  // THE IMAGE LIST IN SHARDS (MIC-018, tcgscan-browse 0.9.65+): only the shards the cards on screen
+  // need, instead of the whole 1.77 MB images.json before a single picture can be named. Until the
+  // pipeline publishes browse/images-shards/v1/ the kit falls back to images.json, as before.
+  imageShards: true,
   // Gated catalog (encrypted, session-keyed) with public fallback — see lib/catalogSource.ts.
   catalogSource: gatedCatalogSource,
   // Affiliate deep-link template for outbound TCGPlayer links (empty = raw links, unchanged). Set

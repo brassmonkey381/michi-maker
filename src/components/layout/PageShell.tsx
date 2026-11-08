@@ -42,6 +42,7 @@ export function PageShell({
   ground,
   back = true,
   keyboardShouldPersistTaps,
+  scroll = true,
   children,
 }: {
   /** Browser tab / SEO title (web only). */
@@ -64,6 +65,8 @@ export function PageShell({
   back?: boolean;
   /** 'handled' on a page with a search field: a tap on a result works with the keyboard up. */
   keyboardShouldPersistTaps?: 'always' | 'never' | 'handled';
+  /** False for a page that scrolls itself (Browse's card list): the frame gives it the height left. */
+  scroll?: boolean;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -84,6 +87,7 @@ export function PageShell({
         back={back ? { label: 'Back', onPress: goBack } : undefined}
         ground={ground}
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+        scroll={scroll}
         footer={footer ? <SiteFooter /> : undefined}>
         {children}
       </Shell>

@@ -6,13 +6,12 @@
  */
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
-import Head from 'expo-router/head';
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CurateCallout } from '@/components/CurateCallout';
 import { StyleGallery } from '@/components/michi/MethodShowcase';
 import { ExternalLink } from '@/components/external-link';
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -25,35 +24,9 @@ const ARTOFPKM = 'https://www.artofpkm.com/pokemon';
 
 export default function MichiMethodScreen() {
   const router = useRouter();
-  const goBack = () => (router.canGoBack() ? router.back() : router.push('/'));
 
   return (
-    <ThemedView style={styles.container}>
-      {Platform.OS === 'web' ? (
-        <Head>
-          <title>What is a michi binder? The michi method explained · Michi-Maker</title>
-          <meta
-            name="description"
-            content="A michi binder treats every Pokémon binder page as a canvas: anchor pages, single-Pokémon spreads, colour themes, and art sliced across pockets. The method, its creator, and how to build one for free."
-          />
-        </Head>
-      ) : null}
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.headerRow}>
-            <Pressable
-              onPress={goBack}
-              hitSlop={10}
-              accessibilityLabel="Back"
-              style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
-              <ThemedText style={styles.backText}>‹ Back</ThemedText>
-            </Pressable>
-            <Pressable onPress={() => router.push('/')} hitSlop={10}>
-              <ThemedText type="smallBold" themeColor="textSecondary">
-                Michi-Maker
-              </ThemedText>
-            </Pressable>
-          </View>
+    <PageShell title="What is a michi binder? The michi method explained" description="A michi binder treats every Pokémon binder page as a canvas: anchor pages, single-Pokémon spreads, colour themes, and art sliced across pockets. The method, its creator, and how to build one for free." maxWidth={MaxContentWidthDoc} footer={false}>
 
           {/* Hero: the pages first, the name second. */}
           <ThemedText type="smallBold" style={styles.kicker}>
@@ -159,31 +132,12 @@ export default function MichiMethodScreen() {
             display and is not affiliated with or endorsed by Michi, Nintendo, Creatures Inc., or GAME
             FREAK inc. Pokémon and all related card artwork are © their respective owners.
           </ThemedText>
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
   calloutWrap: { marginTop: 24 },
-  container: { flex: 1 },
-  flex: { flex: 1 },
-  scroll: {
-    padding: Spacing.four,
-    paddingBottom: Spacing.six,
-    width: '100%',
-    maxWidth: MaxContentWidthDoc,
-    alignSelf: 'center',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.four,
-  },
-  backBtn: { paddingVertical: Spacing.one, paddingRight: Spacing.two },
-  backText: { fontSize: FontSize.control, fontWeight: Weight.semibold },
   pressed: { opacity: 0.7 },
   h1: { marginBottom: Spacing.two },
   lede: { lineHeight: 22, marginBottom: Spacing.four },

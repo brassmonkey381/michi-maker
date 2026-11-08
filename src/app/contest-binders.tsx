@@ -22,22 +22,17 @@ import { useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { FinalsVoteButton } from '@/components/contest/FinalsVoteButton';
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import {
-  BottomTabInset,
-  Breakpoints,
   MaxContentWidthWide,
   Palette,
   Radius,
@@ -67,7 +62,6 @@ const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
 export default function ContestBindersScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
   const openBinder = (id: string) => router.push(`/binder/${id}`);
 
   const { isSignedIn, profile } = useAuth();
@@ -167,18 +161,7 @@ export default function ContestBindersScreen() {
   const tileW = Math.max(120, Math.floor((contentW - GRID_GAP * (cols - 1)) / cols));
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          {railHidden ? (
-            <View style={styles.backRow}>
-              <Pressable onPress={() => router.push('/discover' as Href)} hitSlop={8}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  ‹ Discover
-                </ThemedText>
-              </Pressable>
-            </View>
-          ) : null}
+    <PageShell title="Contest binders" maxWidth={MaxContentWidthWide} footer={false}>
 
           <ThemedText type="title" style={styles.h1}>
             🏆 {isFinals ? 'The Final' : 'Contest binders'}
@@ -311,23 +294,11 @@ export default function ContestBindersScreen() {
               )}
             </>
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  flex: { flex: 1 },
-  scroll: {
-    padding: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.six,
-    width: '100%',
-    maxWidth: MaxContentWidthWide,
-    alignSelf: 'center',
-  },
-  backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.three },
   h1: { marginBottom: Spacing.one },
   sub: { marginBottom: Spacing.two, lineHeight: 20 },
   rulesLink: { alignSelf: 'flex-start', marginBottom: Spacing.four },

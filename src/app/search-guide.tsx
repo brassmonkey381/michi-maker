@@ -9,17 +9,16 @@
  * was already up, and works cold (server search) or warm (on-device).
  */
 import { useRouter } from 'expo-router';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { QUERY_MANUAL, sendBrowseCommand } from 'tcgscan-browse';
 
 import { FREE_THEME } from '@/data/freeTheme';
 import { FREE_THEME_QUERY, runThemeDemo } from '@/data/themeDemo';
 
 import { HoverLift } from '@/components/landing/HoverLift';
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { Nudge } from '@/components/ui/Nudge';
-import { ThemedView } from '@/components/themed-view';
 import { Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
 /**
@@ -147,9 +146,7 @@ export default function SearchGuideScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
+    <PageShell title="Search Cheatsheet" description="Every search the card browser understands: words, fields, numbers, dates, sorts and your collection, with recipes to try." maxWidth={MaxContentWidthWide} footer={false}>
           <View style={styles.shell}>
             <View style={styles.headerRow}>
               <ThemedText type="title" style={styles.h1}>
@@ -249,18 +246,13 @@ export default function SearchGuideScreen() {
               ))}
             </View>
           </View>
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+    </PageShell>
   );
 }
 
 const mono = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  flex: { flex: 1 },
-  scroll: { paddingBottom: Spacing.six },
   shell: {
     width: '100%',
     maxWidth: MaxContentWidthWide,

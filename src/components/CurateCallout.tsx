@@ -103,13 +103,13 @@ export function CurateCallout({
           <Pressable
             onPress={() => go('example')}
             accessibilityRole="button"
-            style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
+            style={({ pressed }) => [styles.primary, styles.tall, pressed && styles.pressed]}>
             <Text style={styles.primaryText}>{CURATE_TRY}</Text>
           </Pressable>
           <Pressable
             onPress={() => go('import')}
             accessibilityRole="button"
-            style={({ pressed }) => [pillChip.base, pressed && styles.pressed]}>
+            style={({ pressed }) => [pillChip.base, styles.tall, pressed && styles.pressed]}>
             <Text style={pillChip.text}>{CURATE_IMPORT}</Text>
           </Pressable>
         </View>
@@ -172,6 +172,8 @@ const styles = StyleSheet.create({
   },
   primaryText: { color: Palette.accentText, fontSize: FontSize.body, fontWeight: Weight.semibold },
   pressed: { opacity: 0.75 },
+  // 44 pt touch height for both buttons (MIC-020, 2026-11-08; they were 35 and 29).
+  tall: { minHeight: 44, justifyContent: 'center' },
   // The transformation: a slip of CSV, an arrow, the page it became.
   strip: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, maxWidth: '100%' },
   before: {

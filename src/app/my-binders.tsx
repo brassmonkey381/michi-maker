@@ -621,7 +621,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.three,
   },
+  // Both empty-shelf buttons at 44 pt (MIC-020, 2026-11-08; they were 36 and 31).
   newBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: Palette.accent,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
@@ -630,6 +633,8 @@ const styles = StyleSheet.create({
   newBtnText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.control },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   storyBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingVertical: 6,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,

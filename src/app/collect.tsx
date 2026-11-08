@@ -785,7 +785,8 @@ const styles = StyleSheet.create({
   ownedDot: { position: 'absolute', left: 3, top: 3, width: 10, height: 10, borderRadius: 5, backgroundColor: '#2e9e5b', borderWidth: 1, borderColor: '#fff' },
   sortRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.one },
   facetBox: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, padding: Spacing.two, borderRadius: Radius.control, backgroundColor: Palette.panel },
-  sortChip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: Radius.pill, backgroundColor: Palette.panel },
+  // 44 pt touch height (MIC-020, 2026-11-08): the sort, filter and facet chips were 30 tall.
+  sortChip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderRadius: Radius.pill, backgroundColor: Palette.panel },
   sortChipOn: { backgroundColor: Palette.accent },
   sortText: { color: Palette.muted },
   sortTextOn: { color: Palette.accentText, fontWeight: Weight.semibold },

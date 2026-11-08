@@ -52,12 +52,11 @@ configureBrowse({
     getItem: (k) => AsyncStorage.getItem(k),
     setItem: (k, v) => AsyncStorage.setItem(k, v),
   },
-  // THE IMAGE LIST IN SHARDS (MIC-018, tcgscan-browse 0.9.65+) IS OFF AGAIN (2026-11-08). With it
-  // on, nothing loads the list until a card is first asked for, so a screen that reads cardThumbUrl
-  // without subscribing to the manifest (the new-binder wizard's preview grid, on the Reddit
-  // wizard arm) rendered '' once and never repainted. Off restores the whole list at startup,
-  // exactly as before e31dad1. Turn it back on only once every cardThumbUrl reader subscribes
-  // (useImageManifest) and the shards are published.
+  // THE IMAGE LIST IN SHARDS (MIC-018, tcgscan-browse 0.9.65+): OFF until every screen that reads
+  // cardThumbUrl subscribes to the manifest (useImageManifest), and the shards are published. In
+  // shard mode a picture's URL arrives later than the first render, so an unsubscribed screen
+  // keeps its first empty answer. (The wizard's grey preview on 2026-11-08 turned out to be that
+  // same missing subscription, present before shards too; fixed in new-binder.tsx.)
   imageShards: false,
   // Gated catalog (encrypted, session-keyed) with public fallback — see lib/catalogSource.ts.
   catalogSource: gatedCatalogSource,

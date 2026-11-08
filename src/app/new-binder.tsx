@@ -32,7 +32,7 @@ import { pagesForCards } from '@/data/binderTypes';
 import { fetchCardsWhere } from '@/data/guestFill';
 import { where } from '@/data/guestFillQuery';
 import { track } from '@/lib/analytics';
-import { cardThumbUrl } from '@/lib/catalogConfig';
+import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useBinders } from '@/store/binders';
 
@@ -92,6 +92,12 @@ const ASK: Record<Kind, string> = {
 
 export default function NewBinderScreen() {
   const router = useRouter();
+  // THE PICTURE LIST, LOADED AND WATCHED (2026-11-08). cardThumbUrl names a card's picture from the
+  // image manifest, and nothing on this route loaded it: a guest who lands here first (the Reddit
+  // wizard arm) saw every preview tile grey, since an empty URL never repaints. Home, Discover and
+  // My Binders each call this; the wizard now does too, and the tiles read it, so they repaint
+  // the moment the list lands.
+  const manifestReady = useImageManifest();
   const store = useBinders();
   const { width } = useWindowDimensions();
   const [kind, setKind] = useState<Kind | null>(null);
@@ -275,7 +281,7 @@ export default function NewBinderScreen() {
                   <Text style={styles.pickCount}>{picked.length} of 3</Text>
                   {picked.map((c) => (
                     <Pressable key={c.id} onPress={() => setPicked((p) => p.filter((x) => x.id !== c.id))} accessibilityRole="button" accessibilityLabel={`Remove ${c.name}`}>
-                      <Image source={{ uri: cardThumbUrl(c.id, 'full') }} style={styles.pickThumb} contentFit="cover" />
+                      <Image source={{ uri: manifestReady ? cardThumbUrl(c.id, 'full') : '' }} style={styles.pickThumb} contentFit="cover" />
                     </Pressable>
                   ))}
                 </View>
@@ -364,7 +370,7 @@ export default function NewBinderScreen() {
                 <View style={styles.grid}>
                   {found.slice(0, 60).map((c) => (
                     <View key={c.id} testID={`wizard-card-${c.id}`} style={[styles.tile, { width: (gridW - 16) / 3 }]}>
-                      <Image source={{ uri: cardThumbUrl(c.id, 'full') }} style={styles.tileImg} contentFit="cover" />
+                      <Image source={{ uri: manifestReady ? cardThumbUrl(c.id, 'full') : '' }} style={styles.tileImg} contentFit="cover" />
                     </View>
                   ))}
                 </View>

@@ -18,20 +18,19 @@
  * quick-nav.
  */
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 
 import { AccountButton } from '@/components/auth/AccountButton';
-import { BinderThumb } from '@/components/binder/BinderThumb';
+import { BinderCoverGrid } from '@/components/binder/BinderCoverGrid';
+import { Seg } from '@/components/binder/inspector/controls';
 import { CurateCallout } from '@/components/CurateCallout';
-import { PagedCarousel } from '@/components/PagedCarousel';
 import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
@@ -58,8 +57,6 @@ import { fetchAvatarsByUsername } from '@/data/profileRepo';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 
-const GRID_GAP = Spacing.four;
-const MIN_TILE = 220;
 
 /**
  * THE THREE SHELVES ARE CAROUSELS, ONE SCREENFUL PER SLOT.
@@ -74,26 +71,6 @@ const MIN_TILE = 220;
  * cover better, and the arithmetic is the same one the grid already does: the column count only
  * falls below 5 when the tiles would go under MIN_TILE.
  */
-const SHELF_COLS = 5;
-const SHELF_ROWS = 2;
-
-/**
- * Slice `items` into carousel pages of `perPage`, each a wrapped grid of `tile(item)`.
- *
- * The tile callback returns a keyed element (the caller knows the id); the page `View` is keyed by
- * its start index, which is stable for a given list and ordering.
- */
-function shelfPages<T>(items: T[], perPage: number, tile: (item: T) => ReactNode): ReactNode[] {
-  const pages: ReactNode[] = [];
-  for (let i = 0; i < items.length; i += perPage) {
-    pages.push(
-      <View key={i} style={[styles.grid, styles.shelfPage, { gap: GRID_GAP }]}>
-        {items.slice(i, i + perPage).map(tile)}
-      </View>,
-    );
-  }
-  return pages;
-}
 
 /**
  * The orderings offered for the "everything else" section. This list is the chip ORDER only — the
@@ -140,12 +117,9 @@ function LoadMore({ busy, onPress, testID }: { busy: boolean; onPress: () => voi
 
 export default function DiscoverScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
 
   // The scroller's own width, which is the window minus the navigation rail. Only accepted on a
   // real change so a sub-pixel wobble cannot loop; set from an event, never from an effect.
-  const [frameW, setFrameW] = useState(0);
-  const measureFrame = (w: number) => setFrameW((cur) => (Math.abs(cur - w) > 1 ? Math.round(w) : cur));
   // The way back rides in the address, so it survives a reload and a new tab.
   const openBinder = (id: string) =>
     router.push(`/binder/${id}?back=${encodeURIComponent(returnTo.current)}` as Href);
@@ -192,12 +166,7 @@ export default function DiscoverScreen() {
    * whole page for each one.
    */
   const returnTo = useRef(discoverHref(sort, initialShelf));
-  const rememberShelf = (page: number) => {
-    returnTo.current = discoverHref(sort, page);
-    // `setParams` rewrites the current history entry rather than pushing one, so paging a shelf
-    // does not fill the back button with a trail of shelf positions.
-    router.setParams({ sort, shelf: page > 0 ? String(page) : undefined });
-  };
+
   // THE LIST SURVIVES A LOOK AT A BINDER (owner, 2026-11-04). This page is unmounted the moment
   // a binder opens (the root layout is a Slot), so without this a return refetched page one and
   // every page that "load more" had added was gone, while the address still asked for shelf
@@ -293,31 +262,8 @@ export default function DiscoverScreen() {
     return () => clearTimeout(handle);
   }, [query]);
 
-  /**
-   * Responsive grid: cap the content column, then fit as many >=MIN_TILE tiles as the width allows.
-   * Search results and a contest leaderboard stay plain grids — they are answers to a question the
-   * reader asked, so they run as long as they need to.
-   *
-   * MEASURED, NOT DERIVED FROM THE WINDOW. This used to read `useWindowDimensions().width`, which
-   * on web is the whole window and includes the navigation rail down the left. At 1280px that made
-   * the column 1232 while the scroller was really 1016, so `perShelf` packed FIVE tiles onto a
-   * shelf page where four fit: the fifth sat past the right edge and paging jumped a full page
-   * over it, so roughly one binder in five could not be reached at all. Measuring the scroller
-   * itself is also the only version that survives the rail changing width.
-   *
-   * The window width is the fallback for the first frame, before any layout has happened, so the
-   * page renders something sane rather than a column of zero.
-   */
-  // Since the shared frame (MIC-017) the measured box is the column itself, inside the shell's
-  // padding; only the window fallback still has the padding to take off.
-  const contentW = frameW || Math.min(width, MaxContentWidthWide) - Spacing.four * 2;
-  const cols = Math.max(2, Math.floor((contentW + GRID_GAP) / (MIN_TILE + GRID_GAP)));
-  const tileW = Math.max(120, Math.floor((contentW - GRID_GAP * (cols - 1)) / cols));
-  // The shelves cap at SHELF_COLS and take the width that frees as extra tile, so a slot is always
-  // a whole number of columns wide and a page never half-shows an eleventh binder.
-  const shelfCols = Math.min(SHELF_COLS, cols);
-  const shelfTileW = Math.max(120, Math.floor((contentW - GRID_GAP * (shelfCols - 1)) / shelfCols));
-  const perShelf = shelfCols * SHELF_ROWS;
+  // The grids size themselves (BinderCoverGrid measures its own width, MIC-017), so this page
+  // no longer measures a frame or counts columns.
 
   const q = query.trim();
   const searching = q.length >= MIN_QUERY;
@@ -356,7 +302,7 @@ export default function DiscoverScreen() {
     // THE SHARED FRAME (MIC-017, layout only). Discover is a top-level page: no way back. The
     // grid still measures its own width, now from the column instead of the old scroll view.
     <PageShell maxWidth={MaxContentWidthWide} back={false} footer={false} keyboardShouldPersistTaps="handled">
-      <View onLayout={(e) => measureFrame(e.nativeEvent.layout.width)}>
+      <View>
           {/* The account button top right, as on My Binders (owner, 2026-10-29): a visitor who
               arrives here from a shared binder has nowhere else to create an account. */}
           <View style={styles.topRow}>
@@ -397,11 +343,7 @@ export default function DiscoverScreen() {
               </ThemedText>
             ) : (
               <>
-                <View style={[styles.grid, { gap: GRID_GAP }]}>
-                  {results.map((b) => (
-                    <BinderThumb key={b.id} binder={b} width={tileW} onPress={() => openBinder(b.id)} />
-                  ))}
-                </View>
+                <BinderCoverGrid binders={results} onOpen={openBinder} minTile={150} minCols={2} maxCols={5} gap={16} testID="discover-results" />
                 {resultsNext ? (
                   <LoadMore busy={loadingMore === 'results'} onPress={loadMoreResults} testID="discover-more-results" />
                 ) : null}
@@ -418,33 +360,20 @@ export default function DiscoverScreen() {
                     style={styles.sectionLabel}>
                     Public binders
                   </ThemedText>
-                  <View style={styles.sortRow}>
-                    {SORTS.map((s) => {
-                      const active = sort === s.key;
-                      return (
-                        <Pressable
-                          key={s.key}
-                          onPress={() => {
-                            if (active) return;
-                            // A list seen in the last few minutes comes straight back; the fetch effect skips it.
-                            setOthers(keptShelf(s.key)?.binders ?? null);
-                            setOthersNext(keptShelf(s.key)?.next ?? null);
-                            setSort(s.key);
-                          }}
-                          accessibilityRole="tab"
-                          accessibilityState={{ selected: active }}
-                          style={[styles.sortChip, active && styles.sortChipActive]}
-                          hitSlop={2}>
-                          <ThemedText
-                            type="small"
-                            style={[styles.sortChipText, active && styles.sortChipTextActive]}>
-                            {s.label}
-                          </ThemedText>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
                 </View>
+                {/* ONE CONTROL FOR THE ORDER (MIC-017): two 12 pt chips became a 44 pt segmented control. */}
+                <Seg
+                  tall
+                  options={SORTS.map((s) => ({ id: s.key, label: s.label }))}
+                  value={sort}
+                  onChange={(key) => {
+                    if (key === sort) return;
+                    // A list seen in the last few minutes comes straight back; the fetch effect skips it.
+                    setOthers(keptShelf(key)?.binders ?? null);
+                    setOthersNext(keptShelf(key)?.next ?? null);
+                    setSort(key);
+                  }}
+                />
                 {others === null ? (
                   <View style={styles.center}>
                     <ActivityIndicator />
@@ -454,35 +383,26 @@ export default function DiscoverScreen() {
                     No public binders to show yet.
                   </ThemedText>
                 ) : (
-                  <PagedCarousel
-                    width={contentW}
-                    prevLabel="Previous binders"
-                    nextLabel="More binders"
-                    // Keyed by the ordering, so flipping the chip starts at the top of the new
-                    // list instead of page four of a list that no longer has one.
-                    key={`public-${sort}`}
-                    initialPage={initialShelf}
-                    onPageChange={rememberShelf}
-                    // The next page loads itself as the reader reaches the last one (PagedCarousel onReachEnd).
-                    onReachEnd={othersNext ? loadMoreOthers : undefined}
-                    pages={shelfPages(others, perShelf, (b) => (
-                      <BinderThumb
-                        key={b.id}
-                        binder={b}
-                        width={shelfTileW}
-                        onPress={() => openBinder(b.id)}
-                        accessory={
-                          b.authorName ? (
-                            <ProfileAvatarButton
-                              username={b.authorName}
-                              avatarUrl={avatars.get(b.authorName.toLowerCase())}
-                              size={TILE_AVATAR}
-                              onPress={() => router.push(`/u/${b.authorName}` as Href)}
-                            />
-                          ) : null
-                        }
-                      />
-                    ))}
+                  // ONE CONTINUOUS GRID (MIC-017, 2026-11-08): two across on a phone, five on a desk, in
+                  // place of the paged shelf with its arrows. Load more still adds the next page.
+                  <BinderCoverGrid
+                    binders={others}
+                    onOpen={openBinder}
+                    minTile={150}
+                    minCols={2}
+                    maxCols={5}
+                    gap={16}
+                    testID="discover-grid"
+                    accessory={(b) =>
+                      b.authorName ? (
+                        <ProfileAvatarButton
+                          username={b.authorName}
+                          avatarUrl={avatars.get(b.authorName.toLowerCase())}
+                          size={TILE_AVATAR}
+                          onPress={() => router.push(`/u/${b.authorName}` as Href)}
+                        />
+                      ) : null
+                    }
                   />
                 )}
                 {othersNext ? (
@@ -512,19 +432,7 @@ export default function DiscoverScreen() {
                     Reference binders from the house account: plain card layouts to copy and build
                     on, rather than finished pieces.
                   </ThemedText>
-                  <PagedCarousel
-                    width={contentW}
-                    prevLabel="Previous reference binders"
-                    nextLabel="More reference binders"
-                    pages={shelfPages(house, perShelf, (b) => (
-                      <BinderThumb
-                        key={b.id}
-                        binder={b}
-                        width={shelfTileW}
-                        onPress={() => openBinder(b.id)}
-                      />
-                    ))}
-                  />
+                  <BinderCoverGrid binders={house} onOpen={openBinder} minTile={150} minCols={2} maxCols={5} gap={16} testID="discover-house" />
                 </View>
               ) : null}
 
@@ -611,7 +519,6 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   // A carousel page is exactly as tall as its rows: `alignContent` stops a short last page (one
   // row, or a partial one) from spreading its tiles down the height the tallest page set.
-  shelfPage: { alignContent: 'flex-start' },
   center: { paddingVertical: Spacing.six, alignItems: 'center' },
   moreBtn: {
     alignSelf: 'center',

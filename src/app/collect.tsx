@@ -22,13 +22,12 @@
 import { useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 import { type CatalogCard, type CatalogSet, findSimilarToMany, getBrowseLanguages, loadColorIndex, parseQuery, searchCards } from 'tcgscan-browse';
 
 import { Seg } from '@/components/binder/inspector/controls';
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/binderTypes';
 import {
@@ -512,9 +511,9 @@ export default function CollectScreen() {
   const cell = wide ? 96 : Math.floor((Math.min(width, MaxContentWidthDoc) - Spacing.four * 2 - Spacing.one * 2) / 3) - 2;
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+    // THE SHARED FRAME (MIC-017, layout only). It had no way back before, and still has none.
+    <PageShell maxWidth={MaxContentWidthDoc} back={false} footer={false} keyboardShouldPersistTaps="handled">
+        <View style={styles.column}>
           <View style={styles.hero}>
             <ThemedText type="small" style={styles.eyebrow}>COLLECTOR BINDERS (BETA)</ThemedText>
             <ThemedText type="subtitle" style={styles.h1}>Ask for a set, get the binder</ThemedText>
@@ -751,9 +750,8 @@ export default function CollectScreen() {
               {note ? <ThemedText type="small" style={styles.note}>{note}</ThemedText> : null}
             </View>
           ) : null}
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+        </View>
+    </PageShell>
   );
 }
 
@@ -768,9 +766,8 @@ function Check({ on, onPress, testID, children }: { on: boolean; onPress: () => 
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  flex: { flex: 1 },
-  scroll: { padding: Spacing.four, paddingTop: Spacing.two, paddingBottom: BottomTabInset + Spacing.four, maxWidth: MaxContentWidthDoc, width: '100%', alignSelf: 'center', gap: Spacing.three },
+  // The shell sets the column's width and padding; the page keeps its spacing and the phone menu's room.
+  column: { gap: Spacing.three, paddingBottom: BottomTabInset },
   hero: { gap: Spacing.one, alignItems: 'center' },
   eyebrow: { letterSpacing: 2, color: Palette.accent, fontWeight: Weight.bold },
   h1: { textAlign: 'center' },

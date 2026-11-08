@@ -366,7 +366,9 @@ export default function DiscoverScreen() {
           {/* A COMPACT HEADER (MIC-017, owner 2026-11-08): the title shares the account button's
               row, and the old description line now lives in the search field's placeholder. */}
           <View style={styles.topRow}>
-            <ThemedText type="title" style={styles.h1} numberOfLines={1}>
+            {/* On a phone the guest's wide sign-in button leaves ~120 pt, so the title runs smaller
+                over two lines instead of truncating to "Dis…". */}
+            <ThemedText type="title" style={[styles.h1, phone && styles.h1Phone]}>
               Discover Binders
             </ThemedText>
             <AccountButton />
@@ -587,6 +589,7 @@ const styles = StyleSheet.create({
   // The old scroll view's bottom room, for the phone's menu button.
   shellTail: { height: BottomTabInset + Spacing.four },
   h1: { flexShrink: 1 },
+  h1Phone: { fontSize: 26, lineHeight: 30 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three, marginBottom: Spacing.three },
   search: {
     borderWidth: 1,

@@ -132,5 +132,7 @@ export function navGroups(whatsNewGlows: boolean): NavGroup[] {
  * a floating button would sit on top of the page you are composing.
  */
 export function navHiddenOn(pathname: string): boolean {
-  return pathname === '/welcome' || pathname.startsWith('/binder/');
+  // The wizard too (MIC-020, 2026-11-08): its full-width Create bar sits where the menu button
+  // floats, and the button covered the end of it. The wizard has its own Back and Cancel.
+  return pathname === '/welcome' || pathname.startsWith('/binder/') || pathname.startsWith('/new-binder');
 }

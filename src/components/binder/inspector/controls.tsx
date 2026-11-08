@@ -105,6 +105,7 @@ export function Seg<T extends string>({
   onChange,
   labelOf,
   wrap,
+  tall,
 }: {
   options: readonly { id: T; label: string; blurb?: string; disabled?: boolean }[];
   value: T;
@@ -113,6 +114,8 @@ export function Seg<T extends string>({
   labelOf?: (o: { id: T; label: string; blurb?: string }) => string;
   /** Lets a long row fold onto more lines instead of running out of its panel (the game row). */
   wrap?: boolean;
+  /** A 44 pt touch target with 15 pt text, for a page on a phone (MIC-020). The editor's inspector keeps the snug one. */
+  tall?: boolean;
 }) {
   return (
     <View style={[styles.segGroup, wrap && styles.segGroupWrap]}>
@@ -125,8 +128,8 @@ export function Seg<T extends string>({
             accessibilityRole="button"
             accessibilityState={{ selected: active, disabled: !!o.disabled }}
             accessibilityLabel={labelOf ? labelOf(o) : o.blurb ? `${o.label}: ${o.blurb}` : o.label}
-            style={[styles.seg, active && styles.segActive, o.disabled && styles.segDisabled]}>
-            <Text style={[styles.segText, active && styles.segTextActive]}>{o.label}</Text>
+            style={[styles.seg, tall && styles.segTall, active && styles.segActive, o.disabled && styles.segDisabled]}>
+            <Text style={[styles.segText, tall && styles.segTextTall, active && styles.segTextActive]}>{o.label}</Text>
           </Pressable>
         );
       })}
@@ -399,6 +402,8 @@ export const styles = StyleSheet.create({
   segGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.panel, borderRadius: Radius.pill, padding: 2 },
   segGroupWrap: { flexWrap: 'wrap', alignSelf: 'flex-start', borderRadius: Radius.control },
   seg: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill },
+  segTall: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14 },
+  segTextTall: { fontSize: 15 },
   /** An option that cannot be taken right now; the press still fires so the screen can say why. */
   segDisabled: { opacity: 0.4 },
   segActive: {

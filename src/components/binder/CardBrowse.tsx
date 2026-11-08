@@ -67,6 +67,7 @@ export function CardBrowse({
   ownedIds,
   onSimilarLocked,
   onThemeLocked,
+  touchControls = false,
 }: {
   /** Null while the catalog is still loading — CatalogBrowser then runs cold (server search). */
   catalog: Catalog | null;
@@ -108,11 +109,17 @@ export function CardBrowse({
   /** A free or guest account typed a theme: / art: query the lock stripped. Show the offer. */
   /** The meter row's tap ("+N more matches") on a metered themed search. Default: the plans page. */
   onThemeLocked?: () => void;
+  /** 44 pt controls in the kit's bars (the /browse page, MIC-020). */
+  touchControls?: boolean;
 }) {
   const { width } = useWindowDimensions();
   // App tokens → the kit's color contract, so the browser follows light/dark + variant
   // instead of falling back to the kit's built-in light look.
-  const browseTheme = useBrowseTheme();
+  const baseTheme = useBrowseTheme();
+  // THE /browse PAGE'S CONTROLS AT 44 PT (MIC-020, 2026-11-08): the kit's language and size groups,
+  // its feature row and Sort & filter were 24 to 30 pt on a phone. Only where the page asks: the
+  // editor's picker keeps its snug controls (the editor is not part of this pass).
+  const browseTheme = touchControls ? { ...baseTheme, controlHeight: 44 } : baseTheme;
   // Color search lives IN the browser (a "Color" toolbar button) so it's available on every surface
   // that uses this wrapper — the /browse page AND the binder card picker. Results are pushed back
   // into the browser as a result set (showCards), so filters / multi-select / actions all apply.
@@ -427,7 +434,7 @@ export function CardBrowse({
   // sat below the fold. The dropdown rides the kit's Color / Theme row (featureRowLead), so the
   // game costs no line at all; the notes about a game still loading keep their own line.
   const gameMenu =
-    PICKER_GAMES.length > 1 ? <GameMenu game={game} onPick={switchGame} border={browseTheme.border ?? '#e4e4e8'} ink={browseTheme.text ?? '#222'} panel={browseTheme.panel ?? '#fff'} accent={browseTheme.accent ?? '#3B82F6'} accentText={browseTheme.accentText ?? '#fff'} /> : null;
+    PICKER_GAMES.length > 1 ? <GameMenu tall={touchControls} game={game} onPick={switchGame} border={browseTheme.border ?? '#e4e4e8'} ink={browseTheme.text ?? '#222'} panel={browseTheme.panel ?? '#fff'} accent={browseTheme.accent ?? '#3B82F6'} accentText={browseTheme.accentText ?? '#fff'} /> : null;
   const gameNotes = secondary && (!activeCatalog || (themeNote && !gameThemed));
 
   return (
@@ -614,6 +621,7 @@ export function CardBrowse({
  * never clipped by the dock or the sheet and closes on a tap anywhere else.
  */
 function GameMenu({
+  tall = false,
   game,
   onPick,
   border,
@@ -622,6 +630,7 @@ function GameMenu({
   accent,
   accentText,
 }: {
+  tall?: boolean;
   game: GameId;
   onPick: (game: GameId) => void;
   border: string;
@@ -644,8 +653,8 @@ function GameMenu({
         testID="picker-game"
         // Filled with the accent (owner, 2026-10-25): the game is the one control on this bar that
         // changes what every other control means, and an outlined chip read as just another filter.
-        style={[styles.gameBtn, { borderColor: accent, backgroundColor: accent }]}>
-        <Text style={[styles.gameBtnText, { color: accentText }]} numberOfLines={1}>
+        style={[styles.gameBtn, tall && styles.gameBtnTall, { borderColor: accent, backgroundColor: accent }]}>
+        <Text style={[styles.gameBtnText, tall && styles.gameBtnTextTall, { color: accentText }]} numberOfLines={1}>
           {gameLabel(game)}
         </Text>
         <Text style={[styles.gameChevron, { color: accentText }]}>{'▾'}</Text>
@@ -686,6 +695,8 @@ const styles = StyleSheet.create({
   // The dropdown button: the same height as the kit's Color / Theme buttons beside it.
   gameBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 7, paddingLeft: 10, paddingRight: 8, borderRadius: 9, borderWidth: 1, maxWidth: 170 },
   gameBtnText: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  gameBtnTall: { minHeight: 44, paddingVertical: 0 },
+  gameBtnTextTall: { fontSize: 15 },
   gameChevron: { fontSize: 12 },
   gameCard: { position: 'absolute', width: 220, borderRadius: 12, borderWidth: 1, paddingVertical: 6, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
   gameItem: { paddingVertical: 9, paddingHorizontal: 14, marginHorizontal: 6, borderRadius: 8 },

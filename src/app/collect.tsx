@@ -524,7 +524,7 @@ export default function CollectScreen() {
 
           <View style={styles.panel}>
             {GAME_OPTIONS.length > 1 ? (
-              <Seg
+              <Seg tall
                 wrap
                 options={GAME_OPTIONS}
                 value={game}
@@ -546,9 +546,9 @@ export default function CollectScreen() {
               />
             ) : null}
             {secondary && !catalog ? <ThemedText type="small" themeColor="textSecondary">Loading {gameLabel(game)}…</ThemedText> : null}
-            <Seg options={kindOptionsFor(game)} value={kind} wrap onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); setFilters(NO_FILTERS); setOpenFacet(null); setSort({ key: naturalSortKey(k), dir: DEFAULT_DIR[naturalSortKey(k)] }); }} />
+            <Seg tall options={kindOptionsFor(game)} value={kind} wrap onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); setFilters(NO_FILTERS); setOpenFacet(null); setSort({ key: naturalSortKey(k), dir: DEFAULT_DIR[naturalSortKey(k)] }); }} />
             <ThemedText type="small" themeColor="textSecondary">{kindOptionsFor(game).find((k) => k.id === kind)?.blurb}</ThemedText>
-            {!secondary ? <Seg options={LANGS} value={lang} onChange={(l) => { setLang(l); setSet(null); if (needs === 'set') setQuery(''); }} /> : null}
+            {!secondary ? <Seg tall options={LANGS} value={lang} onChange={(l) => { setLang(l); setSet(null); if (needs === 'set') setQuery(''); }} /> : null}
 
             {needs !== 'none' ? (
               <View style={styles.askRow}>
@@ -572,12 +572,12 @@ export default function CollectScreen() {
                 />
               </View>
             ) : (
-              <Seg options={DEX_PICKS} value={dexPick} onChange={setDexPick} />
+              <Seg tall options={DEX_PICKS} value={dexPick} onChange={setDexPick} />
             )}
             {needs === 'set' && !secondary ? (
               <Check on={secrets} onPress={() => setSecrets((v) => !v)} testID="collect-secrets">Include secret rares, numbered past the set total.</Check>
             ) : null}
-            {kind === 'master' ? <Seg options={REVERSE} value={reverse} onChange={setReverse} /> : null}
+            {kind === 'master' ? <Seg tall options={REVERSE} value={reverse} onChange={setReverse} /> : null}
             <View style={styles.sortRow} testID="collect-sort">
               <ThemedText type="small" themeColor="textSecondary">Sort</ThemedText>
               {sortKeysFor(kind, game).map((k) => {
@@ -713,9 +713,9 @@ export default function CollectScreen() {
 
               {result.pockets.length > 0 ? (
                 <>
-                  <Seg options={secondary ? PAGE_OPTIONS.filter((o) => o.id !== 'curate') : PAGE_OPTIONS} value={pageChoice} onChange={pickPages} />
+                  <Seg tall options={secondary ? PAGE_OPTIONS.filter((o) => o.id !== 'curate') : PAGE_OPTIONS} value={pageChoice} onChange={pickPages} />
                   <ThemedText type="small" themeColor="textSecondary" testID="collect-pages-blurb">{PAGE_OPTIONS.find((o) => o.id === pageChoice)?.blurb}</ThemedText>
-                  <Seg options={shapeOptions} value={shapeId} wrap onChange={pickShape} />
+                  <Seg tall options={shapeOptions} value={shapeId} wrap onChange={pickShape} />
                   {roomForArt ? (
                     <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">{fanArt ? 'Fill the art panels with fan art.' : 'Fill the art panels with stock photos.'}</Check>
                   ) : null}
@@ -723,11 +723,11 @@ export default function CollectScreen() {
                     // ADMIN TEST ONLY: the two Pokémon art sites, searched by each page's species.
                     <View style={styles.adminBox} testID="collect-admin-fill-source">
                       <ThemedText type="small" themeColor="textSecondary">Admin test: where the art comes from.</ThemedText>
-                      <Seg options={ART_FILL_SOURCES} value={fillSource} onChange={setFillSource} />
+                      <Seg tall options={ART_FILL_SOURCES} value={fillSource} onChange={setFillSource} />
                     </View>
                   ) : null}
                   {/* The art window opens only on a card the catalogue flags full art, which the other games' do not. */}
-                  {secondary || !artViewBeta ? null : <Seg options={ART_WINDOWS} value={artWindow} onChange={setArtWindow} />}
+                  {secondary || !artViewBeta ? null : <Seg tall options={ART_WINDOWS} value={artWindow} onChange={setArtWindow} />}
                   <View style={styles.actions}>
                     {artWindow === 'off' ? (
                       <Pressable onPress={() => void printFree()} disabled={printing} style={[styles.btn, styles.btnOutline, printing && styles.dim]} accessibilityRole="button" testID="collect-print">

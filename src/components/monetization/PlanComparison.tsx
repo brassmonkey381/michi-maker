@@ -836,7 +836,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   saveStickerText: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.label, // 13 pt floor (MIC-020; was 10)
     fontWeight: Weight.bold,
     letterSpacing: 0.7,
     textTransform: 'uppercase',
@@ -855,7 +855,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   badgeProText: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.label, // 13 pt floor (MIC-020; was 10)
     fontWeight: Weight.bold,
     letterSpacing: 0.7,
     textTransform: 'uppercase',
@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   badgeVipText: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.label, // 13 pt floor (MIC-020; was 10)
     fontWeight: Weight.bold,
     letterSpacing: 0.7,
     textTransform: 'uppercase',
@@ -888,7 +888,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   stampText: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.label, // 13 pt floor (MIC-020; was 10)
     fontWeight: Weight.bold,
     color: Palette.link,
     fontVariant: ['tabular-nums'],

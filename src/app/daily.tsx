@@ -361,7 +361,7 @@ export default function DailyScreen() {
           ) : (
             <View style={styles.stacked}>
               <View style={styles.viewRow} testID="daily-art-view">
-                <Seg options={ART_VIEWS} value={artView} onChange={setArtView} />
+                <Seg tall options={ART_VIEWS} value={artView} onChange={setArtView} />
               </View>
               <View style={styles.gridHost}>
               <View style={[styles.grid, connected && styles.gridConnected, { gap: sheetGap, maxWidth: (cell + sheetGap) * cols }]}>

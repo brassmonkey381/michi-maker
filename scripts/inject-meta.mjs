@@ -81,5 +81,31 @@ const VIEWPORT = '<meta name="viewport" content="width=device-width, initial-sca
 html = html.replace(/<meta name="viewport" content="[^"]*" \/>/, VIEWPORT);
 if (!html.includes('maximum-scale=1')) throw new Error('inject-meta: the viewport meta was not found in dist/index.html');
 html = html.replace('</head>', `${META}\n  </head>`);
+// SOMETHING ON SCREEN BEFORE THE APP RUNS (MIC-017, 2026-11-07). With `output: single` the body is
+// an empty #root until 1.6 MB of JavaScript arrives and runs: on a phone over good 4G that was
+// 3.3 s of white, and the median ad visitor who never tapped left at 2.7 s. The mark and the name
+// are drawn by the HTML now, at once; React replaces #root's children when it mounts, so this
+// costs nothing after that. Plain CSS, no image or font to wait for.
+const SPLASH = `<div id="boot" aria-label="Loading michi-maker" role="status">
+      <div class="bm"><i></i><i></i><i></i><i class="w"></i><i></i><i></i><i></i><i></i></div>
+      <div class="bn">Michi-Maker</div>
+      <div class="bs">Loading</div>
+    </div>`;
+const SPLASH_CSS = `<style id="boot-css">
+      html, body { background: #ffffff; }
+      #boot { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: #1D1A15; }
+      #boot .bm { width: 64px; height: 64px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; animation: bootpulse 1.4s ease-in-out infinite; }
+      #boot .bm i { border-radius: 4px; background: rgba(128,128,128,0.35); }
+      #boot .bm i.w { grid-column: span 2; background: #3B82F6; }
+      #boot .bn { font-family: Fraunces, Georgia, 'Times New Roman', serif; font-size: 26px; font-weight: 700; }
+      #boot .bs { font-size: 14px; color: #6E675C; }
+      @keyframes bootpulse { 50% { opacity: 0.55; } }
+      @media (prefers-reduced-motion: reduce) { #boot .bm { animation: none; } }
+      @media (prefers-color-scheme: dark) { html, body { background: #131417; } #boot { color: #ffffff; } #boot .bs { color: #C4C8CE; } }
+    </style>`;
+html = html.replace('</head>', `    ${SPLASH_CSS}\n  </head>`);
+const rootRe = /<div id="root">\s*<\/div>/;
+if (!rootRe.test(html)) throw new Error('inject-meta: <div id="root"></div> was not found in dist/index.html');
+html = html.replace(rootRe, `<div id="root">\n    ${SPLASH}\n  </div>`);
 fs.writeFileSync(shell, html);
 console.log('inject-meta: og/twitter meta written to dist/index.html');

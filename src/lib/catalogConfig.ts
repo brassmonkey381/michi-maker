@@ -52,10 +52,12 @@ configureBrowse({
     getItem: (k) => AsyncStorage.getItem(k),
     setItem: (k, v) => AsyncStorage.setItem(k, v),
   },
-  // THE IMAGE LIST IN SHARDS (MIC-018, tcgscan-browse 0.9.65+): only the shards the cards on screen
-  // need, instead of the whole 1.77 MB images.json before a single picture can be named. Until the
-  // pipeline publishes browse/images-shards/v1/ the kit falls back to images.json, as before.
-  imageShards: true,
+  // THE IMAGE LIST IN SHARDS (MIC-018, tcgscan-browse 0.9.65+): OFF until every screen that reads
+  // cardThumbUrl subscribes to the manifest (useImageManifest), and the shards are published. In
+  // shard mode a picture's URL arrives later than the first render, so an unsubscribed screen
+  // keeps its first empty answer. (The wizard's grey preview on 2026-11-08 turned out to be that
+  // same missing subscription, present before shards too; fixed in new-binder.tsx.)
+  imageShards: false,
   // Gated catalog (encrypted, session-keyed) with public fallback — see lib/catalogSource.ts.
   catalogSource: gatedCatalogSource,
   // Affiliate deep-link template for outbound TCGPlayer links (empty = raw links, unchanged). Set

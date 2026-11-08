@@ -21,28 +21,24 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountButton } from '@/components/auth/AccountButton';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { CurateCallout } from '@/components/CurateCallout';
 import { PagedCarousel } from '@/components/PagedCarousel';
 import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { CONTEST, contestPhase } from '@/data/contest';
 import { discoverHref, shelfFromParam } from '@/data/backLink';
 import {
   BottomTabInset,
-  Breakpoints,
   FontSize,
   MaxContentWidthWide,
   Palette,
@@ -145,7 +141,6 @@ function LoadMore({ busy, onPress, testID }: { busy: boolean; onPress: () => voi
 export default function DiscoverScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
 
   // The scroller's own width, which is the window minus the navigation rail. Only accepted on a
   // real change so a sub-pixel wobble cannot loop; set from an event, never from an effect.
@@ -313,7 +308,9 @@ export default function DiscoverScreen() {
    * The window width is the fallback for the first frame, before any layout has happened, so the
    * page renders something sane rather than a column of zero.
    */
-  const contentW = Math.min(frameW || width, MaxContentWidthWide) - Spacing.four * 2;
+  // Since the shared frame (MIC-017) the measured box is the column itself, inside the shell's
+  // padding; only the window fallback still has the padding to take off.
+  const contentW = frameW || Math.min(width, MaxContentWidthWide) - Spacing.four * 2;
   const cols = Math.max(2, Math.floor((contentW + GRID_GAP) / (MIN_TILE + GRID_GAP)));
   const tileW = Math.max(120, Math.floor((contentW - GRID_GAP * (cols - 1)) / cols));
   // The shelves cap at SHELF_COLS and take the width that frees as extra tile, so a slot is always
@@ -356,24 +353,14 @@ export default function DiscoverScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          onLayout={(e) => measureFrame(e.nativeEvent.layout.width)}>
+    // THE SHARED FRAME (MIC-017, layout only). Discover is a top-level page: no way back. The
+    // grid still measures its own width, now from the column instead of the old scroll view.
+    <PageShell maxWidth={MaxContentWidthWide} back={false} footer={false} keyboardShouldPersistTaps="handled">
+      <View onLayout={(e) => measureFrame(e.nativeEvent.layout.width)}>
           {/* The account button top right, as on My Binders (owner, 2026-10-29): a visitor who
               arrives here from a shared binder has nowhere else to create an account. */}
           <View style={styles.topRow}>
-            {railHidden ? (
-              <Pressable onPress={() => router.push('/')} hitSlop={8}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  ‹ Home
-                </ThemedText>
-              </Pressable>
-            ) : (
-              <View />
-            )}
+            <View />
             <AccountButton />
           </View>
 
@@ -575,23 +562,15 @@ export default function DiscoverScreen() {
               ) : null}
             </>
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+      </View>
+      <View style={styles.shellTail} />
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  flex: { flex: 1 },
-  scroll: {
-    padding: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.six,
-    width: '100%',
-    maxWidth: MaxContentWidthWide,
-    alignSelf: 'center',
-  },
-  backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.three },
+  // The old scroll view's bottom room, for the phone's menu button.
+  shellTail: { height: BottomTabInset + Spacing.four },
   h1: { marginBottom: Spacing.one },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.two },
   sub: { marginBottom: Spacing.three, lineHeight: 20 },

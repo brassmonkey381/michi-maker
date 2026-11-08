@@ -39,6 +39,7 @@ export function PageShell({
   heading,
   lede,
   header,
+  ground,
   children,
 }: {
   /** Browser tab / SEO title (web only). */
@@ -55,6 +56,8 @@ export function PageShell({
   lede?: string;
   /** The whole header, for a route that needs tools or buttons on the title line (a workbench). */
   header?: Omit<HeaderProps, 'compact'>;
+  /** A layer behind the column for this page alone (Daily Puzzle's faint backdrop picture). */
+  ground?: ReactNode;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -73,6 +76,7 @@ export function PageShell({
         header={shellHeader}
         width={frameWidth(maxWidth)}
         back={{ label: 'Back', onPress: goBack }}
+        ground={ground}
         footer={footer ? <SiteFooter /> : undefined}>
         {children}
       </Shell>

@@ -23,16 +23,15 @@ import { fetchCardsByIds, sendBrowseCommand, type CatalogCard } from 'tcgscan-br
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions,
+  ActivityIndicator, Modal, Pressable, StyleSheet, TextInput, View, useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ArtWindow, StockCard } from '@/components/binder/ArtViewCard';
 import { Seg } from '@/components/binder/inspector/controls';
 import { Confetti, makeConfetti, type ConfettiPiece } from '@/components/Confetti';
 import { Pop, Shake, Stamp, Wave } from '@/components/PuzzleFx';
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import {
   BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight,
 } from '@/constants/theme';
@@ -176,7 +175,7 @@ export default function DailyScreen() {
   }, [userId]);
 
   /** A callback ref, not an effect: the React Compiler rules here forbid setState inside one. */
-  const onMount = useCallback((node: ScrollView | null) => {
+  const onMount = useCallback((node: View | null) => {
     if (node && !loaded) void load();
   }, [loaded, load]);
 
@@ -307,17 +306,23 @@ export default function DailyScreen() {
   const zoomFallback = zoomIndex >= 0 ? (puzzle?.cardImageUrls?.[zoomIndex] ?? '') : '';
 
   return (
-    <ThemedView style={styles.container}>
-      <Image
-        source={{ uri: backdrop }}
-        style={[StyleSheet.absoluteFill, styles.backdrop]}
-        contentFit="cover"
-        transition={200}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      />
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <ScrollView ref={onMount} contentContainerStyle={styles.scroll}>
+    <>
+    {/* THE SHARED FRAME (MIC-017, layout only). The faint backdrop rides in as the page's ground,
+        behind the column; the load-on-mount ref moved from the old scroll view to the column. */}
+    <PageShell
+      maxWidth={MaxContentWidthDoc}
+      footer={false}
+      ground={
+        <Image
+          source={{ uri: backdrop }}
+          style={[StyleSheet.absoluteFill, styles.backdrop]}
+          contentFit="cover"
+          transition={200}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+      }>
+        <View ref={onMount} style={styles.column}>
           <View key={`${userId ?? 'anon'}:${puzzle?.id ?? ''}`} ref={onMine} />
 
           <View style={styles.hero}>
@@ -520,7 +525,8 @@ export default function DailyScreen() {
               </View>
             </View>
           )}
-        </ScrollView>
+        </View>
+    </PageShell>
 
         {/* Full size, for the detail the puzzle is actually about. */}
         <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={() => setZoom(null)}>
@@ -537,26 +543,18 @@ export default function DailyScreen() {
             ) : null}
           </Pressable>
         </Modal>
-      </SafeAreaView>
       <Confetti pieces={confetti} />
-    </ThemedView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   // A watermark, not a picture: the cards are the thing to look at.
   backdrop: { opacity: 0.14 },
   flex: { flex: 1 },
-  scroll: {
-    padding: Spacing.four,
-    paddingTop: Spacing.two,
-    paddingBottom: BottomTabInset + Spacing.four,
-    maxWidth: MaxContentWidthDoc,
-    width: '100%',
-    alignSelf: 'center',
-    gap: Spacing.two,
-  },
+  // The shell sets the column's width and padding; the page keeps its own spacing and the room
+  // the phone's menu button needs at the bottom.
+  column: { gap: Spacing.two, paddingBottom: BottomTabInset },
   hero: { gap: Spacing.one, alignItems: 'center' },
   eyebrow: { letterSpacing: 2, color: Palette.accent, fontWeight: Weight.bold },
   h1: { textAlign: 'center' },

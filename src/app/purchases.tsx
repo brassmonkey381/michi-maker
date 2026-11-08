@@ -290,14 +290,12 @@ export default function PurchasesScreen() {
   }, [isSignedIn]);
 
   return (
-    <PageShell title="My Purchases" description="Your michi-maker payments, grants, and print usage.">
+    <PageShell
+      title="My Purchases"
+      description="Your michi-maker payments, grants, and print usage."
+      heading="My Purchases"
+      lede="Every payment, plan grant, and included print on your account, newest first.">
       <View style={styles.prose}>
-        <ThemedText type="subtitle" style={styles.h1}>
-          My Purchases
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-          Every payment, plan grant, and included print on your account, newest first.
-        </ThemedText>
 
         {!isSignedIn ? (
           <ThemedText type="small" themeColor="textSecondary">
@@ -398,8 +396,6 @@ export default function PurchasesScreen() {
 
 const styles = StyleSheet.create({
   prose: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', gap: Spacing.three },
-  h1: { marginBottom: Spacing.one },
-  lede: { lineHeight: 20, marginBottom: Spacing.two },
   center: { paddingVertical: Spacing.six, alignItems: 'center' },
   section: { gap: Spacing.two, marginTop: Spacing.two },
   sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.5 },

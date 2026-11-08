@@ -12,8 +12,7 @@
 import { useRouter, type Href } from 'expo-router';
 import { affiliateConfigured, productUrl, type CardAction, type CardActionsFactory, getPriceSummary } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Linking, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { track, trackAffiliateClick } from '@/lib/analytics';
 import { buildCardImage, pageImageFileName, sharePageImage } from '@/lib/pageImage';
@@ -32,8 +31,8 @@ import { themeSearchWall } from '@/data/themeGate';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
 import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
 import { useAvailableCopies, useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { BinderSurface, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
@@ -55,7 +54,6 @@ export default function BrowseScreen() {
   const ownsCard = (cardId: string) => !!ownedCopies?.some((c) => c.cardId === cardId);
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
   // Phone, not merely rail-less: a 1000px tablet has room for the full header, a 375px phone does
   // not, and the two questions have different answers.
   const phone = width < Breakpoints.phone;
@@ -273,8 +271,10 @@ export default function BrowseScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
+    <>
+    {/* THE SHARED FRAME (MIC-017, layout only). The card list scrolls itself, so the frame does
+        not: it hands the page the height that is left. A top-level page: no way back. */}
+    <PageShell maxWidth={MaxContentWidthWide} back={false} footer={false} scroll={false}>
         <View style={styles.shell}>
           {/*
             THE HEADER IS ONE LINE ON A PHONE, and it used to be three.
@@ -300,13 +300,6 @@ export default function BrowseScreen() {
                   `showLanguageToggle`, on by default) so every entry point that opens a browser —
                   this page, the binder card picker, Slice Studio — has the same control in the
                   same place, instead of only the one surface whose header happened to carry it. */}
-              {railHidden && !phone ? (
-                <Pressable onPress={() => router.push('/')} hitSlop={8}>
-                  <ThemedText type="smallBold" themeColor="textSecondary">
-                    ‹ Home
-                  </ThemedText>
-                </Pressable>
-              ) : null}
             </View>
           </View>
 
@@ -346,7 +339,7 @@ export default function BrowseScreen() {
             />
           </View>
         </View>
-      </SafeAreaView>
+    </PageShell>
 
       {addCardIds ? (
         <AddToBinderSheet
@@ -373,21 +366,13 @@ export default function BrowseScreen() {
       ) : null}
       <Toast spec={toast} onDismiss={() => setToast(null)} />
       <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} guestAuth={capGate.guestAuth} onCloseGuestAuth={capGate.closeGuestAuth} />
-    </ThemedView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  flex: { flex: 1 },
-  shell: {
-    flex: 1,
-    width: '100%',
-    maxWidth: MaxContentWidthWide,
-    alignSelf: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
-  },
+  // The shell sets the column's width and padding; the page only fills the height it is given.
+  shell: { flex: 1, minHeight: 0 },
   // WRAPS RATHER THAN CLIPS. At 375px the 34pt title took three lines and pushed the row's right
   // half off the edge: the Cheatsheet button and the "Home" link, which on a phone with no rail
   // was the only way off this page at all. Wrapping lets the right half drop onto its own line

@@ -13,8 +13,7 @@
  */
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { sendBrowseCommand } from 'tcgscan-browse';
 
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
@@ -39,9 +38,10 @@ import { MyCollection } from '@/components/MyCollection';
 import { StoryBinderSheet } from '@/components/StoryBinderSheet';
 import { HomeSection } from '@/components/HomeSection';
 import { CapGateOffer } from '@/components/monetization/CapGateOffer';
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { BottomTabInset, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { ProTrialPrompt } from '@/components/monetization/ProTrialPrompt';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { pillChip } from '@/constants/ui';
@@ -62,9 +62,7 @@ let visibilityPref: Visibility = 'all';
 export default function MyBindersScreen() {
   const store = useBinders();
   const router = useRouter();
-  const { width } = useWindowDimensions();
   // Where the rail isn't present (native, or narrow web) the page carries its own way back Home.
-  const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
   // STRAIGHT INTO THE WORKBENCH. Your own shelf is where you go to WORK on a binder, so opening
   // one from here lands in edit mode rather than in the reading view with an Edit button to find
   // first (owner decision 2026-09-09: people were opening a new binder and leaving). A binder the
@@ -288,7 +286,7 @@ export default function MyBindersScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <>
       {/* The sharing attestation also opens HERE, not only inside a binder: this is where a
           returning builder with existing binders actually lands, and someone who never opens the
           editor would otherwise never be asked. No binder in hand, so accepting turns sharing on
@@ -297,8 +295,9 @@ export default function MyBindersScreen() {
       {/* One-time second chance for the accounts the trial was wasted on. Self-gates to a fixed
           migration-set cohort and asks once; renders null for everyone else. */}
       <ProTrialPrompt surface="my-binders" />
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
+      {/* THE SHARED FRAME (MIC-017, layout only). A top-level page: no way back. The ad arrival's
+          `?open=seeded` redirect (the effect above) is untouched. */}
+      <PageShell maxWidth={MaxContentWidthWide} back={false} footer={false}>
           {/* Read-only because another tab of this browser owns editing. It belongs here as
               much as in the binder: adding a card from the collection saves too. */}
           <EditLockBanner />
@@ -309,15 +308,7 @@ export default function MyBindersScreen() {
               button (Sign in for anyone without an account) sits top right as it does on Home.
               Where the rail is hidden (native / narrow web), keep a way back Home on the left. */}
           <View style={styles.topRow}>
-            {railHidden ? (
-              <Pressable onPress={() => router.push('/')} hitSlop={8}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  ‹ Home
-                </ThemedText>
-              </Pressable>
-            ) : (
-              <View />
-            )}
+            <View />
             <AccountButton />
           </View>
 
@@ -521,8 +512,8 @@ export default function MyBindersScreen() {
             onFindSimilar={driveSimilarIds}
             onViewSet={driveViewSet}
           />
-        </ScrollView>
-      </SafeAreaView>
+          <View style={styles.shellTail} />
+      </PageShell>
 
       {menuBinder && (
         <BinderActionsMenu
@@ -589,7 +580,7 @@ export default function MyBindersScreen() {
         />
       ) : null}
       <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} guestAuth={capGate.guestAuth} onCloseGuestAuth={capGate.closeGuestAuth} />
-    </ThemedView>
+    </>
   );
 }
 
@@ -651,15 +642,8 @@ const EMPTY_PAGE: DemoPage = { id: 'empty-shelf', rows: 3, cols: 3, slots: [] };
 const EMPTY_PAGE_W = 132;
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  flex: { flex: 1 },
-  scroll: {
-    padding: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.six,
-    width: '100%',
-    maxWidth: MaxContentWidthWide,
-    alignSelf: 'center',
-  },
+  // The old scroll view's bottom room, for the phone's menu button.
+  shellTail: { height: BottomTabInset + Spacing.four },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',

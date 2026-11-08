@@ -1,7 +1,6 @@
 import { Redirect, useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { sendBrowseCommand, type CardLanguage } from 'tcgscan-browse';
 
 import { AccountButton } from '@/components/auth/AccountButton';
@@ -23,8 +22,8 @@ import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAva
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { Wordmark } from '@/components/brand/Wordmark';
 import { DailyPuzzleCard } from '@/components/DailyPuzzleCard';
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { similarityWall } from '@/data/similarityGate';
@@ -220,9 +219,8 @@ export default function HomeScreen() {
   if (showLanding) return <Redirect href={(skipTo ?? '/welcome') as Href} />;
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
+    <>
+    <PageShell maxWidth={MaxContentWidthWide} back={false} footer={false}>
           {/* Today's puzzle, when this person has not seen it. Renders nothing otherwise, including
               for guests and for anyone who said no once. */}
           <DailyPuzzleCard />
@@ -322,8 +320,8 @@ export default function HomeScreen() {
           <HomeSection title="Example Binders">
             <BinderCarousel binders={store.exampleBinders} onOpen={openBinder} />
           </HomeSection>
-        </ScrollView>
-      </SafeAreaView>
+      <View style={styles.shellTail} />
+    </PageShell>
 
       {addCardId ? (
         <AddToBinderSheet
@@ -337,24 +335,16 @@ export default function HomeScreen() {
       <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} guestAuth={capGate.guestAuth} onCloseGuestAuth={capGate.closeGuestAuth} />
       {/* See ProTrialPrompt: a fixed cohort, asked once. Null for everyone else. */}
       <ProTrialPrompt surface="home" />
-    </ThemedView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  // The old scroll view's bottom room, for the phone's menu button (PageShell has its own gutter).
+  shellTail: { height: BottomTabInset + Spacing.four },
   curate: { marginTop: 8, marginBottom: 20 },
   // No band of its own between two folded feeds (owner, 2026-11-06).
   curatePhone: { marginTop: 0, marginBottom: 0 },
-  container: { flex: 1 },
-  flex: { flex: 1 },
-  scroll: {
-    padding: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.six,
-    width: '100%',
-    // Wide shell: the binder carousels use the room to show more art.
-    maxWidth: MaxContentWidthWide,
-    alignSelf: 'center',
-  },
   // WRAPS AT PHONE WIDTH. The 34pt title plus the actions measured past the right edge at 375px
   // and the page does not scroll sideways, so People, Settings and Sign in were simply not on the
   // screen: you could not sign in from the app's busiest page. The row now wraps, and the title

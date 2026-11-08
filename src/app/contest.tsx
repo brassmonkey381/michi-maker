@@ -8,12 +8,11 @@
  */
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Breakpoints, MaxContentWidthDoc, Palette, Spacing } from '@/constants/theme';
+import { MaxContentWidthDoc, Palette, Spacing } from '@/constants/theme';
 import { fetchBinderTitles } from '@/data/binderRepo';
 import { CATEGORIES, CONTEST, categoryLabel } from '@/data/contest';
 import { fetchContestWinners, type ContestWinner } from '@/data/contestRepo';
@@ -31,8 +30,6 @@ function firstPrize(slug: string): string {
 
 export default function ContestScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
 
   // Hall of Fame — rendered from contest_winners, which is written by us after a contest.
   const [winners, setWinners] = useState<ContestWinner[]>([]);
@@ -61,18 +58,7 @@ export default function ContestScreen() {
     .map((w) => `${categoryLabel(w.category)} took home ${firstPrize(w.category)}`);
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          {railHidden ? (
-            <View style={styles.backRow}>
-              <Pressable onPress={() => router.push('/')} hitSlop={8}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  ‹ Home
-                </ThemedText>
-              </Pressable>
-            </View>
-          ) : null}
+    <PageShell title="Contest" maxWidth={MaxContentWidthDoc} footer={false}>
 
           <ThemedText type="title" style={styles.h1}>
             🏆 {CONTEST.name}
@@ -129,23 +115,11 @@ export default function ContestScreen() {
               ))
             )}
           </View>
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  flex: { flex: 1 },
-  scroll: {
-    padding: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.six,
-    width: '100%',
-    maxWidth: MaxContentWidthDoc,
-    alignSelf: 'center',
-  },
-  backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.three },
   h1: { marginBottom: Spacing.two },
   section: { marginTop: Spacing.four, gap: Spacing.two },
   h2: { marginBottom: Spacing.one },

@@ -18,16 +18,14 @@
  */
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Image } from 'expo-image';
 
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { ReportSheet } from '@/components/binder/ReportSheet';
-import { Wordmark } from '@/components/brand/Wordmark';
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { fetchPublicBinders } from '@/data/binderRepo';
 import { sortByRecentEdit, type DemoBinder } from '@/data/binderTypes';
@@ -112,17 +110,9 @@ export default function ProfileRoute() {
   }, [name]);
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <View style={styles.topbar}>
-          <Link href="/" asChild>
-            <Pressable hitSlop={8}>
-              <ThemedText type="link" themeColor="textSecondary">
-                ‹ <Wordmark />
-              </ThemedText>
-            </Pressable>
-          </Link>
-        </View>
+    // THE SHARED FRAME (MIC-017, layout only): PageShell draws the way back and the wide column;
+    // the tab title stays this page's own (the effect above), so no title is passed.
+    <PageShell maxWidth={MaxContentWidthWide}>
 
         {state.status === 'loading' ? (
           <View style={styles.center}>
@@ -138,7 +128,7 @@ export default function ProfileRoute() {
             </ThemedText>
           </View>
         ) : (
-          <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.body}>
             {/* CONTEST WINNERS wear a small trophy on the avatar's corner and one quiet line under
                 the name that goes to the Hall of Fame. On the account, not the binder (owner call,
                 2026-10-11): the person won, and the binder may be edited or deleted later. */}
@@ -212,7 +202,7 @@ export default function ProfileRoute() {
                 </ThemedText>
               </Pressable>
             ) : null}
-          </ScrollView>
+          </View>
         )}
         {reporting && state.status === 'ok' ? (
           <ReportSheet
@@ -220,27 +210,16 @@ export default function ProfileRoute() {
             onClose={() => setReporting(false)}
           />
         ) : null}
-      </SafeAreaView>
-    </ThemedView>
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  flex: { flex: 1 },
-  topbar: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.three },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
+  center: { flex: 1, minHeight: 320, alignItems: 'center', justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
   missTitle: { fontSize: FontSize.title, lineHeight: 30, textAlign: 'center' },
   missText: { textAlign: 'center' },
-  scroll: {
-    padding: Spacing.four,
-    paddingBottom: Spacing.six,
-    width: '100%',
-    // Wide shell — the public-binders carousel adds columns on desktop to showcase the art.
-    maxWidth: MaxContentWidthWide,
-    alignSelf: 'center',
-    alignItems: 'center',
-  },
+  // The shell sets the column and its padding; the page centres its own content in it.
+  body: { width: '100%', alignItems: 'center' },
   avatar: {
     width: 72,
     height: 72,

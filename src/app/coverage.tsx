@@ -60,16 +60,11 @@ export default function CoverageScreen() {
     <PageShell
       title="Coverage"
       description="Which search, page fill and scanning features are live for each trading card game on Michi-Maker."
-      maxWidth={MaxContentWidthDoc}>
+      maxWidth={MaxContentWidthDoc}
+      heading="What works for each game"
+      lede="You can build binders for every game below. This table shows which search, page fill and scanning features are fully live for each game, and which are still being filled in.">
       <ThemedText type="small" themeColor="textSecondary" style={styles.eyebrow}>
         FEATURE COVERAGE · {fmtDate(COVERAGE_AS_OF).toUpperCase()}
-      </ThemedText>
-      <ThemedText type="title" style={styles.h1}>
-        What works for each game
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-        You can build binders for every game below. This table shows which search, page fill and scanning
-        features are fully live for each game, and which are still being filled in.
       </ThemedText>
 
       {wide ? (
@@ -160,8 +155,6 @@ export default function CoverageScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   eyebrow: { letterSpacing: 1.2, fontWeight: Weight.semibold, color: Palette.accent },
-  h1: { marginTop: Spacing.one },
-  lede: { marginTop: Spacing.two, lineHeight: 20, maxWidth: 620 },
 
   table: {
     marginTop: Spacing.four,

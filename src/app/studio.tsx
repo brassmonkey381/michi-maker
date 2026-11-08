@@ -13,7 +13,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DropoffsPanel } from '@/components/analytics/DropoffsPanel';
 import { GrowthPanel } from '@/components/analytics/GrowthPanel';
@@ -22,8 +21,8 @@ import { MoneyPanel } from '@/components/analytics/MoneyPanel';
 import { PuzzlePanel } from '@/components/analytics/PuzzlePanel';
 import { ArtistsPanel } from '@/components/analytics/ArtistsPanel';
 import { ReportsPanel } from '@/components/analytics/ReportsPanel';
+import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, FontSize, MaxContentWidthWide, Palette, Radius, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
@@ -208,18 +207,18 @@ export default function StudioScreen() {
 
   if (adminOk === null) {
     return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.centerFill} edges={['top']}>
+      <PageShell maxWidth={MaxContentWidthWide} back={false} footer={false}>
+        <View style={styles.centerFill}>
           <ActivityIndicator color={Palette.accent} />
-        </SafeAreaView>
-      </ThemedView>
+        </View>
+      </PageShell>
     );
   }
 
   if (!adminOk) {
     return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.centerFill} edges={['top']}>
+      <PageShell maxWidth={MaxContentWidthWide} back={false} footer={false}>
+        <View style={styles.centerFill}>
           <ThemedText type="subtitle">Not authorized</ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.notAuthedText}>
             This area is for administrators.
@@ -229,8 +228,8 @@ export default function StudioScreen() {
               Back to home
             </ThemedText>
           </Pressable>
-        </SafeAreaView>
-      </ThemedView>
+        </View>
+      </PageShell>
     );
   }
 
@@ -239,8 +238,8 @@ export default function StudioScreen() {
   const showJourney = wide || !!selected;
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
+    // THE SHARED FRAME (MIC-017, layout only). The page scrolls in the frame, header included.
+    <PageShell maxWidth={MaxContentWidthWide} back={false} footer={false}>
         <View style={styles.headerRow}>
           <View style={styles.titleWrap}>
             <ThemedText type="subtitle" style={styles.title}>
@@ -263,7 +262,7 @@ export default function StudioScreen() {
           of the window instead (listScroll / journeyScroll below), which gives them a real height
           here and keeps them independently scrollable.
         */}
-        <ScrollView contentContainerStyle={styles.pageContent}>
+        <View style={styles.pageContent}>
 
         {/*
           Community growth. michi-only: these totals count binders, pages and slots, which
@@ -320,9 +319,8 @@ export default function StudioScreen() {
             </View>
           ) : null}
         </View>
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+        </View>
+    </PageShell>
   );
 }
 
@@ -488,9 +486,7 @@ function EventRow({ event }: { event: JourneyEvent }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  flex: { flex: 1, width: '100%', maxWidth: MaxContentWidthWide, alignSelf: 'center' },
-  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.two, padding: Spacing.four },
+  centerFill: { minHeight: 320, alignItems: 'center', justifyContent: 'center', gap: Spacing.two, padding: Spacing.four },
   centerPad: { padding: Spacing.four, alignItems: 'center' },
   notAuthedText: { textAlign: 'center' },
   homeLink: { marginTop: Spacing.two },

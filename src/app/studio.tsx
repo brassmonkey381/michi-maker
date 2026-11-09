@@ -20,6 +20,7 @@ import { HealthPanel } from '@/components/analytics/HealthPanel';
 import { MoneyPanel } from '@/components/analytics/MoneyPanel';
 import { PuzzlePanel } from '@/components/analytics/PuzzlePanel';
 import { ArtistsPanel } from '@/components/analytics/ArtistsPanel';
+import { ImagesPanel } from '@/components/analytics/ImagesPanel';
 import { ReportsPanel } from '@/components/analytics/ReportsPanel';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
@@ -285,6 +286,8 @@ export default function StudioScreen() {
         {/* The takedown queue. michi-only: reports are filed on binders and profiles, which
             tcgscan does not have. */}
         {app === 'michi' ? <ReportsPanel /> : null}
+        {/* MIC-029: images the safety check held back, waiting for a decision. */}
+        {app === 'michi' ? <ImagesPanel /> : null}
 
         {/* Artist accounts and the review queue for the pieces they offer (data/artists.ts). */}
         {app === 'michi' ? <ArtistsPanel /> : null}

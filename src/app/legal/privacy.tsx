@@ -18,7 +18,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Spacing } from '@/constants/theme';
 
-const LAST_UPDATED = 'September 22, 2026';
+const LAST_UPDATED = 'November 9, 2026';
 
 interface Section {
   heading: string;
@@ -49,13 +49,14 @@ const SECTIONS: Section[] = [
     heading: '3. Where it lives',
     paragraphs: [
       'Your data is stored with Supabase, our database and authentication provider, which runs on Amazon Web Services in the US East (Northern Virginia) region.',
-      'Three other providers handle parts of the service: Vercel hosts the web app, Stripe processes payments (see Payments below), and Resend delivers our email. Each stores only what it needs to do its job.',
+      'Four other providers handle parts of the service: Vercel hosts the web app, Stripe processes payments (see Payments below), Resend delivers our email, and Anthropic checks images added to public binders (see What is public below). Each stores only what it needs to do its job.',
     ],
   },
   {
     heading: '4. What is public',
     paragraphs: [
       'Public binders and public profiles are visible to anyone with the link (and may appear in Featured or People search), along with likes and upvotes on them. The Public profile switch in Settings controls this: turned off, every one of your binders is hidden from everyone but you.',
+      'Images you add to a public binder are checked automatically by an AI service (Anthropic’s Claude) before other people can see them, to keep sexual content off public pages. The image itself is sent for the check; nothing else about you is. An image it flags stays visible only to you until a person on our team reviews it.',
     ],
   },
   {

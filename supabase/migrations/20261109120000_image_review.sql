@@ -13,6 +13,9 @@
 -- 4. pg_cron drains the queue every minute through the image-review edge function (guarded like
 --    the scan janitor: needs pg_net and the vault secret image_review_secret).
 
+-- RERUN-SAFE AND ALL-OR-NOTHING: one transaction; drops before every create policy / trigger.
+begin;
+
 -- ── 1. the slot's verdict ────────────────────────────────────────────────────────────────────────
 alter table public.binder_slots
   add column if not exists image_review text not null default 'pending'
@@ -59,7 +62,10 @@ create table if not exists public.admin_notices (
 );
 alter table public.admin_notices enable row level security; -- no policies: service role only
 -- One open check per slot and image: re-queueing the same image is a no-op.
-create unique index if not exists image_reviews_one_open on public.image_reviews (slot_id, image_url) where status in ('queued', 'working');
+-- md5 of the URL, not the URL: one live slot holds a ~2.8 KB image_url, past btree's 2704-byte key
+-- limit (the first apply failed on it, 2026-11-09). Also drops an index a failed run may have left.
+drop index if exists public.image_reviews_one_open;
+create unique index image_reviews_one_open on public.image_reviews (slot_id, md5(image_url)) where status in ('queued', 'working');
 
 alter table public.image_reviews enable row level security;
 -- Studio only. The edge function uses the service role and bypasses RLS.
@@ -280,3 +286,5 @@ begin
     $j$);
   end if;
 end $$;
+
+commit;

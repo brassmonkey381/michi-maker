@@ -4,6 +4,9 @@
 -- until they are checked. The owner's own policy ("Slots of owned binders are viewable") is
 -- untouched: owners always see their own images, flagged or not. Anything reading as a visitor
 -- (the share image API, the page renderer, Discover) inherits this.
+-- One transaction: a visitor never meets the moment between a drop and its create.
+begin;
+
 drop policy if exists "Pages of public binders are viewable" on public.binder_pages;
 create policy "Pages of public binders are viewable"
   on public.binder_pages for select to anon, authenticated
@@ -34,3 +37,5 @@ create policy "Slots of public binders are viewable"
     -- read as an empty pocket.
     and (binder_slots.image_url is null or binder_slots.image_review = 'approved')
   );
+
+commit;

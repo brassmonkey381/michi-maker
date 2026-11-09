@@ -23,6 +23,7 @@ import type { DemoBinder } from '@/data/binderTypes';
 import { DEFAULT_SHARE_IMAGE, SHARE_ART_VIEWS, SHARE_IMAGE_STYLES, binderQuickPreviewUrl, downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
 import { sharePictureFailure, shareVisibility } from '@/data/shareVisibility';
 import { useAuth } from '@/store/auth';
+import { Dialog } from 'tcgscan-ui';
 import { useBinders } from '@/store/binders';
 
 export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
@@ -181,49 +182,46 @@ export function QuickPreviewModal({ binder, options = DEFAULT_SHARE_IMAGE, onClo
     }
   };
   const { width, height } = useWindowDimensions();
+  // THE PRIVATE-PROFILE QUESTION, ON ITS OWN (MIC-025, owner 2026-11-09: "fix the styling … we
+  // should have a centralized pop up utility"). The kit's Dialog, alone: the preview window and
+  // its download button are not drawn underneath it, so nothing can sit on top of its text. Once
+  // the profile is public, visibility flips and the preview window below draws the picture.
+  if (visibility === 'hidden') {
+    return (
+      <Dialog
+        visible
+        title="Your profile is private"
+        body="So this binder and its picture are hidden from everyone but you. Turn on Public profile to share it. Your other public binders will show too."
+        cancel={{ label: 'Cancel', onPress: onClose }}
+        confirm={{
+          label: fixing === 'busy' ? 'Turning on…' : 'Turn on Public profile',
+          onPress: () => void makeProfilePublic(),
+          disabled: fixing === 'busy',
+        }}
+        onClose={onClose}>
+        {fixing === 'failed' ? (
+          <ThemedText type="small" style={styles.popupError} testID="profile-private-error">
+            That did not save. Check your connection and try again.
+          </ThemedText>
+        ) : null}
+      </Dialog>
+    );
+  }
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close the preview" testID="quick-preview">
         <View style={[styles.frame, { width: Math.min(width - 32, 1100), height: Math.min(height - 120, ((Math.min(width - 32, 1100)) * 1512) / 2568 + 48) }]}>
-          {visibility === 'hidden' ? (
-            <Pressable style={styles.center} onPress={(e) => e.stopPropagation()} testID="profile-private-popup">
-              <View style={styles.popup}>
-                <ThemedText type="smallBold">Your profile is private</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  So this binder and its picture are hidden from everyone but you. Turn on Public profile to share it. Your other public binders will show too.
-                </ThemedText>
-                {fixing === 'failed' ? (
-                  <ThemedText type="small" style={styles.popupError}>That did not save. Check your connection and try again.</ThemedText>
-                ) : null}
-                <View style={styles.popupRow}>
-                  <Pressable onPress={onClose} accessibilityRole="button" testID="profile-private-cancel" style={({ pressed }) => [styles.popupBtn, pressed && styles.dim]}>
-                    <ThemedText type="smallBold">Cancel</ThemedText>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => void makeProfilePublic()}
-                    disabled={fixing === 'busy'}
-                    accessibilityRole="button"
-                    testID="profile-private-fix"
-                    style={({ pressed }) => [styles.popupBtn, styles.popupBtnPrimary, (pressed || fixing === 'busy') && styles.dim]}>
-                    {fixing === 'busy' ? <ActivityIndicator size="small" color={Palette.accentText} /> : null}
-                    <ThemedText type="smallBold" style={styles.dlText}>Turn on Public profile</ThemedText>
-                  </Pressable>
-                </View>
-              </View>
-            </Pressable>
-          ) : null}
-          {visibility !== 'hidden' && state === 'loading' ? (
+          {state === 'loading' ? (
             <View style={styles.center}>
               <ActivityIndicator color={Palette.accent} />
               <ThemedText type="small" themeColor="textSecondary">Drawing a quick version, a few seconds…</ThemedText>
             </View>
           ) : null}
-          {visibility !== 'hidden' && state === 'failed' ? (
+          {state === 'failed' ? (
             <View style={styles.center}>
               <ThemedText type="small" themeColor="textSecondary">{sharePictureFailure(visibility)}</ThemedText>
             </View>
           ) : null}
-          {visibility === 'hidden' ? null : (
           <Image
             key={src}
             source={{ uri: src }}
@@ -233,7 +231,6 @@ export function QuickPreviewModal({ binder, options = DEFAULT_SHARE_IMAGE, onClo
             onLoad={() => setState('ok')}
             onError={() => setState('failed')}
           />
-          )}
           <View style={styles.actions}>
             <Pressable
               onPress={(e) => {
@@ -280,11 +277,7 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.accent,
   },
   dlText: { color: Palette.accentText },
-  // The private-profile pop-up (MIC-025): one plain card, Cancel and the fix side by side.
-  popup: { maxWidth: 420, width: '100%', backgroundColor: Palette.surface, borderRadius: Radius.panel, borderWidth: 1, borderColor: Palette.hairlineStrong, padding: Spacing.four, gap: Spacing.two },
-  popupRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: Spacing.two, marginTop: Spacing.two },
-  popupBtn: { minHeight: 44, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairlineStrong, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
-  popupBtnPrimary: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  // The private-profile Dialog's save error (MIC-025).
   popupError: { color: Palette.danger },
   dim: { opacity: 0.6 },
   card: { backgroundColor: Palette.surface, borderRadius: Radius.panel, padding: Spacing.four, gap: Spacing.three, width: '100%', maxWidth: 520 },

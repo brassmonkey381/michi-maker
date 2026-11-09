@@ -11,7 +11,7 @@
  * is not what they expected.
  */
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { ImageLinkField, PillButton, Seg } from '@/components/binder/inspector/controls';
@@ -21,6 +21,9 @@ import { ThemedText } from '@/components/themed-text';
 import { Palette, Radius, Spacing } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
 import { DEFAULT_SHARE_IMAGE, SHARE_ART_VIEWS, SHARE_IMAGE_STYLES, binderQuickPreviewUrl, downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
+import { sharePictureFailure, shareVisibility } from '@/data/shareVisibility';
+import { useAuth } from '@/store/auth';
+import { Dialog } from 'tcgscan-ui';
 import { useBinders } from '@/store/binders';
 
 export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
@@ -141,8 +144,30 @@ export function SharePictureChooser({
 
 /** The quick share image in a modal: the Share sheet's button opens it, and so does Q (owner, 2026-09-16). */
 export function QuickPreviewModal({ binder, options = DEFAULT_SHARE_IMAGE, onClose }: { binder: DemoBinder; options?: ShareImageOptions; onClose: () => void }) {
-  const [src] = useState(() => binderQuickPreviewUrl(binder.id, binder.updatedAt, options));
+  const auth = useAuth();
+  // WHO CAN SEE IT DECIDES WHETHER THERE IS A PICTURE (MIC-025). A public binder of a private
+  // profile is hidden from the renderer like from everyone else, so instead of a request that can
+  // only fail, the owner gets a pop-up that turns Public profile on and then draws the picture.
+  const visibility = shareVisibility(!!binder.isPublic, auth.profile?.is_public);
+  const [attempt, setAttempt] = useState(0);
+  const src = useMemo(
+    () => binderQuickPreviewUrl(binder.id, binder.updatedAt, options) + (attempt ? `&retry=${attempt}` : ''),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [binder.id, attempt],
+  );
   const [state, setState] = useState<'loading' | 'ok' | 'failed'>('loading');
+  const [fixing, setFixing] = useState<'idle' | 'busy' | 'failed'>('idle');
+  const makeProfilePublic = async () => {
+    setFixing('busy');
+    const r = await auth.updateProfile({ is_public: true });
+    if (r.error) {
+      setFixing('failed');
+      return;
+    }
+    setFixing('idle');
+    setState('loading');
+    setAttempt((n) => n + 1); // a fresh request, past any cached refusal
+  };
   // THE DOWNLOAD FROM THE PREVIEW (owner, 2026-10-26): what you are looking at is what the
   // full-size file will be, so the button to get it belongs right here, in the same style.
   const [hires, setHires] = useState<'idle' | 'busy' | 'failed'>('idle');
@@ -157,6 +182,31 @@ export function QuickPreviewModal({ binder, options = DEFAULT_SHARE_IMAGE, onClo
     }
   };
   const { width, height } = useWindowDimensions();
+  // THE PRIVATE-PROFILE QUESTION, ON ITS OWN (MIC-025, owner 2026-11-09: "fix the styling … we
+  // should have a centralized pop up utility"). The kit's Dialog, alone: the preview window and
+  // its download button are not drawn underneath it, so nothing can sit on top of its text. Once
+  // the profile is public, visibility flips and the preview window below draws the picture.
+  if (visibility === 'hidden') {
+    return (
+      <Dialog
+        visible
+        title="Your profile is private"
+        body="So this binder and its picture are hidden from everyone but you. Turn on Public profile to share it. Your other public binders will show too."
+        cancel={{ label: 'Cancel', onPress: onClose }}
+        confirm={{
+          label: fixing === 'busy' ? 'Turning on…' : 'Turn on Public profile',
+          onPress: () => void makeProfilePublic(),
+          disabled: fixing === 'busy',
+        }}
+        onClose={onClose}>
+        {fixing === 'failed' ? (
+          <ThemedText type="small" style={styles.popupError} testID="profile-private-error">
+            That did not save. Check your connection and try again.
+          </ThemedText>
+        ) : null}
+      </Dialog>
+    );
+  }
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close the preview" testID="quick-preview">
@@ -169,10 +219,11 @@ export function QuickPreviewModal({ binder, options = DEFAULT_SHARE_IMAGE, onClo
           ) : null}
           {state === 'failed' ? (
             <View style={styles.center}>
-              <ThemedText type="small" themeColor="textSecondary">That did not draw. The binder has to be public, and the picture link has to load.</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">{sharePictureFailure(visibility)}</ThemedText>
             </View>
           ) : null}
           <Image
+            key={src}
             source={{ uri: src }}
             style={[styles.img, state !== 'ok' && styles.hidden]}
             contentFit="contain"
@@ -226,6 +277,8 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.accent,
   },
   dlText: { color: Palette.accentText },
+  // The private-profile Dialog's save error (MIC-025).
+  popupError: { color: Palette.danger },
   dim: { opacity: 0.6 },
   card: { backgroundColor: Palette.surface, borderRadius: Radius.panel, padding: Spacing.four, gap: Spacing.three, width: '100%', maxWidth: 520 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, alignItems: 'center' },

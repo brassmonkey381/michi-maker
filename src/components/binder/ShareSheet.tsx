@@ -31,6 +31,7 @@ import { CONTEST } from '@/data/contest';
 import { useTheme } from '@/hooks/use-theme';
 import { previewDeepLinkPage } from '@/data/previewPages';
 import { DEFAULT_SHARE_IMAGE, SHARE_ART_VIEWS, SHARE_IMAGE_STYLES, binderShareUrl, downloadBinderHiresImage, warmBinderPreview, type ShareImageOptions } from '@/lib/appUrl';
+import { shareVisibility, visibilityDetail } from '@/data/shareVisibility';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 import { AuthSheet } from '@/components/auth/AuthSheet';
@@ -356,9 +357,9 @@ export function ShareSheet({
               <View style={styles.toggleText}>
                 <ThemedText type="smallBold">Anyone with the link</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {isPublic
-                    ? 'Public: anyone with the link can view this binder.'
-                    : 'Private: only you can see it.'}
+                  {/* Both switches decide who can see it (MIC-025): set public but with a private
+                      profile, it is hidden from everyone but the owner. */}
+                  {visibilityDetail(shareVisibility(isPublic, auth.profile?.is_public))}
                 </ThemedText>
               </View>
               <Switch value={isPublic} onValueChange={handleToggle} trackColor={{ true: Palette.accent, false: theme.backgroundSelected }} />

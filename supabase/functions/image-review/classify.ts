@@ -28,7 +28,7 @@ export const REVIEW_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-export type ReviewLabel = 'safe' | 'suggestive' | 'explicit' | 'refused' | 'unchecked';
+export type ReviewLabel = 'safe' | 'suggestive' | 'explicit' | 'refused' | 'unchecked' | 'held';
 export type SlotVerdict = 'approved' | 'flagged' | 'unchecked';
 
 /**
@@ -37,6 +37,7 @@ export type SlotVerdict = 'approved' | 'flagged' | 'unchecked';
  * should); an image that could not be fetched or classified waits as unchecked.
  */
 export function verdictFor(label: ReviewLabel): SlotVerdict {
+  // held: a page-mate of an explicit image (see image-review), flagged with it.
   if (label === 'safe') return 'approved';
   if (label === 'unchecked') return 'unchecked';
   return 'flagged';
@@ -51,4 +52,30 @@ export function parseAnswer(text: string): { label: ReviewLabel; minor_concern: 
   } catch {
     return { label: 'unchecked', minor_concern: false, reason: 'unreadable answer' };
   }
+}
+
+/** At most one admin email in this many minutes; flags in between wait for the next one. */
+export const NOTICE_EVERY_MIN = 60;
+
+/** The admin email for flags waiting in Studio: counts and binder links, never the images. */
+export function noticeText(items: { binderId: string; label: string; minor: boolean }[], studioUrl: string, siteUrl: string): { subject: string; text: string } {
+  const minors = items.filter((i) => i.minor).length;
+  const byBinder = new Map<string, string[]>();
+  for (const i of items) byBinder.set(i.binderId, [...(byBinder.get(i.binderId) ?? []), i.label]);
+  const lines = [...byBinder].map(([id, labels]) => {
+    const tally = Object.entries(labels.reduce<Record<string, number>>((t, l) => ({ ...t, [l]: (t[l] ?? 0) + 1 }), {}))
+      .map(([l, n]) => `${n} ${l}`)
+      .join(', ');
+    return `- ${siteUrl}/binder/${id}  (${tally})`;
+  });
+  const subject = `michi-maker: ${items.length} image${items.length === 1 ? '' : 's'} held for review${minors ? ` (${minors} possible minor)` : ''}`;
+  const text = [
+    `The image safety check held ${items.length} image${items.length === 1 ? '' : 's'} from public binders. Visitors see empty pockets until you decide; nothing was deleted.`,
+    '',
+    ...lines,
+    '',
+    minors ? 'At least one is marked as a possible minor: preserve it and follow the NCMEC route; do not just remove it.\n' : '',
+    `Review them in Studio: ${studioUrl}`,
+  ].join('\n');
+  return { subject, text };
 }

@@ -23,6 +23,7 @@ const LABEL: Record<string, string> = {
   suggestive: 'Suggestive',
   refused: 'Model declined to look',
   unchecked: 'Could not check',
+  held: 'Held: same page as an explicit image',
 };
 
 export function ImagesPanel() {

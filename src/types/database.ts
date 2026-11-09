@@ -492,6 +492,7 @@ export type Database = {
           label: string | null
           minor_concern: boolean | null
           model: string | null
+          notified_at: string | null
           owner_id: string
           reason: string | null
           slot_id: string
@@ -510,6 +511,7 @@ export type Database = {
           label?: string | null
           minor_concern?: boolean | null
           model?: string | null
+          notified_at?: string | null
           owner_id: string
           reason?: string | null
           slot_id: string
@@ -528,6 +530,7 @@ export type Database = {
           label?: string | null
           minor_concern?: boolean | null
           model?: string | null
+          notified_at?: string | null
           owner_id?: string
           reason?: string | null
           slot_id?: string

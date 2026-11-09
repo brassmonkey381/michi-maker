@@ -6,7 +6,7 @@
  */
 import { requireSupabase } from '@/lib/supabase';
 
-export type ReviewLabel = 'safe' | 'suggestive' | 'explicit' | 'refused' | 'unchecked';
+export type ReviewLabel = 'safe' | 'suggestive' | 'explicit' | 'refused' | 'unchecked' | 'held';
 
 export interface ImageReview {
   id: number;
@@ -27,7 +27,7 @@ export async function listOpenImageReviews(limit = 100): Promise<ImageReview[]> 
     .from('image_reviews')
     .select('id, slot_id, binder_id, owner_id, image_url, label, minor_concern, reason, checked_at')
     .is('decision', null)
-    .in('label', ['suggestive', 'explicit', 'refused', 'unchecked'])
+    .in('label', ['suggestive', 'explicit', 'refused', 'unchecked', 'held'])
     .order('checked_at', { ascending: false })
     .limit(limit);
   if (error) throw new Error(`image reviews: ${error.message}`);

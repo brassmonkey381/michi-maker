@@ -33,7 +33,9 @@ create table if not exists public.image_reviews (
   owner_id      uuid not null,
   image_url     text not null,
   status        text not null default 'queued' check (status in ('queued', 'working', 'done', 'error')),
-  label         text check (label in ('safe', 'suggestive', 'explicit', 'refused', 'unchecked')),
+  -- held: not judged unsafe itself, but on the same page as an explicit image (a sliced picture's
+  -- harmless-looking pieces), so a person looks at the whole page.
+  label         text check (label in ('safe', 'suggestive', 'explicit', 'refused', 'unchecked', 'held')),
   minor_concern boolean,
   reason        text,
   model         text,
@@ -43,10 +45,19 @@ create table if not exists public.image_reviews (
   -- Studio's decision on a flagged image: approved (shown) or removed (cleared, file deleted).
   decision      text check (decision in ('approved', 'removed')),
   decided_by    uuid,
-  decided_at    timestamptz
+  decided_at    timestamptz,
+  -- When the admin was emailed about this flag (batched; see image-review).
+  notified_at   timestamptz
 );
 create index if not exists image_reviews_queue on public.image_reviews (status, created_at) where status in ('queued', 'error');
-create index if not exists image_reviews_open on public.image_reviews (created_at desc) where decision is null and label in ('suggestive', 'explicit', 'refused', 'unchecked');
+create index if not exists image_reviews_open on public.image_reviews (created_at desc) where decision is null and label in ('suggestive', 'explicit', 'refused', 'unchecked', 'held');
+
+-- The last time the admin was emailed, so flags batch into at most one email an hour.
+create table if not exists public.admin_notices (
+  kind         text primary key,
+  last_sent_at timestamptz not null
+);
+alter table public.admin_notices enable row level security; -- no policies: service role only
 -- One open check per slot and image: re-queueing the same image is a no-op.
 create unique index if not exists image_reviews_one_open on public.image_reviews (slot_id, image_url) where status in ('queued', 'working');
 

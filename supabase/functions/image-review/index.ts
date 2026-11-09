@@ -14,6 +14,16 @@
  *
  * Auth: a shared secret in `x-image-review-secret`, matched against IMAGE_REVIEW_SECRET.
  * Secrets: IMAGE_REVIEW_SECRET, ANTHROPIC_API_KEY, plus APP_SECRET_KEY (see _shared/keys.ts).
+ * For the admin email: RESEND_API_KEY and ADMIN_NOTIFY_EMAIL (no email when either is missing).
+ *
+ * A SLICED PICTURE IS JUDGED AS A PAGE (owner, 2026-11-09). The slicer cuts one picture across
+ * pockets and its pieces are stored as separate files with nothing linking them, so a harmless-
+ * looking piece can sit beside an explicit one. When an image is explicit, every other custom image
+ * on the same page is held with it (label "held") for a person to look at.
+ *
+ * THE OWNER IS TOLD BY EMAIL (owner, 2026-11-09: "Don't auto delete anything that gets flagged.
+ * Just share it with me"). New flags go out in one email at most every NOTICE_EVERY_MIN minutes:
+ * counts, binder links and the Studio link, never the images.
  *
  * STUDIO'S DECISIONS (the same function, a second door). An admin's own session token, and
  *   POST { action: 'decide', id, decision: 'approved' | 'removed', takedown?: boolean }
@@ -26,7 +36,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk@1';
 import { publishableKey, secretKey } from '../_shared/keys.ts';
-import { REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, parseAnswer, verdictFor, type ReviewLabel } from './classify.ts';
+import { NOTICE_EVERY_MIN, REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, noticeText, parseAnswer, verdictFor, type ReviewLabel } from './classify.ts';
 
 /** Checks per invocation; cron runs every minute, so a backlog drains across runs. */
 const BATCH = 20;
@@ -47,6 +57,67 @@ interface QueueRow {
 function binderArtPath(url: string): string | null {
   const m = /\/storage\/v1\/object\/public\/binder-art\/(.+)$/.exec(url.split('?')[0]);
   return m ? decodeURIComponent(m[1]) : null;
+}
+
+/** Hold every other custom image on an explicit image's page; returns how many were held. */
+// deno-lint-ignore no-explicit-any
+async function holdPage(admin: any, slotId: string): Promise<number> {
+  const { data: slot } = await admin.from('binder_slots').select('page_id').eq('id', slotId).maybeSingle();
+  if (!slot?.page_id) return 0;
+  const { data: mates } = await admin
+    .from('binder_slots')
+    .select('id, image_url')
+    .eq('page_id', slot.page_id)
+    .neq('id', slotId)
+    .not('image_url', 'is', null)
+    .neq('image_review', 'flagged');
+  const { data: page } = await admin.from('binder_pages').select('binder_id').eq('id', slot.page_id).maybeSingle();
+  const { data: binder } = page ? await admin.from('binders').select('owner_id').eq('id', page.binder_id).maybeSingle() : { data: null };
+  let held = 0;
+  for (const m of mates ?? []) {
+    await admin.from('binder_slots').update({ image_review: 'flagged', image_reviewed_at: new Date().toISOString(), image_review_label: 'held' }).eq('id', m.id).eq('image_url', m.image_url);
+    if (page && binder) {
+      await admin.from('image_reviews').insert({
+        slot_id: m.id, binder_id: page.binder_id, owner_id: binder.owner_id, image_url: m.image_url,
+        status: 'done', label: 'held', reason: 'On the same page as an explicit image', model: REVIEW_MODEL, checked_at: new Date().toISOString(),
+      });
+    }
+    held++;
+  }
+  return held;
+}
+
+/** One email to the admin about flags not yet told, at most every NOTICE_EVERY_MIN minutes. */
+// deno-lint-ignore no-explicit-any
+async function notifyAdmin(admin: any): Promise<void> {
+  const key = Deno.env.get('RESEND_API_KEY');
+  const to = Deno.env.get('ADMIN_NOTIFY_EMAIL');
+  if (!key || !to) return;
+  const { data: last } = await admin.from('admin_notices').select('last_sent_at').eq('kind', 'image-review').maybeSingle();
+  if (last && Date.now() - new Date(last.last_sent_at).getTime() < NOTICE_EVERY_MIN * 60e3) return;
+  const { data: open } = await admin
+    .from('image_reviews')
+    .select('id, binder_id, label, minor_concern')
+    .is('decision', null)
+    .is('notified_at', null)
+    .in('label', ['suggestive', 'explicit', 'refused', 'unchecked', 'held'])
+    .limit(200);
+  if (!open?.length) return;
+  const site = 'https://michi-maker.com';
+  const { subject, text } = noticeText(
+    open.map((r: { binder_id: string; label: string; minor_concern: boolean | null }) => ({ binderId: r.binder_id, label: r.label, minor: r.minor_concern === true })),
+    `${site}/studio`,
+    site,
+  );
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: 'michi-maker <hello@tcgscan.ai>', to: [to], subject, text }),
+  });
+  if (!res.ok) return; // try again on the next run
+  const now = new Date().toISOString();
+  await admin.from('image_reviews').update({ notified_at: now }).in('id', open.map((r: { id: number }) => r.id));
+  await admin.from('admin_notices').upsert({ kind: 'image-review', last_sent_at: now });
 }
 
 async function decide(req: Request, body: { id?: number; decision?: string; takedown?: boolean }): Promise<Response> {
@@ -165,6 +236,8 @@ Deno.serve(async (req) => {
       .eq('id', row.slot_id)
       .eq('image_url', row.image_url);
     tally[verdict === 'approved' ? 'approved' : verdict === 'flagged' ? 'flagged' : 'unchecked']++;
+    if (!failed && label === 'explicit') tally.flagged += await holdPage(admin, row.slot_id);
   }
+  await notifyAdmin(admin);
   return json({ ok: true, ...tally });
 });

@@ -26,6 +26,7 @@ import {
   adminListReports,
   adminRemoveBinder,
   adminRestoreBinder,
+  adminRestoreBinderPrivate,
   adminSetReportStatus,
   type AdminReport,
   type CopyrightStrike,
@@ -62,7 +63,7 @@ export function ReportsPanel() {
   useEffect(load, [load]);
 
   const act = useCallback(
-    (report: AdminReport, action: 'remove' | 'restore' | 'dismiss' | 'reopen' | 'clearProfile') => {
+    (report: AdminReport, action: 'remove' | 'restore' | 'restorePrivate' | 'dismiss' | 'reopen' | 'clearProfile') => {
       if (busy) return;
       setBusy(report.id);
       const run =
@@ -72,6 +73,9 @@ export function ReportsPanel() {
             ? adminClearProfile(report.profileId)
             : action === 'restore' && report.binderId
               ? adminRestoreBinder(report.binderId).then(() => adminSetReportStatus(report.id, 'open'))
+              : action === 'restorePrivate' && report.binderId
+                // Back for the owner only; the report stays actioned (the public page stays gone).
+                ? adminRestoreBinderPrivate(report.binderId)
               : adminSetReportStatus(report.id, action === 'dismiss' ? 'dismissed' : 'open');
       run
         .then(load)
@@ -200,6 +204,18 @@ export function ReportsPanel() {
                   hitSlop={4}>
                   <ThemedText type="small" style={styles.quietText}>
                     Restore
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+              {r.status === 'actioned' && r.binderId ? (
+                <Pressable
+                  onPress={() => act(r, 'restorePrivate')}
+                  disabled={busy === r.id}
+                  style={[styles.quietBtn, busy === r.id && styles.dim]}
+                  accessibilityLabel="Restore as a private binder: back for its owner, hidden from everyone else"
+                  hitSlop={4}>
+                  <ThemedText type="small" style={styles.quietText}>
+                    Restore as private
                   </ThemedText>
                 </Pressable>
               ) : null}

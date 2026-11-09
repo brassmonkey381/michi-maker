@@ -10,7 +10,7 @@ import { FAN_DISCLAIMER } from '@/components/layout/SiteFooter';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Spacing } from '@/constants/theme';
 
-const LAST_UPDATED = 'July 22, 2026';
+const LAST_UPDATED = 'November 9, 2026';
 
 interface Section {
   heading: string;
@@ -52,6 +52,7 @@ const SECTIONS: Section[] = [
     heading: '5. Acceptable use',
     paragraphs: [
       'Do not use michi-maker to host or spread content that is illegal, infringing, hateful, or abusive; do not attempt to break, overload, or reverse the service; do not scrape other collectors’ data.',
+      'Public binders and pages must not contain sexual content. What you keep in a private binder is your own business, as long as it is legal. Never add anything that sexualises a minor, anywhere on michi-maker, public or private: we remove it, close the account, and report it to the authorities as the law requires.',
     ],
   },
   {

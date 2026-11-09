@@ -19,6 +19,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ArtistShelf } from '@/components/binder/ArtistShelf';
+import { UPLOAD_RULE } from '@/constants/uploadRule';
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { StockArtSearch } from '@/components/binder/StockArtSearch';
 import { DialogCard } from '@/components/ui/DialogCard';
@@ -86,6 +87,8 @@ export function AddArtSheet({
           <View style={styles.tile}>
             <ArtUploadButton onUploaded={(hosted) => onPick(hosted, { sourceName: 'your upload', origin: 'upload' })} onError={setError} />
             <Text style={styles.tileSub}>A picture of your own</Text>
+            {/* The upload-time rule (MIC-029, owner 2026-11-09), worded as in the terms. */}
+            <Text style={styles.tileSub}>{UPLOAD_RULE}</Text>
           </View>
           <Pressable
             onPress={() => setFindOpen((v) => !v)}

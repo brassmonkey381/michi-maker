@@ -23,6 +23,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import type { SharedValue } from 'react-native-reanimated';
 
 import { ArtistShelf } from '@/components/binder/ArtistShelf';
+import { UPLOAD_RULE } from '@/constants/uploadRule';
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { ArtworkPanel } from '@/components/binder/ArtworkPanel';
 import { ThemedView } from '@/components/themed-view';
@@ -236,6 +237,7 @@ export function ArtworkDock({
           {onPickPictureInsert ? (
             <View style={styles.pictureInsert} testID="insert-picture">
               <Text style={styles.insertTitle}>Picture insert</Text>
+              <Text style={styles.uploadRule}>{UPLOAD_RULE}</Text>
               <View style={styles.uploadRow}>
                 <ArtUploadButton
                   onUploaded={(hosted) => {
@@ -338,6 +340,7 @@ const styles = StyleSheet.create({
   insertHint: { fontSize: FontSize.sm, color: Palette.muted2, lineHeight: 16 },
   pictureInsert: { gap: Spacing.two },
   insertTitle: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.ink },
+  uploadRule: { fontSize: FontSize.label, color: Palette.ink2, lineHeight: 18 },
   uploadRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   insertError: { fontSize: FontSize.sm, color: Palette.danger },
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },

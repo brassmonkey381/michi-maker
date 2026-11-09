@@ -29,7 +29,9 @@ import {
 } from 'react-native';
 
 import { AccountButton } from '@/components/auth/AccountButton';
+import { BinderCoverGrid } from '@/components/binder/BinderCoverGrid';
 import { BinderThumb } from '@/components/binder/BinderThumb';
+import { Seg } from '@/components/binder/inspector/controls';
 import { CurateCallout } from '@/components/CurateCallout';
 import { PagedCarousel } from '@/components/PagedCarousel';
 import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
@@ -318,6 +320,8 @@ export default function DiscoverScreen() {
   const shelfCols = Math.min(SHELF_COLS, cols);
   const shelfTileW = Math.max(120, Math.floor((contentW - GRID_GAP * (shelfCols - 1)) / shelfCols));
   const perShelf = shelfCols * SHELF_ROWS;
+  // A phone's column (under 600) scrolls a grid; anything wider pages the shelves (owner, 2026-11-08).
+  const phone = contentW < 600;
 
   const q = query.trim();
   const searching = q.length >= MIN_QUERY;
@@ -359,22 +363,21 @@ export default function DiscoverScreen() {
       <View onLayout={(e) => measureFrame(e.nativeEvent.layout.width)}>
           {/* The account button top right, as on My Binders (owner, 2026-10-29): a visitor who
               arrives here from a shared binder has nowhere else to create an account. */}
+          {/* A COMPACT HEADER (MIC-017, owner 2026-11-08): the title shares the account button's
+              row, and the old description line now lives in the search field's placeholder. */}
           <View style={styles.topRow}>
-            <View />
+            {/* On a phone the guest's wide sign-in button leaves ~120 pt, so the title runs smaller
+                over two lines instead of truncating to "Dis…". */}
+            <ThemedText type="title" style={[styles.h1, phone && styles.h1Phone]}>
+              Discover Binders
+            </ThemedText>
             <AccountButton />
           </View>
-
-          <ThemedText type="title" style={styles.h1}>
-            Discover Binders
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-            Search everyone’s public binders by title, page title, description, or creator.
-          </ThemedText>
 
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search public binders…"
+            placeholder="Search by title, page, description or creator"
             placeholderTextColor={Palette.muted}
             autoCorrect={false}
             autoCapitalize="none"
@@ -418,32 +421,19 @@ export default function DiscoverScreen() {
                     style={styles.sectionLabel}>
                     Public binders
                   </ThemedText>
-                  <View style={styles.sortRow}>
-                    {SORTS.map((s) => {
-                      const active = sort === s.key;
-                      return (
-                        <Pressable
-                          key={s.key}
-                          onPress={() => {
-                            if (active) return;
-                            // A list seen in the last few minutes comes straight back; the fetch effect skips it.
-                            setOthers(keptShelf(s.key)?.binders ?? null);
-                            setOthersNext(keptShelf(s.key)?.next ?? null);
-                            setSort(s.key);
-                          }}
-                          accessibilityRole="tab"
-                          accessibilityState={{ selected: active }}
-                          style={[styles.sortChip, active && styles.sortChipActive]}
-                          hitSlop={2}>
-                          <ThemedText
-                            type="small"
-                            style={[styles.sortChipText, active && styles.sortChipTextActive]}>
-                            {s.label}
-                          </ThemedText>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
+                  {/* ONE CONTROL FOR THE ORDER (MIC-017): two 12 pt chips became a 44 pt segmented control. */}
+                  <Seg
+                    tall
+                    options={SORTS.map((s) => ({ id: s.key, label: s.label }))}
+                    value={sort}
+                    onChange={(key) => {
+                      if (key === sort) return;
+                      // A list seen in the last few minutes comes straight back; the fetch effect skips it.
+                      setOthers(keptShelf(key)?.binders ?? null);
+                      setOthersNext(keptShelf(key)?.next ?? null);
+                      setSort(key);
+                    }}
+                  />
                 </View>
                 {others === null ? (
                   <View style={styles.center}>
@@ -453,6 +443,29 @@ export default function DiscoverScreen() {
                   <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
                     No public binders to show yet.
                   </ThemedText>
+                ) : phone ? (
+                  // A PHONE SCROLLS DOWN A GRID (MIC-017, owner 2026-11-08): two across, every
+                  // binder in one column of rows; Load more adds the next page. The desk keeps
+                  // its paged shelf below.
+                  <BinderCoverGrid
+                    binders={others}
+                    onOpen={openBinder}
+                    minTile={150}
+                    minCols={2}
+                    maxCols={2}
+                    gap={GRID_GAP}
+                    testID="discover-grid"
+                    accessory={(b) =>
+                      b.authorName ? (
+                        <ProfileAvatarButton
+                          username={b.authorName}
+                          avatarUrl={avatars.get(b.authorName.toLowerCase())}
+                          size={TILE_AVATAR}
+                          onPress={() => router.push(`/u/${b.authorName}` as Href)}
+                        />
+                      ) : null
+                    }
+                  />
                 ) : (
                   <PagedCarousel
                     width={contentW}
@@ -512,6 +525,9 @@ export default function DiscoverScreen() {
                     Reference binders from the house account: plain card layouts to copy and build
                     on, rather than finished pieces.
                   </ThemedText>
+                  {phone ? (
+                    <BinderCoverGrid binders={house} onOpen={openBinder} minTile={150} minCols={2} maxCols={2} gap={GRID_GAP} testID="discover-house" />
+                  ) : (
                   <PagedCarousel
                     width={contentW}
                     prevLabel="Previous reference binders"
@@ -525,6 +541,7 @@ export default function DiscoverScreen() {
                       />
                     ))}
                   />
+                  )}
                 </View>
               ) : null}
 
@@ -571,9 +588,9 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   // The old scroll view's bottom room, for the phone's menu button.
   shellTail: { height: BottomTabInset + Spacing.four },
-  h1: { marginBottom: Spacing.one },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.two },
-  sub: { marginBottom: Spacing.three, lineHeight: 20 },
+  h1: { flexShrink: 1 },
+  h1Phone: { fontSize: 26, lineHeight: 30 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three, marginBottom: Spacing.three },
   search: {
     borderWidth: 1,
     borderColor: Palette.hairlineStrong,
@@ -596,18 +613,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
   sectionNote: { lineHeight: 18, marginTop: -Spacing.two, marginBottom: Spacing.three },
-  sortRow: { flexDirection: 'row', gap: Spacing.one },
-  sortChip: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    backgroundColor: Palette.surface,
-  },
-  sortChipActive: { borderColor: Palette.accent, backgroundColor: Palette.accent },
-  sortChipText: { fontSize: 12 },
-  sortChipTextActive: { color: Palette.accentText },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   // A carousel page is exactly as tall as its rows: `alignContent` stops a short last page (one
   // row, or a partial one) from spreading its tiles down the height the tallest page set.

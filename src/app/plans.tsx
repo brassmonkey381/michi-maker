@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   chipText: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.label, // 13 pt floor (MIC-020; was 10)
     color: Palette.link,
     letterSpacing: 0.8,
     textTransform: 'uppercase',

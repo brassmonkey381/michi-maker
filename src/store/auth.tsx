@@ -144,7 +144,17 @@ function reservedMessage(detail?: string): string {
 /** Turn any thrown/returned Supabase error into a short, user-facing string. */
 function msg(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
   if (error && typeof error === 'object' && 'message' in error) {
-    return String((error as { message: unknown }).message) || fallback;
+    const text = String((error as { message: unknown }).message ?? '').trim();
+    // NO BARE "{}" (MIC-017, 2026-11-08). auth-js builds a 5xx's message by JSON.stringify-ing the
+    // fetch Response, which prints "{}"; a request that never left gives status 0. Say it in words.
+    if (!text || text === '{}' || text === '[object Object]') {
+      const status = Number((error as { status?: unknown }).status ?? -1);
+      if (status === 0) return 'Could not reach the sign-in server. Check your connection and try again.';
+      if (status === 429) return 'Too many tries. Wait a minute, then try again.';
+      if (status >= 500) return `The sign-in server had a problem (${status}). Wait a minute, then try again.`;
+      return fallback;
+    }
+    return text;
   }
   return fallback;
 }

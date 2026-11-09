@@ -324,6 +324,7 @@ export default function BrowseScreen() {
           <EyedropperBanner />
           <View style={styles.panel}>
             <CardBrowse
+              touchControls
               catalog={catalog}
               cardActions={cardActions}
               onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'browse'))}

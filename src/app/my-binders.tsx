@@ -18,7 +18,7 @@ import { sendBrowseCommand } from 'tcgscan-browse';
 
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
 import { BinderCoverSheet } from '@/components/binder/BinderCoverSheet';
-import { BinderCarousel } from '@/components/binder/BinderCarousel';
+import { BinderCoverGrid } from '@/components/binder/BinderCoverGrid';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { EditLockBanner } from '@/components/binder/EditLockBanner';
 import { ReturnedBinderBanner } from '@/components/binder/ReturnedBinderBanner';
@@ -45,7 +45,7 @@ import { BottomTabInset, FontSize, MaxContentWidthWide, Palette, Radius, Spacing
 import { ProTrialPrompt } from '@/components/monetization/ProTrialPrompt';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { pillChip } from '@/constants/ui';
-import { BinderGrid } from '@/components/binder/BinderGrid';
+import { BinderGrid, pageBoxHeight } from '@/components/binder/BinderGrid';
 import { fillerName, sortByRecentEdit, type DemoPage } from '@/data/binderTypes';
 import { seedPages, seedSetFor } from '@/data/seedPages';
 import { binderLimitMessage, binderTrialMessage, limitCta } from '@/data/limitMessages';
@@ -329,14 +329,8 @@ export default function MyBindersScreen() {
                     <Text style={styles.storyBtnText}>Story binder</Text>
                   </Pressable>
                 ) : null}
-                {/* An empty shelf has its own + New binder in the card below; two was one too many. */}
-                {store.userBinders.length === 0 ? null : (
-                  <Pressable
-                    onPress={handleNew}
-                    style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
-                    <Text style={styles.newBtnText}>+ New</Text>
-                  </Pressable>
-                )}
+                {/* No + New here: the empty shelf has its own button, and a full one ends in a New
+                    binder tile (the cover grid, MIC-017). */}
               </View>
             }>
             {store.userBinders.length === 0 ? (
@@ -433,71 +427,48 @@ export default function MyBindersScreen() {
                           : 'No binders yet.'}
                   </ThemedText>
                 ) : (
-                  <BinderCarousel
+                  // THE SHELF AS A COVER GRID (MIC-017, 2026-11-08): three across on a phone, up to six
+                  // on a desk, every binder visible at once instead of one per screen. Cover and Print
+                  // live in each tile's ⋯ menu (BinderActionsMenu), which already offered both; the
+                  // tile keeps the ⋯ and a search hit's page line. New binder is the last tile.
+                  <BinderCoverGrid
                     binders={visibleBinders}
                     onOpen={openBinder}
+                    minTile={104}
+                    minCols={3}
+                    maxCols={6}
+                    testID="my-binders-grid"
                     accessory={(binder) => {
-                      // Say WHY the tile is here when the binder's name does not: a page hit
-                      // names the page and opens the binder on it.
                       const hit = q && showBinderSearch ? matchBinder(binder, q) : null;
                       return (
-                      <View style={styles.tileActionsWrap}>
-                      {hit?.kind === 'page' ? (
-                        <Pressable
-                          onPress={() => router.push(`/binder/${binder.id}?edit=1&page=${hit.pageIndex + 1}`)}
-                          hitSlop={6}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Open ${binder.title} on page ${hit.pageIndex + 1}, ${hit.pageTitle}`}
-                          style={({ pressed }) => [styles.pageHit, pressed && styles.pressed]}>
-                          <Text style={styles.pageHitText} numberOfLines={1}>
-                            p. {hit.pageIndex + 1} · {hit.pageTitle}
-                          </Text>
-                        </Pressable>
-                      ) : hit?.kind === 'description' ? (
-                        <Text style={styles.pageHitText} numberOfLines={1}>
-                          in the description
-                        </Text>
-                      ) : null}
-                      <View style={styles.tileActions}>
-                        {/* THE COVER, ON THE SHELF. It was reachable only from the ⋯ menu, which
-                            is where you go when you already know a thing exists — and a binder
-                            you have never dressed is exactly the case where you do not. The verb
-                            changes because the two are different jobs: picking a binder for the
-                            first time, and going back to one you chose.
-
-                            Hidden on demo binders, matching the ⋯ menu: they are read-only, so a
-                            model picked there would be a choice that cannot be saved. */}
-                        {binder.isDemo ? null : (
-                          <Pressable
-                            onPress={() =>
-                              store.taste.pass('binderCovers', hasBinderCovers(store.tier), 'my_binders')
-                                ? setCoverId(binder.id)
-                                : showLimitToast('Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.')
-                            }
-                            hitSlop={8}
-                            accessibilityLabel={
-                              binder.cover
-                                ? `Edit the cover on ${binder.title}`
-                                : `Add a cover to ${binder.title}`
-                            }
-                            style={({ pressed }) => [styles.coverBtn, pressed && styles.pressed]}>
-                            <Text style={styles.coverBtnText}>
-                              {binder.cover ? 'Edit Cover' : 'Add Cover'}
-                            </Text>
-                          </Pressable>
-                        )}
-                        <Pressable
-                          onPress={() => setPrintId(binder.id)}
-                          hitSlop={8}
-                          accessibilityLabel="Print fill sheets"
-                          style={({ pressed }) => [styles.printBtn, pressed && styles.pressed]}>
-                          <Text style={styles.printBtnText}>Print</Text>
-                        </Pressable>
-                        <MenuButton onPress={() => setMenuId(binder.id)} />
-                      </View>
-                      </View>
+                        <View style={styles.tileActionsWrap}>
+                          {hit?.kind === 'page' ? (
+                            <Pressable
+                              onPress={() => router.push(`/binder/${binder.id}?edit=1&page=${hit.pageIndex + 1}`)}
+                              hitSlop={6}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Open ${binder.title} on page ${hit.pageIndex + 1}, ${hit.pageTitle}`}
+                              style={({ pressed }) => [styles.pageHit, pressed && styles.pressed]}>
+                              <Text style={styles.pageHitText} numberOfLines={1}>
+                                p. {hit.pageIndex + 1}
+                              </Text>
+                            </Pressable>
+                          ) : null}
+                          <MenuButton onPress={() => setMenuId(binder.id)} />
+                        </View>
                       );
                     }}
+                    trailing={(w) => (
+                      <Pressable
+                        onPress={handleNew}
+                        accessibilityRole="button"
+                        accessibilityLabel="New binder"
+                        testID="my-binders-new-tile"
+                        style={({ pressed }) => [styles.newTile, { width: w, height: pageBoxHeight(w, 3, 3) + 44 }, pressed && styles.pressed]}>
+                        <Text style={styles.newTilePlus}>+</Text>
+                        <Text style={styles.newTileText}>New binder</Text>
+                      </Pressable>
+                    )}
                   />
                 )}
               </>
@@ -650,7 +621,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.three,
   },
+  // Both empty-shelf buttons at 44 pt (MIC-020, 2026-11-08; they were 36 and 31).
   newBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: Palette.accent,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
@@ -659,6 +633,8 @@ const styles = StyleSheet.create({
   newBtnText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.control },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   storyBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingVertical: 6,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
@@ -700,7 +676,18 @@ const styles = StyleSheet.create({
   noMatch: { paddingVertical: Spacing.three },
   upgradeRow: { marginBottom: Spacing.three },
   tileActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  tileActionsWrap: { gap: Spacing.one },
+  tileActionsWrap: { gap: Spacing.one, alignItems: 'flex-end' },
+  newTile: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: Palette.hairlineStrong,
+    borderRadius: Radius.panel,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+  },
+  newTilePlus: { fontSize: 30, lineHeight: 32, color: Palette.ink3 },
+  newTileText: { fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.ink2 },
   pageHit: { alignSelf: 'flex-start' },
   pageHitText: { color: Palette.accent, fontSize: FontSize.label, fontWeight: Weight.semibold },
   printBtn: {
@@ -726,8 +713,8 @@ const styles = StyleSheet.create({
   },
   coverBtnText: { color: Palette.accentText, fontSize: FontSize.label, fontWeight: Weight.semibold },
   menuBtn: {
-    width: 30,
-    height: 30,
+    width: 44,
+    height: 44,
     borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',

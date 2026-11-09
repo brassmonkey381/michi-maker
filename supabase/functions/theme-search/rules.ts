@@ -13,13 +13,33 @@ export const FREE_THEME = 'forest';
  *  kit folds `art:` into it); theme_search's parser, `_theme_where` (data migration 79), reads
  *  'theme' AND 'art'. The forest check covers both, so an `art` term cannot ride free beside a
  *  forest one. The kit never sends `art`, so this costs no real query anything. */
-const THEME_FIELD_KEYS = new Set(['theme', 'art']);
+const THEME_FIELD_KEYS = new Set(['theme', 'art', 'theme_any']);
 
-/** A body whose theme fields are all the free theme (and there is at least one). */
+/**
+ * THE FREE THEME'S SYNONYM GROUP (MIC-024). With Similar words on, `theme:forest` arrives as one
+ * `theme_any` field carrying its whole group; the group stays free. Keep in step with the
+ * "Forest & woods" group in src/data/themeSynonyms.json (a test checks it).
+ */
+export const FREE_THEME_GROUP: readonly string[] = ['forest', 'woods'];
+
+/** True for a p_fields key the data project reads as a theme term (MIC-024 adds theme_any). */
+export function isThemeFieldKey(key: unknown): boolean {
+  return typeof key === 'string' && THEME_FIELD_KEYS.has(key);
+}
+
+function isFreeTerm(f: { key?: unknown; value?: unknown }): boolean {
+  if (f.key === 'theme_any') {
+    return Array.isArray(f.value) && f.value.length > 0
+      && f.value.every((v) => typeof v === 'string' && FREE_THEME_GROUP.includes(v.trim().toLowerCase()));
+  }
+  return typeof f.value === 'string' && f.value.trim().toLowerCase() === FREE_THEME;
+}
+
+/** A body whose theme fields are all the free theme or its group (and there is at least one). */
 export function isForestOnly(body: Record<string, unknown>): boolean {
   const fields = Array.isArray(body.p_fields) ? (body.p_fields as { key?: unknown; value?: unknown }[]) : [];
-  const themes = fields.filter((f) => f && typeof f.key === 'string' && THEME_FIELD_KEYS.has(f.key));
-  return themes.length > 0 && themes.every((f) => typeof f.value === 'string' && f.value.trim().toLowerCase() === FREE_THEME);
+  const themes = fields.filter((f) => f && isThemeFieldKey(f.key));
+  return themes.length > 0 && themes.every(isFreeTerm);
 }
 
 /** theme_search's parameters (data migration 79), and nothing else, may be forwarded. */
@@ -47,6 +67,6 @@ export function themeSearchForward(body: Record<string, unknown>):
   if (typeof fwd.p_limit === 'number') fwd.p_limit = Math.min(THEME_MAX_LIMIT, Math.max(1, fwd.p_limit));
   // A body with no theme field has no business here, as on index.ts's search_cards path.
   const tf = Array.isArray(fwd.p_fields) ? (fwd.p_fields as { key?: unknown }[]) : [];
-  if (!tf.some((f) => f && f.key === 'theme')) return { ok: false, error: 'not a themed query' };
+  if (!tf.some((f) => f && (f.key === 'theme' || f.key === 'theme_any'))) return { ok: false, error: 'not a themed query' };
   return { ok: true, forward: fwd };
 }

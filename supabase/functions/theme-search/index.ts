@@ -161,7 +161,8 @@ Deno.serve(async (req: Request) => {
   // A body with no theme field has no business here: the direct path serves it unclamped
   // already, and forwarding it would only spend service-role calls on ordinary searches.
   const fields = Array.isArray(forward.p_fields) ? (forward.p_fields as { key?: string }[]) : [];
-  if (!fields.some((f) => f && f.key === 'theme')) return json(400, { error: 'not a themed query' });
+  // theme_any is a themed query too: Similar words sends a widened word as one (MIC-024).
+  if (!fields.some((f) => f && (f.key === 'theme' || f.key === 'theme_any'))) return json(400, { error: 'not a themed query' });
 
   // 4) Forward as service_role, which is what the data project's depth clamp keys off.
   return forwardRpc('search_cards', forward, `user:${user.id}`);

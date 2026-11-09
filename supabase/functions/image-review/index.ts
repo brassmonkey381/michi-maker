@@ -38,7 +38,6 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk@1';
 import { publishableKey, secretKey } from '../_shared/keys.ts';
-import { decode } from 'npm:imagescript@1.3.0';
 import { NOTICE_EVERY_MIN, REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, SAME_PICTURE_BITS, dhashHex, hammingHex, noticeText, parseAnswer, verdictFor, type ReviewLabel } from './classify.ts';
 
 /** Checks per invocation; cron runs every minute, so a backlog drains across runs. */
@@ -66,6 +65,18 @@ function binderArtPath(url: string): string | null {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
+// The decoder loads on first use, and a failure only costs the near-match hash. The npm build of
+// imagescript loads a native Node codec at import time, which the edge runtime refuses ("unsupported
+// arch/platform"): imported at the top it crashed every run before a single image was checked
+// (2026-11-09, 360 runs). The deno.land build is pure JS + wasm.
+// deno-lint-ignore no-explicit-any
+let decoder: Promise<(b: Uint8Array) => Promise<any>> | null = null;
+// deno-lint-ignore no-explicit-any
+function loadDecoder(): Promise<(b: Uint8Array) => Promise<any>> {
+  decoder ??= import('https://deno.land/x/imagescript@1.3.0/mod.ts').then((m) => m.decode);
+  return decoder;
+}
+
 /** Fetch the image once: its bytes, media type, SHA-256 and difference hash (null if undecodable). */
 async function fingerprint(url: string): Promise<{ bytes: Uint8Array; mediaType: string; sha256: string; dhash: string | null }> {
   const res = await fetch(url);
@@ -77,7 +88,7 @@ async function fingerprint(url: string): Promise<{ bytes: Uint8Array; mediaType:
   let dhash: string | null = null;
   try {
     // deno-lint-ignore no-explicit-any
-    const img: any = await decode(bytes);
+    const img: any = await (await loadDecoder())(bytes);
     const frame = typeof img.resize === 'function' ? img : img[0];
     const small = frame.resize(9, 8);
     const gray: number[] = [];

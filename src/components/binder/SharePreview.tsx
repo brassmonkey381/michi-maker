@@ -11,7 +11,7 @@
  * is not what they expected.
  */
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { ImageLinkField, PillButton, Seg } from '@/components/binder/inspector/controls';
@@ -21,6 +21,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Palette, Radius, Spacing } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
 import { DEFAULT_SHARE_IMAGE, SHARE_ART_VIEWS, SHARE_IMAGE_STYLES, binderQuickPreviewUrl, downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
+import { sharePictureFailure, shareVisibility } from '@/data/shareVisibility';
+import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
 export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
@@ -141,8 +143,30 @@ export function SharePictureChooser({
 
 /** The quick share image in a modal: the Share sheet's button opens it, and so does Q (owner, 2026-09-16). */
 export function QuickPreviewModal({ binder, options = DEFAULT_SHARE_IMAGE, onClose }: { binder: DemoBinder; options?: ShareImageOptions; onClose: () => void }) {
-  const [src] = useState(() => binderQuickPreviewUrl(binder.id, binder.updatedAt, options));
+  const auth = useAuth();
+  // WHO CAN SEE IT DECIDES WHETHER THERE IS A PICTURE (MIC-025). A public binder of a private
+  // profile is hidden from the renderer like from everyone else, so instead of a request that can
+  // only fail, the owner gets a pop-up that turns Public profile on and then draws the picture.
+  const visibility = shareVisibility(!!binder.isPublic, auth.profile?.is_public);
+  const [attempt, setAttempt] = useState(0);
+  const src = useMemo(
+    () => binderQuickPreviewUrl(binder.id, binder.updatedAt, options) + (attempt ? `&retry=${attempt}` : ''),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [binder.id, attempt],
+  );
   const [state, setState] = useState<'loading' | 'ok' | 'failed'>('loading');
+  const [fixing, setFixing] = useState<'idle' | 'busy' | 'failed'>('idle');
+  const makeProfilePublic = async () => {
+    setFixing('busy');
+    const r = await auth.updateProfile({ is_public: true });
+    if (r.error) {
+      setFixing('failed');
+      return;
+    }
+    setFixing('idle');
+    setState('loading');
+    setAttempt((n) => n + 1); // a fresh request, past any cached refusal
+  };
   // THE DOWNLOAD FROM THE PREVIEW (owner, 2026-10-26): what you are looking at is what the
   // full-size file will be, so the button to get it belongs right here, in the same style.
   const [hires, setHires] = useState<'idle' | 'busy' | 'failed'>('idle');
@@ -161,18 +185,47 @@ export function QuickPreviewModal({ binder, options = DEFAULT_SHARE_IMAGE, onClo
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close the preview" testID="quick-preview">
         <View style={[styles.frame, { width: Math.min(width - 32, 1100), height: Math.min(height - 120, ((Math.min(width - 32, 1100)) * 1512) / 2568 + 48) }]}>
-          {state === 'loading' ? (
+          {visibility === 'hidden' ? (
+            <Pressable style={styles.center} onPress={(e) => e.stopPropagation()} testID="profile-private-popup">
+              <View style={styles.popup}>
+                <ThemedText type="smallBold">Your profile is private</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  So this binder and its picture are hidden from everyone but you. Turn on Public profile to share it. Your other public binders will show too.
+                </ThemedText>
+                {fixing === 'failed' ? (
+                  <ThemedText type="small" style={styles.popupError}>That did not save. Check your connection and try again.</ThemedText>
+                ) : null}
+                <View style={styles.popupRow}>
+                  <Pressable onPress={onClose} accessibilityRole="button" testID="profile-private-cancel" style={({ pressed }) => [styles.popupBtn, pressed && styles.dim]}>
+                    <ThemedText type="smallBold">Cancel</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => void makeProfilePublic()}
+                    disabled={fixing === 'busy'}
+                    accessibilityRole="button"
+                    testID="profile-private-fix"
+                    style={({ pressed }) => [styles.popupBtn, styles.popupBtnPrimary, (pressed || fixing === 'busy') && styles.dim]}>
+                    {fixing === 'busy' ? <ActivityIndicator size="small" color={Palette.accentText} /> : null}
+                    <ThemedText type="smallBold" style={styles.dlText}>Turn on Public profile</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+            </Pressable>
+          ) : null}
+          {visibility !== 'hidden' && state === 'loading' ? (
             <View style={styles.center}>
               <ActivityIndicator color={Palette.accent} />
               <ThemedText type="small" themeColor="textSecondary">Drawing a quick version, a few seconds…</ThemedText>
             </View>
           ) : null}
-          {state === 'failed' ? (
+          {visibility !== 'hidden' && state === 'failed' ? (
             <View style={styles.center}>
-              <ThemedText type="small" themeColor="textSecondary">That did not draw. The binder has to be public, and the picture link has to load.</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">{sharePictureFailure(visibility)}</ThemedText>
             </View>
           ) : null}
+          {visibility === 'hidden' ? null : (
           <Image
+            key={src}
             source={{ uri: src }}
             style={[styles.img, state !== 'ok' && styles.hidden]}
             contentFit="contain"
@@ -180,6 +233,7 @@ export function QuickPreviewModal({ binder, options = DEFAULT_SHARE_IMAGE, onClo
             onLoad={() => setState('ok')}
             onError={() => setState('failed')}
           />
+          )}
           <View style={styles.actions}>
             <Pressable
               onPress={(e) => {
@@ -226,6 +280,12 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.accent,
   },
   dlText: { color: Palette.accentText },
+  // The private-profile pop-up (MIC-025): one plain card, Cancel and the fix side by side.
+  popup: { maxWidth: 420, width: '100%', backgroundColor: Palette.surface, borderRadius: Radius.panel, borderWidth: 1, borderColor: Palette.hairlineStrong, padding: Spacing.four, gap: Spacing.two },
+  popupRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: Spacing.two, marginTop: Spacing.two },
+  popupBtn: { minHeight: 44, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairlineStrong, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
+  popupBtnPrimary: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  popupError: { color: Palette.danger },
   dim: { opacity: 0.6 },
   card: { backgroundColor: Palette.surface, borderRadius: Radius.panel, padding: Spacing.four, gap: Spacing.three, width: '100%', maxWidth: 520 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, alignItems: 'center' },

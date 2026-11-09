@@ -88,6 +88,7 @@ import {
   useCopyAssigner,
   useOwnedCopies,
 } from '@/hooks/use-owned-copies';
+import { shareVisibility, visibilityChip } from '@/data/shareVisibility';
 import { useAuth } from '@/store/auth';
 import { EntryChangedElsewhereError, invalidateOwnedEntries, markOwned, setEntryVariant, unmarkOwned } from '@/data/collectionRepo';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
@@ -214,7 +215,7 @@ export function BinderScreen({
   const assignCopies = useCopyAssigner();
   const availableCopies = useAvailableCopies();
   const ownedCopies = useOwnedCopies();
-  const { user } = useAuth();
+  const { user, profile: ownProfile } = useAuth();
   /**
    * PRINT FINISH, pocket by pocket. Every other owned-copy lookup in this file is an O(n) find over
    * the whole collection; the chip layer asks once per pocket per render, so this one is a map.
@@ -2965,16 +2966,18 @@ export function BinderScreen({
             beside Share, so which way a binder faces is read at a glance rather than found inside
             the sheet. Owner only: to anyone else a binder they can see is public by definition. */}
         {!editing && isSupabaseConfigured && store.canEdit && !phone ? (
-          <Tipped text={binder.isPublic ? 'Anyone with the link can see this binder' : 'Only you can see this binder'}>
+          <Tipped text={visibilityChip(shareVisibility(!!binder.isPublic, ownProfile?.is_public)).tip}>
             <Pressable
               onPress={() => setShareOpen(true)}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel={`${binder.isPublic ? 'Public' : 'Private'} binder, open sharing`}
+              accessibilityLabel={`${visibilityChip(shareVisibility(!!binder.isPublic, ownProfile?.is_public)).label} binder, open sharing`}
               testID="visibility-chip"
-              style={[styles.visChip, binder.isPublic ? styles.visChipPublic : styles.visChipPrivate]}>
-              <Text style={[styles.visChipText, binder.isPublic ? styles.visChipTextPublic : styles.visChipTextPrivate]}>
-                {binder.isPublic ? 'PUBLIC' : 'PRIVATE'}
+              // Public only when others can really see it (MIC-025): a public binder of a private
+              // profile reads HIDDEN, in the private colours.
+              style={[styles.visChip, shareVisibility(!!binder.isPublic, ownProfile?.is_public) === 'public' ? styles.visChipPublic : styles.visChipPrivate]}>
+              <Text style={[styles.visChipText, shareVisibility(!!binder.isPublic, ownProfile?.is_public) === 'public' ? styles.visChipTextPublic : styles.visChipTextPrivate]}>
+                {visibilityChip(shareVisibility(!!binder.isPublic, ownProfile?.is_public)).label.toUpperCase()}
               </Text>
             </Pressable>
           </Tipped>

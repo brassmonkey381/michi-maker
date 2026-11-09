@@ -165,6 +165,97 @@ select bs.id, b.id, b.owner_id, bs.image_url
  where bs.image_url is not null and b.is_public and b.removed_at is null
 on conflict do nothing;
 
+-- ── 3b. a flagged picture makes its PAGE private, and the flag follows the picture ──────────────
+-- Owner, 2026-11-09: "make sure they are never able to show the suggestive content in public binder
+-- pages ... follow the flagged art and force any page with it to be PRIVATE, just the page itself."
+--
+-- binder_pages.moderation_hold: set while any image on the page is flagged or unchecked. Visitors
+-- see a page only when is_public AND NOT moderation_hold (part 2's policy), so the rest of the binder
+-- stays public; the owner's own is_public choice is never overwritten. Only moderation (Studio, the
+-- service role) can change it: the owner cannot lift a hold.
+alter table public.binder_pages add column if not exists moderation_hold boolean not null default false;
+comment on column public.binder_pages.moderation_hold is
+  'MIC-029: true while an image on this page is flagged or unchecked by the safety check. Hides the '
+  'page from visitors (policy in 20261109120100); the owner still sees it. Managed by moderation.';
+
+create or replace function public.binder_pages_guard_moderation_hold()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if new.moderation_hold is distinct from old.moderation_hold then
+    if (select auth.uid()) is not null and not public.is_admin() then
+      raise exception 'moderation_hold is managed by moderation';
+    end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists binder_pages_guard_moderation_hold on public.binder_pages;
+create trigger binder_pages_guard_moderation_hold
+  before update of moderation_hold on public.binder_pages
+  for each row execute function public.binder_pages_guard_moderation_hold();
+
+-- Recompute one page's hold from its images.
+create or replace function public.refresh_page_hold(p_page_id uuid)
+returns void language sql security definer set search_path = public as $$
+  update public.binder_pages pg
+     set moderation_hold = exists (
+           select 1 from public.binder_slots bs
+            where bs.page_id = pg.id and bs.image_url is not null
+              and bs.image_review in ('flagged', 'unchecked'))
+   where pg.id = p_page_id
+     and pg.moderation_hold is distinct from exists (
+           select 1 from public.binder_slots bs
+            where bs.page_id = pg.id and bs.image_url is not null
+              and bs.image_review in ('flagged', 'unchecked'));
+$$;
+
+-- The hold follows the image: a verdict, a move to another page, a removed image or a deleted slot
+-- re-checks the pages involved.
+create or replace function public.binder_slots_page_hold()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op in ('UPDATE', 'DELETE') and old.page_id is not null then
+    perform public.refresh_page_hold(old.page_id);
+  end if;
+  if tg_op in ('INSERT', 'UPDATE') and new.page_id is not null
+     and (tg_op = 'INSERT' or new.page_id is distinct from old.page_id) then
+    perform public.refresh_page_hold(new.page_id);
+  end if;
+  if tg_op = 'UPDATE' and new.page_id is not null and new.page_id = old.page_id then
+    perform public.refresh_page_hold(new.page_id);
+  end if;
+  return null;
+end $$;
+drop trigger if exists binder_slots_page_hold on public.binder_slots;
+create trigger binder_slots_page_hold
+  after insert or delete or update of image_url, image_review, page_id on public.binder_slots
+  for each row execute function public.binder_slots_page_hold();
+
+-- Fingerprints of every flagged picture, so a re-upload (a new random path), a copy into another
+-- binder or a move is recognised without asking the model again. sha256 matches the exact file;
+-- dhash (64-bit difference hash, 16 hex chars) matches the same picture re-encoded or resized.
+-- status: flagged (blocks matches), approved (Studio cleared it), removed (Studio removed it; still
+-- blocks re-uploads).
+create table if not exists public.flagged_images (
+  id         bigint generated always as identity primary key,
+  sha256     text not null,
+  dhash      text,
+  label      text not null,
+  status     text not null default 'flagged' check (status in ('flagged', 'approved', 'removed')),
+  first_review_id bigint references public.image_reviews(id) on delete set null,
+  created_at timestamptz not null default now(),
+  decided_at timestamptz
+);
+create unique index if not exists flagged_images_sha on public.flagged_images (sha256);
+alter table public.flagged_images enable row level security;
+drop policy if exists "Admins read flagged images" on public.flagged_images;
+create policy "Admins read flagged images"
+  on public.flagged_images for select to authenticated
+  using (public.is_admin());
+
+-- image_reviews remembers the file's fingerprint too (for Studio's decisions).
+alter table public.image_reviews add column if not exists sha256 text;
+alter table public.image_reviews add column if not exists dhash text;
+
 -- ── 4. drain the queue every minute ──────────────────────────────────────────────────────────────
 do $$
 begin

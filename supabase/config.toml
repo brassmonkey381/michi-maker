@@ -47,3 +47,8 @@ verify_jwt = false
 # signed token is the auth (UNSUBSCRIBE_SECRET).
 [functions.unsubscribe]
 verify_jwt = false
+
+# MIC-029: called every minute by pg_cron with a shared secret (x-image-review-secret), and by Studio
+# with the admin's own token, which the function checks itself (is_admin). No platform JWT gate.
+[functions.image-review]
+verify_jwt = false

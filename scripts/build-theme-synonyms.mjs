@@ -31,9 +31,9 @@ for (const game of GAMES) {
   if ((d.needs_eye ?? []).length) fail(`${game}: ${d.needs_eye.length} joins still need the owner's eye`);
   const groups = [];
   for (const g of d.groups) {
-    // Head family first, then variants, synonyms, related: the "Also searching" line reads in
+    // Head family first, then synonyms, variants, related: the "Also searching" line reads in
     // that order, nearest words first.
-    const order = { head: 0, variant: 1, synonym: 2, related: 3 };
+    const order = { head: 0, synonym: 1, variant: 2, related: 3 };
     const fams = [...g.families].sort((a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9) || b.cards - a.cards);
     const members = [];
     for (const f of fams) for (const m of f.members) {

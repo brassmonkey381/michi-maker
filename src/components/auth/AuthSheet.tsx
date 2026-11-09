@@ -176,11 +176,25 @@ function AuthForm({ onClose, onAuthed, isGuest }: { onClose: () => void; onAuthe
         setError('Enter your email.');
         return;
       }
-      return run(async () => {
-        const r = await auth.sendEmailCode(email);
-        if (!r.error) setCodeSent(true);
-        return r;
-      });
+      // SENDING THE CODE IS NOT SIGNING IN (MIC-026, 2026-11-09). This used to go through run(),
+      // which closes the sheet on any success, so the sheet vanished the moment the email went and
+      // took the code field with it. Stay open, say where the code went, and wait for it.
+      return (async () => {
+        setBusy(true);
+        setError(null);
+        setInfo(null);
+        try {
+          const r = await auth.sendEmailCode(email);
+          if (r.error) {
+            setError(r.error);
+            return;
+          }
+          setCodeSent(true);
+          setInfo(`We sent a 6-digit code to ${email.trim()}. Type it below.`);
+        } finally {
+          setBusy(false);
+        }
+      })();
     }
     if (!code.trim()) {
       setError('Enter the 6-digit code from your email.');

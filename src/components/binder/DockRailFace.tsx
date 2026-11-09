@@ -55,9 +55,11 @@ export function DockRailFace({ label, chevron }: { label: string; chevron: strin
     if (still) return;
     // A long flat wait between short beats, so it draws the eye without ever being busy.
     const beat = Animated.sequence([
-      Animated.timing(pulse, { toValue: 1, duration: 620, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(pulse, { toValue: 0, duration: 620, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-      Animated.delay(2600),
+      // isInteraction: false on every step (MIC-031): on web a looping interaction never ends, and
+      // every FlatList on the page (the card picker beside this rail) stops drawing new rows.
+      Animated.timing(pulse, { isInteraction: false, toValue: 1, duration: 620, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(pulse, { isInteraction: false, toValue: 0, duration: 620, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.timing(pulse, { isInteraction: false, toValue: 0, duration: 2600, useNativeDriver: true }),
     ]);
     const loop = Animated.loop(beat);
     loop.start();

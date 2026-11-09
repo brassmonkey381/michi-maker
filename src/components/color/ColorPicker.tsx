@@ -81,8 +81,8 @@ export function GradientMixBar({
   useEffect(() => {
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 750, useNativeDriver: false }),
-        Animated.timing(pulse, { toValue: 0, duration: 750, useNativeDriver: false }),
+        Animated.timing(pulse, { isInteraction: false, toValue: 1, duration: 750, useNativeDriver: false }),
+        Animated.timing(pulse, { isInteraction: false, toValue: 0, duration: 750, useNativeDriver: false }),
       ]),
     );
     anim.start();

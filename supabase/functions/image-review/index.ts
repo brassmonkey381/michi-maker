@@ -46,6 +46,9 @@ const BATCH = 20;
 const RUN_BUDGET_MS = 90_000;
 /** A row still 'working' this long after its claim belonged to a run that was killed; requeue it. */
 const STALE_WORKING_MIN = 5;
+/** Larger files skip the near-match hash: decoding them in JS costs more than the edge CPU limit
+ *  allows (2026-11-09: "CPU Time exceeded" during the backfill). SHA-256 still matches exact copies. */
+const DHASH_MAX_BYTES = 350_000;
 /** A fetch or API failure is retried this many times before the image waits as unchecked. */
 const MAX_ATTEMPTS = 3;
 
@@ -86,7 +89,7 @@ async function fingerprint(url: string): Promise<{ bytes: Uint8Array; mediaType:
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
   const sha256 = [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
   let dhash: string | null = null;
-  try {
+  if (bytes.length <= DHASH_MAX_BYTES) try {
     // deno-lint-ignore no-explicit-any
     const img: any = await (await loadDecoder())(bytes);
     const frame = typeof img.resize === 'function' ? img : img[0];
@@ -212,11 +215,26 @@ Deno.serve(async (req) => {
   const started = Date.now();
   // A run killed mid-batch (time or CPU limit) leaves its current row 'working' forever; the claim
   // below only takes 'queued' and 'error', so put those back as 'error' (attempts already counted).
+  const staleBefore = new Date(Date.now() - STALE_WORKING_MIN * 60e3).toISOString();
+  // Out of attempts: it waits as unchecked (a person looks), like any other final failure.
+  const { data: spent } = await admin
+    .from('image_reviews')
+    .update({ status: 'done', label: 'unchecked', reason: 'run stopped before finishing (3 times)', checked_at: new Date().toISOString() })
+    .eq('status', 'working')
+    .gte('attempts', MAX_ATTEMPTS)
+    .lt('checked_at', staleBefore)
+    .select('slot_id, image_url');
+  for (const r of (spent ?? []) as { slot_id: string; image_url: string }[]) {
+    await admin.from('binder_slots')
+      .update({ image_review: verdictFor('unchecked'), image_reviewed_at: new Date().toISOString(), image_review_label: 'unchecked' })
+      .eq('id', r.slot_id).eq('image_url', r.image_url);
+  }
   await admin
     .from('image_reviews')
     .update({ status: 'error', reason: 'run stopped before finishing' })
     .eq('status', 'working')
-    .lt('checked_at', new Date(Date.now() - STALE_WORKING_MIN * 60e3).toISOString());
+    .lt('attempts', MAX_ATTEMPTS)
+    .lt('checked_at', staleBefore);
 
   const { data: rows, error } = await admin
     .from('image_reviews')

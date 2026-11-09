@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { REVIEW_MODEL, REVIEW_SCHEMA, noticeText, parseAnswer, verdictFor } from '../../supabase/functions/image-review/classify.ts';
+import { REVIEW_MODEL, REVIEW_SCHEMA, SAME_PICTURE_BITS, dhashHex, hammingHex, noticeText, parseAnswer, verdictFor } from '../../supabase/functions/image-review/classify.ts';
 
 test('only safe is approved; suggestive is held too (owner default, 2026-11-09)', () => {
   assert.equal(verdictFor('safe'), 'approved');
@@ -51,4 +51,15 @@ test('the admin email carries links and counts, never images', () => {
   assert.match(n.text, /NCMEC/);
   assert.match(n.text, /Review them in Studio: https:\/\/michi-maker\.com\/studio/);
   assert.doesNotMatch(n.text, /binder-art|\.png|\.jpg/);
+});
+
+test('the picture fingerprint survives small changes and tells different pictures apart', () => {
+  const gradient = Array.from({ length: 72 }, (_, i) => (i % 9) * 20 + Math.floor(i / 9));
+  const brighter = gradient.map((v) => v + 30); // re-encoded a little brighter
+  const flipped = gradient.map((_, i) => gradient[Math.floor(i / 9) * 9 + (8 - (i % 9))]);
+  const a = dhashHex(gradient);
+  assert.equal(a.length, 16);
+  assert.equal(hammingHex(a, dhashHex(brighter)), 0);
+  assert.ok(hammingHex(a, dhashHex(flipped)) > SAME_PICTURE_BITS);
+  assert.throws(() => dhashHex([1, 2, 3]));
 });

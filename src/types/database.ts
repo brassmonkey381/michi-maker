@@ -179,6 +179,7 @@ export type Database = {
           created_at: string
           id: string
           is_public: boolean
+          moderation_hold: boolean
           notes: string | null
           track: Json | null
           position: number
@@ -197,6 +198,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_public?: boolean
+          moderation_hold?: boolean
           notes?: string | null
           track?: Json | null
           position?: number
@@ -215,6 +217,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_public?: boolean
+          moderation_hold?: boolean
           notes?: string | null
           track?: Json | null
           position?: number

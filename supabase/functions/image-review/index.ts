@@ -16,10 +16,12 @@
  * Secrets: IMAGE_REVIEW_SECRET, ANTHROPIC_API_KEY, plus APP_SECRET_KEY (see _shared/keys.ts).
  * For the admin email: RESEND_API_KEY and ADMIN_NOTIFY_EMAIL (no email when either is missing).
  *
- * A SLICED PICTURE IS JUDGED AS A PAGE (owner, 2026-11-09). The slicer cuts one picture across
- * pockets and its pieces are stored as separate files with nothing linking them, so a harmless-
- * looking piece can sit beside an explicit one. When an image is explicit, every other custom image
- * on the same page is held with it (label "held") for a person to look at.
+ * A FLAG MAKES ITS PAGE PRIVATE, AND FOLLOWS THE PICTURE (owner, 2026-11-09). A flagged image's
+ * page is held from visitors by the database (binder_pages.moderation_hold, kept by triggers), so a
+ * sliced picture's harmless-looking pieces go private with the explicit one. Every flagged file's
+ * fingerprint (SHA-256 of the bytes + a 64-bit difference hash) is kept in flagged_images; a check
+ * first compares against them, so a re-upload, a copy or a re-encode of a flagged picture is held at
+ * once without asking the model again.
  *
  * THE OWNER IS TOLD BY EMAIL (owner, 2026-11-09: "Don't auto delete anything that gets flagged.
  * Just share it with me"). New flags go out in one email at most every NOTICE_EVERY_MIN minutes:
@@ -36,7 +38,8 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk@1';
 import { publishableKey, secretKey } from '../_shared/keys.ts';
-import { NOTICE_EVERY_MIN, REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, noticeText, parseAnswer, verdictFor, type ReviewLabel } from './classify.ts';
+import { decode } from 'npm:imagescript@1.3.0';
+import { NOTICE_EVERY_MIN, REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, SAME_PICTURE_BITS, dhashHex, hammingHex, noticeText, parseAnswer, verdictFor, type ReviewLabel } from './classify.ts';
 
 /** Checks per invocation; cron runs every minute, so a backlog drains across runs. */
 const BATCH = 20;
@@ -59,32 +62,49 @@ function binderArtPath(url: string): string | null {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-/** Hold every other custom image on an explicit image's page; returns how many were held. */
-// deno-lint-ignore no-explicit-any
-async function holdPage(admin: any, slotId: string): Promise<number> {
-  const { data: slot } = await admin.from('binder_slots').select('page_id').eq('id', slotId).maybeSingle();
-  if (!slot?.page_id) return 0;
-  const { data: mates } = await admin
-    .from('binder_slots')
-    .select('id, image_url')
-    .eq('page_id', slot.page_id)
-    .neq('id', slotId)
-    .not('image_url', 'is', null)
-    .neq('image_review', 'flagged');
-  const { data: page } = await admin.from('binder_pages').select('binder_id').eq('id', slot.page_id).maybeSingle();
-  const { data: binder } = page ? await admin.from('binders').select('owner_id').eq('id', page.binder_id).maybeSingle() : { data: null };
-  let held = 0;
-  for (const m of mates ?? []) {
-    await admin.from('binder_slots').update({ image_review: 'flagged', image_reviewed_at: new Date().toISOString(), image_review_label: 'held' }).eq('id', m.id).eq('image_url', m.image_url);
-    if (page && binder) {
-      await admin.from('image_reviews').insert({
-        slot_id: m.id, binder_id: page.binder_id, owner_id: binder.owner_id, image_url: m.image_url,
-        status: 'done', label: 'held', reason: 'On the same page as an explicit image', model: REVIEW_MODEL, checked_at: new Date().toISOString(),
-      });
+/** Fetch the image once: its bytes, media type, SHA-256 and difference hash (null if undecodable). */
+async function fingerprint(url: string): Promise<{ bytes: Uint8Array; mediaType: string; sha256: string; dhash: string | null }> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`fetch ${res.status}`);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  const mediaType = (res.headers.get('content-type') ?? 'image/png').split(';')[0].trim();
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  const sha256 = [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
+  let dhash: string | null = null;
+  try {
+    // deno-lint-ignore no-explicit-any
+    const img: any = await decode(bytes);
+    const frame = typeof img.resize === 'function' ? img : img[0];
+    const small = frame.resize(9, 8);
+    const gray: number[] = [];
+    for (let y = 1; y <= 8; y++) {
+      for (let x = 1; x <= 9; x++) {
+        const rgba = small.getPixelAt(x, y) >>> 0;
+        gray.push(((rgba >>> 24) & 255) * 0.299 + ((rgba >>> 16) & 255) * 0.587 + ((rgba >>> 8) & 255) * 0.114);
+      }
     }
-    held++;
+    dhash = dhashHex(gray);
+  } catch {
+    dhash = null; // the exact hash still matches re-uploads of the same file
   }
-  return held;
+  return { bytes, mediaType, sha256, dhash };
+}
+
+/** A flagged picture this one is (exact or near), if any. Approved and removed decisions count too. */
+// deno-lint-ignore no-explicit-any
+async function knownPicture(admin: any, sha256: string, dhash: string | null): Promise<{ status: string; label: string } | null> {
+  const { data: exact } = await admin.from('flagged_images').select('status, label').eq('sha256', sha256).maybeSingle();
+  if (exact) return exact;
+  if (!dhash) return null;
+  const { data: all } = await admin.from('flagged_images').select('status, label, dhash').not('dhash', 'is', null).neq('status', 'approved').limit(5000);
+  const near = (all ?? []).find((r: { dhash: string }) => hammingHex(r.dhash, dhash) <= SAME_PICTURE_BITS);
+  return near ? { status: near.status, label: near.label } : null;
+}
+
+function base64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
 }
 
 /** One email to the admin about flags not yet told, at most every NOTICE_EVERY_MIN minutes. */
@@ -134,6 +154,10 @@ async function decide(req: Request, body: { id?: number; decision?: string; take
   const { data: review } = await admin.from('image_reviews').select('id, slot_id, binder_id, owner_id, image_url').eq('id', body.id).maybeSingle();
   if (!review) return json({ error: 'not_found' }, 404);
 
+  const { data: fpRow } = await admin.from('image_reviews').select('sha256').eq('id', review.id).maybeSingle();
+  if (fpRow?.sha256) {
+    await admin.from('flagged_images').update({ status: body.decision, decided_at: new Date().toISOString() }).eq('sha256', fpRow.sha256);
+  }
   if (body.decision === 'approved') {
     await admin.from('binder_slots').update({ image_review: 'approved', image_reviewed_at: new Date().toISOString() }).eq('id', review.slot_id).eq('image_url', review.image_url);
   } else {
@@ -196,22 +220,38 @@ Deno.serve(async (req) => {
     let minor = false;
     let reason = '';
     let failed = false;
+    let fp: { sha256: string; dhash: string | null } | null = null;
     try {
-      const res = await ai.messages.create({
-        model: REVIEW_MODEL,
-        max_tokens: 256,
-        thinking: { type: 'disabled' },
-        system: REVIEW_SYSTEM,
-        output_config: { format: { type: 'json_schema', schema: REVIEW_SCHEMA as unknown as Record<string, unknown> } },
-        messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'url', url: row.image_url } }, { type: 'text', text: 'Label this image.' }] }],
-      });
-      if (res.stop_reason === 'refusal') {
-        label = 'refused';
-        reason = String(res.stop_details?.category ?? 'refused');
+      const got = await fingerprint(row.image_url);
+      fp = { sha256: got.sha256, dhash: got.dhash };
+      const known = await knownPicture(admin, got.sha256, got.dhash);
+      if (known && known.status === 'approved') {
+        label = 'safe';
+        reason = 'Same picture Studio approved before';
+      } else if (known) {
+        label = (known.label as ReviewLabel) ?? 'explicit';
+        reason = 'Same picture as one flagged before';
       } else {
-        const text = res.content.find((c) => c.type === 'text');
-        const out = parseAnswer(text && text.type === 'text' ? text.text : '');
-        ({ label, minor_concern: minor, reason } = out);
+        const okType = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(got.mediaType);
+        const source = okType
+          ? { type: 'base64' as const, media_type: got.mediaType as 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp', data: base64(got.bytes) }
+          : { type: 'url' as const, url: row.image_url };
+        const res = await ai.messages.create({
+          model: REVIEW_MODEL,
+          max_tokens: 256,
+          thinking: { type: 'disabled' },
+          system: REVIEW_SYSTEM,
+          output_config: { format: { type: 'json_schema', schema: REVIEW_SCHEMA as unknown as Record<string, unknown> } },
+          messages: [{ role: 'user', content: [{ type: 'image', source }, { type: 'text', text: 'Label this image.' }] }],
+        });
+        if (res.stop_reason === 'refusal') {
+          label = 'refused';
+          reason = String(res.stop_details?.category ?? 'refused');
+        } else {
+          const text = res.content.find((c) => c.type === 'text');
+          const out = parseAnswer(text && text.type === 'text' ? text.text : '');
+          ({ label, minor_concern: minor, reason } = out);
+        }
       }
     } catch (e) {
       failed = true;
@@ -227,8 +267,12 @@ Deno.serve(async (req) => {
     const verdict = verdictFor(failed ? 'unchecked' : label);
     await admin
       .from('image_reviews')
-      .update({ status: 'done', label: failed ? 'unchecked' : label, minor_concern: minor, reason, model: REVIEW_MODEL, checked_at: new Date().toISOString() })
+      .update({ status: 'done', label: failed ? 'unchecked' : label, minor_concern: minor, reason, model: REVIEW_MODEL, checked_at: new Date().toISOString(), sha256: fp?.sha256 ?? null, dhash: fp?.dhash ?? null })
       .eq('id', row.id);
+    // Remember a newly flagged picture, so its copies and re-uploads are held without a new check.
+    if (verdict === 'flagged' && fp) {
+      await admin.from('flagged_images').upsert({ sha256: fp.sha256, dhash: fp.dhash, label, first_review_id: row.id }, { onConflict: 'sha256', ignoreDuplicates: true });
+    }
     // Only while the slot still holds the image that was checked.
     await admin
       .from('binder_slots')
@@ -236,7 +280,6 @@ Deno.serve(async (req) => {
       .eq('id', row.slot_id)
       .eq('image_url', row.image_url);
     tally[verdict === 'approved' ? 'approved' : verdict === 'flagged' ? 'flagged' : 'unchecked']++;
-    if (!failed && label === 'explicit') tally.flagged += await holdPage(admin, row.slot_id);
   }
   await notifyAdmin(admin);
   return json({ ok: true, ...tally });

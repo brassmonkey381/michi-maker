@@ -79,3 +79,38 @@ export function noticeText(items: { binderId: string; label: string; minor: bool
   ].join('\n');
   return { subject, text };
 }
+
+/**
+ * A 64-bit difference hash from a 9x8 grayscale thumbnail (row-major, 9 wide): each bit says
+ * whether a pixel is brighter than its right neighbour. Re-encoding, resizing or a light crop
+ * barely moves it, which is what lets a flag follow a picture across re-uploads (owner, 2026-11-09:
+ * "follow the art"). Returns 16 hex characters.
+ */
+export function dhashHex(gray: ArrayLike<number>): string {
+  if (gray.length !== 72) throw new Error('dhash needs a 9x8 grayscale thumbnail (72 values)');
+  let hex = '';
+  for (let y = 0; y < 8; y++) {
+    let byte = 0;
+    for (let x = 0; x < 8; x++) {
+      byte = (byte << 1) | (gray[y * 9 + x] > gray[y * 9 + x + 1] ? 1 : 0);
+    }
+    hex += byte.toString(16).padStart(2, '0');
+  }
+  return hex;
+}
+
+/** Bits that differ between two 16-hex-character hashes (0 = the same picture). */
+export function hammingHex(a: string, b: string): number {
+  let d = 0;
+  for (let i = 0; i < 16; i += 2) {
+    let x = parseInt(a.slice(i, i + 2), 16) ^ parseInt(b.slice(i, i + 2), 16);
+    while (x) {
+      d += x & 1;
+      x >>= 1;
+    }
+  }
+  return d;
+}
+
+/** At or under this many differing bits, two pictures count as the same one. */
+export const SAME_PICTURE_BITS = 6;

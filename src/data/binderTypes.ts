@@ -341,6 +341,11 @@ export interface DemoPage {
    * default). A private page is hidden from everyone but the owner even inside a public binder.
    */
   isPublic?: boolean;
+  /**
+   * MIC-029: the image safety check holds this page from visitors (a flagged image is on it),
+   * whatever `isPublic` says. Managed by moderation; the owner still sees the page.
+   */
+  moderationHold?: boolean;
   slots: DemoSlot[];
 }
 

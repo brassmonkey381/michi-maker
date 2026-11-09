@@ -17,7 +17,7 @@ import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View
 import { browseState, CatalogBrowser, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { Breakpoints } from '@/constants/theme';
-import { track } from '@/lib/analytics';
+import { trackSimilarWordsSearched, track } from '@/lib/analytics';
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { promoteArtCards } from '@/data/artRank';
 import { nextDemoTheme } from '@/data/demoThemes';
@@ -564,6 +564,12 @@ export function CardBrowse({
           if (!unmetered && demoPresses.current % DEMO_PRESSES_BEFORE_OFFER === 0) {
             (onThemeLocked ?? (() => router.push('/plans' as Href)))();
           }
+        }}
+        // MIC-024: a theme query that searched a synonym group, for analytics (surface as
+        // card.search uses it). Only `searched` exists now that there is no switch.
+        onSimilarWordsEvent={(e) => {
+          if (e.type !== 'searched') return;
+          trackSimilarWordsSearched({ game: e.game, surface: onPickCard ? 'binder_editor' : 'home', expanded: e.expanded, hits: e.hits });
         }}
         themeSearchLabel={`Theme: ${demoTheme}`}
         // "Color Search" on a phone pushed its own row into a wrap and shoved the kit's NEW!

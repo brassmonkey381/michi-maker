@@ -22,9 +22,11 @@ import {
   resolveImageUrl,
   setBrowseLanguages,
   useImageManifest,
+  configureThemeSynonyms,
 } from 'tcgscan-browse';
 
 import { FREE_THEME } from '@/data/freeTheme';
+import themeSynonyms from '@/data/themeSynonyms.json';
 import { trackAffiliateClick } from '@/lib/analytics';
 import { PUBLISHED_SECONDARY_GAMES } from '@/lib/otherGameKeys';
 import { freshToken, gatedCatalogSource } from '@/lib/catalogSource';
@@ -172,3 +174,19 @@ export { cardThumbUrl, resolveImageUrl, hydrateImageManifest, useImageManifest }
 /** PostgREST endpoint + publishable key (resolved by the package config). */
 export const catalogApiUrl: string = getApiUrl();
 export const catalogApiKey: string = getApiKey();
+
+/**
+ * SYNONYM GROUPS ARE THE THEME SEARCH (MIC-024, owner 2026-11-09: "make this the default, and no
+ * hints or toggles. this is the new theme search result set"). The groups (src/data/themeSynonyms.json,
+ * built by scripts/build-theme-synonyms.mjs from TCGScan-Data's reviewed files) go to the kit, and
+ * every theme word that belongs to one searches the whole group as a union (theme:garbage finds the
+ * trash cards too), lift-ranked by the data project. Words in no group search as before. No switch,
+ * no "also searching" line.
+ *
+ * Guarded: a kit older than 0.9.76 has no always mode (0.9.72+ would show an opt-in switch, older
+ * none at all), and a missing function at import time must cost the feature, never the site (the
+ * 2026-09-17 white screen).
+ */
+if (typeof configureThemeSynonyms === 'function') {
+  configureThemeSynonyms({ groupsByGame: themeSynonyms.groupsByGame, rank: 'lift', always: true });
+}

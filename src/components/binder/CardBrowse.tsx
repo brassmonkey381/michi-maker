@@ -17,7 +17,7 @@ import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View
 import { browseState, CatalogBrowser, sendBrowseCommand, setColorUrl, synonymGroupFor, useSimilarWords, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { Breakpoints } from '@/constants/theme';
-import { track } from '@/lib/analytics';
+import { trackSimilarWordsSearched, trackSimilarWordsToggled, track } from '@/lib/analytics';
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { promoteArtCards } from '@/data/artRank';
 import { nextDemoTheme } from '@/data/demoThemes';
@@ -572,6 +572,12 @@ export function CardBrowse({
           if (!unmetered && demoPresses.current % DEMO_PRESSES_BEFORE_OFFER === 0) {
             (onThemeLocked ?? (() => router.push('/plans' as Href)))();
           }
+        }}
+        // MIC-024 events, surface as demo.theme_search and card.search use it.
+        onSimilarWordsEvent={(e) => {
+          const surface = onPickCard ? 'binder_editor' : 'home';
+          if (e.type === 'toggled') trackSimilarWordsToggled(e.on, e.game, surface);
+          else trackSimilarWordsSearched({ game: e.game, surface, expanded: e.expanded, hits: e.hits });
         }}
         // With Similar words on, the button names the group the word will search (MIC-024):
         // "Theme: Forest & woods" rather than "Theme: forest". The press still types the word.

@@ -43,6 +43,10 @@ import { NOTICE_EVERY_MIN, REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, SAME_PICT
 
 /** Checks per invocation; cron runs every minute, so a backlog drains across runs. */
 const BATCH = 20;
+/** Stop claiming new rows after this long, well inside the edge function's wall-clock limit. */
+const RUN_BUDGET_MS = 90_000;
+/** A row still 'working' this long after its claim belonged to a run that was killed; requeue it. */
+const STALE_WORKING_MIN = 5;
 /** A fetch or API failure is retried this many times before the image waits as unchecked. */
 const MAX_ATTEMPTS = 3;
 
@@ -194,6 +198,15 @@ Deno.serve(async (req) => {
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, secretKey(), { auth: { persistSession: false } });
   const ai = new Anthropic({ apiKey: aiKey });
 
+  const started = Date.now();
+  // A run killed mid-batch (time or CPU limit) leaves its current row 'working' forever; the claim
+  // below only takes 'queued' and 'error', so put those back as 'error' (attempts already counted).
+  await admin
+    .from('image_reviews')
+    .update({ status: 'error', reason: 'run stopped before finishing' })
+    .eq('status', 'working')
+    .lt('checked_at', new Date(Date.now() - STALE_WORKING_MIN * 60e3).toISOString());
+
   const { data: rows, error } = await admin
     .from('image_reviews')
     .select('id, slot_id, image_url, attempts')
@@ -205,10 +218,11 @@ Deno.serve(async (req) => {
 
   const tally = { claimed: 0, approved: 0, flagged: 0, unchecked: 0 };
   for (const row of (rows ?? []) as QueueRow[]) {
-    // Claim it; a parallel run that got there first leaves zero rows updated and moves on.
+    if (Date.now() - started > RUN_BUDGET_MS) break;
+    // Claim it (checked_at holds the claim time until the check finishes); a parallel run that got there first leaves zero rows updated and moves on.
     const { data: claimed } = await admin
       .from('image_reviews')
-      .update({ status: 'working', attempts: row.attempts + 1 })
+      .update({ status: 'working', attempts: row.attempts + 1, checked_at: new Date().toISOString() })
       .eq('id', row.id)
       .in('status', ['queued', 'error'])
       .select('id')

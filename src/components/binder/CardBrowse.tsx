@@ -60,6 +60,7 @@ export function CardBrowse({
   onPickCards,
   selectedCardId,
   cardActions,
+  moreCardActions,
   quickAction,
   initialSimilar,
   paletteSeed,
@@ -80,6 +81,8 @@ export function CardBrowse({
   /** Per-card tap actions. When set, replaces the default "Place in pocket" sheet — home uses
    *  this to offer "Add to a binder…" instead of a functionless place. */
   cardActions?: CardActionsFactory;
+  /** Verbs added to the kit's default card sheet (kit >= 0.9.84), e.g. Share picture (MIC-032). */
+  moreCardActions?: CardActionsFactory;
   /** A one-tap pill in each tile's top-right corner that fires WITHOUT opening the action sheet.
    *  The picker uses it for quick-place: the sheet is a fine place to *learn* about a card, but
    *  paying its open/read/dismiss toll on every card turns filling a nine-pocket page into
@@ -502,6 +505,7 @@ export function CardBrowse({
          * which is not an eyedropper, it is a menu.
          */
         onCardTap={armed ? (c: CatalogCard) => pickWithEyedropper(c.id) : undefined}
+        moreCardActions={armed ? undefined : moreCardActions}
         cardActions={
           armed
             ? () => [{ key: 'eyedropper', label: '⌇ Take these colours', kind: 'primary' as const, onPress: (c: CatalogCard) => pickWithEyedropper(c.id) }]

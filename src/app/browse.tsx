@@ -10,12 +10,12 @@
  * the pending command lands the moment this page's CatalogBrowser subscribes.
  */
 import { useRouter, type Href } from 'expo-router';
-import { affiliateConfigured, productUrl, type CardAction, type CardActionsFactory, getPriceSummary } from 'tcgscan-browse';
+import { affiliateConfigured, productUrl, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
-import { Linking, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Linking, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { track, trackAffiliateClick } from '@/lib/analytics';
-import { buildCardImage, pageImageFileName, sharePageImage } from '@/lib/pageImage';
+import { trackAffiliateClick } from '@/lib/analytics';
+import { cardPictureAction } from '@/lib/cardPicture';
 import { ebayCardQuery, ebaySearchLink } from '@/lib/ebay';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
@@ -33,7 +33,7 @@ import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
 import { useAvailableCopies, useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { BinderSurface, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
+import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
 import { useTrial } from '@/hooks/use-trial';
@@ -118,35 +118,8 @@ export default function BrowseScreen() {
     // every tier. The lock is the kit's (CardBrowse passes `findSimilar` in lockedFeatures), which
     // is what makes the card picker obey it too — so there is nothing to wrap here: a locked tap
     // comes back through onSimilarLocked below.
-    // THE CARD AS A PICTURE (owner, 2026-11-06): full resolution on a mat with our mark, to the
-    // phone's share sheet, the clipboard or a file (lib/pageImage). Web only: a canvas draws it.
-    const picture: CardAction = {
-      key: 'picture',
-      label: 'Share picture',
-      available: () => Platform.OS === 'web',
-      onPress: (c) => {
-        void (async () => {
-          try {
-            const prices = await getPriceSummary().catch(() => ({}) as Record<string, { cur: number }>);
-            const blob = await buildCardImage({
-              cardId: c.id,
-              name: c.name,
-              caption: `${c.setName} · ${c.number}`,
-              illustrator: c.illustrator || undefined,
-              price: prices[c.id]?.cur ?? null,
-              date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-              mat: BinderSurface.mat,
-            });
-            const out = await sharePageImage(blob, pageImageFileName(c.name, 0).replace(/-page-0/, ''), `${c.name} · https://michi-maker.com`);
-            track('card.picture', { via: out, surface: 'browse' });
-            if (out === 'copied') showToast('Picture copied. Paste it anywhere.');
-            else if (out === 'saved') showToast('Picture saved.');
-          } catch {
-            showToast('The picture did not draw. Try again in a moment.');
-          }
-        })();
-      },
-    };
+    // THE CARD AS A PICTURE: one action wherever the card sheet opens (lib/cardPicture, MIC-032).
+    const picture = cardPictureAction('browse', showToast);
     return [
       add,
       builtins.moreLikeThis,

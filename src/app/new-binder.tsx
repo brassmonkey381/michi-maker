@@ -23,6 +23,8 @@ import { fetchSetCards, getApiKey, getApiUrl, type CatalogCard } from 'tcgscan-b
 
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { CardBrowse } from '@/components/binder/CardBrowse';
+import { Toast, type ToastSpec } from '@/components/binder/Toast';
+import { cardPictureAction } from '@/lib/cardPicture';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -101,6 +103,13 @@ export default function NewBinderScreen() {
   const store = useBinders();
   const { width } = useWindowDimensions();
   const [kind, setKind] = useState<Kind | null>(null);
+  // The card sheet's Share picture says where the picture went (MIC-032).
+  const [toast, setToast] = useState<ToastSpec | null>(null);
+  const toastId = useRef(0);
+  const showToast = (message: string) => {
+    toastId.current += 1;
+    setToast({ id: toastId.current, message });
+  };
   const [query, setQuery] = useState('');
   const [cards, setCards] = useState<CatalogCard[]>([]);
   const [picked, setPicked] = useState<CatalogCard[]>([]);
@@ -289,6 +298,7 @@ export default function NewBinderScreen() {
               <View style={styles.browse} testID="wizard-browse">
                 <CardBrowse
                   catalog={catalog}
+                  moreCardActions={() => [cardPictureAction('wizard', showToast)]}
                   onPickCard={(_id, card) => {
                     if (!card) return;
                     setPicked((p) => (p.some((x) => x.id === card.id) ? p.filter((x) => x.id !== card.id) : p.length < 3 ? [...p, card] : p));
@@ -423,6 +433,7 @@ export default function NewBinderScreen() {
         </View>
       </Modal>
       <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
+      <Toast spec={toast} onDismiss={() => setToast(null)} />
       </SafeAreaView>
     </ThemedView>
   );

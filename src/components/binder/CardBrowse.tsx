@@ -14,10 +14,10 @@ import { useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, type View as ViewType } from 'react-native';
 
-import { browseState, CatalogBrowser, sendBrowseCommand, setColorUrl, synonymGroupFor, useSimilarWords, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
+import { browseState, CatalogBrowser, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { Breakpoints } from '@/constants/theme';
-import { trackSimilarWordsSearched, trackSimilarWordsToggled, track } from '@/lib/analytics';
+import { trackSimilarWordsSearched, track } from '@/lib/analytics';
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { promoteArtCards } from '@/data/artRank';
 import { nextDemoTheme } from '@/data/demoThemes';
@@ -52,13 +52,6 @@ const DEMO_PRESSES_BEFORE_OFFER = 5;
 export const CARD_BROWSE_TILE_WIDTH = 140;
 /** Series/set art tile height (px) — tall so the cover art (which fills the tile) reads big. */
 export const CARD_BROWSE_TAX_TILE_HEIGHT = 250;
-
-/** The kit's Similar words switch, or always-off on a kit older than 0.9.72 (a missing hook must
- *  cost the label, never the browser). Chosen once at load, so hook order never changes. */
-const useSimilarWordsSafe: () => readonly [boolean, unknown] =
-  typeof useSimilarWords === 'function' ? useSimilarWords : () => [false, null];
-const groupFor = (word: string, game: string) =>
-  typeof synonymGroupFor === 'function' ? synonymGroupFor(word, game) : null;
 
 export function CardBrowse({
   catalog,
@@ -166,7 +159,6 @@ export function CardBrowse({
   const [droppedCard, setDroppedCard] = useState<string | undefined>(undefined);
   /** The theme the button is offering right now; a new one is drawn after every press. */
   const [demoTheme, setDemoTheme] = useState(() => nextDemoTheme(null));
-  const [similarOn] = useSimilarWordsSafe();
   /**
    * PRESSING IT AGAIN AND AGAIN IS A QUESTION, and the answer is not only more pictures.
    *
@@ -573,15 +565,13 @@ export function CardBrowse({
             (onThemeLocked ?? (() => router.push('/plans' as Href)))();
           }
         }}
-        // MIC-024 events, surface as demo.theme_search and card.search use it.
+        // MIC-024: a theme query that searched a synonym group, for analytics (surface as
+        // card.search uses it). Only `searched` exists now that there is no switch.
         onSimilarWordsEvent={(e) => {
-          const surface = onPickCard ? 'binder_editor' : 'home';
-          if (e.type === 'toggled') trackSimilarWordsToggled(e.on, e.game, surface);
-          else trackSimilarWordsSearched({ game: e.game, surface, expanded: e.expanded, hits: e.hits });
+          if (e.type !== 'searched') return;
+          trackSimilarWordsSearched({ game: e.game, surface: onPickCard ? 'binder_editor' : 'home', expanded: e.expanded, hits: e.hits });
         }}
-        // With Similar words on, the button names the group the word will search (MIC-024):
-        // "Theme: Forest & woods" rather than "Theme: forest". The press still types the word.
-        themeSearchLabel={`Theme: ${(similarOn && groupFor(demoTheme, game)?.label) || demoTheme}`}
+        themeSearchLabel={`Theme: ${demoTheme}`}
         // "Color Search" on a phone pushed its own row into a wrap and shoved the kit's NEW!
         // nudge off the right edge. "Color" says the same thing beside a button that is visibly a
         // button; "Search" was doing no work the row's position did not already do.

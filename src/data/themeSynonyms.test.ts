@@ -102,3 +102,39 @@ test('the edge function treats theme_any as themed, and the forest group as free
   const fwd = themeSearchForward({ rpc: 'theme_search', p_game: 'lorcana', p_fields: [{ key: 'theme_any', value: ['ghost', 'spirit'] }] });
   assert.equal(fwd.ok, true);
 });
+
+test('always on (michi since 2026-11-09): a grouped word expands with no switch, others do not', () => {
+  kit.__resetSimilarWordsForTests();
+  kit.configureThemeSynonyms({ groupsByGame: data.groupsByGame, always: true });
+  assert.equal(kit.getSimilarWords(), true);
+  const r = kit.expandThemeFields([{ key: 'theme', value: 'garbage' }, { key: 'theme', value: 'zzzqqq' }], { on: kit.getSimilarWords(), game: 'pokemon' });
+  assert.equal(r.fields[0].key, 'theme_any');
+  assert.deepEqual(r.fields[1], { key: 'theme', value: 'zzzqqq' });
+});
+
+// QUOTES MEAN EXACT (owner, 2026-11-09): the parser marks a quoted theme, and expansion skips it.
+const query = require('tcgscan-browse/dist/query.js') as typeof import('tcgscan-browse/dist/query');
+
+test('quoted theme is exact; unquoted searches the group', () => {
+  kit.__resetSimilarWordsForTests();
+  kit.configureThemeSynonyms({ groupsByGame: data.groupsByGame, always: true });
+  const parsed = query.parseQuery('theme:"garbage" theme:trash');
+  assert.deepEqual(parsed.fields[0], { key: 'theme', value: 'garbage', exact: true });
+  const r = kit.expandThemeFields(parsed.fields, { on: kit.getSimilarWords(), game: 'pokemon' });
+  assert.deepEqual(r.fields[0], { key: 'theme', value: 'garbage' }, 'quoted word went out widened');
+  assert.equal(r.fields[1].key, 'theme_any', 'unquoted word did not widen');
+  assert.equal(r.expanded.length, 1);
+});
+
+test('a quoted multi-word theme is that phrase alone', () => {
+  kit.__resetSimilarWordsForTests();
+  kit.configureThemeSynonyms({ groupsByGame: data.groupsByGame, always: true });
+  const parsed = query.parseQuery('theme:"trash can"');
+  assert.deepEqual(parsed.fields, [{ key: 'theme', value: 'trash can', exact: true }]);
+  const r = kit.expandThemeFields(parsed.fields, { on: true, game: 'pokemon' });
+  assert.deepEqual(r.fields, [{ key: 'theme', value: 'trash can' }]);
+});
+
+test('an unquoted theme carries no exact flag (the default stays the group)', () => {
+  assert.deepEqual(query.parseQuery('theme:katana').fields, [{ key: 'theme', value: 'katana' }]);
+});

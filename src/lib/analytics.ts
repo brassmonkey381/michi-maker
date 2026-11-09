@@ -1319,16 +1319,12 @@ export function endSession(): void {
 }
 
 /**
- * SIMILAR WORDS (MIC-024, names agreed with analytics-studio 2026-11-09). `similar_words.toggled`
- * fires on a real flip of the switch, never on load or restore. `similar_words.searched` fires once
- * per theme query that ran with the switch on and widened a word, first page only: `hits` is that
+ * SYNONYM GROUPS (MIC-024, name agreed with analytics-studio 2026-11-09). `similar_words.searched`
+ * fires once per theme query that searched a synonym group (always on since the owner made it the
+ * default the same day; similar_words.toggled went with the switch), first page only: `hits` is that
  * query's total (0 is the failure case worth seeing), `groups` the fixed group labels joined with
- * "|" and capped at 3. The typed text never goes in. `surface` uses demo.theme_search's values.
+ * "|" and capped at 3. The typed text never goes in. `surface` follows card.search (binder_editor | home).
  */
-export function trackSimilarWordsToggled(on: boolean, game: string, surface: string): void {
-  track('similar_words.toggled', { on, game, surface });
-}
-
 export function trackSimilarWordsSearched(input: {
   game: string;
   surface: string;

@@ -176,27 +176,17 @@ export const catalogApiUrl: string = getApiUrl();
 export const catalogApiKey: string = getApiKey();
 
 /**
- * SIMILAR WORDS (MIC-024, 2026-11-09). The synonym groups (src/data/themeSynonyms.json, built by
- * scripts/build-theme-synonyms.mjs from TCGScan-Data's reviewed files) go to the kit, which shows a
- * "Similar words" switch on the browser. Off by default and off changes nothing; on, a theme word
- * searches its whole group as a union. The switch is remembered on this device.
+ * SYNONYM GROUPS ARE THE THEME SEARCH (MIC-024, owner 2026-11-09: "make this the default, and no
+ * hints or toggles. this is the new theme search result set"). The groups (src/data/themeSynonyms.json,
+ * built by scripts/build-theme-synonyms.mjs from TCGScan-Data's reviewed files) go to the kit, and
+ * every theme word that belongs to one searches the whole group as a union (theme:garbage finds the
+ * trash cards too), lift-ranked by the data project. Words in no group search as before. No switch,
+ * no "also searching" line.
  *
- * Guarded: a kit older than 0.9.72 has no configureThemeSynonyms, and a missing function at import
- * time must cost the feature, never the site (the 2026-09-17 white screen).
+ * Guarded: a kit older than 0.9.76 has no always mode (0.9.72+ would show an opt-in switch, older
+ * none at all), and a missing function at import time must cost the feature, never the site (the
+ * 2026-09-17 white screen).
  */
-const SIMILAR_WORDS_KEY = 'michi.similarWords';
 if (typeof configureThemeSynonyms === 'function') {
-  configureThemeSynonyms({
-    groupsByGame: themeSynonyms.groupsByGame,
-    rank: 'lift',
-    store: {
-      load: async () => {
-        const v = await AsyncStorage.getItem(SIMILAR_WORDS_KEY);
-        return v === null ? null : v === '1';
-      },
-      save: (on) => {
-        void AsyncStorage.setItem(SIMILAR_WORDS_KEY, on ? '1' : '0');
-      },
-    },
-  });
+  configureThemeSynonyms({ groupsByGame: themeSynonyms.groupsByGame, rank: 'lift', always: true });
 }

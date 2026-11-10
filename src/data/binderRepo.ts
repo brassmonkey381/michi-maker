@@ -1285,3 +1285,17 @@ export async function fetchDiscoverBinders(
 ): Promise<DemoBinder[]> {
   return (await fetchDiscoverPage(sort, { ...opts, limit: opts.limit ?? 40 })).binders;
 }
+
+/**
+ * DISCOVER BY CARDS (MIC-017 piece 8): public binders ranked by how much of each one the given
+ * cards fill (search_binders_by_cards). The caller turns a name, a theme or a colour into card ids
+ * on the card server first. Returns null when the RPC is not on this project yet (PGRST202) or
+ * fails, so Discover falls back to its title/creator search.
+ */
+export async function searchBindersByCards(cardIds: readonly string[], limit = 40): Promise<DemoBinder[] | null> {
+  if (!cardIds.length) return [];
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('search_binders_by_cards' as never, { p_card_ids: cardIds.slice(0, 2000), p_limit: limit } as never);
+  if (error) return null;
+  return hydrateRankedBinders((data ?? []) as RankedBinderRow[]);
+}

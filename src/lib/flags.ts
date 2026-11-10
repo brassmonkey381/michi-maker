@@ -31,6 +31,9 @@ export const FLAGS = {
   'mybinders-shelf': 'dev',
   // MIC-017 piece 7: /new-binder as a conversation; page one builds beside it.
   'newbinder-chat': 'dev',
+  // MIC-017 piece 8: Discover ranks binders by how much of them a search's cards fill, searches by
+  // colour and theme, and has a Binders | Makers switch.
+  'discover-v2': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

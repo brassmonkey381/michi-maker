@@ -23,12 +23,17 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
+  Text,
   TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
 
+import { parseQuery, searchByColors, searchCards, srgbToLab } from 'tcgscan-browse';
+
 import { AccountButton } from '@/components/auth/AccountButton';
+import { PeopleSearch } from '@/components/people/PeopleSearch';
+import { flag } from '@/lib/flags';
 import { BinderCoverGrid } from '@/components/binder/BinderCoverGrid';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { Seg } from '@/components/binder/inspector/controls';
@@ -52,6 +57,7 @@ import {
   fetchDiscoverPage,
   OFFICIAL_AUTHOR,
   searchBindersPage,
+  searchBindersByCards,
   type BinderListCursor,
   type DiscoverSort,
 } from '@/data/binderRepo';
@@ -140,6 +146,34 @@ function LoadMore({ busy, onPress, testID }: { busy: boolean; onPress: () => voi
   );
 }
 
+/** MIC-017 piece 8 ('dev'): card-ranked search, colour and theme, Binders | Makers. */
+const DISCOVER_V2 = flag('discover-v2');
+/** The colours Discover offers, with a name to say back. */
+const SWATCHES = [
+  { hex: '#d93b30', name: 'red' },
+  { hex: '#f08a24', name: 'orange' },
+  { hex: '#f2c94c', name: 'yellow' },
+  { hex: '#3fa34d', name: 'green' },
+  { hex: '#2f8fe0', name: 'blue' },
+  { hex: '#8e5bd1', name: 'purple' },
+  { hex: '#e86fae', name: 'pink' },
+  { hex: '#2b2b33', name: 'black' },
+] as const;
+const THEME_CHIPS = ['night', 'forest', 'ocean', 'sunset', 'city', 'snow'];
+/**
+ * A search as cards: the card server answers the query (names, theme:, the full grammar), and the
+ * binders those cards fill most come back ranked. Null when there is nothing to rank by.
+ */
+async function rankByCards(q: string): Promise<DemoBinder[] | null> {
+  try {
+    const page = await searchCards(parseQuery(q), { limit: 400 });
+    if (page.failed || !page.cards.length) return null;
+    return await searchBindersByCards(page.cards.map((c) => c.id));
+  } catch {
+    return null;
+  }
+}
+
 export default function DiscoverScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -154,6 +188,11 @@ export default function DiscoverScreen() {
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<DemoBinder[] | null>(null);
+  // MIC-017 piece 8: binders ranked by how much of them the search's cards fill (null: not ranked).
+  const [cardHits, setCardHits] = useState<DemoBinder[] | null>(null);
+  const [colour, setColour] = useState<(typeof SWATCHES)[number] | null>(null);
+  const [colourHits, setColourHits] = useState<DemoBinder[] | 'unavailable' | null>(null);
+  const [peopleOpen, setPeopleOpen] = useState(false);
   const reqId = useRef(0);
   // A PAGE AT A TIME (2026-09-20). Both lists used to stop at 40 with no way past: the 41st public
   // binder existed only for someone who searched for it. Each list now remembers where it left
@@ -284,10 +323,14 @@ export default function DiscoverScreen() {
     if (query.trim().length < MIN_QUERY) return;
     const handle = setTimeout(async () => {
       try {
-        const page = await searchBindersPage(query.trim());
+        const [page, ranked] = await Promise.all([
+          searchBindersPage(query.trim()),
+          DISCOVER_V2 ? rankByCards(query.trim()) : Promise.resolve(null),
+        ]);
         if (id !== reqId.current) return; // a newer query superseded this one
         setResults(page.binders);
         setResultsNext(page.next);
+        setCardHits(ranked);
       } catch {
         if (id === reqId.current) setResults([]);
       }
@@ -325,6 +368,23 @@ export default function DiscoverScreen() {
 
   const q = query.trim();
   const searching = q.length >= MIN_QUERY;
+  const pickColour = (sw: (typeof SWATCHES)[number]) => {
+    if (colour?.hex === sw.hex) {
+      setColour(null);
+      setColourHits(null);
+      return;
+    }
+    setColour(sw);
+    setColourHits(null);
+    setQuery('');
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(sw.hex.slice(i, i + 2), 16));
+    searchByColors([{ ...srgbToLab(r, g, b), w: 1 }], 'art', { limit: 400 })
+      .then((ids) => searchBindersByCards(ids))
+      .then((hits) => setColourHits(hits ?? 'unavailable'))
+      .catch(() => setColourHits([]));
+  };
+  // Search results: the card-ranked binders first, then the title/creator matches not already shown.
+  const shownResults = results && cardHits ? [...cardHits, ...results.filter((b) => !cardHits.some((c) => c.id === b.id))] : results;
 
   const loadMoreResults = async () => {
     if (!resultsNext || loadingMore) return;
@@ -385,6 +445,66 @@ export default function DiscoverScreen() {
             style={styles.search}
           />
 
+          {DISCOVER_V2 && isSupabaseConfigured ? (
+            <View style={styles.v2Bar} testID="discover-v2-bar">
+              <View style={styles.v2Row}>
+                <Seg
+                  options={[{ id: 'binders', label: 'Binders' }, { id: 'makers', label: 'Makers' }]}
+                  value="binders"
+                  onChange={(id) => id === 'makers' && setPeopleOpen(true)}
+                />
+                <View style={styles.swatches}>
+                  {SWATCHES.map((sw) => (
+                    <Pressable
+                      key={sw.hex}
+                      onPress={() => pickColour(sw)}
+                      disabled={colour?.hex !== sw.hex && colour !== null && colourHits === null}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Binders in ${sw.name}`}
+                      testID="discover-swatch"
+                      style={[styles.swatch, { backgroundColor: sw.hex }, colour?.hex === sw.hex && styles.swatchOn]}
+                    />
+                  ))}
+                </View>
+              </View>
+              <View style={styles.v2Row}>
+                {THEME_CHIPS.map((t) => (
+                  <Pressable key={t} onPress={() => { setColour(null); setColourHits(null); setQuery(`theme:${t}`); }} accessibilityRole="button" testID="discover-theme" style={[styles.themeChip, q === `theme:${t}` && styles.themeChipOn]}>
+                    <Text style={[styles.themeChipText, q === `theme:${t}` && styles.themeChipTextOn]}>{t}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <PeopleSearch visible={peopleOpen} onClose={() => setPeopleOpen(false)} />
+            </View>
+          ) : null}
+
+          {DISCOVER_V2 && colour && !searching ? (
+            <View style={styles.section} testID="discover-colour">
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+                {`Binders in ${colour.name}`}
+              </ThemedText>
+              {colourHits === null ? (
+                <View style={styles.center}>
+                  <ActivityIndicator />
+                </View>
+              ) : colourHits === 'unavailable' ? (
+                <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+                  Colour search is not ready yet.
+                </ThemedText>
+              ) : colourHits.length === 0 ? (
+                <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+                  No public binders lean that way yet. Try another colour.
+                </ThemedText>
+              ) : (
+                <View style={[styles.grid, { gap: GRID_GAP }]}>
+                  {colourHits.map((b) => (
+                    <BinderThumb key={b.id} binder={b} width={tileW} onPress={() => openBinder(b.id)} />
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : null}
+
           {!isSupabaseConfigured ? (
             <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
               Public binder search isn’t available in this build.
@@ -400,8 +520,13 @@ export default function DiscoverScreen() {
               </ThemedText>
             ) : (
               <>
+                {cardHits && cardHits.length ? (
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.note} testID="discover-ranked-note">
+                    {`Binders with the most “${q}” come first.`}
+                  </ThemedText>
+                ) : null}
                 <View style={[styles.grid, { gap: GRID_GAP }]}>
-                  {results.map((b) => (
+                  {(shownResults ?? results).map((b) => (
                     <BinderThumb key={b.id} binder={b} width={tileW} onPress={() => openBinder(b.id)} />
                   ))}
                 </View>
@@ -586,6 +711,16 @@ export default function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
+  // MIC-017 piece 8: Binders | Makers, colour swatches, theme chips.
+  v2Bar: { gap: 10, marginTop: 10, marginBottom: 6 },
+  v2Row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  swatch: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: 'transparent' },
+  swatchOn: { borderColor: Palette.ink },
+  themeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairlineStrong },
+  themeChipOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  themeChipText: { fontSize: FontSize.sm, color: Palette.ink, fontWeight: '600' },
+  themeChipTextOn: { color: Palette.accentText },
   // The old scroll view's bottom room, for the phone's menu button.
   shellTail: { height: BottomTabInset + Spacing.four },
   h1: { flexShrink: 1 },

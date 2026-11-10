@@ -25,7 +25,7 @@ test('one Pokémon across the sets', () => {
     card('Pikachu V', { types: ['Lightning'], setName: 'C', illustrator: 'Z' }),
   ]);
   assert.equal(t.title, 'Pikachu through the sets');
-  assert.equal(t.description, 'Three cards, all Lightning, by three artists.');
+  assert.equal(t.description, 'Mostly Pikachu. From A, B and C.');
 });
 
 test('one Pokémon by one artist', () => {
@@ -36,10 +36,10 @@ test('one Pokémon by one artist', () => {
 test('a complete evolution line, and a partial one', () => {
   const full = autoPageText([card('Charmander', { evolutionLine: char }), card('Charmeleon', { evolutionLine: char }), card('Charizard', { evolutionLine: char })]);
   assert.equal(full.title, 'The Charmander line, complete');
-  assert.match(full.description, /all Fire/);
+  assert.equal(full.description, 'The Charmander line, every stage. All from Base Set.');
   const part = autoPageText([card('Charmander', { evolutionLine: char }), card('Charizard', { evolutionLine: char }), card('Squirtle', { types: ['Water'] })]);
   assert.equal(part.title, 'The Charmander line');
-  assert.match(part.description, /^Three cards, mostly Fire, by three artists.$/);
+  assert.equal(part.description, 'The Charmander line, two of its three stages. All from Base Set.');
 });
 
 test('a shared scene, a shared type, a shared set', () => {
@@ -57,6 +57,24 @@ test('nothing in common: the names', () => {
   assert.equal(t.title, 'Eevee and Mew');
   const many = autoPageText(['Eevee', 'Mew', 'Snorlax', 'Ditto', 'Abra'].map((n, i) => card(n, { types: [`T${i}`], setName: `S${i}` })));
   assert.equal(many.title, 'Eevee, Mew and 3 more');
+});
+
+test('a description is about the art: lines first, then scenes, then 1-3 rarities and sets (owner 2026-11-10)', () => {
+  const sq = ['squirtle', 'wartortle', 'blastoise'];
+  const bu = ['bulbasaur', 'ivysaur', 'venusaur'];
+  const ir = { rarity: 'Illustration Rare' };
+  const page = [
+    card('Charmander', { ...ir, evolutionLine: char, sceneTags: ['clouds'] }),
+    card('Charmeleon', { ...ir, evolutionLine: char, sceneTags: ['clouds'] }),
+    card('Charizard', { ...ir, evolutionLine: char, sceneTags: ['sky'] }),
+    card('Squirtle', { ...ir, evolutionLine: sq, types: ['Water'], sceneTags: ['ocean'] }),
+    card('Wartortle', { ...ir, evolutionLine: sq, types: ['Water'], sceneTags: ['ocean'] }),
+    card('Blastoise', { ...ir, evolutionLine: sq, types: ['Water'], sceneTags: ['ocean'] }),
+    card('Bulbasaur', { ...ir, evolutionLine: bu, types: ['Grass'], sceneTags: ['jungle'] }),
+    card('Ivysaur', { ...ir, evolutionLine: bu, types: ['Grass'], sceneTags: ['jungle'] }),
+    card('Venusaur', { ...ir, evolutionLine: bu, types: ['Grass'], sceneTags: ['jungle'] }),
+  ].map((c, i) => ({ ...c, setName: `Set ${i}` }));
+  assert.equal(autoPageText(page).description, 'Three evolution lines: Charmander, Squirtle and Bulbasaur. In the art: jungle, ocean and clouds. Illustration Rares only.');
 });
 
 test('no em dashes anywhere', () => {

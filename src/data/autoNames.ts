@@ -24,6 +24,9 @@ export function isFieldLocked(locked: boolean | undefined, text: string | undefi
 /** The fields the rules read; a CatalogCard has them all. */
 export type NameCard = Pick<CatalogCard, 'name' | 'types' | 'illustrator' | 'setName' | 'evolutionLine'> & {
   sceneTags?: readonly string[];
+  /** One sentence about what the art shows (Illustration Rares, from the catalogue). */
+  sceneCaption?: string;
+  rarity?: string;
 };
 
 export interface AutoText {
@@ -128,25 +131,69 @@ export function autoPageText(cards: readonly NameCard[]): AutoText {
     title = f.names.length > 3 ? `${shown.slice(0, 2).join(', ')} and ${f.names.length - 2} more` : list(shown);
   }
 
-  // The description: what the title did not already say, two facts at most.
-  const parts: string[] = [];
-  if (!used.has('line') && f.line && f.line.present >= 2) {
-    parts.push(f.line.present === f.line.stages.length ? `the whole ${cap(f.line.stages[0])} line` : `${numberWord(f.line.present)} of ${numberWord(f.line.stages.length)} ${cap(f.line.stages[0])} stages`);
-  }
-  if (!used.has('type') && f.type.value && share(f.type, f.n) >= DOMINANT && f.n >= 2) parts.push(share(f.type, f.n) === 1 ? `all ${f.type.value}` : `mostly ${f.type.value}`);
-  if (!used.has('artist') && f.artist.value) {
-    if (f.n >= 2 && share(f.artist, f.n) >= DOMINANT) parts.push(`drawn by ${f.artist.value}`);
-    else if (f.artist.distinct >= 3) parts.push(`by ${numberWord(f.artist.distinct)} artists`);
-  }
-  if (!used.has('scene') && sceneCards >= 2 && f.scene.count >= 2 && f.scene.count / sceneCards >= SCENE_SHARE) parts.push(`${f.scene.value} scenes`);
-  if (!used.has('set') && f.set.value) {
-    if (f.n >= 2 && share(f.set, f.n) >= DOMINANT) parts.push(`from ${f.set.value}`);
-    else if (f.set.distinct >= 3) parts.push(`from ${numberWord(f.set.distinct)} sets`);
-  }
-  const lead = `${cap(numberWord(f.n))} card${f.n === 1 ? '' : 's'}`;
-  const description = parts.length ? `${lead}, ${parts.slice(0, 2).join(', ')}.` : f.n === 1 ? `${cap(f.names[0] ?? cards[0].name)}.` : `${lead}: ${list(f.names.slice(0, 4).map(cap))}.`;
-  return { title, description };
+  return { title, description: artDescription(cards) };
 }
+
+/** "Illustration Rare" -> "Illustration Rares"; already plural or empty stays. */
+const plural = (x: string) => (/s$/i.test(x) ? x : `${x}s`);
+
+/**
+ * THE DESCRIPTION IS ABOUT THE ART (owner, 2026-11-10: "focus on describing the art, scenery, most
+ * common character(s) on the page ... Supplementally you can mention rarity, or specific set(s) if
+ * there's only 1-3"). Who is on the page (their evolution lines, or the main characters), then what
+ * the art shows, then the rarity and the sets only when there are one to three of them.
+ */
+export function artDescription(cards: readonly NameCard[]): string {
+  if (!cards.length) return '';
+  const species = cards.map((c) => speciesOf(c as CatalogCard) || c.name.toLowerCase());
+  const sentences: string[] = [];
+
+  // 1. Who: evolution lines with two or more stages here, else the main characters.
+  const lines = new Map<string, { first: string; present: Set<string>; length: number }>();
+  cards.forEach((c, i) => {
+    if (c.evolutionLine.length < 2) return;
+    const key = c.evolutionLine.join('>');
+    const l = lines.get(key) ?? { first: c.evolutionLine[0], present: new Set<string>(), length: c.evolutionLine.length };
+    l.present.add(species[i]);
+    lines.set(key, l);
+  });
+  const shown = [...lines.values()].filter((l) => l.present.size >= 2);
+  const inLines = cards.filter((c) => shown.some((l) => c.evolutionLine[0] === l.first && c.evolutionLine.length === l.length)).length;
+  if (shown.length && inLines * 2 >= cards.length) {
+    const whole = shown.every((l) => l.present.size === l.length);
+    sentences.push(
+      shown.length === 1
+        ? `The ${cap(shown[0].first)} line${whole ? ', every stage' : `, ${numberWord(shown[0].present.size)} of its ${numberWord(shown[0].length)} stages`}.`
+        : `${cap(numberWord(shown.length))} evolution lines: ${list(shown.map((l) => cap(l.first)))}.`,
+    );
+  } else {
+    const t = top(species);
+    if (cards.length >= 2 && t.count / cards.length >= DOMINANT) sentences.push(`Mostly ${cap(t.value)}.`);
+    else {
+      const counts = new Map<string, number>();
+      for (const sp of species) counts.set(sp, (counts.get(sp) ?? 0) + 1);
+      const names = [...counts].sort((x, y) => y[1] - x[1] || species.indexOf(x[0]) - species.indexOf(y[0])).map(([k]) => cap(k));
+      sentences.push(names.length > 3 ? `${names.slice(0, 3).join(', ')} and ${numberWord(names.length - 3)} more.` : `${list(names)}.`);
+    }
+  }
+
+  // 2. The art: the scenes the cards show, most shared first.
+  const sceneCount = new Map<string, number>();
+  for (const c of cards) for (const t of (c.sceneTags ?? []).slice(0, 3)) sceneCount.set(t.toLowerCase(), (sceneCount.get(t.toLowerCase()) ?? 0) + 1);
+  const scenes = [...sceneCount].sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).slice(0, 3).map(([k]) => k);
+  if (scenes.length) sentences.push(`In the art: ${list(scenes)}.`);
+
+  // 3. Rarity and sets, only when there are one to three of them.
+  const rarities = [...new Set(cards.map((c) => c.rarity?.trim() ?? '').filter(Boolean))];
+  if (rarities.length === 1) sentences.push(`${plural(rarities[0])} only.`);
+  else if (rarities.length >= 2 && rarities.length <= 3) sentences.push(`${list(rarities.map(plural))}.`);
+  const sets = [...new Set(cards.map((c) => c.setName).filter(Boolean))];
+  if (sets.length === 1 && cards.length >= 2) sentences.push(`All from ${sets[0]}.`);
+  else if (sets.length >= 2 && sets.length <= 3) sentences.push(`From ${list(sets)}.`);
+
+  return sentences.join(' ');
+}
+
 
 /** The binder's title and description, from every page's cards (pages in order). */
 export function autoBinderText(pages: readonly (readonly NameCard[])[]): AutoText {
@@ -189,9 +236,13 @@ export function factsText(cards: readonly NameCard[], pages = 1): string {
     `Types: ${counts(cards.map((c) => c.types[0] ?? ''))}`,
     `Artists: ${counts(cards.map((c) => c.illustrator.trim()), 3)}`,
     `Sets: ${counts(cards.map((c) => c.setName), 3)}`,
+    `Rarities: ${counts(cards.map((c) => c.rarity?.trim() ?? ''), 3)}`,
   ];
   const scenes = counts(cards.flatMap((c) => (c.sceneTags ?? []).slice(0, 3).map((t) => t.toLowerCase())), 5);
   if (scenes) lines.push(`Scenes in the art: ${scenes}`);
   if (f.line && f.line.present >= 2) lines.push(`Evolution line: ${f.line.stages.map(cap).join(' > ')} (${f.line.present} of ${f.line.stages.length} here)`);
+  // What each card's art shows, where the catalogue has a line for it (the ✨ writes about the art).
+  const captions = cards.filter((c) => c.sceneCaption?.trim()).slice(0, 9).map((c) => `- ${cap(c.name)}: ${c.sceneCaption!.trim().slice(0, 140)}`);
+  if (captions.length) lines.push(['The art on each card:', ...captions].join('\n'));
   return lines.filter((l) => !/: $/.test(l)).join('\n');
 }

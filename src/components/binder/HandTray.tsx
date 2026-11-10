@@ -66,7 +66,10 @@ export function HandTray({
   onQuick,
   dealing,
   note,
+  chevronBottom = 0,
 }: {
+  /** Phone: how far above the screen's bottom the chevron sits (the tool bar's height). */
+  chevronBottom?: number;
   /** What the last deal did ("12 dealt: same type"), beside the title. */
   note?: string | null;
   /** Desktop: one-tap deals shown beside Suggest (members only; BinderScreen decides). */
@@ -188,7 +191,7 @@ export function HandTray({
             Tap Suggest to deal cards, then drag them into pockets.
           </Text>
         ) : (
-          <View ref={areaRef} style={styles.area} onLayout={(e) => setAreaW(Math.floor(e.nativeEvent.layout.width) - 2 * Spacing.three)} testID="hand-cards">
+          <View ref={areaRef} style={[styles.area, phone && styles.areaPhone]} onLayout={(e) => setAreaW(Math.floor(e.nativeEvent.layout.width) - (phone ? Spacing.three + 48 : 2 * Spacing.three))} testID="hand-cards">
             <View style={{ width: L.width, height: L.height + LIFT, alignSelf: 'center' }}>
               {L.rows.map((row, r) =>
                 row.map((i, k) => {
@@ -238,7 +241,10 @@ export function HandTray({
           accessibilityState={{ expanded: tools }}
           accessibilityLabel={tools ? 'Hide the hand controls' : 'Show the hand controls: Suggest, Search, Clear'}
           testID="hand-tools"
-          style={[styles.toolsBtn, bare && styles.toolsBtnBare]}>
+          // ONE PLACE, ALWAYS (owner 2026-11-10: "keeps jumping around ... I like it in the bottom
+          // right"): pinned to the screen's bottom-right corner just above the tool bar, so it
+          // never moves as the hand grows, folds or empties.
+          style={[styles.toolsBtn, Platform.OS === 'web' ? ({ position: 'fixed', bottom: chevronBottom + 8, right: 10 } as unknown as object) : null]}>
           <Text style={styles.toolsBtnText}>{tools ? '▾' : '▴'}</Text>
         </Pressable>
       ) : null}
@@ -256,7 +262,6 @@ const styles = StyleSheet.create({
   // Phone: the hand sits on the page's own ground, close under it (owner 2026-11-10).
   handPhone: { borderTopWidth: 0, backgroundColor: 'transparent', paddingBottom: Spacing.one, minHeight: 40 },
   handBare: { minHeight: 0, height: 0, paddingBottom: 0, overflow: 'visible' },
-  toolsBtnBare: { bottom: undefined, top: -40 },
   headerPhone: { paddingTop: 0, paddingRight: 52 },
   toolsBtn: {
     position: 'absolute',
@@ -284,6 +289,8 @@ const styles = StyleSheet.create({
   btnPrimaryText: { color: Palette.accentText },
   empty: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 17, paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },
   area: { paddingHorizontal: Spacing.three },
+  // Phone: room on the right for the pinned chevron, so it never sits on a card.
+  areaPhone: { paddingRight: 48 },
   card: { position: 'absolute' },
   quick: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: Spacing.two, marginRight: Spacing.one, borderRightWidth: 1, borderRightColor: Palette.hairline },
   note: { fontSize: FontSize.sm, color: Palette.muted, marginLeft: Spacing.two, flexShrink: 1 },

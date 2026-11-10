@@ -25,7 +25,7 @@ const MODEL = 'claude-haiku-5-5';
 const CAP_SUBJECT = 5;
 const CAP_ACCOUNT = 10;
 const CAP_GUEST = 3;
-const MAX_FACTS = 900;
+const MAX_FACTS = 2000;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -37,7 +37,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const SYSTEM = `You suggest names for a collector's digital Pokemon card binder.
 You get plain facts about the cards on one page (or across a whole binder) and write exactly three options for the field asked.
 Titles: 2 to 5 words, title case, no quotation marks, no ending punctuation. Make them specific to these cards and pleasant to read; vary the three (one plain, one playful, one evocative).
-Descriptions: one sentence, at most 120 characters, warm and concrete, about what the cards share.
+Descriptions: two or three sentences, at most 320 characters. Describe the ART first: the scenery, the most common characters and what they are doing, and how the art connects across the cards (for example along an evolution line). Then, only if the facts show one to three rarities or one to three sets, you may add a short note about them. Example of the style: "Three evolution lines for the Kanto starters: Charmander, Squirtle and Bulbasaur. Illustration Rares only. Squirtle sinks deeper into the ocean as he evolves, Charmander rises into the clouds as he becomes Charizard, and Bulbasaur grows into Venusaur in the jungle."
 Rules: no em dashes or en dashes; no emoji; never mention AI, tags, data, or how the binder was made; do not invent cards, people or facts that are not given; English.`;
 
 const SCHEMA = {
@@ -51,7 +51,7 @@ const SCHEMA = {
 function clean(s: string, field: 'title' | 'description'): string {
   let t = s.replace(/[—–]/g, ',').replace(/^["'\s]+|["'\s]+$/g, '').replace(/\s+/g, ' ').trim();
   if (field === 'title') t = t.replace(/[.!]+$/, '').slice(0, 60);
-  else t = t.slice(0, 160);
+  else t = t.slice(0, 360);
   return t;
 }
 

@@ -3488,6 +3488,7 @@ export function BinderScreen({
                 ghostY={ghostY}
                 trayRef={trayRef}
                 onHeight={setHandH}
+                chevronBottom={phoneBarH}
                 quick={handMember && !phone ? HAND_QUICK_DEALS : undefined}
                 onQuick={(k) => dealHand([k], false)}
                 dealing={handDealing}

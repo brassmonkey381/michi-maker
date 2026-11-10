@@ -74,10 +74,12 @@ export function CompletePageSheet({
   const guest = guestGated;
   const { hasFindSimilar: tierFindSimilar } = useTier();
   const { taste } = useBinders();
-  // THE SERVER FILLS, Same theme and Like the whole page, are PRO for a member; a free account
-  // spends a fillPage sample on each pick (owner, 2026-10-30: "3 free uses max too for theme
-  // complete and similar complete"). Previews run while a sample is left; none left locks both.
+  // THE SERVER FILLS: Same theme and Like the whole page answer from the data server.
+  // Like the whole page is PRO for a member; a free account spends a fillPage sample on each pick
+  // (owner, 2026-10-30). Same theme is FREE for every account (owner, 2026-11-10, MIC-004: "free
+  // for everyone, for now"): no sample, no lock. A guest's sheet keeps its one-fill gate.
   const SERVER: readonly CompleteMethod[] = ['theme', 'similar'];
+  const GATED: readonly CompleteMethod[] = ['similar'];
   const serverFills = tierFindSimilar || taste.offer('fillPage');
   const [languages] = useLanguagePref();
   const pageKey = `${page.id}:${hand ?? 0}:${page.slots.map((s) => `${s.id}@${s.row},${s.col}`).join('|')}`;
@@ -113,7 +115,7 @@ export function CompletePageSheet({
     const learn = (cards: readonly CatalogCard[]) => (cat as CardStore).add?.(cards);
     const onPage = guest ? cardsOnPage(page, cat) : [];
     for (const m of methods) {
-      if (SERVER.includes(m) && !serverFills && !guest) continue;
+      if (GATED.includes(m) && !serverFills && !guest) continue;
       const base = {
         similar: (ids: string[], limit: number) => findSimilarToMany(ids, limit, { languages }),
         theme: (ids: string[], limit: number, fullArt: boolean | undefined) => themeFill(ids, limit, { fullArt }),
@@ -150,7 +152,7 @@ export function CompletePageSheet({
   const pick = (m: CompleteMethod, placements: ComposePlacement[]) => {
     // The tap that places a fill spends the sample (a per-use taste): a guest's one fill, or a
     // free account's server fill. The editor shows the toast on the placement.
-    const tasted = guest || (SERVER.includes(m) && !tierFindSimilar);
+    const tasted = guest || (GATED.includes(m) && !tierFindSimilar);
     if (tasted) {
       if (!taste.use('fillPage', 'complete_sheet')) return;
       onTasted?.('fillPage');
@@ -188,7 +190,7 @@ export function CompletePageSheet({
           {COMPLETE_METHODS.filter((m) => methods.includes(m.key)).map((m) => {
             const p = shown?.get(m.key);
             // A guest's one fill covers the server fills too: no lock, no pill, no PRO.
-            const locked = SERVER.includes(m.key) && !serverFills && !guest;
+            const locked = GATED.includes(m.key) && !serverFills && !guest;
             const ready = !!p?.placements;
             const none = ready && p!.placements!.length === 0 && !locked;
             return (

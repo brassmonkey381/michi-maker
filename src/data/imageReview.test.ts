@@ -5,11 +5,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { REVIEW_MODEL, REVIEW_SCHEMA, SAME_PICTURE_BITS, dhashHex, hammingHex, isModelType, noticeText, parseAnswer, renderUrl, samePictureRows, sniffImage, verdictFor } from '../../supabase/functions/image-review/classify.ts';
+import { REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, SAME_PICTURE_BITS, dhashHex, hammingHex, isModelType, noticeText, parseAnswer, renderUrl, samePictureRows, sniffImage, verdictFor } from '../../supabase/functions/image-review/classify.ts';
 
-test('only safe is approved; suggestive is held too (owner default, 2026-11-09)', () => {
+test('safe and suggestive are shown; nudity and porn (explicit) are held (owner, 2026-11-10)', () => {
   assert.equal(verdictFor('safe'), 'approved');
-  assert.equal(verdictFor('suggestive'), 'flagged');
+  assert.equal(verdictFor('suggestive'), 'approved');
+  assert.equal(verdictFor('suggestive', true), 'flagged'); // sexualises a minor: always held
+  assert.equal(verdictFor('explicit', false), 'flagged');
+  assert.match(REVIEW_SYSTEM, /explicit: any nudity/);
   assert.equal(verdictFor('explicit'), 'flagged');
   assert.equal(verdictFor('refused'), 'flagged');
   assert.equal(verdictFor('unchecked'), 'unchecked');

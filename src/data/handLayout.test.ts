@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { COMFORT_SHARE, handLayout, MIN_STRIP_PX } from './handLayout.ts';
+import { handLayout, MIN_STRIP_PX } from './handLayout.ts';
 
 const check = (n: number, w: number, h: number) => {
   const L = handLayout(n, w, h);
@@ -11,28 +11,30 @@ const check = (n: number, w: number, h: number) => {
   if (L.rows[0].length > 1) assert.ok(L.stride >= MIN_STRIP_PX, `strip ${L.stride} >= ${MIN_STRIP_PX}`);
   return L;
 };
-const shown = (L: ReturnType<typeof handLayout>) => Math.min(L.stride, L.cardW) / L.cardW;
 
-test('wide tray, few cards: one row, no overlap', () => {
-  const L = check(8, 1136, 200);
-  assert.equal(L.rows.length, 1);
-  assert.ok(L.cardH >= 190, `${L.cardH}`);
+test('wide and short: one row', () => {
+  assert.equal(check(8, 1136, 200).rows.length, 1);
+  assert.equal(check(24, 1546, 200).rows.length, 1);
   const F = check(4, 1200, 420);
   assert.equal(F.rows.length, 1);
-  assert.ok(F.stride > F.cardW, 'gap between cards');
+  assert.ok(F.stride >= F.cardW, 'no overlap');
 });
 
-test('narrow tray (card browser open), many cards: two rows, no thin slivers', () => {
+test('tall narrow column (card browser open), 24 cards: 2-3 rows of big cards that fill the height', () => {
+  const L = check(24, 620, 440);
+  assert.ok(L.rows.length >= 2 && L.rows.length <= 3, `${L.rows.length} rows`);
+  assert.ok(L.cardW >= 140, `big cards (${L.cardW})`);
+  assert.ok(L.height >= 400, `fills the box (${L.height} of 440)`);
+});
+
+test('narrow and short, many cards: more rows rather than thin slivers', () => {
   const L = check(23, 1068, 200);
   assert.equal(L.rows.length, 2);
-  assert.ok(shown(L) >= COMFORT_SHARE, `shows ${Math.round(shown(L) * 100)}%`);
+  assert.ok(Math.min(L.stride, L.cardW) / L.cardW >= 0.35);
 });
 
-test('free room below the page: more rows of bigger cards', () => {
-  const tight = check(23, 1068, 200);
-  const roomy = check(23, 1068, 440);
-  assert.ok(roomy.cardW > tight.cardW * 1.4, `${roomy.cardW} vs ${tight.cardW}`);
-  assert.ok(shown(roomy) >= COMFORT_SHARE);
+test('cards scale with the room: more room, bigger cards', () => {
+  assert.ok(check(24, 1500, 640).cardW > check(24, 1500, 300).cardW * 1.3);
 });
 
 test('phone 390 stays three rows of small cards with grab strips', () => {

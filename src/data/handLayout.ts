@@ -40,11 +40,13 @@ function rowsOf(n: number, r: number): number[][] {
   return out;
 }
 
-/** A card shows "comfortably" when at least this share of its width is uncovered (owner via Triage,
- *  2026-11-10: more rows rather than thin slivers). Below it, only the 28 px / 28% floor holds. */
-export const COMFORT_SHARE = 0.4;
+/** A card shows "comfortably" when at least this share of its width is uncovered. A layout below it
+ *  counts its card as SLIVER_PENALTY of its size when layouts are compared (owner via Triage,
+ *  2026-11-10: thin slivers are worse than a few more rows). The 28 px / 28% floor always holds. */
+export const COMFORT_SHARE = 0.35;
+export const SLIVER_PENALTY = 0.65;
 /** Tallest a hand card gets, however much room there is. */
-export const MAX_CARD_H = 280;
+export const MAX_CARD_H = 420;
 
 /**
  * @param n cards in the hand
@@ -52,11 +54,12 @@ export const MAX_CARD_H = 280;
  * @param maxH px the cards may use top to bottom (desktop: what is free below the page)
  * @param maxRows most rows to try
  *
- * Tries 1, 2 and 3 rows. A layout where every card shows at least COMFORT_SHARE of itself beats one
- * where they do not; among those, the biggest card wins (fewer rows on a tie). If none is
- * comfortable, the one showing the most of each card wins.
+ * Tries 1 to maxRows rows, each with the biggest card that fits both ways, and picks the biggest
+ * card (owner, 2026-11-10: "let the size of the images scale up/down"), counting a layout whose
+ * cards show less than COMFORT_SHARE of themselves at SLIVER_PENALTY. Fewer rows win a tie. (Only
+ * filtering for comfort picked one row of 16 px cards in a 620 px column: tiny cards barely overlap.)
  */
-export function handLayout(n: number, width: number, maxH: number, maxRows = 3): HandLayout {
+export function handLayout(n: number, width: number, maxH: number, maxRows = 4): HandLayout {
   const empty: HandLayout = { rows: [], cardW: 0, cardH: 0, stride: 0, rowStep: 0, offset: 0, width: 0, height: 0 };
   if (n <= 0 || width <= 0 || maxH <= 0) return empty;
   const tried: { L: HandLayout; comfy: boolean; shown: number }[] = [];
@@ -83,9 +86,6 @@ export function handLayout(n: number, width: number, maxH: number, maxRows = 3):
     });
   }
   if (!tried.length) return empty;
-  const comfy = tried.filter((t) => t.comfy);
-  const pick = comfy.length
-    ? comfy.reduce((a, b) => (b.L.cardW > a.L.cardW ? b : a))
-    : tried.reduce((a, b) => (b.shown > a.shown || (b.shown === a.shown && b.L.cardW > a.L.cardW) ? b : a));
-  return pick.L;
+  const score = (t: (typeof tried)[number]) => t.L.cardW * (t.comfy ? 1 : SLIVER_PENALTY);
+  return tried.reduce((a, b) => (score(b) > score(a) ? b : a)).L;
 }

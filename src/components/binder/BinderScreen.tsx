@@ -23,7 +23,7 @@ import { CompletePageSheet } from '@/components/binder/CompletePageSheet';
 import { ComposeAllSheet } from '@/components/binder/ComposeAllSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import { CardTray } from '@/components/binder/CardTray';
-import { HandTray } from '@/components/binder/HandTray';
+import { HAND_RESERVE_DESKTOP, HandTray } from '@/components/binder/HandTray';
 import { flag } from '@/lib/flags';
 
 /** MIC-017 editor-hand ('dev' flag): the tray becomes a hand of cards under the page. */
@@ -3250,7 +3250,7 @@ export function BinderScreen({
               // estimate of chrome the page component cannot see, wrong by about a hundred pixels,
               // and silently wrong again every time anything was added to the editor's header.
               viewportTop={viewportTop + callerChrome}
-              viewportBottom={(phone && editing && canEdit ? phoneBarH : 0) + (HAND && editing && canEdit ? handH : 0)}
+              viewportBottom={(phone && editing && canEdit ? phoneBarH : 0) + (HAND && editing && canEdit ? (width < 600 ? handH : Math.min(handH, HAND_RESERVE_DESKTOP)) : 0)}
               // A TURN PAST THE LAST PAGE ADDS ONE (owner, 2026-11-05: "moving to the right
               // creates a new page ... up to 1 empty page at the end"): only while editing, and
               // only when the last page holds something, so the binder never trails two blanks.

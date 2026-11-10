@@ -14,8 +14,8 @@
  *
  * Behind the 'editor-hand' dev flag; BinderScreen decides where it sits and owns every store call.
  */
-import { useMemo, useState, type RefObject } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { TrayChip } from '@/components/binder/CardTray';
@@ -25,9 +25,17 @@ import { handLayout } from '@/data/handLayout';
 
 /** Height the cards may use: a little taller than the old tray on desktop, as before on phones. */
 const CARDS_H_DESKTOP = 200;
+/** Desktop: the most the hand's cards may grow to when the window has free room below the page. */
+const CARDS_H_DESKTOP_MAX = 640;
 const CARDS_H_PHONE = 150;
 /** How far a hovered or picked card rises out of the hand. */
 const LIFT = 14;
+/**
+ * What the page budgets for the hand on desktop: header + the base card height + lift + padding.
+ * The hand may grow past this into room the page is not using, but the page never shrinks for it
+ * (that would feed back: a bigger hand, a smaller page, more room, a bigger hand).
+ */
+export const HAND_RESERVE_DESKTOP = 48 + CARDS_H_DESKTOP + LIFT + 8;
 
 /** A small, stable tilt per card, so the hand looks held rather than gridded (-3..3 degrees). */
 function tilt(id: string): number {
@@ -70,7 +78,28 @@ export function HandTray({
 }) {
   const [open, setOpen] = useState(true);
   const ordered = useMemo(() => [...slots].sort((a, b) => a.col - b.col), [slots]);
-  const phone = useWindowDimensions().width < 600;
+  const win = useWindowDimensions();
+  const phone = win.width < 600;
+  // Desktop: where the cards start on screen, so they can use the free room down to the window's
+  // bottom. Re-read a few times a second: the page above resizes (card browser, page turns) without
+  // telling this view, and web onLayout only reports size changes.
+  const areaRef = useRef<View>(null);
+  const [areaTop, setAreaTop] = useState(0);
+  useEffect(() => {
+    if (phone || Platform.OS !== 'web') return;
+    const read = () =>
+      areaRef.current?.measureInWindow((_x, y) => {
+        setAreaTop((t) => (Math.abs(t - y) > 4 ? Math.round(y) : t));
+      });
+    read();
+    const t = setInterval(read, 400);
+    return () => clearInterval(t);
+  }, [phone]);
+  const cardsH = phone
+    ? CARDS_H_PHONE
+    : areaTop > 0
+      ? Math.max(CARDS_H_DESKTOP, Math.min(CARDS_H_DESKTOP_MAX, win.height - areaTop - LIFT - 12))
+      : CARDS_H_DESKTOP;
   const [areaW, setAreaW] = useState(0);
   const [hovered, setHovered] = useState<string | null>(null);
   // Phone: are the hand's controls showing? Folds when cards arrive; opens when the hand empties.
@@ -84,7 +113,7 @@ export function HandTray({
   }
   const showHeader = !phone || tools;
   const showCards = phone ? true : open;
-  const L = useMemo(() => handLayout(ordered.length, areaW, phone ? CARDS_H_PHONE : CARDS_H_DESKTOP), [ordered.length, areaW, phone]);
+  const L = useMemo(() => handLayout(ordered.length, areaW, cardsH), [ordered.length, areaW, cardsH]);
   return (
     <View
       ref={trayRef}
@@ -124,7 +153,7 @@ export function HandTray({
             Tap Suggest to deal cards, then drag them into pockets.
           </Text>
         ) : (
-          <View style={styles.area} onLayout={(e) => setAreaW(Math.floor(e.nativeEvent.layout.width) - 2 * Spacing.three)} testID="hand-cards">
+          <View ref={areaRef} style={styles.area} onLayout={(e) => setAreaW(Math.floor(e.nativeEvent.layout.width) - 2 * Spacing.three)} testID="hand-cards">
             <View style={{ width: L.width, height: L.height + LIFT, alignSelf: 'center' }}>
               {L.rows.map((row, r) =>
                 row.map((i, k) => {

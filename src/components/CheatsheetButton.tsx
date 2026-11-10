@@ -20,6 +20,12 @@ import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View 
 
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
+/** Animated.delay for a LOOP: the stock delay is a timing with isInteraction true, which on web
+ *  holds InteractionManager for the whole pause and freezes every FlatList (MIC-031). */
+function loopPause(ms: number) {
+  return Animated.timing(new Animated.Value(0), { toValue: 1, duration: ms, isInteraction: false, useNativeDriver: false });
+}
+
 /** One halo: expand-and-fade, then a rest long enough that it reads as a heartbeat, not a blink. */
 const PULSE_MS = 1500;
 const REST_MS = 2200;
@@ -51,13 +57,14 @@ export function CheatsheetButton({ onPress }: { onPress: () => void }) {
     const anim = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
+          isInteraction: false,
           toValue: 1,
           duration: PULSE_MS,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-        Animated.timing(pulse, { toValue: 0, duration: 0, useNativeDriver: true }),
-        Animated.delay(REST_MS),
+        Animated.timing(pulse, { isInteraction: false, toValue: 0, duration: 0, useNativeDriver: true }),
+        loopPause(REST_MS),
       ]),
       { iterations: PULSES },
     );

@@ -3575,6 +3575,7 @@ export function BinderScreen({
           // wall uses, so an eligible member gets the free PRO trial in one press rather than a
           // toast pointing at the plans page.
           onThemeLocked={() => capGate.hit(themeSearchWall(store.tier, 'binder_editor'))}
+          onToast={(m) => showToast(m)}
           // The Artwork tab is the slice tray now, so it takes the tray's wiring: the same handlers
           // the bottom tray uses, so a piece behaves identically whichever surface you pick it up
           // from, and the drag ghost is the same one.

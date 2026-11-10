@@ -100,6 +100,16 @@ export async function adminRestoreBinder(binderId: string): Promise<void> {
 }
 
 /**
+ * Restore a taken-down binder as PRIVATE (MIC-029): back for its owner, never for visitors; the
+ * files stay. For adult art that is fine in a private binder but not on a public page.
+ */
+export async function adminRestoreBinderPrivate(binderId: string): Promise<void> {
+  const supabase = requireSupabase();
+  const { error } = await supabase.rpc('admin_restore_binder_private', { p_binder_id: binderId });
+  if (error) throw new Error(`restore as private: ${error.message}`);
+}
+
+/**
  * The profile analogue of a takedown: clear the reported content (bio + avatar). The account is
  * untouched; suspension stays a human decision informed by the strikes ledger.
  */

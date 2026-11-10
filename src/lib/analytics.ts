@@ -20,6 +20,7 @@ import { supabasePublishableKey, supabaseUrl } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { Json } from '@/types/database';
 import { readAuthHop } from '@/lib/authHop';
+import { DEV_MODE } from '@/lib/devMode';
 import { redditFirstCardPlaced, redditSignUp } from '@/lib/redditPixel';
 
 /** This app always reports as 'michi' (tcgscan-app shares the same tables under 'tcgscan'). */
@@ -357,7 +358,7 @@ function beaconEvent(name: string, props: Record<string, unknown>): void {
         'Content-Type': 'application/json',
         Prefer: 'return=minimal',
       },
-      body: JSON.stringify([{ app: APP, name, props: props as Json, session_id: sessionId }]),
+      body: JSON.stringify([{ app: APP, name, props: (DEV_MODE ? { ...props, dev: true } : props) as Json, session_id: sessionId }]),
     }).catch(() => {
       // swallow — best effort on unload
     });
@@ -497,6 +498,7 @@ async function ensureSession(): Promise<string | null> {
             // so a paid arrival is one filter on the events table, not a parse of landing_route.
             props: {
               is_guest: user.isGuest,
+              ...(DEV_MODE ? { dev: true } : {}),
               // The window at session start (analytics-studio, 2026-10-29): only walkthrough.shown
               // carried a width, so phone versus desk was known for the sessions that saw it alone.
               viewport_w: Math.round(Dimensions.get('window').width),
@@ -732,7 +734,10 @@ export function track(name: string, props?: Record<string, unknown>): void {
     // account.created and Reddit's SignUp are one moment (src/lib/redditPixel.ts lists what the
     // page sends). SignUp: account.created, conversionId = the uid. ViewContent: the first card
     // placed on this page load. No-ops without EXPO_PUBLIC_REDDIT_PIXEL_ID or off the web.
-    if (name === 'account.created') redditSignUp(cachedUser?.id);
+    // Dev mode (lib/devMode, MIC-017) is the owner testing: never a conversion Reddit should see.
+    if (DEV_MODE) {
+      // no pixel
+    } else if (name === 'account.created') redditSignUp(cachedUser?.id);
     else if (name === 'card.add' && props?.kind !== 'swap' && props?.kind !== 'seed') redditFirstCardPlaced();
     if (!supabase) return;
     if (!cachedUser) {
@@ -981,7 +986,7 @@ function abandonOpenPromptsBeacon(): void {
     const rows = [...openPrompts].map(([prompt, surface]) => ({
       app: APP,
       name: 'prompt.answered',
-      props: { prompt, surface, response: 'abandoned' } as Json,
+      props: { prompt, surface, response: 'abandoned', ...(DEV_MODE ? { dev: true } : {}) } as Json,
       session_id: sid,
     }));
     openPrompts.clear();
@@ -1100,6 +1105,9 @@ function emit(name: string, props?: Record<string, unknown>, ts?: string): void 
   if (name === 'account.created' && campaignCode && !(props && 'code' in props)) {
     props = { ...props, code: campaignCode };
   }
+  // DEV SESSIONS (MIC-017): every event from a browser in dev mode carries dev:true, so the
+  // studio drops the owner's testing from the funnel the way it drops utm_medium=qa walks.
+  if (DEV_MODE) props = { ...props, dev: true };
   void (async () => {
     try {
       const sid = await ensureSession();

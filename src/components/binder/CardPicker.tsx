@@ -22,6 +22,7 @@ import { useOwnedCards } from '@/hooks/use-owned-cards';
 import type { CatalogCard } from '@/lib/catalog';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { flatChip, sheet } from '@/constants/ui';
+import { cardPictureAction } from '@/lib/cardPicture';
 
 /** Tasteful tonal inserts for filling a pocket with negative space. */
 const INSERT_TONES: { label: string; color: string }[] = [
@@ -135,6 +136,8 @@ interface CardPickerProps {
   onSimilarLocked?: () => void;
   /** A locked theme: typed into the picker's search box. Shown as a toast, never a navigation. */
   onThemeLocked?: () => void;
+  /** The editor's toast, for the card sheet's Share picture (MIC-032). */
+  onToast?: (message: string) => void;
   /** A line drawn above the head, from the first-pocket walkthrough. Absent for everyone else. */
   banner?: ReactNode;
   /** Docked only: the column is tucked away to a rail, so the binder gets the width back. Owned by
@@ -198,6 +201,7 @@ export function CardPicker({
   paletteSeed,
   onSimilarLocked,
   onThemeLocked,
+  onToast,
   collapsed = false,
   onToggleCollapsed,
 }: CardPickerProps) {
@@ -515,6 +519,7 @@ export function CardPicker({
           ownedIds={ownedIds}
           onSimilarLocked={onSimilarLocked}
           onThemeLocked={onThemeLocked}
+          moreCardActions={() => [cardPictureAction('picker', onToast ?? (() => {}))]}
         />
       ) : tab === 'artwork' ? (
         // THE TRAY, not the studio. This tab used to embed the whole Slice Studio, which put the

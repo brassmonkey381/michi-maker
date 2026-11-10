@@ -69,6 +69,7 @@ export function PromoBanner() {
     tx.setValue(0);
     const loop = Animated.loop(
       Animated.timing(tx, {
+        isInteraction: false,
         toValue: -segment,
         duration: SCROLL_MS,
         easing: Easing.linear,

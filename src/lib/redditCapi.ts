@@ -14,6 +14,7 @@
  * lib/analytics and across the OAuth hop) so the conversion attributes to the ad click.
  */
 import { landingCampaignParams } from '@/lib/analytics';
+import { DEV_MODE } from '@/lib/devMode';
 import { supabase } from '@/lib/supabase';
 
 /** A plain sign-up, or an older account seen signing in for the first time after confirming. */
@@ -28,7 +29,7 @@ export function recentlyCreated(user: { created_at?: string | null }, now = Date
 }
 
 export function sendRedditSignUp(uid: string): void {
-  if (!supabase || asked.has(uid)) return;
+  if (!supabase || DEV_MODE || asked.has(uid)) return; // dev mode: the owner testing, not a conversion
   asked.add(uid);
   const clickId = landingCampaignParams()?.rdt_cid;
   void supabase.functions

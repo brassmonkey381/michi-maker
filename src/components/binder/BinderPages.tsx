@@ -547,7 +547,9 @@ export function BinderPages({
   const showSpread = !doubleSided && count > 1 && pageAvailable >= PEEK_MIN_WIDTH;
   // A phone with the strip below the page: let the height fit go under the usual floor rather
   // than run the page under the strip and the footer (see PHONE_DOCK_MIN_WIDTH).
-  const pageFloor = !railLeft && pageAvailable < PEEK_MIN_WIDTH ? PHONE_DOCK_MIN_WIDTH : undefined;
+  // MIC-017 phone-nav (owner, 2026-11-10: "more important to let the binder reach the full width of
+  // the screen"): the phone editor's page takes the whole width and the editor scrolls if it must.
+  const pageFloor = swipeNav && editable ? pageAvailable : !railLeft && pageAvailable < PEEK_MIN_WIDTH ? PHONE_DOCK_MIN_WIDTH : undefined;
   const layout = spreadLayout({
     availableWidth: pageAvailable,
     availableHeight: heightBudget,

@@ -33,8 +33,11 @@ export function PhoneToolBar({
   completeRef,
   onArrange,
   onSettings,
+  undo,
   onLayoutHeight,
 }: {
+  /** MIC-017 phone-nav: Undo takes Settings' place (Settings moves to the header); a long press redoes. */
+  undo?: { onUndo: () => void; onRedo: () => void; canUndo: boolean };
   onAdd: () => void;
   onSelect: () => void;
   selectOn: boolean;
@@ -81,25 +84,30 @@ export function PhoneToolBar({
         <Text style={[styles.word, styles.wordHot]}>Complete</Text>
       </View>
       <Tab glyph="☷" word="Arrange" label="Arrange the cards on this page" onPress={onArrange} testID="tool-arrange" />
-      <Tab glyph="⚙" word="Settings" label="Settings: this page's tools and how the binder looks" onPress={onSettings} testID="binder-settings-btn" />
+      {undo ? (
+        <Tab glyph="↶" word="Undo" label="Undo. Press and hold to redo." onPress={undo.onUndo} onLongPress={undo.onRedo} disabled={!undo.canUndo} testID="tool-undo" />
+      ) : (
+        <Tab glyph="⚙" word="Settings" label="Settings: this page's tools and how the binder looks" onPress={onSettings} testID="binder-settings-btn" />
+      )}
     </View>
   );
 }
 
-const Tab = forwardRef<View, { glyph: string; word: string; label: string; on?: boolean; count?: number; onPress: () => void; testID: string }>(function Tab(
-  { glyph, word, label, on = false, count = 0, onPress, testID },
+const Tab = forwardRef<View, { glyph: string; word: string; label: string; on?: boolean; count?: number; onPress: () => void; onLongPress?: () => void; disabled?: boolean; testID: string }>(function Tab(
+  { glyph, word, label, on = false, count = 0, onPress, onLongPress, disabled = false, testID },
   ref,
 ) {
   return (
     <Pressable
       ref={ref}
       onPress={onPress}
+      onLongPress={onLongPress}
       hitSlop={6}
       accessibilityRole="button"
       accessibilityState={{ selected: on }}
       accessibilityLabel={label}
       testID={testID}
-      style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.tab, pressed && styles.pressed, disabled && { opacity: 0.4 }]}>
       <View style={[styles.icon, on && styles.iconOn]}>
         <Text style={[styles.glyph, on && styles.glyphOn]}>{glyph}</Text>
         {count > 0 ? (

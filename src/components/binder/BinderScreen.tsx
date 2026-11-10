@@ -28,6 +28,8 @@ import { flag } from '@/lib/flags';
 
 /** MIC-017 editor-hand ('dev' flag): the tray becomes a hand of cards under the page. */
 const HAND = flag('editor-hand');
+/** MIC-017 phone-nav: also quiet edit toasts and Undo in the bottom bar on phones. */
+const PHONE_NAV = flag('phone-nav');
 import {
   CARD_PICKER_RAIL_WIDTH,
   CardPicker,
@@ -1170,8 +1172,10 @@ export function BinderScreen({
     cardsWantsPanel && pickerFit === 'docked' ? panels.widths[widthIdx++] : CARD_PICKER_RAIL_WIDTH;
   const artworkWidth =
     artWantsPanel && artworkFit === 'docked' ? panels.widths[widthIdx++] : CARD_PICKER_RAIL_WIDTH;
+  // MIC-017 phone-nav: the phone editor's page runs (nearly) edge to edge (owner, 2026-11-10).
+  const phoneFull = PHONE_NAV && phone && editing;
   const available =
-    width - 32 - (pickerDocked ? pickerWidth : 0) - (artworkDocked ? artworkWidth : 0);
+    width - (phoneFull ? 8 : 32) - (pickerDocked ? pickerWidth : 0) - (artworkDocked ? artworkWidth : 0);
 
   /**
    * WHAT A DRAGGED EDGE IS ALLOWED TO REACH, and what it stores.
@@ -1312,7 +1316,7 @@ export function BinderScreen({
     );
     if (placed === 0) {
       removeSavedSlice(slice.id);
-      showToast('Slice removed from your tray', true);
+      quietToast('Slice removed from your tray', true);
       return;
     }
     setConfirm({
@@ -1553,6 +1557,14 @@ export function BinderScreen({
     );
   };
 
+  // PHONE: no toast for an ordinary edit (a card placed, moved, removed, to or from the tray or
+  // hand). They covered the page while up, and Undo now sits in the bottom bar (owner, 2026-11-10).
+  // Errors and bigger results still use showToast.
+  const quietToast = (message: string, withUndo = false) => {
+    if (PHONE_NAV && phone) return;
+    showToast(message, withUndo);
+  };
+
   const clearMulti = () => setMultiIds((cur) => (cur.size ? new Set() : cur));
 
   // Change page and drop any pocket selection (selection is per-page).
@@ -1732,7 +1744,7 @@ export function BinderScreen({
       const name = cardName ?? resolveCard(cardId)?.name ?? 'Card';
       // Two words (owner, 2026-10-30: "on phone just: Pikachu added"). The pocket number and the
       // next pocket went: the sheet already advances to the next pocket on its own.
-      showToast(phone ? `${name} ${swapped ? 'swapped' : 'added'}${note ?? ''}` : note!, true);
+      quietToast(phone ? `${name} ${swapped ? 'swapped' : 'added'}${note ?? ''}` : note!, true);
     }
   };
 
@@ -1897,7 +1909,7 @@ export function BinderScreen({
     if (!pickerCell) return;
     if (pickToHand) {
       const n = store.addCardsToTray(binder.id, [cardId]);
-      showToast(n ? `In your hand${card?.name ? `: ${card.name}` : ''}` : 'Already in your hand', !!n);
+      quietToast(n ? `In your hand${card?.name ? `: ${card.name}` : ''}` : 'Already in your hand', !!n);
       return;
     }
     const { rows, cols } = footprintForKind(card?.kind ?? resolveCard(cardId)?.kind);
@@ -2005,7 +2017,7 @@ export function BinderScreen({
     store.removeSlot(binder.id, page.id, selectedSlot.id);
     track('pocket.clear', { count: 1 });
     setSelectedSlotId(null);
-    showToast('Pocket cleared', true);
+    quietToast('Pocket cleared', true);
   };
 
   // MERGE AND SPLIT ON THE PAGE (owner, 2026-09-17): two neighbouring pieces of one picture become
@@ -2102,7 +2114,7 @@ export function BinderScreen({
     for (const id of ids) store.removeSlot(binder.id, page.id, id);
     if (ids.length) track('pocket.clear', { count: ids.length });
     closeMultiActions();
-    if (ids.length) showToast(`Cleared ${ids.length} pocket${ids.length === 1 ? '' : 's'}`, true);
+    if (ids.length) quietToast(`Cleared ${ids.length} pocket${ids.length === 1 ? '' : 's'}`, true);
   };
 
   const duplicateMany = () => {
@@ -2201,7 +2213,7 @@ export function BinderScreen({
     if (!selectedSlot) return;
     if (store.moveSlotToTray(binder.id, page.id, selectedSlot.id)) {
       setSelectedSlotId(null);
-      showToast('To the tray', true);
+      quietToast('To the tray', true);
     }
   };
   const handleTrayArm = (slotId: string | null) => {
@@ -2225,13 +2237,13 @@ export function BinderScreen({
   };
   const handleTrayRemove = (slot: DemoSlot) => {
     store.removeTraySlot(binder.id, slot.id);
-    showToast('Removed from the tray', true);
+    quietToast('Removed from the tray', true);
   };
   /** A tray card into a pocket: a free pocket takes it, a one-by-one occupant trades places with it. */
   const landFromTray = (slotId: string, toPage: DemoPage, row: number, col: number) => {
     const r = store.moveSlotFromTray(binder.id, slotId, toPage.id, row, col);
-    if (r === 'moved') showToast('Placed from the tray', true);
-    else if (r === 'swapped') showToast('Swapped with the tray', true);
+    if (r === 'moved') quietToast('Placed from the tray', true);
+    else if (r === 'swapped') quietToast('Swapped with the tray', true);
     else showToast('It does not fit there.');
   };
   /** A tap while a move is armed. True when the tap was spent on the move (landed or refused). */
@@ -2256,7 +2268,7 @@ export function BinderScreen({
       }
       if (samePage) store.swapSlots(binder.id, toPage.id, slot.id, occupant.id);
       else store.moveSlotAcrossPages(binder.id, fromPage.id, slot.id, toPage.id, occupant.row, occupant.col);
-      showToast('Swapped', true);
+      quietToast('Swapped', true);
       return true;
     }
     if (!canPlaceSlot(toPage, { row, col, rowSpan: slot.rowSpan, colSpan: slot.colSpan }, samePage ? slot.id : undefined)) {
@@ -2265,7 +2277,7 @@ export function BinderScreen({
     }
     if (samePage) store.moveSlot(binder.id, toPage.id, slot.id, row, col);
     else store.moveSlotAcrossPages(binder.id, fromPage.id, slot.id, toPage.id, row, col);
-    showToast('Moved', true);
+    quietToast('Moved', true);
     return true;
   };
 
@@ -2340,7 +2352,7 @@ export function BinderScreen({
     if (pickToHand) {
       const n = store.addCardsToTray(binder.id, cardIds);
       closePicker();
-      showToast(`${n} card${n === 1 ? '' : 's'} added to your hand`, true);
+      quietToast(`${n} card${n === 1 ? '' : 's'} added to your hand`, true);
       return;
     }
     // One batch pass, so the cards never collide on a cell — a per-card loop re-read stale state
@@ -2502,7 +2514,7 @@ export function BinderScreen({
       // it springs back. Measured at drop time, because the dock scrolls and resizes.
       trayRef.current?.measureInWindow((x, y, w, h) => {
         if (!w || win.x < x || win.x > x + w || win.y < y || win.y > y + h) return;
-        if (store.moveSlotToTray(binder.id, fromPageId, slotId)) showToast('To the tray', true);
+        if (store.moveSlotToTray(binder.id, fromPageId, slotId)) quietToast('To the tray', true);
       });
       return;
     }
@@ -3105,7 +3117,17 @@ export function BinderScreen({
                 </Pressable>
                 {/* UNDO LIVES UP HERE while editing on a phone: the bar below holds the five
                     tools, and undo is the one a slip needs within one tap. Redo is under More. */}
-                {editing && canEdit ? (
+                {editing && canEdit && PHONE_NAV ? (
+                  // MIC-017 phone-nav: Undo went down to the bottom bar; Settings and Redo live here.
+                  <>
+                    <Pressable onPress={store.redo} disabled={!store.canRedo} hitSlop={8} accessibilityRole="button" accessibilityLabel="Redo" testID="tool-redo">
+                      <Text style={[styles.phoneUndo, !store.canRedo && styles.phoneUndoOff]}>↷</Text>
+                    </Pressable>
+                    <Pressable onPress={() => setSettingsOpen(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Settings: this page's tools and how the binder looks" testID="binder-settings-btn">
+                      <Text style={styles.phoneUndo}>⚙</Text>
+                    </Pressable>
+                  </>
+                ) : editing && canEdit ? (
                   <Pressable onPress={store.undo} disabled={!store.canUndo} hitSlop={8} accessibilityRole="button" accessibilityLabel="Undo" testID="tool-undo">
                     <Text style={[styles.phoneUndo, !store.canUndo && styles.phoneUndoOff]}>↶</Text>
                   </Pressable>
@@ -3184,7 +3206,9 @@ export function BinderScreen({
               // A phone's page is width-bound, so the height budget leaves a band under the strip;
               // the page and strip sit in the middle of it rather than pressed up under the header
               // (owner, 2026-11-05).
-              phone && editing && canEdit && styles.scrollPhoneCentred,
+              phone && editing && canEdit && !phoneFull && styles.scrollPhoneCentred,
+              // Edge to edge, and up under the header: no centring band above the page.
+              phoneFull && styles.scrollPhoneFull,
               pickerDocked && { paddingRight: pickerWidth },
               artworkDocked && { paddingLeft: artworkWidth },
             ]}>
@@ -3353,9 +3377,12 @@ export function BinderScreen({
                 onRemove={handleTrayRemove}
                 onClear={() => {
                   const n = store.clearTray(binder.id);
-                  if (n) showToast(`Hand cleared, ${n} card${n === 1 ? '' : 's'} removed`, true);
+                  if (n) quietToast(`Hand cleared, ${n} card${n === 1 ? '' : 's'} removed`, true);
                 }}
-                onSuggest={() => setHandFillOpen(true)}
+                onSuggest={() => {
+                  if ((binder.tray?.length ?? 0) >= 24) showToast('Your hand is full: 24 cards. Place or clear some first.');
+                  else setHandFillOpen(true);
+                }}
                 onSearch={() => {
                   setPickToHand(true);
                   openPickerAt({ row: 0, col: 0 });
@@ -3435,6 +3462,7 @@ export function BinderScreen({
               completeRef={completeRef}
               onArrange={() => setArrangeOpen(true)}
               onSettings={() => setSettingsOpen(true)}
+              undo={PHONE_NAV ? { onUndo: store.undo, onRedo: store.redo, canUndo: store.canUndo } : undefined}
               onLayoutHeight={setPhoneBarH}
             />
           ) : null}
@@ -3650,7 +3678,7 @@ export function BinderScreen({
                 onToggleLarge={() => view.setPref('trayLarge', !view.trayLarge)}
                 onClear={() => {
                   const n = store.clearTray(binder.id);
-                  if (n) showToast(`Tray cleared, ${n} card${n === 1 ? '' : 's'} removed`, true);
+                  if (n) quietToast(`Tray cleared, ${n} card${n === 1 ? '' : 's'} removed`, true);
                 }}
                 ghostOn={ghostOn}
                 ghostX={ghostX}
@@ -3700,11 +3728,12 @@ export function BinderScreen({
           <CompletePageSheet
             visible={handFillOpen}
             page={page}
-            hand={24}
+            hand={Math.max(1, 24 - (binder.tray?.length ?? 0))}
+            handHas={new Set((binder.tray ?? []).map((s) => s.cardId).filter((id): id is string => !!id))}
             onClose={() => setHandFillOpen(false)}
             onPlaced={(placements, label) => {
               const n = store.addCardsToTray(binder.id, placements.map((p) => p.cardId).filter((id): id is string => !!id).slice(0, 24));
-              showToast(n ? `${n} card${n === 1 ? '' : 's'} dealt to your hand: ${label}` : 'Those cards are already in your hand', true);
+              quietToast(n ? `${n} card${n === 1 ? '' : 's'} dealt to your hand: ${label}` : 'Those cards are already in your hand', true);
             }}
             onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
             onTasted={onSheetTasted}
@@ -4735,6 +4764,7 @@ const styles = StyleSheet.create({
   // anyway. The page's own breathing room is reserved inside the height budget where it belongs.
   scroll: { paddingHorizontal: 16 },
   scrollPhoneCentred: { flexGrow: 1, justifyContent: 'center' },
+  scrollPhoneFull: { paddingHorizontal: 4 },
   // Detail fields share one centred column (matches the edit-tools card) so the editable
   // chrome reads as a single organised stack instead of page-wide boxes.
   toolsCard: {

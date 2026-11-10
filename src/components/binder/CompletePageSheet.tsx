@@ -47,9 +47,12 @@ export function CompletePageSheet({
   onSimilarLocked,
   onTasted,
   hand,
+  handHas,
 }: {
   /** MIC-017 hand: deal this many cards to the hand instead of filling the empty pockets. */
   hand?: number;
+  /** Cards already in the hand: left out, so each fill's count is what actually lands. */
+  handHas?: ReadonlySet<string>;
   visible: boolean;
   page: DemoPage;
   onClose: () => void;
@@ -124,7 +127,10 @@ export function CompletePageSheet({
       run
         .then((placements) => {
           if (!active) return;
-          byMethod.set(m, { method: m, placements });
+          // The hand: never more than the room left, never a card it already holds (owner,
+          // 2026-11-10: the sheet showed ~33 for some fills while 24 landed).
+          const dealt = hand ? placements.filter((p) => !p.cardId || !handHas?.has(p.cardId)).slice(0, hand) : placements;
+          byMethod.set(m, { method: m, placements: dealt });
           setPreviews({ key: pageKey, byMethod: new Map(byMethod) });
         })
         .catch(() => {
@@ -207,7 +213,7 @@ export function CompletePageSheet({
                 <ThemedText type="small" themeColor="textSecondary" numberOfLines={2} style={styles.cardDesc}>
                   {locked ? (m.key === 'theme' ? 'The scene these cards share, for the whole page.' : 'Find Similar, for the whole page at once.') : none ? (p?.failed ? 'Could not reach the server.' : m.key === 'theme' ? 'No scene two of these cards share, or the server does not have theme fill yet.' : 'Nothing found for this page.') : m.description}
                 </ThemedText>
-                {ready && p!.placements!.length > 0 && p!.placements!.length < empties ? (
+                {!hand && ready && p!.placements!.length > 0 && p!.placements!.length < empties ? (
                   <ThemedText type="small" themeColor="textSecondary" style={styles.cardDesc}>
                     Fills {p!.placements!.length} of {empties} pockets.
                   </ThemedText>

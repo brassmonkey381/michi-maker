@@ -112,13 +112,16 @@ export function HandTray({
     else if (n === 0) setTools(true);
   }
   const showHeader = !phone || tools;
+  // Phone, folded and empty: the hand takes no height at all; only its chevron shows, over the
+  // page's bottom-right corner (owner, 2026-11-10).
+  const bare = phone && !tools && n === 0;
   const showCards = phone ? true : open;
   const L = useMemo(() => handLayout(ordered.length, areaW, cardsH), [ordered.length, areaW, cardsH]);
   return (
     <View
       ref={trayRef}
       collapsable={false}
-      style={[styles.hand, phone && styles.handPhone]}
+      style={[styles.hand, phone && styles.handPhone, bare && styles.handBare]}
       testID="editor-hand"
       onLayout={(e) => onHeight(Math.round(e.nativeEvent.layout.height))}>
       {showHeader ? (
@@ -203,7 +206,7 @@ export function HandTray({
           accessibilityState={{ expanded: tools }}
           accessibilityLabel={tools ? 'Hide the hand controls' : 'Show the hand controls: Suggest, Search, Clear'}
           testID="hand-tools"
-          style={styles.toolsBtn}>
+          style={[styles.toolsBtn, bare && styles.toolsBtnBare]}>
           <Text style={styles.toolsBtnText}>{tools ? '▾' : '▴'}</Text>
         </Pressable>
       ) : null}
@@ -220,6 +223,8 @@ const styles = StyleSheet.create({
   },
   // Phone: the hand sits on the page's own ground, close under it (owner 2026-11-10).
   handPhone: { borderTopWidth: 0, backgroundColor: 'transparent', paddingBottom: Spacing.one, minHeight: 40 },
+  handBare: { minHeight: 0, height: 0, paddingBottom: 0, overflow: 'visible' },
+  toolsBtnBare: { bottom: undefined, top: -40 },
   headerPhone: { paddingTop: 0, paddingRight: 52 },
   toolsBtn: {
     position: 'absolute',

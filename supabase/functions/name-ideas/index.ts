@@ -110,12 +110,13 @@ Deno.serve(async (req) => {
   try {
     const res = await ai.messages.create({
       model: MODEL,
-      max_tokens: 300,
+      max_tokens: field === 'description' ? 1000 : 250,
       thinking: { type: 'disabled' },
       system: SYSTEM,
       output_config: { format: { type: 'json_schema', schema: SCHEMA as unknown as Record<string, unknown> } },
       messages: [{ role: 'user', content: `${ASK[field](kind)}\n\nFacts:\n${facts}` }],
     });
+    if (res.stop_reason !== 'end_turn') console.warn('[name-ideas] stop_reason', res.stop_reason, field);
     const text = res.content.find((c) => c.type === 'text');
     const parsed = text && text.type === 'text' ? (JSON.parse(text.text) as { options?: unknown }) : null;
     options = Array.isArray(parsed?.options)

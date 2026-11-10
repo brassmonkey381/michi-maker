@@ -618,7 +618,7 @@ export function CardBrowse({
           if (e.type !== 'searched') return;
           trackSimilarWordsSearched({ game: e.game, surface: onPickCard ? 'binder_editor' : 'home', expanded: e.expanded, hits: e.hits });
         }}
-        themeSearchLabel={compactHeader ? 'Theme 🎲' : `Theme: ${demoTheme}`}
+        themeSearchLabel={compactHeader ? (dock && phone ? 'Theme' : 'Theme 🎲') : `Theme: ${demoTheme}`}
         compactHeader={compactHeader}
         // MIC-017 piece 5 ('browse-dock'): thumb dock, results as binder pages, no-results that explain.
         dock={compactHeader && dock}

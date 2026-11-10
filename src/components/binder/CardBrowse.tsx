@@ -50,6 +50,8 @@ const DEMO_PRESSES_BEFORE_OFFER = 5;
 
 /** Target card-thumbnail width (px) — larger ⇒ fewer, bigger cards (≈ binder size). */
 export const CARD_BROWSE_TILE_WIDTH = 140;
+/** The hand's search (MIC-017 part 2): about two more cards per row in the side panel. */
+export const CARD_BROWSE_TILE_WIDTH_DENSE = 96;
 /** Series/set art tile height (px) — tall so the cover art (which fills the tile) reads big. */
 export const CARD_BROWSE_TAX_TILE_HEIGHT = 250;
 
@@ -69,7 +71,10 @@ export function CardBrowse({
   onSimilarLocked,
   onThemeLocked,
   touchControls = false,
+  dense = false,
 }: {
+  /** Smaller card tiles, more per row (MIC-017: the editor hand's search, desktop). */
+  dense?: boolean;
   /** Null while the catalog is still loading — CatalogBrowser then runs cold (server search). */
   catalog: Catalog | null;
   onPickCard?: (cardId: string, card?: CatalogCard) => void;
@@ -587,7 +592,7 @@ export function CardBrowse({
           else setEnergyOpen(true);
         }}
         footer={null}
-        cardTileWidth={CARD_BROWSE_TILE_WIDTH}
+        cardTileWidth={dense ? CARD_BROWSE_TILE_WIDTH_DENSE : CARD_BROWSE_TILE_WIDTH}
         taxTileHeight={CARD_BROWSE_TAX_TILE_HEIGHT}
       />
       )}

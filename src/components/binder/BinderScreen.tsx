@@ -126,6 +126,8 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
 import { track, type CardAddVia } from '@/lib/analytics';
+import { AUTO_DEAL_ORDER, dealToHand, HAND_QUICK_DEALS } from '@/data/handDeal';
+import { useLanguagePref } from '@/store/languagePref';
 import { buildPageImage, canCopyPicture, copyPictureToClipboard, pageImageFileName, sharePageImage } from '@/lib/pageImage';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
@@ -367,6 +369,12 @@ export function BinderScreen({
   // MIC-017 hand: the picker is open to fill the hand (each pick lands in the tray, the sheet stays).
   const [pickToHand, setPickToHand] = useState(false);
   const [handFillOpen, setHandFillOpen] = useState(false);
+  // MIC-017 hand part 2: the one-tap deal running now, and the pages already dealt to by itself.
+  const [handDealing, setHandDealing] = useState<string | null>(null);
+  // What the last deal did, shown in the hand's bar (no toast over the page).
+  const [handNote, setHandNote] = useState<string | null>(null);
+  const autoDealtRef = useRef<Set<string>>(new Set());
+  const [handLanguages] = useLanguagePref();
   const [handH, setHandH] = useState(0);
   // A placement waiting on "which copy?" - held whole, because the answer arrives from a sheet
   // that does not know the pocket, the footprint, or whether we are still adding.
@@ -1072,6 +1080,52 @@ export function BinderScreen({
     // hanging over empty space. Page count and index are in here for exactly that.
   }, [wantRing, wantPlaced, wantSearch, ringPage, binder?.pages.length, pageIndex, width, artworkOpen, cardsCollapsed]);
 
+  // THE AUTOMATIC DEAL (MIC-017 hand part 2, desktop, members): opening a page that has cards
+  // while the hand is empty deals it the first free fill that finds anything (type, then artist,
+  // then lines). Once per page per visit, so clearing the hand does not refill it.
+  const autoPage = binder ? binder.pages[Math.min(pageIndex, binder.pages.length - 1)] : undefined;
+  // THE HAND'S ONE-TAP DEALS (MIC-017 part 2, desktop, members): a free fill straight into the
+  // hand, no sheet (data/handDeal). `auto` tries each fill in turn until one finds cards.
+  const handMember = store.tier !== 'guest';
+  const dealHand = (methods: readonly string[], auto: boolean) => {
+    if (!binder || !autoPage) return;
+    const room = 24 - (binder.tray?.length ?? 0);
+    if (room <= 0) {
+      if (!auto) setHandNote('Your hand is full: 24 cards');
+      return;
+    }
+    const have = new Set((binder.tray ?? []).map((s) => s.cardId).filter((id): id is string => !!id));
+    const forPage = autoPage;
+    const binderId = binder.id;
+    setHandDealing(auto ? 'auto' : methods[0]);
+    setHandNote(auto ? 'Dealing cards that fit this page…' : null);
+    (async () => {
+      for (const m of methods) {
+        const ids = await dealToHand(m as (typeof AUTO_DEAL_ORDER)[number], forPage, room, have, handLanguages).catch(() => [] as string[]);
+        if (!ids.length) continue;
+        const n = store.addCardsToTray(binderId, ids);
+        track('autofill.run', { method: m, placed: n, guest: false, taste: false, source: 'server', sheet: auto ? 'hand_auto' : 'hand' });
+        const label = HAND_QUICK_DEALS.find((q) => q.key === m)?.label.toLowerCase() ?? m;
+        setHandNote(`${n} dealt: same ${label}`);
+        return;
+      }
+      setHandNote(auto ? null : 'Nothing found for that; try Suggest');
+    })().finally(() => setHandDealing(null));
+  };
+  const autoKey =
+    HAND && editing && width >= PHONE_MAX_WIDTH && store.tier !== 'guest' && binder && !binder.isExample && !binder.isDemo && !(binder.tray?.length) && autoPage?.slots.some((s) => s.cardId)
+      ? autoPage.id
+      : null;
+  useEffect(() => {
+    if (!autoKey) return;
+    const t = setTimeout(() => {
+      if (autoDealtRef.current.has(autoKey)) return;
+      autoDealtRef.current.add(autoKey);
+      dealHand(AUTO_DEAL_ORDER, true);
+    }, 900);
+    return () => clearTimeout(t);
+  }, [autoKey]);
+
   if (!binder) {
     return (
       <ThemedView style={styles.flex}>
@@ -1566,6 +1620,7 @@ export function BinderScreen({
   };
 
   const clearMulti = () => setMultiIds((cur) => (cur.size ? new Set() : cur));
+
 
   // Change page and drop any pocket selection (selection is per-page).
   //
@@ -3392,6 +3447,10 @@ export function BinderScreen({
                 ghostY={ghostY}
                 trayRef={trayRef}
                 onHeight={setHandH}
+                quick={handMember && !phone ? HAND_QUICK_DEALS : undefined}
+                onQuick={(k) => dealHand([k], false)}
+                dealing={handDealing}
+                note={handNote}
               />
             ) : null}
 
@@ -3637,6 +3696,7 @@ export function BinderScreen({
           trayCount={keptArtworks}
           trayLimit={store.limits.artUploads}
           guest={store.tier === 'guest'}
+          dense={HAND && pickToHand && !phone}
           onPickInsert={handlePickInsert}
           onPickPictureInsert={(url, attribution, rs, cs) => {
             if (placePictureInsert(url, attribution, rs, cs)) closePicker();

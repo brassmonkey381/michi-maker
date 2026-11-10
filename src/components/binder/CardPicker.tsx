@@ -118,6 +118,8 @@ interface CardPickerProps {
   trayHead?: ReactNode;
   /** Guests can't keep artworks (cap 0): the studio shows a sign-in note, not an upgrade pitch. */
   guest?: boolean;
+  /** A denser card grid (MIC-017: picking for the editor hand on desktop). */
+  dense?: boolean;
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
   /**
    * A PICTURE INSERT (owner, 2026-11-03: "allow uploading as inserts too"): an upload of your own
@@ -177,6 +179,7 @@ export function CardPicker({
   trayLimit,
   trayHead,
   guest,
+  dense = false,
   armedSliceId,
   onArmSlice,
   onSliceDragStart,
@@ -513,6 +516,7 @@ export function CardPicker({
           onPickCard={onPickCard}
           onPickVUnion={onPickVUnion}
           onPickCards={onPickCards}
+          dense={dense}
           quickAction={quickPlace}
           initialSimilar={initialSimilar}
           paletteSeed={paletteSeed}

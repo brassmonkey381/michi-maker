@@ -12,6 +12,9 @@
  * chevron at its bottom-right. They fold away by themselves when cards arrive (a search or a
  * Suggest finishing), and start open while the hand is empty so Suggest can be found.
  *
+ * DESKTOP BAR (part 2): one-tap deals beside Suggest (Type, Artist, Lines: free, no sheet, see
+ * data/handDeal), and Suggest keeps the full sheet with the PRO fills and the palette.
+ *
  * Behind the 'editor-hand' dev flag; BinderScreen decides where it sits and owns every store call.
  */
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
@@ -59,7 +62,18 @@ export function HandTray({
   ghostY,
   trayRef,
   onHeight,
+  quick,
+  onQuick,
+  dealing,
+  note,
 }: {
+  /** What the last deal did ("12 dealt: same type"), beside the title. */
+  note?: string | null;
+  /** Desktop: one-tap deals shown beside Suggest (members only; BinderScreen decides). */
+  quick?: readonly { key: string; label: string; hint: string }[];
+  onQuick?: (key: string) => void;
+  /** The deal running now, if any: its button shows it, and every deal button waits. */
+  dealing?: string | null;
   slots: readonly DemoSlot[];
   armedId: string | null;
   onArm: (slotId: string | null) => void;
@@ -132,9 +146,27 @@ export function HandTray({
         <Pressable onPress={() => setOpen((o) => !o)} hitSlop={6} accessibilityRole="button" accessibilityState={{ expanded: open }} style={styles.titleBtn}>
           <Text style={styles.title}>Hand{ordered.length ? ` · ${ordered.length}` : ''}</Text>
           <Text style={styles.chevron}>{open ? '▾' : '▸'}</Text>
+          {note ? <Text style={styles.note} numberOfLines={1} testID="hand-note">{note}</Text> : null}
         </Pressable>
         )}
         <View style={styles.actions}>
+          {!phone && quick?.length ? (
+            <View style={styles.quick} testID="hand-quick">
+              <Text style={styles.quickLabel}>Deal</Text>
+              {quick.map((q) => (
+                <Pressable
+                  key={q.key}
+                  disabled={!!dealing}
+                  onPress={() => onQuick?.(q.key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Deal: ${q.hint}`}
+                  testID={`hand-deal-${q.key}`}
+                  style={[styles.btn, styles.quickBtn, dealing === q.key && styles.quickBtnBusy, !!dealing && dealing !== q.key && styles.quickBtnWait]}>
+                  <Text style={styles.btnText}>{dealing === q.key ? `${q.label}…` : q.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
           <Pressable onPress={onSuggest} style={[styles.btn, styles.btnPrimary]} accessibilityRole="button" testID="hand-suggest">
             <Text style={[styles.btnText, styles.btnPrimaryText]}>✦ Suggest</Text>
           </Pressable>
@@ -253,4 +285,10 @@ const styles = StyleSheet.create({
   empty: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 17, paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },
   area: { paddingHorizontal: Spacing.three },
   card: { position: 'absolute' },
+  quick: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: Spacing.two, marginRight: Spacing.one, borderRightWidth: 1, borderRightColor: Palette.hairline },
+  note: { fontSize: FontSize.sm, color: Palette.muted, marginLeft: Spacing.two, flexShrink: 1 },
+  quickLabel: { fontSize: FontSize.sm, color: Palette.muted, fontWeight: Weight.semibold },
+  quickBtn: { borderWidth: 1, borderColor: Palette.hairline },
+  quickBtnBusy: { borderColor: Palette.accent },
+  quickBtnWait: { opacity: 0.5 },
 });

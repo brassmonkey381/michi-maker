@@ -77,16 +77,17 @@ export function useAutoNames(binder: DemoBinder | undefined, pageIndex: number, 
       if (!known[i] || !pageCards[i].length) return;
       const t = autoPageText(pageCards[i]);
       const patch: Partial<DemoPage> = {};
-      if (!isFieldLocked(p.titleLocked, p.title) && t.title && t.title !== p.title) patch.title = t.title;
-      if (!isFieldLocked(p.descriptionLocked, p.description) && t.description && t.description !== p.description) patch.description = t.description;
+      // The words AND an explicit false: a field the app filled must still read as the app's.
+      if (!isFieldLocked(p.titleLocked, p.title) && t.title && (t.title !== p.title || p.titleLocked !== false)) Object.assign(patch, { title: t.title, titleLocked: false });
+      if (!isFieldLocked(p.descriptionLocked, p.description) && t.description && (t.description !== p.description || p.descriptionLocked !== false)) Object.assign(patch, { description: t.description, descriptionLocked: false });
       if (Object.keys(patch).length) pages[p.id] = patch;
     });
     let binderPatch: Partial<DemoBinder> | null = null;
     if (known.every(Boolean) && pageCards.some((c) => c.length)) {
       const t = autoBinderText(pageCards);
       const patch: Partial<DemoBinder> = {};
-      if (!isFieldLocked(binder.titleLocked, binder.title) && t.title && t.title !== binder.title) patch.title = t.title;
-      if (!isFieldLocked(binder.descriptionLocked, binder.description) && t.description && t.description !== binder.description) patch.description = t.description;
+      if (!isFieldLocked(binder.titleLocked, binder.title) && t.title && (t.title !== binder.title || binder.titleLocked !== false)) Object.assign(patch, { title: t.title, titleLocked: false });
+      if (!isFieldLocked(binder.descriptionLocked, binder.description) && t.description && (t.description !== binder.description || binder.descriptionLocked !== false)) Object.assign(patch, { description: t.description, descriptionLocked: false });
       if (Object.keys(patch).length) binderPatch = patch;
     }
     return binderPatch || Object.keys(pages).length ? { binder: binderPatch, pages } : null;

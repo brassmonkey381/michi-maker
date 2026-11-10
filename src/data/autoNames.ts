@@ -136,7 +136,7 @@ export function autoPageText(cards: readonly NameCard[]): AutoText {
   if (!used.has('type') && f.type.value && share(f.type, f.n) >= DOMINANT && f.n >= 2) parts.push(share(f.type, f.n) === 1 ? `all ${f.type.value}` : `mostly ${f.type.value}`);
   if (!used.has('artist') && f.artist.value) {
     if (f.n >= 2 && share(f.artist, f.n) >= DOMINANT) parts.push(`drawn by ${f.artist.value}`);
-    else if (f.artist.distinct >= 3) parts.push(`${numberWord(f.artist.distinct)} artists`);
+    else if (f.artist.distinct >= 3) parts.push(`by ${numberWord(f.artist.distinct)} artists`);
   }
   if (!used.has('scene') && sceneCards >= 2 && f.scene.count >= 2 && f.scene.count / sceneCards >= SCENE_SHARE) parts.push(`${f.scene.value} scenes`);
   if (!used.has('set') && f.set.value) {
@@ -144,7 +144,7 @@ export function autoPageText(cards: readonly NameCard[]): AutoText {
     else if (f.set.distinct >= 3) parts.push(`from ${numberWord(f.set.distinct)} sets`);
   }
   const lead = `${cap(numberWord(f.n))} card${f.n === 1 ? '' : 's'}`;
-  const description = parts.length ? `${lead}: ${list(parts.slice(0, 2))}.` : f.n === 1 ? `${cap(f.names[0] ?? cards[0].name)}.` : `${lead}: ${list(f.names.slice(0, 4).map(cap))}.`;
+  const description = parts.length ? `${lead}, ${parts.slice(0, 2).join(', ')}.` : f.n === 1 ? `${cap(f.names[0] ?? cards[0].name)}.` : `${lead}: ${list(f.names.slice(0, 4).map(cap))}.`;
   return { title, description };
 }
 

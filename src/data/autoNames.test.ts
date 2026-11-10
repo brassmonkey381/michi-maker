@@ -25,7 +25,7 @@ test('one Pokémon across the sets', () => {
     card('Pikachu V', { types: ['Lightning'], setName: 'C', illustrator: 'Z' }),
   ]);
   assert.equal(t.title, 'Pikachu through the sets');
-  assert.equal(t.description, 'Three cards: all Lightning and three artists.');
+  assert.equal(t.description, 'Three cards, all Lightning, by three artists.');
 });
 
 test('one Pokémon by one artist', () => {
@@ -39,7 +39,7 @@ test('a complete evolution line, and a partial one', () => {
   assert.match(full.description, /all Fire/);
   const part = autoPageText([card('Charmander', { evolutionLine: char }), card('Charizard', { evolutionLine: char }), card('Squirtle', { types: ['Water'] })]);
   assert.equal(part.title, 'The Charmander line');
-  assert.match(part.description, /^Three cards: mostly Fire and three artists.$/);
+  assert.match(part.description, /^Three cards, mostly Fire, by three artists.$/);
 });
 
 test('a shared scene, a shared type, a shared set', () => {

@@ -130,6 +130,208 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-10',
+    title: "Shorter tips, a share picture for any card, safer public binders",
+    items: [
+      {
+        products: ['michi'],
+        head: "Share any card as a picture",
+        kind: 'new',
+        area: 'sharing',
+        big: true,
+        pinned: true,
+        body: "Share picture is on every card sheet: Browse, Add to pocket and the new-binder wizard.",
+      },
+      {
+        products: ['michi'],
+        head: "Shorter first-run tips",
+        kind: 'better',
+        area: 'binders',
+        body: "Every walkthrough step and editor tip is now one short line.",
+      },
+      {
+        products: ['michi'],
+        head: "A safety check for public binders",
+        kind: 'new',
+        area: 'sharing',
+        body: "Pictures in public binders get a quick check; a held page shows you a note in the editor.",
+      },
+      {
+        products: ['michi'],
+        head: "Add to pocket keeps loading",
+        kind: 'fix',
+        area: 'browse',
+        body: "The card grid in Add to pocket keeps drawing as you scroll.",
+      },
+    ],
+  },
+  {
+    date: '2026-11-08',
+    title: "Theme search finds similar words, clearer sharing",
+    items: [
+      {
+        products: ['michi'],
+        head: "Theme search understands similar words",
+        kind: 'better',
+        area: 'browse',
+        big: true,
+        pinned: true,
+        body: "A theme word also finds its close synonyms in Browse; put it in quotes for the exact word.",
+      },
+      {
+        products: ['michi'],
+        head: "Sharing says who can see a binder",
+        kind: 'fix',
+        area: 'sharing',
+        body: "The Share panel says who can really see it, with a one-tap fix for a private profile.",
+      },
+      {
+        products: ['michi'],
+        head: "Email sign-in keeps the code box open",
+        kind: 'fix',
+        area: 'account',
+        body: "After Email me a code, the sign-in sheet stays up with the code field.",
+      },
+    ],
+  },
+  {
+    date: '2026-11-06',
+    title: "Pages and cards as pictures, a shorter phone home",
+    items: [
+      {
+        products: ['michi'],
+        head: "A page as a full-size picture",
+        kind: 'new',
+        area: 'sharing',
+        body: "The Share panel makes this page a full-resolution picture with our mark.",
+      },
+      {
+        products: ['michi'],
+        head: "A card as a picture, with its price",
+        kind: 'new',
+        area: 'sharing',
+        body: "From a card sheet: the card, its price, today’s date and the illustrator.",
+      },
+      {
+        products: ['michi'],
+        head: "A shorter home page on phones",
+        kind: 'better',
+        area: 'account',
+        body: "One header row, one row of quick chips, and the feeds folded.",
+      },
+      {
+        products: ['michi'],
+        head: "H shows the keyboard shortcuts",
+        kind: 'new',
+        area: 'binders',
+        body: "Press H in the editor to show or hide the shortcuts card.",
+      },
+    ],
+  },
+  {
+    date: '2026-11-05',
+    title: "A phone editor and a new-binder wizard",
+    items: [
+      {
+        products: ['michi'],
+        head: "A tool bar for the phone editor",
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body: "Add, Multi-select, Complete, Arrange and Settings along the bottom of the screen.",
+      },
+      {
+        products: ['michi'],
+        head: "A new-binder wizard",
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body: "Start from one Pokémon, one set, one artist, or three cards you like.",
+      },
+      {
+        products: ['michi'],
+        head: "You bring the art",
+        kind: 'better',
+        area: 'binders',
+        body: "Add art is Upload, Free photos or a pasted link; card scans are no longer offered as pictures.",
+      },
+      {
+        products: ['michi'],
+        head: "Small or large tray pictures",
+        kind: 'better',
+        area: 'binders',
+        body: "Switch the card tray’s picture size from its header.",
+      },
+    ],
+  },
+  {
+    date: '2026-11-04',
+    title: "Mats, picture inserts and a longer Discover",
+    items: [
+      {
+        products: ['michi'],
+        head: "Design your mats",
+        kind: 'new',
+        area: 'binders',
+        body: "The art window mat has its own options, and page backgrounds and mats take a picture.",
+      },
+      {
+        products: ['michi'],
+        head: "Picture inserts",
+        kind: 'new',
+        area: 'binders',
+        body: "The Inserts tab offers a Picture insert: your upload, at the shape you pick.",
+      },
+      {
+        products: ['michi'],
+        head: "Discover keeps going",
+        kind: 'better',
+        area: 'browse',
+        body: "The public shelf loads more at its end, and coming back keeps your place.",
+      },
+    ],
+  },
+  {
+    date: '2026-11-02',
+    title: "Delete your account, find binders by page titles",
+    items: [
+      {
+        products: ['michi'],
+        head: "Delete account",
+        kind: 'new',
+        area: 'account',
+        body: "In the account sheet, behind a typed DELETE.",
+      },
+      {
+        products: ['michi'],
+        head: "Search binders by page titles",
+        kind: 'better',
+        area: 'browse',
+        body: "My Binders and Discover also match the titles of a binder’s pages.",
+      },
+    ],
+  },
+  {
+    date: '2026-10-30',
+    title: "Try PRO features free, smoother sign-in",
+    items: [
+      {
+        products: ['michi'],
+        head: "Try each PRO feature free",
+        kind: 'new',
+        area: 'account',
+        body: "Free accounts get a few uses of each PRO feature before the plans page.",
+      },
+      {
+        products: ['michi'],
+        head: "Sign-in brings you back",
+        kind: 'better',
+        area: 'account',
+        body: "Signing in returns you to where you started; Continue with Google is first.",
+      },
+    ],
+  },
+  {
     date: '2026-10-27',
     title: 'Set binders, a vote on what comes next, art views everywhere, and a new menu',
     items: [
@@ -1542,7 +1744,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'The editor fits a phone',
-        pinned: true,
         kind: 'better',
         area: 'binders',
         body: 'A two-row header, no side docks, and an Art button in their place.',
@@ -1887,7 +2088,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Share images show the binder',
-        pinned: true,
         kind: 'better',
         area: 'sharing',
         big: true,

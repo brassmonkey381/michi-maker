@@ -1,115 +1,79 @@
 /**
- * "Search cheatsheet" — a quickstart for the browse search grammar. A handful of high-value
- * RECIPES (combinable queries) up top, each with a one-tap "Try it →" that runs it live in the
- * browser; then the runnable operators (tap any to run it) rendered from the kit's QUERY_MANUAL;
- * then an "Additional info" section for the non-query rows (UI features, keyboard tips, aliases).
+ * "Search Cheatsheet": the searches people actually use, one line each (the search to type and
+ * what it finds), every line tappable to run it in the browser. The full operator list is folded
+ * under "Every search term" for the curious (owner, 2026-11-10: "practical, readable and usable").
  *
- * "Try it" sends a `search` BrowseCommand and navigates to /browse; the command is held pending
- * until that page's CatalogBrowser mounts, then runs — so the query lands whether or not a browser
- * was already up, and works cold (server search) or warm (on-device).
+ * Running a line sends a `search` BrowseCommand and navigates to /browse; the command is held
+ * pending until that page's CatalogBrowser mounts, then runs, cold or warm.
  */
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { QUERY_MANUAL, sendBrowseCommand } from 'tcgscan-browse';
 
 import { FREE_THEME } from '@/data/freeTheme';
 import { FREE_THEME_QUERY, runThemeDemo } from '@/data/themeDemo';
 
-import { HoverLift } from '@/components/landing/HoverLift';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { Nudge } from '@/components/ui/Nudge';
 import { Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
+type Line = { q: string; finds: string; free?: boolean; browseOnly?: boolean };
+
 /**
- * Curated combinations — the "wait, you can do that?" moments. Each is a runnable query.
- *
- * ORDER IS DELIBERATE: the `have:` recipes go LAST. They are the most impressive ones once you
- * own cards, and the worst possible opener before you do — a new reader who taps the first box on
- * the page and gets an empty grid learns that search is broken, not that it is powerful. Every
- * recipe above them works against the whole catalog and returns something for everyone.
+ * ORDER: whole-catalog searches first, so a first tap always returns cards; `have:` last (empty
+ * before you own anything). Only forms the kit's grammar supports (see QUERY_MANUAL); the minus
+ * works on themes.
  */
-const RECIPES: { title: string; query: string; blurb: string; pro?: boolean; taste?: boolean }[] = [
-  // The crowd-pleasers first: what people actually come to look at. Each works against the whole
-  // catalog, so a first visit gets something gorgeous before it learns a single field.
+const SECTIONS: { title: string; note?: string; lines: Line[] }[] = [
   {
-    title: 'Illustration Rares',
-    query: 'rarity:illustration sort:date',
-    blurb: 'Every Illustration Rare and Special Illustration Rare, newest first. rarity: matches part of the name, so one word catches both.',
+    title: 'Names and words',
+    lines: [
+      { q: 'charizard', finds: 'a Pokémon, or any word on the card' },
+      { q: 'arita fire', finds: 'every word must match' },
+      { q: '"full art" sort:value', finds: 'full arts, priciest first' },
+    ],
   },
   {
-    title: 'Special Illustration Rares, priciest first',
-    query: 'rarity:"special illustration" sort:value',
-    blurb: 'The chase art, ranked by value. Quote it so the two words stay together.',
+    title: 'Set, artist, rarity, type',
+    lines: [
+      { q: 'set:"evolving skies"', finds: 'one set (quote names with spaces)' },
+      { q: 'artist:arita', finds: 'one illustrator' },
+      { q: 'rarity:illustration', finds: 'Illustration Rares, special ones too' },
+      { q: 'type:fire', finds: 'one energy type' },
+      { q: 'artist:arita type:fire', finds: 'stack any fields together' },
+    ],
   },
   {
-    title: 'Full arts',
-    query: '"full art" sort:value',
-    blurb: 'A quoted phrase with no field matches anywhere, and full-art printings carry it in their name. Add a set: to focus on one.',
+    title: 'What the art shows',
+    note: 'Free: top matches. PRO: every match. Forest is free for everyone.',
+    lines: [
+      { q: FREE_THEME_QUERY, finds: 'cards drawn in a forest', free: true },
+      { q: 'theme:water -theme:sky', finds: 'water, but no sky (minus removes)' },
+      { q: 'theme:night theme:city', finds: 'both must show' },
+      { q: 'pokemon:pikachu', finds: 'shows a Pikachu, whatever its name' },
+      { q: 'theme:snow rarity:illustration', finds: 'Illustration Rares in the snow' },
+    ],
   },
   {
-    title: 'New and upcoming',
-    query: 'sort:date',
-    blurb: 'The whole catalog, newest release first — sets that have not shipped yet sit at the top. Stack rarity:illustration on it for the new art only.',
-  },
-  // THEME SEARCH runs for every tier: free and guest see the top few matches and how many more
-  // there are, PRO and VIP see them all. This one theme is on the house for everyone (see
-  // data/freeTheme), and Try it runs it like any other recipe.
-  {
-    title: 'Forest scenes',
-    query: FREE_THEME_QUERY,
-    blurb: 'theme: searches what the ARTWORK shows, from captions written about the picture — here, every card drawn among trees. This one is on us, every match on every plan: press Try it and watch it run.',
-    pro: true,
-    taste: true,
-  },
-  // Three more scenes, metered on free: the top few and how many more, every match on a plan.
-  {
-    title: 'Under the sea',
-    query: 'theme:water -theme:beach',
-    blurb: 'A theme, minus another: the water cards that are not a beach. The leading minus takes an idea away.',
-    pro: true,
+    title: 'Colour',
+    lines: [{ q: 'Color Search', finds: 'in Browse: pick up to 3 colours to match a palette', browseOnly: true }],
   },
   {
-    title: 'After dark, in town',
-    query: 'theme:night theme:city',
-    blurb: 'Two themes, both must show. Stack a set: or type: on it like any other search.',
-    pro: true,
+    title: 'Price, HP, dates, sort',
+    lines: [
+      { q: '>$100 sort:value', finds: 'over $100, priciest first' },
+      { q: 'hp>=300 date>2022', finds: 'big HP, released since 2022' },
+      { q: 'sort:newest', finds: 'newest releases first' },
+      { q: 'year:1999', finds: 'one release year' },
+    ],
   },
   {
-    title: 'Snow, full art only',
-    query: 'theme:snow rarity:illustration',
-    blurb: 'A scene and a rarity: the Illustration Rares drawn in the snow. Free accounts see the top few and how many more; PRO sees every match.',
-    pro: true,
-  },
-  {
-    title: 'Finish a set',
-    query: 'set:"evolving skies" have:no',
-    blurb: 'Every Evolving Skies card you don’t own yet: an instant want-list. Quote multi-word set names so set: captures the whole name.',
-  },
-  {
-    title: 'One artist, one type',
-    query: 'artist:arita type:fire',
-    blurb: 'Combine fields freely, like an illustrator’s fire cards.',
-  },
-  {
-    title: 'Chase cards',
-    query: '>$100 sort:value',
-    blurb: 'Everything over $100, most expensive first. Comparisons work on value, HP, stage, and dates.',
-  },
-  {
-    title: 'Modern heavy hitters',
-    query: 'hp>=300 date>2022 sort:hp',
-    blurb: 'Numeric and date compares together, sorted by HP for recent, high-HP cards.',
-  },
-  {
-    title: 'See your whole collection',
-    query: 'have:yes',
-    blurb: 'Every card you own, in the grid. Then keep stacking: sort it, narrow to a set, filter by type. Any recipe above works on just your cards this way.',
-  },
-  {
-    title: 'Your most valuable cards',
-    query: 'have:yes sort:value',
-    blurb: 'Owned cards, priciest first (the tiles show values). Add a set: or type: to focus.',
+    title: 'Your collection',
+    lines: [
+      { q: 'have:no set:"evolving skies"', finds: 'what you still need from a set' },
+      { q: 'have:yes sort:value', finds: 'your cards, priciest first' },
+    ],
   },
 ];
 
@@ -145,107 +109,93 @@ export default function SearchGuideScreen() {
     router.push('/browse');
   };
 
+  const [all, setAll] = useState(false);
+  const run = (l: Line) => (l.browseOnly ? router.push('/browse') : tryIt(l.q));
+
   return (
-    <PageShell title="Search Cheatsheet" description="Every search the card browser understands: words, fields, numbers, dates, sorts and your collection, with recipes to try." maxWidth={MaxContentWidthWide} footer={false}>
-          <View style={styles.shell}>
-            <View style={styles.headerRow}>
-              <ThemedText type="title" style={styles.h1}>
-                Search Cheatsheet
+    <PageShell title="Search Cheatsheet" description="The searches people use in the card browser, one line each, tap to run." maxWidth={MaxContentWidthWide} footer={false}>
+      <View style={styles.shell}>
+        <View style={styles.headerRow}>
+          <ThemedText type="title" style={styles.h1}>
+            Search Cheatsheet
+          </ThemedText>
+          <Pressable onPress={() => router.push('/browse')} hitSlop={8}>
+            <ThemedText type="smallBold" themeColor="textSecondary">
+              Open Browse ›
+            </ThemedText>
+          </Pressable>
+        </View>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.intro}>
+          Tap a search to run it.
+        </ThemedText>
+
+        {SECTIONS.map((sec) => (
+          <View key={sec.title} style={styles.section}>
+            <ThemedText type="smallBold" style={styles.sectionHead}>
+              {sec.title}
+            </ThemedText>
+            {sec.note ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+                {sec.note}
               </ThemedText>
-              <Pressable onPress={() => router.push('/browse')} hitSlop={8}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  Open Browse ›
-                </ThemedText>
-              </Pressable>
-            </View>
-
-            <ThemedText type="small" themeColor="textSecondary" style={styles.intro}>
-              The search box is a tiny query language. Type words, target a field, compare numbers
-              and dates, sort, and filter by your collection, and combine any of them freely. Tap
-              “Try it” to run a recipe in the browser, then keep layering chips and params on top.
-            </ThemedText>
-
-            <ThemedText type="smallBold" style={styles.sectionHead}>
-              Recipes
-            </ThemedText>
-            <View style={styles.recipeGrid}>
-              {RECIPES.map((r) => (
-                <View key={r.query} style={styles.recipeCard}>
-                  <View style={styles.recipeHead}>
-                    <ThemedText type="smallBold" style={styles.recipeTitle}>
-                      {r.title}
-                    </ThemedText>
-                    {r.pro ? (
-                      <Text style={[styles.proBadge, r.taste && styles.proBadgeTaste]}>
-                        {r.taste ? 'Every match, on us' : 'Top matches free · all with PRO'}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <View style={styles.codeRow}>
-                    <Text style={styles.code}>{r.query}</Text>
-                  </View>
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.recipeBlurb}>
-                    {noDash(r.blurb)}
-                  </ThemedText>
-                  <Nudge style={styles.tryWrap}>
-                    <HoverLift>
-                      <Pressable
-                        onPress={() => tryIt(r.query)}
-                        accessibilityRole="button"
-                        style={({ pressed }) => [styles.tryBtn, pressed && styles.pressed]}>
-                        <Text style={styles.tryBtnText}>Try it →</Text>
-                      </Pressable>
-                    </HoverLift>
-                  </Nudge>
+            ) : null}
+            {sec.lines.map((l) => (
+              <Pressable
+                key={l.q}
+                onPress={() => run(l)}
+                accessibilityRole="button"
+                accessibilityLabel={`Run ${l.q}: ${l.finds}`}
+                style={({ pressed }) => [styles.line, pressed && styles.pressed]}>
+                <View style={l.browseOnly ? styles.infoChip : styles.codeChip}>
+                  <Text style={l.browseOnly ? styles.infoChipText : styles.codeChipText}>{l.q}</Text>
                 </View>
-              ))}
-            </View>
+                <Text style={styles.finds}>
+                  {l.finds}
+                  {l.free ? <Text style={styles.free}>  free</Text> : null}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ))}
 
-            <ThemedText type="smallBold" style={styles.sectionHead}>
-              Every operator
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.refIntro}>
-              Tap any example to run it.
-            </ThemedText>
+        <Pressable onPress={() => setAll((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: all }} style={styles.allToggle}>
+          <ThemedText type="smallBold" style={styles.allToggleText}>
+            {all ? '▾' : '▸'} Every search term
+          </ThemedText>
+        </Pressable>
+        {all ? (
+          <View>
             {OP_SECTIONS.map((section) => (
               <View key={section.title} style={styles.refSection}>
                 <ThemedText type="smallBold" themeColor="textSecondary" style={styles.refTitle}>
                   {section.title}
                 </ThemedText>
                 {section.rows.map(([code, desc]) => (
-                  <View key={code} style={styles.refRow}>
-                    <Pressable
-                      onPress={() => tryIt(code)}
-                      style={({ pressed }) => [styles.codeChip, pressed && styles.pressed]}>
+                  <Pressable key={code} onPress={() => tryIt(code)} style={({ pressed }) => [styles.line, pressed && styles.pressed]}>
+                    <View style={styles.codeChip}>
                       <Text style={styles.codeChipText}>{code}</Text>
-                    </Pressable>
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.refDesc}>
-                      {noDash(desc)}
-                    </ThemedText>
-                  </View>
+                    </View>
+                    <Text style={styles.finds}>{noDash(desc)}</Text>
+                  </Pressable>
                 ))}
               </View>
             ))}
-
-            <ThemedText type="smallBold" style={styles.sectionHead}>
-              Additional info
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.refIntro}>
-              Features and shortcuts, not search terms.
-            </ThemedText>
             <View style={styles.refSection}>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.refTitle}>
+                Features and shortcuts
+              </ThemedText>
               {INFO_ROWS.map(([code, desc]) => (
-                <View key={code} style={styles.refRow}>
+                <View key={code} style={styles.line}>
                   <View style={styles.infoChip}>
                     <Text style={styles.infoChipText}>{code}</Text>
                   </View>
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.refDesc}>
-                    {noDash(desc)}
-                  </ThemedText>
+                  <Text style={styles.finds}>{noDash(desc)}</Text>
                 </View>
               ))}
             </View>
           </View>
+        ) : null}
+      </View>
     </PageShell>
   );
 }
@@ -253,90 +203,23 @@ export default function SearchGuideScreen() {
 const mono = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
 
 const styles = StyleSheet.create({
-  shell: {
-    width: '100%',
-    maxWidth: MaxContentWidthWide,
-    alignSelf: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-  },
+  shell: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: Spacing.three, paddingTop: Spacing.four, paddingBottom: Spacing.five },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three },
   h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40 },
-  intro: { marginTop: Spacing.two, lineHeight: 20, maxWidth: 640 },
-  sectionHead: {
-    marginTop: Spacing.five,
-    marginBottom: Spacing.two,
-    fontSize: FontSize.md,
-    fontWeight: Weight.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  recipeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
-  recipeCard: {
-    flexBasis: 300,
-    flexGrow: 1,
-    maxWidth: 420,
-    gap: Spacing.two,
-    padding: Spacing.four,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-    backgroundColor: Palette.panel,
-  },
-  recipeTitle: { fontSize: FontSize.md },
-  recipeHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
-  proBadge: {
-    fontSize: FontSize.label,
-    fontWeight: Weight.semibold,
-    color: Palette.accent,
-    borderWidth: 1,
-    borderColor: Palette.accent,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  proBadgeTaste: { color: Palette.accentText, backgroundColor: Palette.accent },
-  // Query chips: primary blue fill, white text.
-  codeRow: { alignSelf: 'flex-start', borderRadius: Radius.control, backgroundColor: Palette.accent, paddingHorizontal: 10, paddingVertical: 6 },
-  code: { fontFamily: mono, fontSize: FontSize.body, color: Palette.accentText, fontWeight: Weight.semibold },
-  recipeBlurb: { lineHeight: 18 },
-  // Try it: primary blue fill, white text (matching the query chips).
-  tryWrap: { alignSelf: 'flex-start' },
-  tryBtn: {
-    alignSelf: 'flex-start',
-    marginTop: Spacing.one,
-    backgroundColor: Palette.accent,
-    borderRadius: Radius.pill,
-    paddingVertical: 8,
-    paddingHorizontal: Spacing.four,
-  },
-  tryBtnText: { color: Palette.accentText, fontSize: FontSize.control, fontWeight: Weight.bold },
-  pressed: { opacity: 0.7 },
-  refIntro: { marginTop: -4, marginBottom: Spacing.two },
-  refSection: { marginBottom: Spacing.three },
-  refTitle: { textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.one },
-  refRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginBottom: 6, flexWrap: 'wrap' },
-  codeChip: {
-    borderRadius: Radius.control,
-    backgroundColor: Palette.accent,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
+  intro: { marginTop: Spacing.one },
+  section: { marginTop: Spacing.four },
+  sectionHead: { fontSize: FontSize.sm, fontWeight: Weight.bold, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: Spacing.one },
+  note: { marginBottom: Spacing.one },
+  line: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', rowGap: 4, columnGap: Spacing.two, paddingVertical: 5 },
+  pressed: { opacity: 0.6 },
+  codeChip: { borderRadius: Radius.control, backgroundColor: Palette.accent, paddingHorizontal: 9, paddingVertical: 5 },
   codeChipText: { fontFamily: mono, fontSize: FontSize.sm, color: Palette.accentText, fontWeight: Weight.semibold },
-  // Info chips: quiet, non-interactive — clearly not something to tap-run.
-  infoChip: {
-    borderRadius: Radius.control,
-    backgroundColor: Palette.panel,
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
+  infoChip: { borderRadius: Radius.control, backgroundColor: Palette.panel, borderWidth: 1, borderColor: Palette.hairlineStrong, paddingHorizontal: 9, paddingVertical: 5 },
   infoChipText: { fontSize: FontSize.sm, color: Palette.muted2, fontWeight: Weight.semibold },
-  refDesc: { flexShrink: 1, minWidth: 180, lineHeight: 18 },
+  finds: { flexShrink: 1, fontSize: FontSize.sm, color: Palette.muted, lineHeight: 18 },
+  free: { color: Palette.accent, fontWeight: Weight.bold },
+  allToggle: { marginTop: Spacing.five, paddingVertical: Spacing.two },
+  allToggleText: { color: Palette.accent },
+  refSection: { marginTop: Spacing.three },
+  refTitle: { textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.one },
 });

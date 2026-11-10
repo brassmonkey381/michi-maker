@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { createContext, forwardRef, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode, type Ref, Fragment } from 'react';
 import type { PocketBarPlacement } from '@/data/viewPrefs';
 import { useRouter } from 'expo-router';
-import { Linking, PixelRatio, Pressable, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Linking, PixelRatio, Pressable, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 import { affiliateConfigured, productUrl, sendBrowseCommand } from 'tcgscan-browse';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -14,7 +14,7 @@ import Animated, {
   withRepeat,
   withSpring,
   withTiming,
-  Keyframe,
+  withDelay,
   type SharedValue,
 } from 'react-native-reanimated';
 
@@ -22,13 +22,29 @@ import Animated, {
  *  cards slide in and out through that edge. Constant for the page load. */
 const SLEEVES = flag('pockets-sleeves');
 
-/** A card entering (or leaving) a pocket through its opening edge, a little over half a pocket. */
-function slideThrough(from: 'left' | 'right', cellW: number, leaving: boolean) {
-  const dx = (from === 'right' ? 1 : -1) * Math.round(cellW * 0.6);
-  const out = { opacity: 0, transform: [{ translateX: dx }] };
-  const home = { opacity: 1, transform: [{ translateX: 0 }] };
-  return new Keyframe({ 0: leaving ? home : out, 100: leaving ? out : home }).duration(leaving ? 200 : 280);
+/**
+ * ONE CARD SLIDING THROUGH ITS POCKET'S OPENING EDGE (MIC-017 sleeves). Only the picture moves,
+ * inside its pocket's own box: the box itself is never transformed, so a card can never be left
+ * standing between pockets (2026-11-10: layout-animation clones did exactly that on the web).
+ * Mounted once per card-in-a-place (BinderGrid keys it by slot, card and cell), so it plays when
+ * a card arrives somewhere new and never on an ordinary re-render.
+ */
+function SleeveSlide({ dx, delay, duration, leaving, animate, children }: { dx: number; delay: number; duration: number; leaving?: boolean; animate: boolean; children: ReactNode }) {
+  const tx = useSharedValue(animate && !leaving ? dx : 0);
+  const op = useSharedValue(animate && !leaving ? 0 : 1);
+  useEffect(() => {
+    if (!animate) return;
+    tx.value = withDelay(delay, withTiming(leaving ? dx : 0, { duration }));
+    op.value = withDelay(delay, withTiming(leaving ? 0 : 1, { duration }));
+    // Once, on mount: this element IS one arrival or one departure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const st = useAnimatedStyle(() => ({ opacity: op.value, transform: [{ translateX: tx.value }] }));
+  return <Animated.View pointerEvents={leaving ? 'none' : 'auto'} style={[StyleSheet.absoluteFill, st]}>{children}</Animated.View>;
 }
+
+/** What identifies a card in a place: a change to any part is a departure plus an arrival. */
+const slotSig = (s: DemoSlot) => `${s.id}|${s.cardId ?? s.imageUrl ?? s.type}|${s.row},${s.col}|${s.rowSpan}x${s.colSpan}`;
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
@@ -602,17 +618,94 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   const [dragId, setDragId] = useState<string | null>(null);
-  // Sleeves: cards already on the page when it first draws do not slide in; only later arrivals do.
+  // SLEEVES MOTION (MIC-017, owner 2026-11-10: "basically always"): every card that arrives in a
+  // pocket slides in through that pocket's opening edge, and every card that leaves one (moved,
+  // swapped, removed, sent to the hand, undone) slides out through its old pocket's edge. Cards on
+  // the page when it first draws stay still. Many at once: shorter and staggered. Reduced motion: none.
   const [settled, setSettled] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
     if (!SLEEVES) return;
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((on) => live && setReduceMotion(on)).catch(() => {});
     const t = setTimeout(() => setSettled(true), 900);
-    return () => clearTimeout(t);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
   }, []);
-  const sleeveMotion = (col: number) => {
-    if (!SLEEVES) return {};
-    const from = pocketOpening(page.cols, outerEdge ?? 'right', col);
-    return { entering: settled ? slideThrough(from, cellW, false) : undefined, exiting: slideThrough(from, cellW, true) };
+  const motionOn = SLEEVES && settled && !reduceMotion;
+  const slideDx = (col: number) => (pocketOpening(page.cols, outerEdge ?? 'right', col) === 'right' ? 1 : -1) * Math.round(cellW * 0.6);
+  const slideTiming = (n: number) => ({ duration: n > 6 ? 170 : 260, step: n > 6 ? 25 : 40 });
+  const sigKey = SLEEVES ? page.slots.map(slotSig).join(';') : '';
+  // What changed since the cards last changed: arrivals slide in, departures leave as copies.
+  // Tracked in state and updated DURING render when the cards change (React's "adjust state on a
+  // prop change" pattern), so the committed draw already knows which cards just arrived.
+  const [seen, setSeen] = useState<{ key: string; slots: DemoSlot[]; arrived: Set<string> }>(() => ({ key: sigKey, slots: page.slots, arrived: new Set() }));
+  const [ghosts, setGhosts] = useState<{ key: string; slot: DemoSlot; delay: number; duration: number }[]>([]);
+  if (SLEEVES && seen.key !== sigKey) {
+    const before = new Set(seen.slots.map(slotSig));
+    const now = new Set(page.slots.map(slotSig));
+    const arrived = new Set([...now].filter((x) => !before.has(x)));
+    const gone = seen.slots.filter((x) => !now.has(slotSig(x)));
+    setSeen({ key: sigKey, slots: page.slots, arrived: motionOn ? arrived : new Set() });
+    if (motionOn && gone.length) {
+      const { duration, step } = slideTiming(gone.length);
+      setGhosts((cur) => [...cur, ...gone.map((g, i) => ({ key: `${slotSig(g)}@${sigKey.length}:${i}:${cur.length}`, slot: g, delay: Math.min(i * step, 240), duration }))]);
+    }
+  }
+  // Departed copies go once they have played.
+  useEffect(() => {
+    if (!ghosts.length) return;
+    const t = setTimeout(() => setGhosts([]), 700);
+    return () => clearTimeout(t);
+  }, [ghosts]);
+  const arrivals = seen.arrived.size;
+  let arrivalIndex = 0;
+  // A slot's picture: the pocket's content, also drawn for a card on its way out.
+  const contentFor = (slot: DemoSlot) => (
+            <SlotContent
+              pageTitle={page.title}
+              onArtHover={setHoverArt}
+              slot={slot}
+              radius={slotRadius}
+              small={small}
+              catalog={catalog}
+              owned={!!(slot.cardId && ownedIds?.has(slot.cardId))}
+              scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
+              captionFields={captionFields}
+              instantImages={instantImages}
+              // POCKET, THEN PAGE, THEN BINDER (owner, 2026-09-14): the first that is set wins,
+              // and a layer set to "none" wins with bare pockets (resolveWear).
+              sleeve={resolveWear(slot.sleeve, page.sleeve, pageStyle?.sleeve)}
+              artBacking={resolveWear(slot.artBacking, page.artBacking, pageStyle?.artBacking)}
+              dressed={dressed}
+              ring={matColor}
+              ringPad={ringPad}
+              label={label}
+              artView={connected ? 'connected' : resolveArtView(slot.artView, page.artView, pageStyle?.artView)}
+              cut={cut}
+              frames={frames}
+              mat={mat}
+              matSlice={spread ? spreadSlice(slot.row, slot.col, colStep, rowStep, innerW, innerH) : undefined}
+              price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
+            chipScale={chipScale}
+            onLabel={onLabel}
+            />
+          );
+
+  // A card's picture in its pocket, sliding in when it has just arrived there.
+  const sleeveWrap = (slot: DemoSlot, content: ReactNode): ReactNode => {
+    if (!SLEEVES) return content;
+    const sig = slotSig(slot);
+    const isNew = seen.arrived.has(sig);
+    const { duration, step } = slideTiming(arrivals);
+    const delay = isNew ? Math.min(arrivalIndex++ * step, 240) : 0;
+    return (
+      <SleeveSlide key={sig} dx={slideDx(slot.col)} delay={delay} duration={duration} animate={motionOn && isNew}>
+        {content}
+      </SleeveSlide>
+    );
   };
   // WHICH RESERVED PANEL THE POINTER IS OVER, held here rather than in the pocket, because a
   // pocket clips its own contents and a card drawn inside one is sliced off at the pocket edge.
@@ -863,47 +956,11 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           const selected =
             editable && (isActive || slot.id === selectedSlotId || !!multiSelectedIds?.has(slot.id));
           const style = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
-          const content = (
-            <SlotContent
-              pageTitle={page.title}
-              onArtHover={setHoverArt}
-              slot={slot}
-              radius={slotRadius}
-              small={small}
-              catalog={catalog}
-              owned={!!(slot.cardId && ownedIds?.has(slot.cardId))}
-              scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
-              captionFields={captionFields}
-              instantImages={instantImages}
-              // POCKET, THEN PAGE, THEN BINDER (owner, 2026-09-14): the first that is set wins,
-              // and a layer set to "none" wins with bare pockets (resolveWear).
-              sleeve={resolveWear(slot.sleeve, page.sleeve, pageStyle?.sleeve)}
-              artBacking={resolveWear(slot.artBacking, page.artBacking, pageStyle?.artBacking)}
-              dressed={dressed}
-              ring={matColor}
-              ringPad={ringPad}
-              label={label}
-              artView={connected ? 'connected' : resolveArtView(slot.artView, page.artView, pageStyle?.artView)}
-              cut={cut}
-              frames={frames}
-              mat={mat}
-              matSlice={spread ? spreadSlice(slot.row, slot.col, colStep, rowStep, innerW, innerH) : undefined}
-              price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
-            chipScale={chipScale}
-            onLabel={onLabel}
-            />
-          );
+          const content = contentFor(slot);
           if (!editable) {
-            if (SLEEVES) {
-              return (
-                <Animated.View key={slot.id} style={style} {...sleeveMotion(slot.col)}>
-                  {content}
-                </Animated.View>
-              );
-            }
             return (
               <View key={slot.id} style={style}>
-                {content}
+                {sleeveWrap(slot, content)}
               </View>
             );
           }
@@ -925,12 +982,21 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               onTap={onSlotPress}
               onDropSlot={onDropSlot}
               onCrossDrop={onCrossDrop}
-              onDragStart={onDragStart}
-              {...sleeveMotion(slot.col)}>
-              {content}
+              onDragStart={onDragStart}>
+              {sleeveWrap(slot, content)}
             </DraggableSlot>
           );
         })}
+
+        {/* Cards leaving their pockets (MIC-017 sleeves motion): a copy of the old picture at the
+            old pocket, sliding out through its opening edge, then gone. Never a control. */}
+        {ghosts.map((g) => (
+          <View key={g.key} pointerEvents="none" style={[box(g.slot.row, g.slot.col, g.slot.rowSpan, g.slot.colSpan), { zIndex: 4 }]}>
+            <SleeveSlide dx={slideDx(g.slot.col)} delay={g.delay} duration={g.duration} leaving animate>
+              {contentFor(g.slot)}
+            </SleeveSlide>
+          </View>
+        ))}
 
         {/* SLEEVES (MIC-017, 'dev' flag): the clear plastic over every pocket, card or not. A
             glare across the face and a lip down the edge the pocket opens on (pocketOpening), so
@@ -1567,10 +1633,8 @@ function DraggableSlot({
   onDropSlot,
   onCrossDrop,
   onDragStart,
-  entering,
-  exiting,
   children,
-}: DraggableSlotProps & { entering?: ReturnType<typeof slideThrough>; exiting?: ReturnType<typeof slideThrough> }) {
+}: DraggableSlotProps) {
   const gesture = useMemo(() => {
     const stepX = cellW + gap;
     const stepY = cellH + gap + captionH;
@@ -1626,16 +1690,16 @@ function DraggableSlot({
   const left = useSharedValue(boxStyle.left);
   const top = useSharedValue(boxStyle.top);
   useEffect(() => {
-    left.value = withSpring(boxStyle.left, SETTLE);
-    top.value = withSpring(boxStyle.top, SETTLE);
+    // With sleeves the move is told by the slide out of the old pocket and into the new one, so the
+    // box goes straight to its pocket (MIC-017).
+    left.value = SLEEVES ? boxStyle.left : withSpring(boxStyle.left, SETTLE);
+    top.value = SLEEVES ? boxStyle.top : withSpring(boxStyle.top, SETTLE);
   }, [boxStyle.left, boxStyle.top, left, top]);
   const settleStyle = useAnimatedStyle(() => ({ left: left.value, top: top.value }));
 
   return (
     <GestureDetector gesture={gesture}>
       <Animated.View
-        entering={entering}
-        exiting={exiting}
         style={[
           boxStyle,
           settleStyle,

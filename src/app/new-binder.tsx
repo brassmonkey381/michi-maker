@@ -37,6 +37,8 @@ import { track } from '@/lib/analytics';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useBinders } from '@/store/binders';
+import { NewBinderChat } from '@/components/wizard/NewBinderChat';
+import { flag } from '@/lib/flags';
 
 type Kind = 'pokemon' | 'set' | 'artist' | 'three';
 
@@ -92,7 +94,14 @@ const ASK: Record<Kind, string> = {
   three: 'Pick three cards',
 };
 
+/** MIC-017 piece 7 ('dev'): the chat in place of the step wizard. */
+const NEWBINDER_CHAT = flag('newbinder-chat');
+
 export default function NewBinderScreen() {
+  return NEWBINDER_CHAT ? <NewBinderChat /> : <NewBinderWizard />;
+}
+
+function NewBinderWizard() {
   const router = useRouter();
   // THE PICTURE LIST, LOADED AND WATCHED (2026-11-08). cardThumbUrl names a card's picture from the
   // image manifest, and nothing on this route loaded it: a guest who lands here first (the Reddit

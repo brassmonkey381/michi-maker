@@ -29,6 +29,8 @@ export const FLAGS = {
   // MIC-017 piece 6: My Binders gets a Grid / Shelf switch (grid the default, each viewer's choice
   // remembered on the device) and a quiet empty shelf (owner 2026-11-10: "shelf toggle").
   'mybinders-shelf': 'dev',
+  // MIC-017 piece 7: /new-binder as a conversation; page one builds beside it.
+  'newbinder-chat': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

@@ -27,7 +27,8 @@ export async function listOpenImageReviews(limit = 100): Promise<ImageReview[]> 
     .from('image_reviews')
     .select('id, slot_id, binder_id, owner_id, image_url, label, minor_concern, reason, checked_at')
     .is('decision', null)
-    .in('label', ['suggestive', 'explicit', 'refused', 'unchecked', 'held'])
+    // Suggestive is shown without review now (owner, 2026-11-10), unless it raised a minor concern.
+    .or('label.in.(explicit,refused,unchecked,held),and(label.eq.suggestive,minor_concern.is.true)')
     .order('checked_at', { ascending: false })
     .limit(limit);
   if (error) throw new Error(`image reviews: ${error.message}`);

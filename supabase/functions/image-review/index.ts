@@ -52,8 +52,15 @@ const DHASH_MAX_BYTES = 350_000;
 /** A fetch or API failure is retried this many times before the image waits as unchecked. */
 const MAX_ATTEMPTS = 3;
 
+/** Studio calls the decide door from the browser, so it answers CORS (2026-11-10: Approve failed
+ *  with "Failed to send a request to the Edge Function": the preflight got a 405 and no headers). */
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
 
 interface QueueRow {
   id: number;
@@ -161,7 +168,8 @@ async function notifyAdmin(admin: any): Promise<void> {
     .select('id, binder_id, label, minor_concern')
     .is('decision', null)
     .is('notified_at', null)
-    .in('label', ['suggestive', 'explicit', 'refused', 'unchecked', 'held'])
+    // Only what waits for a person: suggestive is shown now, unless it raised a minor concern.
+    .or('label.in.(explicit,refused,unchecked,held),and(label.eq.suggestive,minor_concern.is.true)')
     .limit(200);
   if (!open?.length) return;
   const site = 'https://michi-maker.com';
@@ -242,6 +250,7 @@ async function decide(req: Request, body: { id?: number; decision?: string; take
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
   // Studio's door: an admin's decision on one flagged image.
   if (!req.headers.get('x-image-review-secret')) {
@@ -371,7 +380,7 @@ Deno.serve(async (req) => {
       await admin.from('image_reviews').update({ status: 'error', reason }).eq('id', row.id);
       continue;
     }
-    const verdict = verdictFor(failed ? 'unchecked' : label);
+    const verdict = verdictFor(failed ? 'unchecked' : label, minor);
     await admin
       .from('image_reviews')
       .update({ status: 'done', label: failed ? 'unchecked' : label, minor_concern: minor, reason, model: REVIEW_MODEL, checked_at: new Date().toISOString(), sha256: fp?.sha256 ?? null, dhash: fp?.dhash ?? null })

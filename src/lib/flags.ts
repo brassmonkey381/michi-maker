@@ -49,6 +49,9 @@ export const FLAGS = {
   // MIC-017 piece 13: Vote becomes a roadmap board (up for votes / being built / shipped), and
   // the daily puzzle's heading gets its colour.
   'play-board': 'dev',
+  // MIC-017 piece 14: the How-To index is pictures first, titles only (owner: less text, bigger
+  // pictures).
+  'learn-clean': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

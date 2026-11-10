@@ -13,6 +13,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Radius, Shadows, Spacing, MaxContentWidthDoc } from '@/constants/theme';
 import { GUIDE_LIST } from '@/data/guides';
+import { flag } from '@/lib/flags';
+
+/** MIC-017 piece 14 ('dev'): pictures first, titles only. */
+const LEARN_CLEAN = flag('learn-clean');
 
 export default function LearnHubScreen() {
   const router = useRouter();
@@ -21,7 +25,7 @@ export default function LearnHubScreen() {
   // hook at 120px, so the pictures carry their share of the row; a narrow window stacks them.
   const { width } = useWindowDimensions();
   const twoUp = width >= 760;
-  const hookW = twoUp ? 120 : 84;
+  const hookW = LEARN_CLEAN ? (twoUp ? 200 : Math.max(120, Math.floor((width - 64) / 2) - 24)) : twoUp ? 120 : 84;
   return (
     <PageShell
       maxWidth={MaxContentWidthDoc}
@@ -30,9 +34,18 @@ export default function LearnHubScreen() {
       heading="Pokémon binder how-to guides"
       lede="Short, practical walkthroughs of the craft: building a binder, cutting art into pockets, and getting it onto paper at true size.">
 
-      <View style={[styles.list, twoUp && styles.listTwoUp]}>
+      <View style={[styles.list, (twoUp || LEARN_CLEAN) && styles.listTwoUp]}>
         {GUIDE_LIST.map((g) => {
-          const card = (
+          const card = LEARN_CLEAN ? (
+            <ThemedView type="backgroundElement" style={[styles.card, styles.cleanCard]} testID="learn-tile">
+              <View style={styles.cleanPic}>
+                <GuideHook hook={g.hook} width={g.wide ? Math.min(hookW * 2, 420) : hookW} />
+              </View>
+              <ThemedText type="smallBold" style={styles.cleanTitle}>
+                {g.title}
+              </ThemedText>
+            </ThemedView>
+          ) : (
             <ThemedView type="backgroundElement" style={styles.card}>
               <GuideHook hook={g.hook} width={hookW} />
               <View style={[styles.cardBody, g.wide && styles.cardBodyWide]}>
@@ -56,7 +69,7 @@ export default function LearnHubScreen() {
             <ExternalLink key={g.slug} href={g.externalHref as Href & string} asChild>
               <Pressable
                 accessibilityRole="link"
-                style={({ pressed }) => [twoUp && (g.wide ? styles.wide : styles.half), pressed && styles.pressed]}>
+                style={({ pressed }) => [LEARN_CLEAN ? (g.wide ? styles.wide : twoUp ? styles.third : styles.half) : twoUp && (g.wide ? styles.wide : styles.half), pressed && styles.pressed]}>
                 {card}
               </Pressable>
             </ExternalLink>
@@ -65,7 +78,7 @@ export default function LearnHubScreen() {
               key={g.slug}
               onPress={() => router.push(`/learn/${g.slug}` as Href)}
               accessibilityRole="link"
-              style={({ pressed }) => [twoUp && (g.wide ? styles.wide : styles.half), pressed && styles.pressed]}>
+              style={({ pressed }) => [LEARN_CLEAN ? (g.wide ? styles.wide : twoUp ? styles.third : styles.half) : twoUp && (g.wide ? styles.wide : styles.half), pressed && styles.pressed]}>
               {card}
             </Pressable>
           );
@@ -80,6 +93,11 @@ export default function LearnHubScreen() {
 
 const styles = StyleSheet.create({
   callout: { marginTop: 28 },
+  // Piece 14: pictures first, titles only.
+  third: { width: '31.5%', flexGrow: 1 },
+  cleanCard: { flexDirection: 'column', alignItems: 'center', gap: 10, paddingVertical: 16 },
+  cleanPic: { alignItems: 'center', justifyContent: 'center', minHeight: 120 },
+  cleanTitle: { textAlign: 'center', fontSize: FontSize.md },
   list: { gap: Spacing.three },
   listTwoUp: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch' },
   // Two per row with one gap between: each takes half of what is left. Percentages would ignore

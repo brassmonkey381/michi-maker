@@ -155,7 +155,10 @@ export const TrayChip = memo(function TrayChip({
   ghostX,
   ghostY,
   removeOnlyArmed,
+  size,
 }: {
+  /** The hand (MIC-017): an exact card size from its layout, instead of S or L. */
+  size?: { w: number; h: number };
   /** The hand (MIC-017): the × shows only on the armed card, not on all 24. */
   removeOnlyArmed?: boolean;
   slot: DemoSlot;
@@ -197,11 +200,11 @@ export const TrayChip = memo(function TrayChip({
   }, [slot, armed, onArm, onDragStart, onDrop, ghostOn, ghostX, ghostY]);
 
   return (
-    <View style={styles.chipWrap}>
+    <View style={size ? null : styles.chipWrap}>
       <GestureDetector gesture={gesture}>
-        <View style={[styles.chip, large && styles.chipLarge, armed && styles.chipArmed]} accessibilityRole="button" accessibilityLabel={armed ? 'Tray card, armed: tap a pocket to place it' : 'Tray card: tap to arm, or drag to a pocket'}>
+        <View style={[styles.chip, large && styles.chipLarge, size && { width: size.w, height: size.h }, armed && styles.chipArmed]} accessibilityRole="button" accessibilityLabel={armed ? 'Tray card, armed: tap a pocket to place it' : 'Tray card: tap to arm, or drag to a pocket'}>
           {slot.cardId ? (
-            <Image source={{ uri: cardThumbUrl(slot.cardId, large ? 'full' : 245) }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+            <Image source={{ uri: cardThumbUrl(slot.cardId, large || (size && size.w > 100) ? 'full' : 245) }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
           ) : null}
         </View>
       </GestureDetector>

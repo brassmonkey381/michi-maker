@@ -1,7 +1,7 @@
 /**
  * THE HAND (MIC-017 editor-hand, owner's pick 2026-11-10). The binder's tray as a hand of cards
- * under the page: up to ~24 cards in three staggered, overlapping rows, the way cards sit when you
- * sort them on a table. Same cards and same handling as the tray (CardTray: DemoBinder.tray) —
+ * under the page, centred and as big as the tray allows (handLayout picks rows and size from the
+ * tray's real width and height; every card keeps a strip to grab, and lifts on hover or pick). Same cards and same handling as the tray (CardTray: DemoBinder.tray) —
  * drag one up into any pocket, or tap it then a pocket; drag a card off the page onto the hand to
  * put it back. The header fills it fast: Suggest (cards that fit this page: similar, palette, theme,
  * the Complete-page fills sent here instead of into pockets), Search (the card browser, each pick
@@ -10,23 +10,19 @@
  * Behind the 'editor-hand' dev flag; BinderScreen decides where it sits and owns every store call.
  */
 import { useMemo, useState, type RefObject } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { TrayChip } from '@/components/binder/CardTray';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import type { DemoSlot } from '@/data/binderTypes';
+import { handLayout } from '@/data/handLayout';
 
-/** Three rows, the hand's shape: a row is offset half a card from the one above it. */
-const ROWS = 3;
-
-/** Cards per row and the row each card sits in, for `n` cards. Pure; exported for tests. */
-export function handRows(n: number, rows = ROWS): number[][] {
-  const perRow = Math.max(1, Math.ceil(n / rows));
-  const out: number[][] = [];
-  for (let i = 0; i < n; i += perRow) out.push(Array.from({ length: Math.min(perRow, n - i) }, (_, k) => i + k));
-  return out;
-}
+/** Height the cards may use: a little taller than the old tray on desktop, as before on phones. */
+const CARDS_H_DESKTOP = 200;
+const CARDS_H_PHONE = 150;
+/** How far a hovered or picked card rises out of the hand. */
+const LIFT = 14;
 
 /** A small, stable tilt per card, so the hand looks held rather than gridded (-3..3 degrees). */
 function tilt(id: string): number {
@@ -69,8 +65,10 @@ export function HandTray({
 }) {
   const [open, setOpen] = useState(true);
   const ordered = useMemo(() => [...slots].sort((a, b) => a.col - b.col), [slots]);
-  const rows = useMemo(() => handRows(ordered.length), [ordered.length]);
   const phone = useWindowDimensions().width < 600;
+  const [areaW, setAreaW] = useState(0);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const L = useMemo(() => handLayout(ordered.length, areaW, phone ? CARDS_H_PHONE : CARDS_H_DESKTOP), [ordered.length, areaW, phone]);
   return (
     <View
       ref={trayRef}
@@ -103,17 +101,30 @@ export function HandTray({
             Your hand is empty. Suggest deals cards that fit this page; Search adds the ones you pick. Drag a card up into a pocket, or a card from the page down here.
           </Text>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-            <View>
-              {rows.map((row, r) => (
-                <View key={r} style={[styles.row, r > 0 && styles.rowStacked, r % 2 === 1 && (phone ? styles.rowOffsetPhone : styles.rowOffset)]}>
-                  {row.map((i) => {
+          <View style={styles.area} onLayout={(e) => setAreaW(Math.floor(e.nativeEvent.layout.width) - 2 * Spacing.three)} testID="hand-cards">
+            <View style={{ width: L.width, height: L.height + LIFT, alignSelf: 'center' }}>
+              {L.rows.map((row, r) =>
+                row.map((i, k) => {
                     const slot = ordered[i];
+                    const up = slot.id === hovered || slot.id === armedId;
                     return (
-                      <View key={slot.id} style={[styles.card, { transform: [{ rotate: `${tilt(slot.id)}deg` }] }]}>
+                      <View
+                        key={slot.id}
+                        onPointerEnter={() => setHovered(slot.id)}
+                        onPointerLeave={() => setHovered((h) => (h === slot.id ? null : h))}
+                        style={[
+                          styles.card,
+                          {
+                            left: (r % 2 === 1 ? L.offset : 0) + k * L.stride,
+                            top: LIFT + r * L.rowStep,
+                            zIndex: up ? 100 : r * 30 + k,
+                            transform: [{ translateY: up ? -LIFT : 0 }, { rotate: up ? '0deg' : `${tilt(slot.id)}deg` }],
+                          },
+                        ]}>
                         <TrayChip
                           slot={slot}
                           large={false}
+                          size={{ w: L.cardW, h: L.cardH }}
                           removeOnlyArmed
                           armed={slot.id === armedId}
                           onArm={onArm}
@@ -126,11 +137,10 @@ export function HandTray({
                         />
                       </View>
                     );
-                  })}
-                </View>
-              ))}
+                })
+              )}
             </View>
-          </ScrollView>
+          </View>
         )
       ) : null}
     </View>
@@ -154,11 +164,6 @@ const styles = StyleSheet.create({
   btnPrimary: { backgroundColor: Palette.accent },
   btnPrimaryText: { color: Palette.accentText },
   empty: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 17, paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },
-  scroll: { paddingHorizontal: Spacing.three, paddingTop: 2 },
-  row: { flexDirection: 'row' },
-  // Rows overlap like a held hand; each card overlaps its neighbour.
-  rowStacked: { marginTop: -34 },
-  rowOffset: { marginLeft: 28 },
-  rowOffsetPhone: { marginLeft: 22 },
-  card: { marginRight: -14 },
+  area: { paddingHorizontal: Spacing.three },
+  card: { position: 'absolute' },
 });

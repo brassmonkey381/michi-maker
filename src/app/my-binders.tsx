@@ -19,6 +19,20 @@ import { sendBrowseCommand } from 'tcgscan-browse';
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
 import { BinderCoverSheet } from '@/components/binder/BinderCoverSheet';
 import { BinderCoverGrid } from '@/components/binder/BinderCoverGrid';
+import { BinderShelf } from '@/components/binder/BinderShelf';
+import { flag } from '@/lib/flags';
+
+/** MIC-017 piece 6 ('dev'): the Grid / Shelf switch and the quiet empty shelf. */
+const SHELF = flag('mybinders-shelf');
+const VIEW_KEY = 'michi.binderView';
+/** The viewer's last pick, this device only; the grid when there is none or storage is blocked. */
+function savedView(): 'grid' | 'shelf' {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(VIEW_KEY) === 'shelf' ? 'shelf' : 'grid';
+  } catch {
+    return 'grid';
+  }
+}
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { EditLockBanner } from '@/components/binder/EditLockBanner';
 import { ReturnedBinderBanner } from '@/components/binder/ReturnedBinderBanner';
@@ -95,6 +109,15 @@ export default function MyBindersScreen() {
   const [binderQuery, setBinderQuery] = useState('');
   // Per-binder ⋯ management (rename / duplicate / share / delete) without opening the editor.
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [shelfView, setShelfView] = useState<'grid' | 'shelf'>(() => (SHELF ? savedView() : 'grid'));
+  const pickView = (v: 'grid' | 'shelf') => {
+    setShelfView(v);
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      // A blocked store just forgets the pick next visit.
+    }
+  };
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameText, setRenameText] = useState('');
   const [shareId, setShareId] = useState<string | null>(null);
@@ -333,7 +356,16 @@ export default function MyBindersScreen() {
                     binder tile (the cover grid, MIC-017). */}
               </View>
             }>
-            {store.userBinders.length === 0 ? (
+            {store.userBinders.length === 0 && SHELF ? (
+              <View style={styles.quietEmpty} testID="my-binders-empty-quiet">
+                <ThemedText type="small" themeColor="textSecondary">
+                  No binders yet.
+                </ThemedText>
+                <Pressable onPress={handleNew} accessibilityRole="button" style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
+                  <Text style={styles.newBtnText}>+ New binder</Text>
+                </Pressable>
+              </View>
+            ) : store.userBinders.length === 0 ? (
               // THE EMPTY SHELF IS A CARD LIKE ITS NEIGHBOURS: full width, a picture of an empty
               // page on the left, and the two things to do about it as buttons. It was a narrow
               // grey line of instructions between two illustrated cards, and read as a gap.
@@ -431,6 +463,30 @@ export default function MyBindersScreen() {
                   // on a desk, every binder visible at once instead of one per screen. Cover and Print
                   // live in each tile's ⋯ menu (BinderActionsMenu), which already offered both; the
                   // tile keeps the ⋯ and a search hit's page line. New binder is the last tile.
+                  <>
+                  {SHELF ? (
+                    <View style={styles.viewSwitch} accessibilityRole="radiogroup" testID="binder-view-switch">
+                      {(['grid', 'shelf'] as const).map((v) => (
+                        <Pressable
+                          key={v}
+                          onPress={() => pickView(v)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: shelfView === v }}
+                          testID={`binder-view-${v}`}
+                          style={[styles.viewOpt, shelfView === v && styles.viewOptOn]}>
+                          <Text style={[styles.viewOptText, shelfView === v && styles.viewOptTextOn]}>{v === 'grid' ? 'Grid' : 'Shelf'}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : null}
+                  {SHELF && shelfView === 'shelf' ? (
+                    <>
+                      <BinderShelf binders={visibleBinders} onOpen={openBinder} accessory={(b) => <MenuButton onPress={() => setMenuId(b.id)} />} testID="my-binders-shelf" />
+                      <Pressable onPress={handleNew} accessibilityRole="button" testID="my-binders-new-shelf" style={({ pressed }) => [styles.shelfNew, pressed && styles.pressed]}>
+                        <Text style={styles.newTileText}>+ New binder</Text>
+                      </Pressable>
+                    </>
+                  ) : (
                   <BinderCoverGrid
                     binders={visibleBinders}
                     onOpen={openBinder}
@@ -470,6 +526,8 @@ export default function MyBindersScreen() {
                       </Pressable>
                     )}
                   />
+                  )}
+                  </>
                 )}
               </>
             )}
@@ -613,6 +671,14 @@ const EMPTY_PAGE: DemoPage = { id: 'empty-shelf', rows: 3, cols: 3, slots: [] };
 const EMPTY_PAGE_W = 132;
 
 const styles = StyleSheet.create({
+  // MIC-017 piece 6: the Grid / Shelf switch, the shelf's New binder and the quiet empty shelf.
+  viewSwitch: { flexDirection: 'row', alignSelf: 'flex-end', borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairline, padding: 2, marginBottom: 10 },
+  viewOpt: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill },
+  viewOptOn: { backgroundColor: Palette.accent },
+  viewOptText: { fontSize: FontSize.sm, fontWeight: '600', color: Palette.ink },
+  viewOptTextOn: { color: Palette.accentText },
+  shelfNew: { alignSelf: 'flex-start', marginTop: 16, paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairlineStrong, borderStyle: 'dashed' },
+  quietEmpty: { alignItems: 'center', gap: 12, paddingVertical: 40 },
   // The old scroll view's bottom room, for the phone's menu button.
   shellTail: { height: BottomTabInset + Spacing.four },
   topRow: {

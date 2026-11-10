@@ -26,6 +26,9 @@ export const FLAGS = {
   'browse-dock': 'dev',
   // Every button whose action takes a moment shows it and takes no second press (owner 2026-11-10).
   'busy-buttons': 'dev',
+  // MIC-017 piece 6: My Binders gets a Grid / Shelf switch (grid the default, each viewer's choice
+  // remembered on the device) and a quiet empty shelf (owner 2026-11-10: "shelf toggle").
+  'mybinders-shelf': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

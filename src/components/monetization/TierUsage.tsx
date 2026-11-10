@@ -16,6 +16,7 @@
  *   point of the flag, and it is the reason this must never go back to a hardcoded cap set.
  */
 import { useEffect, useState } from 'react';
+import { busyLook, useBusyAction } from '@/hooks/use-busy-action';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -105,6 +106,7 @@ interface PlanDetails {
 
 /** The current plan + usage block (Settings PLAN section, /subscriptions YOUR PLAN section). */
 export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }) {
+  const portalAction = useBusyAction();
   const { tier, hasFullPrint, interval, periodStart, termAllocation, limits } = useTier();
   const { user } = useAuth();
   const { binderCount } = useBinders();
@@ -392,12 +394,14 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
       {tier === 'pro' || tier === 'vip' ? (
         <ThemedText
           type="linkPrimary"
-          style={styles.manage}
-          onPress={() => {
-            setPortalNote('Opening the billing portal…');
-            openBillingPortal().catch((e) => setPortalNote((e as Error).message));
-          }}>
-          Manage billing ›
+          onPress={() =>
+            portalAction.run(() => {
+              setPortalNote('Opening the billing portal…');
+              return openBillingPortal().catch((e) => setPortalNote((e as Error).message));
+            })
+          }
+          style={[styles.manage, portalAction.busy && { opacity: 0.6 }]}>
+          {portalAction.busy ? 'Opening billing…' : 'Manage billing ›'}
         </ThemedText>
       ) : null}
       {portalNote ? (

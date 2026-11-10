@@ -24,6 +24,8 @@ export const FLAGS = {
   // MIC-017 piece 5: Browse's compact header + theme dice + round-1 layout, the phone thumb dock,
   // results as binder pages, and no-results that explain (owner's picks, 2026-11-09/10).
   'browse-dock': 'dev',
+  // Every button whose action takes a moment shows it and takes no second press (owner 2026-11-10).
+  'busy-buttons': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

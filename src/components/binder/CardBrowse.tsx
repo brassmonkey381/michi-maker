@@ -191,6 +191,9 @@ export function CardBrowse({
   // MIC-017 piece 5 ('browse-dock' dev flag): the compact header, theme dice and round-1 layout
   // (owner's picks, 2026-11-09) show only with the flag; everyone else keeps today's browser.
   const compactHeader = compactAsked && BROWSE_DOCK;
+  // The dice is rolling (owner 2026-11-10: a button whose action takes a moment shows it and takes
+  // no second press until the result is back).
+  const [diceBusy, setDiceBusy] = useState(false);
   /**
    * PRESSING IT AGAIN AND AGAIN IS A QUESTION, and the answer is not only more pictures.
    *
@@ -590,6 +593,8 @@ export function CardBrowse({
           if (compactHeader) {
             // THE DICE (MIC-017): a random theme query, sometimes two themes or one minus another,
             // rolled again (up to 3 times) when it would find nothing. The field shows the query.
+            if (diceBusy) return;
+            setDiceBusy(true);
             void rollUntilFound(Math.random, game, async (q) => {
               if (secondary) return null; // other games: no count call, any roll stands
               const page = await searchCards(parseQuery(q), { limit: 1 });
@@ -597,7 +602,8 @@ export function CardBrowse({
             }).then((roll) => {
               track('demo.theme_search', { surface: 'browser', theme: roll.query, kind: roll.kind });
               sendBrowseCommand({ type: 'search', query: roll.query });
-            });
+            })
+            .finally(() => setDiceBusy(false));
           } else {
             runThemeDemo('browser', demoTheme);
             setDemoTheme(nextDemoTheme(demoTheme, game));
@@ -618,7 +624,8 @@ export function CardBrowse({
           if (e.type !== 'searched') return;
           trackSimilarWordsSearched({ game: e.game, surface: onPickCard ? 'binder_editor' : 'home', expanded: e.expanded, hits: e.hits });
         }}
-        themeSearchLabel={compactHeader ? (dock && phone ? 'Theme' : 'Theme 🎲') : `Theme: ${demoTheme}`}
+        themeSearchLabel={compactHeader ? (diceBusy ? (dock && phone ? 'Rolling…' : '🎲 Rolling…') : dock && phone ? 'Theme' : 'Theme 🎲') : `Theme: ${demoTheme}`}
+        themeSearchBusy={compactHeader && diceBusy}
         compactHeader={compactHeader}
         // MIC-017 piece 5 ('browse-dock'): thumb dock, results as binder pages, no-results that explain.
         dock={compactHeader && dock}

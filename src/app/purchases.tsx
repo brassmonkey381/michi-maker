@@ -13,6 +13,7 @@
  */
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { busyLook, useBusyAction } from '@/hooks/use-busy-action';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
@@ -142,6 +143,7 @@ function SectionRows({
 }
 
 export default function PurchasesScreen() {
+  const portalAction = useBusyAction();
   const router = useRouter();
   const { isSignedIn } = useAuth();
   const { isPaid } = useTier();
@@ -370,9 +372,9 @@ export default function PurchasesScreen() {
             {CHECKOUT_OPEN && isPaid ? (
               <ThemedText
                 type="linkPrimary"
-                style={styles.portal}
-                onPress={() => void openBillingPortal().catch(() => {})}>
-                Manage billing (payment method, cancel, invoices) ›
+                style={[styles.portal, portalAction.busy && { opacity: 0.6 }]}
+                onPress={() => portalAction.run(() => openBillingPortal().catch(() => {}))}>
+                {portalAction.busy ? 'Opening billing…' : 'Manage billing (payment method, cancel, invoices) ›'}
               </ThemedText>
             ) : null}
             <ThemedText

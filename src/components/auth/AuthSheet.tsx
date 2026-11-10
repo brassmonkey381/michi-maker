@@ -14,6 +14,7 @@
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
+import { busyLook, useBusyAction } from '@/hooks/use-busy-action';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -386,6 +387,7 @@ function AuthForm({ onClose, onAuthed, isGuest }: { onClose: () => void; onAuthe
 // ---------------------------------------------------------------------------
 
 function ProfileView({ onClose }: { onClose: () => void }) {
+  const signOutAction = useBusyAction();
   const auth = useAuth();
   const router = useRouter();
   const theme = useTheme();
@@ -710,13 +712,16 @@ function ProfileView({ onClose }: { onClose: () => void }) {
       </View>
 
       <Pressable
-        onPress={async () => {
-          await auth.signOut();
-          onClose();
-        }}
-        style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
+        onPress={() =>
+          signOutAction.run(async () => {
+            await auth.signOut();
+            onClose();
+          })
+        }
+        disabled={signOutAction.busy}
+        style={({ pressed }) => [styles.signOut, (pressed || signOutAction.busy) && styles.pressed]}>
         <ThemedText type="smallBold" style={styles.signOutText}>
-          Sign out
+          {signOutAction.busy ? 'Signing out…' : 'Sign out'}
         </ThemedText>
       </Pressable>
 

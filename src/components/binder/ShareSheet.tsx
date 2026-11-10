@@ -4,6 +4,7 @@
  * the system share sheet. Only shown for the owner's own cloud binders.
  */
 import { useEffect, useRef, useState } from 'react';
+import { busyLook, useBusyAction } from '@/hooks/use-busy-action';
 import {
   ActivityIndicator,
   Platform,
@@ -329,6 +330,7 @@ export function ShareSheet({
   }, [visible, isPublic, binder.id, warmKey]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  const shareAction = useBusyAction();
   const onShare = async () => {
     if (linkStale) return; // a re-read away from the current link; do not hand over the old one
     // A last attempt if the preview isn't already warm — this is the final moment before the link
@@ -547,10 +549,10 @@ export function ShareSheet({
                 </Pressable>
                 <Pressable
                   onPress={confirmPublic}
-                  disabled={!attested}
-                  style={({ pressed }) => [styles.publicBtn, (!attested || pressed) && styles.dim]}>
+                  disabled={!attested || busyLook(attestBusy)}
+                  style={({ pressed }) => [styles.publicBtn, (!attested || busyLook(attestBusy) || pressed) && styles.dim]}>
                   <ThemedText type="smallBold" style={styles.publicBtnText}>
-                    Make public
+                    {busyLook(attestBusy) ? 'Making it public…' : 'Make public'}
                   </ThemedText>
                 </Pressable>
               </View>
@@ -579,14 +581,18 @@ export function ShareSheet({
                     </ThemedText>
                   </ScrollView>
                   <Pressable
-                    onPress={onShare}
-                    disabled={linkStale}
-                    style={({ pressed }) => [styles.copyBtn, (linkStale || pressed) && styles.dim]}
+                    onPress={() => shareAction.run(onShare)}
+                    disabled={linkStale || shareAction.busy}
+                    style={({ pressed }) => [styles.copyBtn, (linkStale || shareAction.busy || pressed) && styles.dim]}
                     hitSlop={6}>
                     <ThemedText type="smallBold" style={styles.copyText}>
                       {linkStale
                         ? 'Updating…'
-                        : copied
+                        : shareAction.busy
+                          ? Platform.OS === 'web'
+                            ? 'Copying…'
+                            : 'Sharing…'
+                          : copied
                           ? 'Copied ✓'
                           : Platform.OS === 'web'
                             ? 'Copy link'

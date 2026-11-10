@@ -20,6 +20,9 @@ import { CatalogWarm } from '@/components/CatalogWarm';
 // and not from /browse, while `?multi-tcg=` survived both. Importing it here evaluates it with the
 // address exactly as the visitor typed it, the way constants/variants is (through the theme).
 import '@/lib/games';
+// DEV MODE (MIC-017) is read at boot for the same reason: `?dev=1` as typed, before any rewrite.
+import '@/lib/devMode';
+import { DevBadge } from '@/components/nav/DevBadge';
 import { redeemHandoffHashFromLocation } from '@/data/handoff';
 import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';
@@ -93,6 +96,8 @@ export default function TabLayout() {
                 attestation: the two take turns through promptQueue, and BOTH can now happen in a
                 single visit. See src/data/prompts.ts for who gets which prompt, and where. */}
             <AvatarConsentPrompt />
+            {/* "DEV" while this browser is in dev mode (lib/devMode); tap to leave. Null otherwise. */}
+            <DevBadge />
           </BinderProvider>
         </AuthProvider>
         </AppKitProvider>

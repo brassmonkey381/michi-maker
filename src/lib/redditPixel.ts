@@ -17,6 +17,8 @@
 
 import { Platform } from 'react-native';
 
+import { DEV_MODE } from '@/lib/devMode';
+
 type Rdt = ((...args: unknown[]) => void) & { callQueue?: unknown[]; sendEvent?: (...args: unknown[]) => void };
 
 const PIXEL_ID = process.env.EXPO_PUBLIC_REDDIT_PIXEL_ID?.trim() || '';
@@ -46,7 +48,8 @@ function rdt(): Rdt | null {
 
 /** Load the pixel and send its PageVisit. Safe to call more than once; later calls do nothing. */
 export function initRedditPixel(): void {
-  if (loaded) return;
+  // Dev mode (lib/devMode) is the owner testing: no pixel at all, not even PageVisit.
+  if (loaded || DEV_MODE) return;
   const r = rdt();
   if (!r) return;
   loaded = true;
@@ -60,6 +63,7 @@ export function initRedditPixel(): void {
 
 /** The account was created (analytics account.created). `conversionId` is the uid. */
 export function redditSignUp(conversionId: string | null | undefined): void {
+  if (DEV_MODE) return;
   initRedditPixel();
   const r = rdt();
   if (!r) return;
@@ -72,7 +76,7 @@ export function redditSignUp(conversionId: string | null | undefined): void {
 
 /** The first card placed on this page load (analytics card.add, not a swap). Once per load. */
 export function redditFirstCardPlaced(): void {
-  if (viewContentSent) return;
+  if (viewContentSent || DEV_MODE) return;
   initRedditPixel();
   const r = rdt();
   if (!r) return;

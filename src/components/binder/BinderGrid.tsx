@@ -38,7 +38,7 @@ import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
 import { CAPTION_FIELDS, formatCaption, hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { labelIsProductLink, labelQuery, type LinkableCard } from '@/data/labelLinks';
-import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
+import { occupiedCells, slotCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import {
   ART_ROLE_GUIDE,
   ART_ROLE_LABELS,
@@ -936,9 +936,13 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             glare across the face and a lip down the edge the pocket opens on (pocketOpening), so
             the side a card slides in from is visible. Never a control. */}
         {SLEEVES
-          ? Array.from({ length: page.rows * page.cols }, (_, i) => {
+          ? (() => {
+            // A piece spanning pockets (sliced art) reads as one picture; no sleeve stripes across it.
+            const spanned = new Set(page.slots.filter((x) => x.rowSpan > 1 || x.colSpan > 1).flatMap((x) => slotCells(x)));
+            return Array.from({ length: page.rows * page.cols }, (_, i) => {
               const row = Math.floor(i / page.cols);
               const col = i % page.cols;
+              if (spanned.has(`${row},${col}`)) return null;
               const opens = pocketOpening(page.cols, outerEdge ?? 'right', col);
               return (
                 <View key={`sleeve-${row}-${col}`} pointerEvents="none" testID="pocket-sleeve" style={[box(row, col, 1, 1), styles.sleeve, { borderRadius: slotRadius }]}>
@@ -953,7 +957,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                   <View style={[styles.sleeveLip, opens === 'left' ? styles.sleeveLipLeft : styles.sleeveLipRight]} />
                 </View>
               );
-            })
+            });
+          })()
           : null}
 
         {/* PRINT-FINISH CHIPS (N / H / RH …), a sibling layer rather than a child of the slot.

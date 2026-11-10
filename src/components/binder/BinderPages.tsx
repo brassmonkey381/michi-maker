@@ -43,6 +43,10 @@ import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BinderSurface, FontSize, Palette, Radius, Weight } from '@/constants/theme';
+import { flag } from '@/lib/flags';
+
+/** MIC-017 binder-book ('dev' flag): the viewer is a book on a desk; a slim page count replaces the filmstrip. */
+const BOOK_FLAG = flag('binder-book');
 
 import { pillChip, sheet } from '@/constants/ui';
 import { setHoverSuspended } from '@/components/binder/hoverGate';
@@ -467,7 +471,9 @@ export function BinderPages({
    */
   const columnLabel = (pg: DemoPage | null | undefined, fallback: string) =>
     (pg?.title || '').trim() || fallback;
-  const railLeft = view.navDock === 'left' && !phone;
+  // MIC-017 book: a visitor's binder reads as a book; the filmstrip gives way to a slim count.
+  const book = BOOK_FLAG && !editable;
+  const railLeft = view.navDock === 'left' && !phone && !book;
   const heightBudget = Math.max(
     0,
     windowHeight -
@@ -1681,7 +1687,7 @@ export function BinderPages({
           The content measurement moved up here with it. It is this wrapper's offset in the scroll
           content that says how much sits above the page now, and measuring the inner view would
           report 0 the moment a rail put it inside a row. */}
-      <View style={[styles.pageRow, railLeft && styles.pageRowRailed]}>
+      <View style={[styles.pageRow, railLeft && styles.pageRowRailed, book && styles.bookDesk]}>
       {railLeft && (count > 1 || coverStripExtras) ? (
         <View style={[styles.navRail, { backgroundColor: theme.background, height: railHeight }]}>
           {autoFlip}
@@ -2194,7 +2200,10 @@ export function BinderPages({
         {/* On a phone the autoplay controls live in Settings (owner, 2026-11-05: the viewer's
             bottom is for the strip and the arrows; the page gets the rest). */}
         {phone ? null : autoFlip}
-        {phone ? turnArrow(-1) : null}
+        {phone || book ? turnArrow(-1) : null}
+        {book ? (
+          <BookCount current={shut || coverFocus ? -1 : idx} count={count} onSelect={selectPage} />
+        ) : (
         <View style={styles.dockStrip}>
         <PageStrip
             pageStyle={binder.pageStyle}
@@ -2207,11 +2216,39 @@ export function BinderPages({
           {...coverStripExtras}
         />
         </View>
-        {phone ? turnArrow(1) : null}
+        )}
+        {phone || book ? turnArrow(1) : null}
         </View>
         </View>
       ) : null}
     </>
+  );
+}
+
+/**
+ * THE BOOK'S PAGE COUNT (MIC-017 binder-book): "3 / 12" and a dot per page, in place of the
+ * filmstrip. Pages turn by swipe, the arrows or a dot; past 24 pages only the count shows.
+ */
+function BookCount({ current, count, onSelect }: { current: number; count: number; onSelect: (i: number) => void }) {
+  return (
+    <View style={styles.bookCount} testID="book-count">
+      <Text style={styles.bookCountText}>{current < 0 ? 'Cover' : `${current + 1} / ${count}`}</Text>
+      {count > 1 && count <= 24 ? (
+        <View style={styles.bookDots}>
+          {Array.from({ length: count }, (_, i) => (
+            <Pressable
+              key={i}
+              onPress={() => onSelect(i)}
+              hitSlop={{ top: 10, bottom: 10, left: 3, right: 3 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Page ${i + 1}`}
+              accessibilityState={{ selected: i === current }}
+              style={[styles.bookDot, i === current && styles.bookDotOn]}
+            />
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -2725,6 +2762,13 @@ const styles = StyleSheet.create({
   turnArrowOff: { opacity: 0.3 },
   turnArrowText: { fontSize: 28, lineHeight: 32, color: Palette.ink, fontWeight: Weight.bold },
   dockStrip: { flex: 1, minWidth: 0 },
+  // MIC-017 binder-book
+  bookDesk: { backgroundColor: 'rgba(140,105,70,0.10)', borderRadius: 18, paddingVertical: 14 },
+  bookCount: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 4 },
+  bookCountText: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.muted, fontVariant: ['tabular-nums'] },
+  bookDots: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, maxWidth: 260 },
+  bookDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Palette.hairlineStrong },
+  bookDotOn: { backgroundColor: Palette.accent, width: 18 },
   // Neighbours recede. 0.92 was an 8% dim — indistinguishable from the page in focus, which is
   // exactly the complaint: three equally bright pages with no way to tell which one you were on.
   neighborGrid: { opacity: 0.55 },

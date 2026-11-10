@@ -1335,7 +1335,7 @@ export type Database = {
       }
       admin_restore_binder_private: {
         Args: { p_binder_id: string }
-        Returns: undefined
+        Returns: string
       }
       admin_copyright_strikes: {
         Args: Record<PropertyKey, never>

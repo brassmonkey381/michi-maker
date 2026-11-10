@@ -12,7 +12,7 @@
 import { useRouter, type Href } from 'expo-router';
 import { affiliateConfigured, productUrl, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
-import { Linking, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { trackAffiliateClick } from '@/lib/analytics';
 import { cardPictureAction } from '@/lib/cardPicture';
@@ -299,6 +299,18 @@ export default function BrowseScreen() {
             <CardBrowse
               touchControls
               compactHeader
+              dock
+              resultsAsPages
+              dockExtra={
+                <Pressable
+                  onPress={() => typeof window !== 'undefined' && window.dispatchEvent(new Event('michi-open-menu'))}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open the menu"
+                  testID="dock-menu"
+                  style={styles.dockMenu}>
+                  <Text style={styles.dockMenuText}>☰</Text>
+                </Pressable>
+              }
               catalog={catalog}
               cardActions={cardActions}
               onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'browse'))}
@@ -346,6 +358,9 @@ export default function BrowseScreen() {
 }
 
 const styles = StyleSheet.create({
+  // MIC-017 piece 5: the menu button at the end of the Browse thumb dock.
+  dockMenu: { width: 44, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: Palette.panel, borderWidth: 1, borderColor: Palette.hairline },
+  dockMenuText: { fontSize: 20, color: Palette.ink },
   // The shell sets the column's width and padding; the page only fills the height it is given.
   shell: { flex: 1, minHeight: 0 },
   // WRAPS RATHER THAN CLIPS. At 375px the 34pt title took three lines and pushed the row's right

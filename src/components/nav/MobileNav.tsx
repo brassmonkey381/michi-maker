@@ -32,6 +32,9 @@ import { freshPinned } from '@/data/changelog';
 import { NavIcon } from '@/components/nav/NavIcon';
 import { flag } from '@/lib/flags';
 
+/** MIC-017 piece 5: the Browse thumb dock carries the menu on a phone ('dev' flag). */
+const BROWSE_DOCK = flag('browse-dock');
+
 /** MIC-017 side-nav: no glyphs, bigger text, bold section rules. Constant for the page load. */
 const PLAIN = flag('side-nav');
 import { navGroups, navHiddenOn, type NavItem } from '@/components/nav/navItems';
@@ -43,6 +46,15 @@ export function MobileNav() {
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const { opening, open: openTcgscan } = useTcgscanOpen();
+  // MIC-017 piece 5 ('browse-dock'): on /browse the thumb dock carries the menu (its ☰ sends
+  // 'michi-open-menu'), so this button steps aside there instead of covering the dock.
+  const dockCarriesMenu = BROWSE_DOCK && pathname === '/browse';
+  useEffect(() => {
+    if (!BROWSE_DOCK || typeof window === 'undefined') return;
+    const onOpen = () => setOpen(true);
+    window.addEventListener('michi-open-menu', onOpen);
+    return () => window.removeEventListener('michi-open-menu', onOpen);
+  }, []);
 
   /**
    * THE BUTTON GETS OUT OF THE WAY WHILE YOU READ.
@@ -124,9 +136,10 @@ export function MobileNav() {
       <Animated.View
         // Not just faded: it slides out past its own corner, so a half-finished transition never
         // leaves a ghost button sitting over the text.
-        pointerEvents={hidden ? 'none' : 'auto'}
+        pointerEvents={hidden || dockCarriesMenu ? 'none' : 'auto'}
         style={[
           styles.fabWrap,
+          dockCarriesMenu ? { display: 'none' } : null,
           { bottom: Spacing.four + insets.bottom, right: Spacing.three + insets.right },
           {
             opacity: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),

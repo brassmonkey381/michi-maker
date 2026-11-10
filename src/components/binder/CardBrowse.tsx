@@ -11,7 +11,7 @@
  * element — it remounts this wrapper and the browser inside it.
  */
 import { useRouter, type Href } from 'expo-router';
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, type View as ViewType } from 'react-native';
 
 import { browseState, CatalogBrowser, parseQuery, searchCards, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
@@ -80,6 +80,9 @@ export function CardBrowse({
   touchControls = false,
   dense = false,
   compactHeader: compactAsked = false,
+  dock = false,
+  dockExtra,
+  resultsAsPages = false,
 }: {
   /** Smaller card tiles, more per row (MIC-017: the editor hand's search, desktop). */
   dense?: boolean;
@@ -129,6 +132,12 @@ export function CardBrowse({
   touchControls?: boolean;
   /** The compact header (MIC-017): game | Filters | View, Color | Theme 🎲, a fold handle. The wizard keeps the old one. */
   compactHeader?: boolean;
+  /** MIC-017 piece 5: the phone's controls in a bar at the foot (kit 0.9.85; 'browse-dock' only). */
+  dock?: boolean;
+  /** A host control at the end of the dock's row (the menu on /browse). */
+  dockExtra?: ReactNode;
+  /** MIC-017 piece 5: results as 3x3 binder pages with divider tabs (kit 0.9.85; 'browse-dock' only). */
+  resultsAsPages?: boolean;
 }) {
   const { width } = useWindowDimensions();
   // App tokens → the kit's color contract, so the browser follows light/dark + variant
@@ -611,6 +620,11 @@ export function CardBrowse({
         }}
         themeSearchLabel={compactHeader ? 'Theme 🎲' : `Theme: ${demoTheme}`}
         compactHeader={compactHeader}
+        // MIC-017 piece 5 ('browse-dock'): thumb dock, results as binder pages, no-results that explain.
+        dock={compactHeader && dock}
+        dockExtra={dockExtra}
+        resultsAsPages={BROWSE_DOCK && resultsAsPages}
+        explainEmpty={BROWSE_DOCK}
         // Round 1 of the style picker (MIC-017): michi's layout choices, one file (lib/browseLayout).
         layout={compactHeader ? layoutChoice : undefined}
         // "Color Search" on a phone pushed its own row into a wrap and shoved the kit's NEW!

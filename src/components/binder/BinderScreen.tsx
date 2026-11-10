@@ -4305,6 +4305,7 @@ export function BinderScreen({
           // (owner, 2026-11-06: Picture and Copy left the tools row; this is the one place).
           onPicture={Platform.OS === 'web' ? () => { setShareOpen(false); if (phone) void sharePicture(); else copyPicture(); } : undefined}
           pictureLabel={phone ? 'Share this page as a picture' : 'Copy page to clipboard'}
+          pictureInput={Platform.OS === 'web' ? pictureInput : undefined}
         />
         {sendPageOpen && (
           <AddToBinderSheet

@@ -23,6 +23,7 @@
     "expo-web-browser": "~56.0.5",
     "fflate": "^0.7.4",
     "pdf-lib": "^1.17.1",
+    "qrcode-generator": "^1.4.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",

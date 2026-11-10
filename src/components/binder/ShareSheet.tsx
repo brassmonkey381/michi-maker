@@ -5,6 +5,12 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { busyLook, useBusyAction } from '@/hooks/use-busy-action';
+import { InstagramFormatsSheet, QrSheet } from '@/components/binder/ShareExtras';
+import { flag } from '@/lib/flags';
+import type { PageImageInput } from '@/lib/pageImage';
+
+/** MIC-017 piece 9 ('dev'): Instagram formats, a QR code and the picture lead the sheet. */
+const SHARE_MINIMAL = flag('share-minimal');
 import {
   ActivityIndicator,
   Platform,
@@ -48,7 +54,10 @@ export function ShareSheet({
   onToast,
   onPicture,
   pictureLabel = 'Share this page as a picture',
+  pictureInput,
 }: {
+  /** The open page, for the Instagram formats (MIC-017 piece 9). */
+  pictureInput?: () => PageImageInput;
   visible: boolean;
   binder: DemoBinder;
   isPublic: boolean;
@@ -124,6 +133,8 @@ export function ShareSheet({
   // The link carries the page its preview image shows, so the unfurled picture and the page the
   // binder opens on are the same thing. Recomputed with the binder because featuring a page in this
   // very sheet changes both the picture and the link.
+  const [igOpen, setIgOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const url = binderShareUrl(binder.id, liveKey?.value ?? binder.shareKey, previewDeepLinkPage(binder));
   const [copied, setCopied] = useState(false);
 
@@ -354,7 +365,28 @@ export function ShareSheet({
   };
 
   return (
+    <>
     <DialogCard visible={visible} onClose={onClose} maxWidth={420} title="Share binder">
+            {SHARE_MINIMAL ? (
+              <View style={styles.bigRow} testID="share-big-row">
+                {pictureInput ? (
+                  <Pressable onPress={() => setIgOpen(true)} accessibilityRole="button" testID="share-instagram" style={({ pressed }) => [styles.bigBtn, pressed && styles.dim]}>
+                    <Text style={styles.bigGlyph}>◎</Text>
+                    <ThemedText type="smallBold">Instagram</ThemedText>
+                  </Pressable>
+                ) : null}
+                <Pressable onPress={() => setQrOpen(true)} accessibilityRole="button" testID="share-qr" style={({ pressed }) => [styles.bigBtn, pressed && styles.dim]}>
+                  <Text style={styles.bigGlyph}>▦</Text>
+                  <ThemedText type="smallBold">QR code</ThemedText>
+                </Pressable>
+                {onPicture ? (
+                  <Pressable onPress={onPicture} accessibilityRole="button" testID="share-picture" style={({ pressed }) => [styles.bigBtn, pressed && styles.dim]}>
+                    <Text style={styles.bigGlyph}>▣</Text>
+                    <ThemedText type="smallBold">Picture</ThemedText>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
             <View style={styles.toggleRow}>
               <View style={styles.toggleText}>
                 <ThemedText type="smallBold">Anyone with the link</ThemedText>
@@ -686,10 +718,21 @@ export function ShareSheet({
               </>
             )}
     </DialogCard>
+    {SHARE_MINIMAL ? (
+      <>
+        <InstagramFormatsSheet visible={igOpen} input={igOpen && pictureInput ? pictureInput() : null} link={url} onClose={() => setIgOpen(false)} onToast={onToast} />
+        <QrSheet visible={qrOpen} link={url} title={binder.title} onClose={() => setQrOpen(false)} onToast={onToast} />
+      </>
+    ) : null}
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  // MIC-017 piece 9: the three big share buttons.
+  bigRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  bigBtn: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: Palette.hairlineStrong, backgroundColor: Palette.panel },
+  bigGlyph: { fontSize: 26, color: Palette.accent },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three },
   toggleText: { flex: 1, gap: 2 },
   pagesBlock: { gap: Spacing.two },

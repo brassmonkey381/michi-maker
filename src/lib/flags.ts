@@ -34,6 +34,9 @@ export const FLAGS = {
   // MIC-017 piece 8: Discover ranks binders by how much of them a search's cards fill, searches by
   // colour and theme, and has a Binders | Makers switch.
   'discover-v2': 'dev',
+  // MIC-017 piece 9: the Share sheet leads with Instagram (story / square / page + caption), a QR
+  // code (and a printable QR card) and the page picture.
+  'share-minimal': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

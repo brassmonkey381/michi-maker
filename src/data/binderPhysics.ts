@@ -49,6 +49,20 @@ export function insideEdgePairStarts(cols: number, side: PageSide): number[] {
 }
 
 /**
+ * WHICH EDGE A POCKET OPENS ON (MIC-017 sleeves). A pocket in an inside-edge pair opens on the
+ * edge it shares with its partner: the left pocket of a pair on its right edge, the right one on
+ * its left edge. The 3-column page's lone pocket (the one by the spine) opens away from the spine,
+ * because the spine edge is the binding. Cards slide in, and out, through this edge.
+ */
+export function pocketOpening(cols: number, side: PageSide, col: number): 'left' | 'right' {
+  for (const start of insideEdgePairStarts(cols, side)) {
+    if (col === start) return 'right';
+    if (col === start + 1) return 'left';
+  }
+  return side === 'right' ? 'right' : 'left';
+}
+
+/**
  * Can a single printed art piece occupy this footprint? `col` is the absolute page column of
  * the piece's left edge. Returns the physical reason when it can't.
  */

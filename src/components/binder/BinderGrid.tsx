@@ -14,8 +14,21 @@ import Animated, {
   withRepeat,
   withSpring,
   withTiming,
+  Keyframe,
   type SharedValue,
 } from 'react-native-reanimated';
+
+/** MIC-017 pockets-sleeves ('dev' flag): clear sleeves with glare and a lip on the opening edge;
+ *  cards slide in and out through that edge. Constant for the page load. */
+const SLEEVES = flag('pockets-sleeves');
+
+/** A card entering (or leaving) a pocket through its opening edge, a little over half a pocket. */
+function slideThrough(from: 'left' | 'right', cellW: number, leaving: boolean) {
+  const dx = (from === 'right' ? 1 : -1) * Math.round(cellW * 0.6);
+  const out = { opacity: 0, transform: [{ translateX: dx }] };
+  const home = { opacity: 1, transform: [{ translateX: 0 }] };
+  return new Keyframe({ 0: leaving ? home : out, 100: leaving ? out : home }).duration(leaving ? 200 : 280);
+}
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
@@ -38,7 +51,8 @@ import { cellWidthFor, gapFor } from '@/data/binderLayout';
 import { cardFrame, connectedCut, resolveArtView, WINDOW_CUT, type ArtView, type FrameTable, type SheetCut } from '@/data/artView';
 import { resolveMatStyle, spreadSlice, type MatStyle } from '@/data/matStyle';
 import { useFrames } from '@/hooks/use-frames';
-import { insideEdgePairStarts } from '@/data/binderPhysics';
+import { insideEdgePairStarts, pocketOpening } from '@/data/binderPhysics';
+import { flag } from '@/lib/flags';
 import { cutBoundaries } from '@/data/printFit';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
@@ -588,6 +602,18 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   const [dragId, setDragId] = useState<string | null>(null);
+  // Sleeves: cards already on the page when it first draws do not slide in; only later arrivals do.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (!SLEEVES) return;
+    const t = setTimeout(() => setSettled(true), 900);
+    return () => clearTimeout(t);
+  }, []);
+  const sleeveMotion = (col: number) => {
+    if (!SLEEVES) return {};
+    const from = pocketOpening(page.cols, outerEdge ?? 'right', col);
+    return { entering: settled ? slideThrough(from, cellW, false) : undefined, exiting: slideThrough(from, cellW, true) };
+  };
   // WHICH RESERVED PANEL THE POINTER IS OVER, held here rather than in the pocket, because a
   // pocket clips its own contents and a card drawn inside one is sliced off at the pocket edge.
   // Drawn below as a sibling of the cells, where nothing clips it.
@@ -791,6 +817,9 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                   {!small && (
                     <Text style={[styles.addPlus, (hovered || pressed) && styles.addPlusLit]}>+</Text>
                   )}
+                  {!small && SLEEVES && cellW >= 64 ? (
+                    <Text style={[styles.sleeveHint, (hovered || pressed) && styles.addPlusLit]}>drop a card</Text>
+                  ) : null}
                 </>
               )}
             </Pressable>
@@ -865,6 +894,13 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             />
           );
           if (!editable) {
+            if (SLEEVES) {
+              return (
+                <Animated.View key={slot.id} style={style} {...sleeveMotion(slot.col)}>
+                  {content}
+                </Animated.View>
+              );
+            }
             return (
               <View key={slot.id} style={style}>
                 {content}
@@ -889,11 +925,36 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               onTap={onSlotPress}
               onDropSlot={onDropSlot}
               onCrossDrop={onCrossDrop}
-              onDragStart={onDragStart}>
+              onDragStart={onDragStart}
+              {...sleeveMotion(slot.col)}>
               {content}
             </DraggableSlot>
           );
         })}
+
+        {/* SLEEVES (MIC-017, 'dev' flag): the clear plastic over every pocket, card or not. A
+            glare across the face and a lip down the edge the pocket opens on (pocketOpening), so
+            the side a card slides in from is visible. Never a control. */}
+        {SLEEVES
+          ? Array.from({ length: page.rows * page.cols }, (_, i) => {
+              const row = Math.floor(i / page.cols);
+              const col = i % page.cols;
+              const opens = pocketOpening(page.cols, outerEdge ?? 'right', col);
+              return (
+                <View key={`sleeve-${row}-${col}`} pointerEvents="none" testID="pocket-sleeve" style={[box(row, col, 1, 1), styles.sleeve, { borderRadius: slotRadius }]}>
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={['rgba(255,255,255,0.42)', 'rgba(255,255,255,0)', 'rgba(255,255,255,0)', 'rgba(255,255,255,0.16)']}
+                    locations={[0, 0.3, 0.68, 1]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={[styles.sleeveLip, opens === 'left' ? styles.sleeveLipLeft : styles.sleeveLipRight]} />
+                </View>
+              );
+            })
+          : null}
 
         {/* PRINT-FINISH CHIPS (N / H / RH …), a sibling layer rather than a child of the slot.
             It has to be: in edit mode the slot content is wrapped by DraggableSlot's
@@ -1501,8 +1562,10 @@ function DraggableSlot({
   onDropSlot,
   onCrossDrop,
   onDragStart,
+  entering,
+  exiting,
   children,
-}: DraggableSlotProps) {
+}: DraggableSlotProps & { entering?: ReturnType<typeof slideThrough>; exiting?: ReturnType<typeof slideThrough> }) {
   const gesture = useMemo(() => {
     const stepX = cellW + gap;
     const stepY = cellH + gap + captionH;
@@ -1566,11 +1629,14 @@ function DraggableSlot({
   return (
     <GestureDetector gesture={gesture}>
       <Animated.View
+        entering={entering}
+        exiting={exiting}
         style={[
           boxStyle,
           settleStyle,
           dimmed && styles.dimmed,
           selected && { ...styles.selected, borderRadius: slotRadius + 2 },
+          selected && SLEEVES && styles.sleeveLifted,
         ]}>
         {children}
       </Animated.View>
@@ -2844,6 +2910,13 @@ const styles = StyleSheet.create({
     color: Palette.grayBorder70,
   },
   addPlusLit: { color: BinderSurface.selection },
+  // MIC-017 sleeves
+  sleeve: { position: 'absolute', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', zIndex: 3 },
+  sleeveLip: { position: 'absolute', top: 0, bottom: 0, width: '7%', backgroundColor: 'rgba(255,255,255,0.45)' },
+  sleeveLipLeft: { left: 0, borderRightWidth: 1, borderRightColor: 'rgba(0,0,0,0.07)' },
+  sleeveLipRight: { right: 0, borderLeftWidth: 1, borderLeftColor: 'rgba(0,0,0,0.07)' },
+  sleeveLifted: { transform: [{ scale: 1.04 }], zIndex: 6, boxShadow: '0 14px 26px rgba(0,0,0,0.28)' },
+  sleeveHint: { fontSize: FontSize.xs, color: Palette.grayBorder70, marginTop: 2 },
   dropTarget: {
     borderWidth: 2,
     borderColor: Palette.accent,

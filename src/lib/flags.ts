@@ -12,6 +12,7 @@ import { DEV_MODE } from '@/lib/devMode';
 export const FLAGS = {
   // MIC-017 redesign pieces (owner's picks, 2026-11-10)
   'side-nav': 'dev',
+  'pockets-sleeves': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

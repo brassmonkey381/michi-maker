@@ -338,9 +338,9 @@ index), same type, same artist, finish the lines (the missing stages, from the l
 when it has one), same theme (the data server's `theme_fill`, migration 85: the scene words two or
 more of the page's cards share, cards sharing at least two of them, ids only; `lib/themeFill`).
 The page's art class steers which prints come first and is passed to theme fill.
-**Same theme is FREE for everyone, for now** (owner, 2026-11-10, MIC-004): no PRO lock and no
-sample spent in the Complete sheet, for free accounts as for PRO. Like the whole page stays PRO
-(a free account spends a fillPage sample). A guest's Complete sheet keeps its one-fill gate.
+**Same theme is PRO with a free taste**, like the other PRO features (owner, 2026-11-10, MIC-004):
+a free account spends a fillPage sample on it, a guest uses the sheet's one fill. It was made free
+for everyone earlier the same day (3eceee7, live 10:25 UTC) and reversed within the hour.
 
 ## Binder building: identity-seeded pages (2026-10-21)
 

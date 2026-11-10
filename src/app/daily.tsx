@@ -49,6 +49,10 @@ import {
   trackPuzzleGuess, trackPuzzleGuessFailed, trackPuzzleOpened, trackPuzzleRevealed, trackPuzzleSolved,
 } from '@/lib/analytics';
 import { useAuth } from '@/store/auth';
+import { flag } from '@/lib/flags';
+
+/** MIC-017 piece 13 ('dev'): the daily puzzle's heading in colour. */
+const PLAY_COLOUR = flag('play-board');
 
 export default function DailyScreen() {
   const router = useRouter();
@@ -326,7 +330,7 @@ export default function DailyScreen() {
           <View key={`${userId ?? 'anon'}:${puzzle?.id ?? ''}`} ref={onMine} />
 
           <View style={styles.hero}>
-            <ThemedText type="small" style={styles.eyebrow}>DAILY PUZZLE</ThemedText>
+            <ThemedText type="small" style={[styles.eyebrow, PLAY_COLOUR && styles.eyebrowColour]}>DAILY PUZZLE</ThemedText>
             <ThemedText type="subtitle" style={styles.h1}>What do these share?</ThemedText>
             <View style={styles.pills}>
               {puzzle ? (
@@ -549,6 +553,7 @@ export default function DailyScreen() {
 }
 
 const styles = StyleSheet.create({
+  eyebrowColour: { alignSelf: 'flex-start', color: '#fff', backgroundColor: '#8e5bd1', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, overflow: 'hidden', fontWeight: '800', letterSpacing: 1 },
   // A watermark, not a picture: the cards are the thing to look at.
   backdrop: { opacity: 0.14 },
   flex: { flex: 1 },

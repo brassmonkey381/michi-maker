@@ -31,6 +31,11 @@ import { useTier } from '@/hooks/use-tier';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
+import { RoadmapBoard } from '@/components/RoadmapBoard';
+import { flag } from '@/lib/flags';
+
+/** MIC-017 piece 13 ('dev'): the roadmap board above the ballot. */
+const PLAY_BOARD = flag('play-board');
 
 const DRAFT_KEY = 'michi.wishlist.draft.v1';
 
@@ -156,6 +161,10 @@ export default function WishlistScreen() {
             {MICHI_WISHLIST.lede}
           </ThemedText>
         </View>
+
+        {PLAY_BOARD ? (
+          <RoadmapBoard topVotes={ranked.map((i) => ({ label: i.label, votes: votes?.counts.get(i.id) ?? 0 }))} />
+        ) : null}
 
         {/* THE BALLOT: one tap per idea. Most voted first, so the page is also the answer. */}
         <View style={styles.grid} testID="wishlist-ideas">

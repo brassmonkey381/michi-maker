@@ -46,6 +46,9 @@ export const FLAGS = {
   // MIC-017 piece 12: a complete or master set as a checklist binder (gaps labelled with number,
   // name and price) with the completion bar and the price to finish.
   'setbinders-build': 'dev',
+  // MIC-017 piece 13: Vote becomes a roadmap board (up for votes / being built / shipped), and
+  // the daily puzzle's heading gets its colour.
+  'play-board': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

@@ -7,6 +7,11 @@
  * the Complete-page fills sent here instead of into pockets), Search (the card browser, each pick
  * lands in the hand), and Clear.
  *
+ * ON A PHONE (owner 2026-11-10, iPhone): the hand is part of the page, not a band under it: no
+ * divider, no panel colour, and its controls (Hand · N, Suggest, Search, Clear) fold behind a
+ * chevron at its bottom-right. They fold away by themselves when cards arrive (a search or a
+ * Suggest finishing), and start open while the hand is empty so Suggest can be found.
+ *
  * Behind the 'editor-hand' dev flag; BinderScreen decides where it sits and owns every store call.
  */
 import { useMemo, useState, type RefObject } from 'react';
@@ -68,19 +73,35 @@ export function HandTray({
   const phone = useWindowDimensions().width < 600;
   const [areaW, setAreaW] = useState(0);
   const [hovered, setHovered] = useState<string | null>(null);
+  // Phone: are the hand's controls showing? Folds when cards arrive; opens when the hand empties.
+  const n = ordered.length;
+  const [tools, setTools] = useState(n === 0);
+  const [seenN, setSeenN] = useState(n);
+  if (n !== seenN) {
+    setSeenN(n);
+    if (n > seenN) setTools(false);
+    else if (n === 0) setTools(true);
+  }
+  const showHeader = !phone || tools;
+  const showCards = phone ? true : open;
   const L = useMemo(() => handLayout(ordered.length, areaW, phone ? CARDS_H_PHONE : CARDS_H_DESKTOP), [ordered.length, areaW, phone]);
   return (
     <View
       ref={trayRef}
       collapsable={false}
-      style={styles.hand}
+      style={[styles.hand, phone && styles.handPhone]}
       testID="editor-hand"
       onLayout={(e) => onHeight(Math.round(e.nativeEvent.layout.height))}>
-      <View style={styles.header}>
+      {showHeader ? (
+      <View style={[styles.header, phone && styles.headerPhone]}>
+        {phone ? (
+          <Text style={styles.title}>Hand{ordered.length ? ` · ${ordered.length}` : ''}</Text>
+        ) : (
         <Pressable onPress={() => setOpen((o) => !o)} hitSlop={6} accessibilityRole="button" accessibilityState={{ expanded: open }} style={styles.titleBtn}>
           <Text style={styles.title}>Hand{ordered.length ? ` · ${ordered.length}` : ''}</Text>
           <Text style={styles.chevron}>{open ? '▾' : '▸'}</Text>
         </Pressable>
+        )}
         <View style={styles.actions}>
           <Pressable onPress={onSuggest} style={[styles.btn, styles.btnPrimary]} accessibilityRole="button" testID="hand-suggest">
             <Text style={[styles.btnText, styles.btnPrimaryText]}>✦ Suggest</Text>
@@ -95,8 +116,10 @@ export function HandTray({
           ) : null}
         </View>
       </View>
-      {open ? (
+      ) : null}
+      {showCards ? (
         ordered.length === 0 ? (
+          phone && !tools ? null :
           <Text style={styles.empty}>
             Your hand is empty. Suggest deals cards that fit this page; Search adds the ones you pick. Drag a card up into a pocket, or a card from the page down here.
           </Text>
@@ -143,6 +166,18 @@ export function HandTray({
           </View>
         )
       ) : null}
+      {phone ? (
+        <Pressable
+          onPress={() => setTools((t) => !t)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: tools }}
+          accessibilityLabel={tools ? 'Hide the hand controls' : 'Show the hand controls: Suggest, Search, Clear'}
+          testID="hand-tools"
+          style={styles.toolsBtn}>
+          <Text style={styles.toolsBtnText}>{tools ? '▾' : '▴'}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -154,6 +189,24 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.surface,
     paddingBottom: Spacing.two,
   },
+  // Phone: the hand sits on the page's own ground, close under it (owner 2026-11-10).
+  handPhone: { borderTopWidth: 0, backgroundColor: 'transparent', paddingBottom: Spacing.one, minHeight: 40 },
+  headerPhone: { paddingTop: 0, paddingRight: 52 },
+  toolsBtn: {
+    position: 'absolute',
+    right: Spacing.two,
+    bottom: Spacing.one,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.panel,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+    zIndex: 200,
+  },
+  toolsBtnText: { fontSize: FontSize.md, color: Palette.ink, fontWeight: Weight.bold },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, gap: Spacing.two },
   titleBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   title: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },

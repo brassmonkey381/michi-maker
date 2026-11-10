@@ -21,6 +21,9 @@ import Animated, {
 /** MIC-017 pockets-sleeves ('dev' flag): clear sleeves with glare and a lip on the opening edge;
  *  cards slide in and out through that edge. Constant for the page load. */
 const SLEEVES = flag('pockets-sleeves');
+const PHONE_NAV = flag('phone-nav');
+/** Where the last press on an empty pocket began, so a swipe across it is not taken for a tap. */
+let pressStart: { x: number; y: number } | null = null;
 
 /**
  * ONE CARD SLIDING THROUGH ITS POCKET'S OPENING EDGE (MIC-017 sleeves). Only the picture moves,
@@ -904,7 +907,14 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               ]}
               accessibilityRole="button"
               accessibilityLabel={`Add a card to row ${row + 1}, column ${col + 1}`}
-              onPress={() => onCellPress?.(row, col)}>
+              onPressIn={(e) => {
+                pressStart = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
+              }}
+              onPress={(e) => {
+                // A swipe that started here turned the page (MIC-017 phone-nav); it is not a tap.
+                if (PHONE_NAV && pressStart && Math.hypot(e.nativeEvent.pageX - pressStart.x, e.nativeEvent.pageY - pressStart.y) > 12) return;
+                onCellPress?.(row, col);
+              }}>
               {({ pressed, hovered }) => (
                 <>
                   {!small && (

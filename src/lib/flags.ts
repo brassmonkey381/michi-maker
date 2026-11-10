@@ -15,6 +15,9 @@ export const FLAGS = {
   'pockets-sleeves': 'dev',
   'binder-book': 'dev',
   'editor-hand': 'dev',
+  // Phone: pages turn by swipe (editing too) with small arrows over the page's edges; the page
+  // strip is a Settings toggle, off by default (owner 2026-11-10).
+  'phone-nav': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

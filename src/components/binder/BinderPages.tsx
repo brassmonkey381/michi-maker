@@ -47,6 +47,16 @@ import { flag } from '@/lib/flags';
 
 /** MIC-017 binder-book ('dev' flag): the viewer is a book on a desk; a slim page count replaces the filmstrip. */
 const BOOK_FLAG = flag('binder-book');
+const PHONE_NAV = flag('phone-nav');
+/** This device's choice to show the page strip on a phone (MIC-017 phone-nav). Off unless set. */
+const PHONE_STRIP_KEY = 'michi.phoneStrip';
+function readPhoneStrip(): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(PHONE_STRIP_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 import { pillChip, sheet } from '@/constants/ui';
 import { setHoverSuspended } from '@/components/binder/hoverGate';
@@ -366,6 +376,16 @@ export function BinderPages({
   // HOW YOU LAST LOOKED AT THIS BINDER, remembered per account — Owned, Scans and Double-sided
   // were all session-only, and none of them is a per-visit decision. See use-view-prefs.ts.
   // Called unconditionally so hook order never varies; the prop wins when the caller has its own.
+  // MIC-017 phone-nav: swipe pages (also while editing), arrows over the page's edges, strip optional.
+  const swipeNav = PHONE_NAV && phone;
+  const [phoneStrip, setPhoneStripState] = useState(readPhoneStrip);
+  const setPhoneStrip = (on: boolean) => {
+    setPhoneStripState(on);
+    try {
+      localStorage.setItem(PHONE_STRIP_KEY, on ? '1' : '0');
+    } catch {}
+  };
+  const hideStrip = swipeNav && !phoneStrip;
   const ownView = useViewPrefs();
   const view = viewProp ?? ownView;
   const ownedCards = useOwnedCards();
@@ -1381,7 +1401,7 @@ export function BinderPages({
    * drag moves a card, so the swipe is off there, and the strip's thumbnails were the only way to
    * turn a page. The same step() the swipe and the wheel use, so the ends behave the same.
    */
-  const turnArrow = (dir: 1 | -1) => {
+  const turnArrow = (dir: 1 | -1, float = false) => {
     const next = dir === 1 ? forward : backward;
     const off = shut ? (shut === 'front' && dir === -1) || (shut === 'back' && dir === 1) : (next < 0 || next >= count) && !canShut && !(dir === 1 && mayGrow);
     return (
@@ -1392,8 +1412,8 @@ export function BinderPages({
         accessibilityRole="button"
         accessibilityLabel={dir === 1 ? 'Next page' : 'Previous page'}
         testID={dir === 1 ? 'binder-turn-next' : 'binder-turn-prev'}
-        style={[styles.turnArrow, off && styles.turnArrowOff]}>
-        <Text style={styles.turnArrowText}>{dir === 1 ? '›' : '‹'}</Text>
+        style={[styles.turnArrow, float && styles.turnArrowFloat, off && styles.turnArrowOff]}>
+        <Text style={[styles.turnArrowText, float && styles.turnArrowFloatText]}>{dir === 1 ? '›' : '‹'}</Text>
       </Pressable>
     );
   };
@@ -1401,12 +1421,14 @@ export function BinderPages({
     // Two directional flings raced, rather than one bidirectional fling: the fling event carries
     // no velocity, so the direction has to come from which gesture matched.
     // A single-page binder has nothing to swipe between, unless it has covers to shut into.
-    const on = !editable && (count > 1 || canShut);
+    // Phone with swipe nav: editing too. A swipe that starts on a card moves the card (its drag
+    // starts first); one that starts anywhere else on the page turns it.
+    const on = (!editable || swipeNav) && (count > 1 || canShut || (swipeNav && mayGrow));
     return Gesture.Race(
       Gesture.Fling().enabled(on).direction(Directions.LEFT).onEnd(() => runOnJS(step)(1)),
       Gesture.Fling().enabled(on).direction(Directions.RIGHT).onEnd(() => runOnJS(step)(-1)),
     );
-  }, [editable, count, canShut, step]);
+  }, [editable, count, canShut, step, swipeNav, mayGrow]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || count === 0 || (count === 1 && !canShut) || typeof window === 'undefined') return;
@@ -1558,6 +1580,24 @@ export function BinderPages({
                     </Text>
                   </Pressable>
                 ) : null}
+              </View>
+            </View>
+          ) : null}
+
+          {swipeNav && count > 1 ? (
+            <View style={styles.settingsRow}>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
+                Pages
+              </ThemedText>
+              <View style={styles.settingsRowControls}>
+                <Pressable
+                  onPress={() => setPhoneStrip(!phoneStrip)}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: phoneStrip }}
+                  testID="phone-strip-toggle"
+                  style={[pillChip.base, phoneStrip && pillChip.active]}>
+                  <Text style={[pillChip.text, phoneStrip && pillChip.textActive]}>{phoneStrip ? '✓ Page strip' : 'Page strip'}</Text>
+                </Pressable>
               </View>
             </View>
           ) : null}
@@ -2174,6 +2214,13 @@ export function BinderPages({
           </View>
         </View>
       ) : null}
+      {/* Phone swipe nav: small arrows floating over the page's side margins; no height of their own. */}
+      {swipeNav && page && (count > 1 || canShut || mayGrow) ? (
+        <>
+          <View pointerEvents="box-none" style={[styles.floatArrow, styles.floatArrowLeft]}>{turnArrow(-1, true)}</View>
+          <View pointerEvents="box-none" style={[styles.floatArrow, styles.floatArrowRight]}>{turnArrow(1, true)}</View>
+        </>
+      ) : null}
       </View>
       </GestureDetector>
       </View>
@@ -2183,7 +2230,10 @@ export function BinderPages({
           one place or the other, never both. */}
       {/* On a phone the dock also shows for a ONE-page binder while it can grow: the next arrow is
           how the second page is made. */}
-      {(count > 1 || coverStripExtras || (phone && mayGrow)) && !railLeft ? (
+      {/* No strip on a phone editor: keep the room the page bar's chips hang into, so the hand under
+          the page never covers them. */}
+      {hideStrip && editable ? <View style={{ height: STRIP_CHIP_CLEARANCE }} /> : null}
+      {(count > 1 || coverStripExtras || (phone && mayGrow)) && !railLeft && !hideStrip ? (
         <View
           onLayout={(e) => setStripHeight(e.nativeEvent.layout.height)}
           style={[
@@ -2200,7 +2250,7 @@ export function BinderPages({
         {/* On a phone the autoplay controls live in Settings (owner, 2026-11-05: the viewer's
             bottom is for the strip and the arrows; the page gets the rest). */}
         {phone ? null : autoFlip}
-        {phone || book ? turnArrow(-1) : null}
+        {(phone && !swipeNav) || book ? turnArrow(-1) : null}
         {book ? (
           <BookCount current={shut || coverFocus ? -1 : idx} count={count} onSelect={selectPage} />
         ) : (
@@ -2217,7 +2267,7 @@ export function BinderPages({
         />
         </View>
         )}
-        {phone || book ? turnArrow(1) : null}
+        {(phone && !swipeNav) || book ? turnArrow(1) : null}
         </View>
         </View>
       ) : null}
@@ -2760,6 +2810,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   turnArrowOff: { opacity: 0.3 },
+  // MIC-017 phone-nav: small, translucent, over the page's side margins.
+  floatArrow: { position: 'absolute', top: '45%', zIndex: 8 },
+  floatArrowLeft: { left: 0 },
+  floatArrowRight: { right: 0 },
+  turnArrowFloat: { width: 26, height: 40, marginHorizontal: 0, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.78)', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+  turnArrowFloatText: { fontSize: 22, lineHeight: 26 },
   turnArrowText: { fontSize: 28, lineHeight: 32, color: Palette.ink, fontWeight: Weight.bold },
   dockStrip: { flex: 1, minWidth: 0 },
   // MIC-017 binder-book

@@ -298,6 +298,7 @@ export default function BrowseScreen() {
           <View style={styles.panel}>
             <CardBrowse
               touchControls
+              compactHeader
               catalog={catalog}
               cardActions={cardActions}
               onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'browse'))}

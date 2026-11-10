@@ -14,9 +14,11 @@ import { useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, type View as ViewType } from 'react-native';
 
-import { browseState, CatalogBrowser, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
+import { browseState, CatalogBrowser, parseQuery, searchCards, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { Breakpoints } from '@/constants/theme';
+import { browseLayout } from '@/lib/browseLayout';
+import { rollUntilFound } from '@/data/themeDice';
 import { trackSimilarWordsSearched, track } from '@/lib/analytics';
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { promoteArtCards } from '@/data/artRank';
@@ -53,6 +55,8 @@ const DEMO_PRESSES_BEFORE_OFFER = 5;
 export const CARD_BROWSE_TILE_WIDTH = 140;
 /** MIC-017: with the hand on, "Add all" asks hand or page (HandOrPageSheet). */
 const ADD_ALL_LABEL = flag('editor-hand') ? 'Add to hand or page' : undefined;
+/** MIC-017 piece 5: the new browse header and layout ('dev' flag). */
+const BROWSE_DOCK = flag('browse-dock');
 /** The hand's search (MIC-017 part 2): about two more cards per row in the side panel. */
 export const CARD_BROWSE_TILE_WIDTH_DENSE = 96;
 /** Series/set art tile height (px) — tall so the cover art (which fills the tile) reads big. */
@@ -75,6 +79,7 @@ export function CardBrowse({
   onThemeLocked,
   touchControls = false,
   dense = false,
+  compactHeader: compactAsked = false,
 }: {
   /** Smaller card tiles, more per row (MIC-017: the editor hand's search, desktop). */
   dense?: boolean;
@@ -122,6 +127,8 @@ export function CardBrowse({
   onThemeLocked?: () => void;
   /** 44 pt controls in the kit's bars (the /browse page, MIC-020). */
   touchControls?: boolean;
+  /** The compact header (MIC-017): game | Filters | View, Color | Theme 🎲, a fold handle. The wizard keeps the old one. */
+  compactHeader?: boolean;
 }) {
   const { width } = useWindowDimensions();
   // App tokens → the kit's color contract, so the browser follows light/dark + variant
@@ -170,6 +177,11 @@ export function CardBrowse({
   const [droppedCard, setDroppedCard] = useState<string | undefined>(undefined);
   /** The theme the button is offering right now; a new one is drawn after every press. */
   const [demoTheme, setDemoTheme] = useState(() => nextDemoTheme(null));
+  // Read once per mount: a lab build may take it from ?ui= (lib/browseLayout).
+  const [layoutChoice] = useState(browseLayout);
+  // MIC-017 piece 5 ('browse-dock' dev flag): the compact header, theme dice and round-1 layout
+  // (owner's picks, 2026-11-09) show only with the flag; everyone else keeps today's browser.
+  const compactHeader = compactAsked && BROWSE_DOCK;
   /**
    * PRESSING IT AGAIN AND AGAIN IS A QUESTION, and the answer is not only more pictures.
    *
@@ -566,8 +578,21 @@ export function CardBrowse({
         // A GAME THE REGISTRY HAS ENABLED rotates like Pokémon does (owner, 2026-10-16), through
         // its own measured list (data/demoThemes, DEMO_THEMES_BY_GAME), fifth-press offer included.
         onThemeSearch={secondary && !gameThemed ? undefined : () => {
-          runThemeDemo('browser', demoTheme);
-          setDemoTheme(nextDemoTheme(demoTheme, game));
+          if (compactHeader) {
+            // THE DICE (MIC-017): a random theme query, sometimes two themes or one minus another,
+            // rolled again (up to 3 times) when it would find nothing. The field shows the query.
+            void rollUntilFound(Math.random, game, async (q) => {
+              if (secondary) return null; // other games: no count call, any roll stands
+              const page = await searchCards(parseQuery(q), { limit: 1 });
+              return page.failed ? null : page.total;
+            }).then((roll) => {
+              track('demo.theme_search', { surface: 'browser', theme: roll.query, kind: roll.kind });
+              sendBrowseCommand({ type: 'search', query: roll.query });
+            });
+          } else {
+            runThemeDemo('browser', demoTheme);
+            setDemoTheme(nextDemoTheme(demoTheme, game));
+          }
           demoPresses.current += 1;
           // Every fifth press: they have understood the feature and are still pressing a button
           // for it, which is the moment to say what searching one of their own costs. NEVER to
@@ -584,7 +609,10 @@ export function CardBrowse({
           if (e.type !== 'searched') return;
           trackSimilarWordsSearched({ game: e.game, surface: onPickCard ? 'binder_editor' : 'home', expanded: e.expanded, hits: e.hits });
         }}
-        themeSearchLabel={`Theme: ${demoTheme}`}
+        themeSearchLabel={compactHeader ? 'Theme 🎲' : `Theme: ${demoTheme}`}
+        compactHeader={compactHeader}
+        // Round 1 of the style picker (MIC-017): michi's layout choices, one file (lib/browseLayout).
+        layout={compactHeader ? layoutChoice : undefined}
         // "Color Search" on a phone pushed its own row into a wrap and shoved the kit's NEW!
         // nudge off the right edge. "Color" says the same thing beside a button that is visibly a
         // button; "Search" was doing no work the row's position did not already do.

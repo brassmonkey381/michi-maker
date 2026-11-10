@@ -507,6 +507,8 @@ export function CardPicker({
         // between pockets — but in "keep adding" mode hold one browse so you can rattle
         // through a set filling pockets without it resetting.
         <CardBrowse
+          // The compact header (MIC-017): the editor's Add to pocket sheet gets it too.
+          compactHeader
           // ONE BROWSE SESSION for the whole fill: the search, the filters and how far you
             // have scrolled all survive moving to the next pocket, so the browser never throws
             // away the pages it has already loaded (see the kit's onEndReached).

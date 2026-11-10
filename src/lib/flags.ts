@@ -21,6 +21,9 @@ export const FLAGS = {
   // MIC-034: page and binder names and descriptions fill themselves from the cards until the
   // owner edits or keeps one (owner 2026-11-10). Needs the name-lock migration (20261110120000).
   'auto-names': 'dev',
+  // MIC-017 piece 5: Browse's compact header + theme dice + round-1 layout, the phone thumb dock,
+  // results as binder pages, and no-results that explain (owner's picks, 2026-11-09/10).
+  'browse-dock': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

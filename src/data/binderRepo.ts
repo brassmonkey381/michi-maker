@@ -159,6 +159,8 @@ interface PageRowIn {
   art_view?: string | null;
   mat?: unknown;
   is_public: boolean;
+  /** MIC-029: held from visitors by the image safety check. */
+  moderation_hold?: boolean | null;
   position: number;
   track?: BinderTrack | null;
   binder_slots: SlotRowIn[] | null;
@@ -254,6 +256,7 @@ function mapPage(row: PageRowIn): DemoPage {
     artView: normalizeArtViewSetting(row.art_view),
     mat: normalizeMatStyle(row.mat),
     isPublic: row.is_public,
+    moderationHold: row.moderation_hold === true,
     track: trackOf(row.track),
     slots,
   };

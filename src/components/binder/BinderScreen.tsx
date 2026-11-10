@@ -3199,6 +3199,15 @@ export function BinderScreen({
                 edit mode already kept it: one home for the words, in both modes. */}
             </View>
 
+            {/* MIC-029: the owner's note on a page the image check holds from visitors. */}
+            {store.canEdit && page?.moderationHold ? (
+              <View style={styles.holdBanner} testID="page-moderation-hold" accessibilityRole="alert">
+                <Text style={styles.holdBannerText}>
+                  This page is private because an image on it was flagged for review. It stays visible to you.
+                </Text>
+              </View>
+            ) : null}
+
             {/* One shared page-browsing surface, arrows · prev·current·next spread · filmstrip ·
                 Card labels, identical to the public viewer. Only what each grid *does* differs by
                 mode, injected through renderGrid; edit adds the value badge, page-detail inputs and
@@ -4435,6 +4444,9 @@ function IconBtn({
 }
 
 const styles = StyleSheet.create({
+  // MIC-029: the held-page note (owner only).
+  holdBanner: { alignSelf: 'center', maxWidth: 560, marginBottom: Spacing.two, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, borderRadius: Radius.control, borderWidth: 1, borderColor: Palette.warning, backgroundColor: Palette.panel },
+  holdBannerText: { fontSize: FontSize.label, lineHeight: 18, color: Palette.ink },
   hintCard: {
     flexDirection: 'row',
     alignItems: 'center',

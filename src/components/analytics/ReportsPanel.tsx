@@ -48,6 +48,8 @@ export function ReportsPanel() {
   const [reports, setReports] = useState<AdminReport[] | null>(null);
   const [strikes, setStrikes] = useState<CopyrightStrike[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** The result of the last button pressed, shown under its row (MIC-029: a press always answers). */
+  const [notice, setNotice] = useState<{ id: string; ok: boolean; text: string } | null>(null);
   /** The report an action is in flight for, so its buttons go quiet instead of double-firing. */
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -66,6 +68,7 @@ export function ReportsPanel() {
     (report: AdminReport, action: 'remove' | 'restore' | 'restorePrivate' | 'dismiss' | 'reopen' | 'clearProfile') => {
       if (busy) return;
       setBusy(report.id);
+      setNotice(null);
       const run =
         action === 'remove' && report.binderId
           ? adminRemoveBinder(report.binderId)
@@ -75,11 +78,26 @@ export function ReportsPanel() {
               ? adminRestoreBinder(report.binderId).then(() => adminSetReportStatus(report.id, 'open'))
               : action === 'restorePrivate' && report.binderId
                 // Back for the owner only; the report stays actioned (the public page stays gone).
-                ? adminRestoreBinderPrivate(report.binderId)
+                ? adminRestoreBinderPrivate(report.binderId).then((r) =>
+                    setNotice({
+                      id: report.id,
+                      ok: r !== 'not found',
+                      text:
+                        r === 'restored'
+                          ? 'Restored as private: back for its owner, hidden from everyone else.'
+                          : r === 'already private'
+                            ? 'Already private: the owner has it and visitors cannot see it. Nothing changed.'
+                            : r === 'not found'
+                              ? 'Binder not found: it may have been deleted.'
+                              : 'Done.',
+                    }),
+                  )
               : adminSetReportStatus(report.id, action === 'dismiss' ? 'dismissed' : 'open');
+      // A failed ACTION says so on its own row; it used to replace the whole panel with
+      // "Reports unavailable", which reads like a loading problem, not a refused button.
       run
         .then(load)
-        .catch((e) => setError((e as Error).message))
+        .catch((e) => setNotice({ id: report.id, ok: false, text: (e as Error).message }))
         .finally(() => setBusy(null));
     },
     [busy, load],
@@ -114,6 +132,16 @@ export function ReportsPanel() {
           {open.length} open · {closed.length} resolved
         </ThemedText>
       </View>
+
+      {notice ? (
+        <ThemedText
+          type="small"
+          accessibilityRole="alert"
+          testID="reports-notice"
+          style={{ color: notice.ok ? Palette.success : Palette.danger }}>
+          {notice.text}
+        </ThemedText>
+      ) : null}
 
       {open.length === 0 ? (
         <ThemedText type="small" themeColor="textSecondary">

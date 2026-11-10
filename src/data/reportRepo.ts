@@ -103,10 +103,12 @@ export async function adminRestoreBinder(binderId: string): Promise<void> {
  * Restore a taken-down binder as PRIVATE (MIC-029): back for its owner, never for visitors; the
  * files stay. For adult art that is fine in a private binder but not on a public page.
  */
-export async function adminRestoreBinderPrivate(binderId: string): Promise<void> {
+export async function adminRestoreBinderPrivate(binderId: string): Promise<'restored' | 'already private' | 'not found' | 'done'> {
   const supabase = requireSupabase();
-  const { error } = await supabase.rpc('admin_restore_binder_private', { p_binder_id: binderId });
+  const { data, error } = await supabase.rpc('admin_restore_binder_private', { p_binder_id: binderId });
   if (error) throw new Error(`restore as private: ${error.message}`);
+  // 'done' only if the server is still the old void version (before 20261110090000).
+  return data === 'restored' || data === 'already private' || data === 'not found' ? data : 'done';
 }
 
 /**

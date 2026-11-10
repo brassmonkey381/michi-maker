@@ -399,6 +399,17 @@ export function ShareSheet({
                 <View style={styles.pageChips}>
                   {binder.pages.map((p, i) => {
                     const pub = p.isPublic ?? true;
+                    // MIC-029: a page the image check holds stays private whatever its switch says.
+                    if (p.moderationHold) {
+                      return (
+                        <View
+                          key={p.id}
+                          accessibilityLabel={`Page ${i + 1}, held private: an image on it was flagged for review`}
+                          style={[styles.pageChip, styles.pageChipHidden]}>
+                          <Text style={[styles.pageChipText, styles.pageChipTextHidden]}>{`⚑ ${i + 1}`}</Text>
+                        </View>
+                      );
+                    }
                     return (
                       <Pressable
                         key={p.id}
@@ -415,6 +426,11 @@ export function ShareSheet({
                     );
                   })}
                 </View>
+                {binder.pages.some((p) => p.moderationHold) ? (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    ⚑ An image on this page was flagged for review, so the page stays private until it is reviewed. You still see it.
+                  </ThemedText>
+                ) : null}
               </View>
             ) : null}
 

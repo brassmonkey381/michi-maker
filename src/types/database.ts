@@ -179,6 +179,7 @@ export type Database = {
           created_at: string
           id: string
           is_public: boolean
+          moderation_hold: boolean
           notes: string | null
           track: Json | null
           position: number
@@ -197,6 +198,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_public?: boolean
+          moderation_hold?: boolean
           notes?: string | null
           track?: Json | null
           position?: number
@@ -215,6 +217,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_public?: boolean
+          moderation_hold?: boolean
           notes?: string | null
           track?: Json | null
           position?: number
@@ -280,6 +283,9 @@ export type Database = {
           image_attribution: Json | null
           image_transform: Json | null
           image_url: string | null
+          image_review: string
+          image_review_label: string | null
+          image_reviewed_at: string | null
           insert_image_url: string | null
           notes: string | null
           orientation: Database["public"]["Enums"]["card_orientation"]
@@ -307,6 +313,9 @@ export type Database = {
           image_attribution?: Json | null
           image_transform?: Json | null
           image_url?: string | null
+          image_review?: string
+          image_review_label?: string | null
+          image_reviewed_at?: string | null
           insert_image_url?: string | null
           notes?: string | null
           orientation?: Database["public"]["Enums"]["card_orientation"]
@@ -334,6 +343,9 @@ export type Database = {
           image_attribution?: Json | null
           image_transform?: Json | null
           image_url?: string | null
+          image_review?: string
+          image_review_label?: string | null
+          image_reviewed_at?: string | null
           insert_image_url?: string | null
           notes?: string | null
           orientation?: Database["public"]["Enums"]["card_orientation"]
@@ -468,6 +480,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      image_reviews: {
+        Row: {
+          attempts: number
+          binder_id: string
+          checked_at: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision: string | null
+          id: number
+          image_url: string
+          label: string | null
+          minor_concern: boolean | null
+          model: string | null
+          notified_at: string | null
+          owner_id: string
+          reason: string | null
+          slot_id: string
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          binder_id: string
+          checked_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string | null
+          id?: never
+          image_url: string
+          label?: string | null
+          minor_concern?: boolean | null
+          model?: string | null
+          notified_at?: string | null
+          owner_id: string
+          reason?: string | null
+          slot_id: string
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          binder_id?: string
+          checked_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string | null
+          id?: never
+          image_url?: string
+          label?: string | null
+          minor_concern?: boolean | null
+          model?: string | null
+          notified_at?: string | null
+          owner_id?: string
+          reason?: string | null
+          slot_id?: string
+          status?: string
+        }
+        Relationships: []
       }
       puzzle_plays: {
         Row: {
@@ -1263,7 +1335,7 @@ export type Database = {
       }
       admin_restore_binder_private: {
         Args: { p_binder_id: string }
-        Returns: undefined
+        Returns: string
       }
       admin_copyright_strikes: {
         Args: Record<PropertyKey, never>

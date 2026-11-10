@@ -22,6 +22,8 @@ import Animated, {
  *  cards slide in and out through that edge. Constant for the page load. */
 const SLEEVES = flag('pockets-sleeves');
 const PHONE_NAV = flag('phone-nav');
+/** MIC-017: with the hand on, the old tray is the hand; its button says so. */
+const TRAY_WORD = flag('editor-hand') ? 'Hand' : 'Tray';
 /** Where the last press on an empty pocket began, so a swipe across it is not taken for a tap. */
 let pressStart: { x: number; y: number } | null = null;
 
@@ -1431,7 +1433,7 @@ function SlotToolbar({
             <ToolButton compact label="‹" onPress={() => setMore(false)} accessibilityLabel="Back to the main actions" />
             {onColors ? <ToolButton compact label="Colors" onPress={onColors} /> : null}
             {onMove ? <ToolButton compact label="Move" onPress={onMove} /> : null}
-            {onToTray ? <ToolButton compact label="Tray" onPress={onToTray} accessibilityLabel="Send this card to the tray" /> : null}
+            {onToTray ? <ToolButton compact label={TRAY_WORD} onPress={onToTray} accessibilityLabel={`Send this card to the ${TRAY_WORD.toLowerCase()}`} /> : null}
             <ToolButton compact label="Duplicate" onPress={onDuplicate} />
             {onPickCopy ? <ToolButton compact label={hasCopy ? 'My card ✓' : 'My card'} onPress={onPickCopy} /> : null}
             {onStyle ? <ToolButton compact label={slot.type === 'artwork' ? 'Backing' : 'Sleeve'} onPress={onStyle} /> : null}
@@ -1465,7 +1467,7 @@ function SlotToolbar({
         {onSimilar && !more ? <ToolButton label="Similar" onPress={onSimilar} /> : null}
         {onColors && !more ? <ToolButton label="Colors" onPress={onColors} /> : null}
         {onMove && !more ? <ToolButton label="Move" onPress={onMove} /> : null}
-        {onToTray && !more ? <ToolButton label="Tray" onPress={onToTray} accessibilityLabel="Send this card to the tray" /> : null}
+        {onToTray && !more ? <ToolButton label={TRAY_WORD} onPress={onToTray} accessibilityLabel={`Send this card to the ${TRAY_WORD.toLowerCase()}`} /> : null}
         {/* Whose card is in this pocket - a tick when it is one of the owner's, so the answer is
             visible without opening anything. The ✓ is state, not decoration, which is the line this
             row draws: a glyph earns its place by saying something the word does not. */}

@@ -34,6 +34,7 @@ import { armEyedropper, cancelEyedropper, eyedropperArmed, pickWithEyedropper, s
 import { loadOtherGameCatalog, loadOtherGameSimilar, otherGameAbsent, otherGameCatalog, otherGameCatalogFor, otherGameSimilar, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { PUBLISHED_SECONDARY_GAMES } from '@/lib/otherGameKeys';
 import { subscribeThemeGames, themeGame, themeGamesState } from '@/lib/themeGames';
+import { flag } from '@/lib/flags';
 
 /**
  * Dev/QA override: append `?coldsearch` to the URL (web) to force the COLD path — the kit
@@ -50,6 +51,8 @@ const DEMO_PRESSES_BEFORE_OFFER = 5;
 
 /** Target card-thumbnail width (px) — larger ⇒ fewer, bigger cards (≈ binder size). */
 export const CARD_BROWSE_TILE_WIDTH = 140;
+/** MIC-017: with the hand on, "Add all" asks hand or page (HandOrPageSheet). */
+const ADD_ALL_LABEL = flag('editor-hand') ? 'Add to hand or page' : undefined;
 /** The hand's search (MIC-017 part 2): about two more cards per row in the side panel. */
 export const CARD_BROWSE_TILE_WIDTH_DENSE = 96;
 /** Series/set art tile height (px) — tall so the cover art (which fills the tile) reads big. */
@@ -495,6 +498,7 @@ export function CardBrowse({
         onPickCard={onPickCard ?? (() => {})}
         onPickVUnion={onPickVUnion}
         onPickCards={onPickCards}
+        pickCardsLabel={ADD_ALL_LABEL}
         /**
          * WHILE THE DROPPER IS ARMED, A TILE IS A COLOUR, NOT A CARD.
          *

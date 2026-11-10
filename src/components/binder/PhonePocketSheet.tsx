@@ -14,6 +14,10 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import type { DemoSlot } from '@/data/binderTypes';
+import { flag } from '@/lib/flags';
+
+/** MIC-017: with the hand on, the old tray is the hand; its button says so. */
+const TRAY_WORD = flag('editor-hand') ? 'Hand' : 'Tray';
 
 const COLS = 5;
 
@@ -72,7 +76,7 @@ export function PhonePocketSheet({
   push(onReplace && { key: 'replace', glyph: '⟳', word: 'Replace', onPress: onReplace });
   push(onEditArt && { key: 'edit', glyph: '✎', word: 'Edit', label: 'Edit this picture: zoom, rotate, flip, cut', onPress: onEditArt });
   push(onMove && { key: 'move', glyph: '⇄', word: 'Move', label: 'Move to any pocket on any page', onPress: onMove });
-  push(onToTray && { key: 'tray', glyph: '▭', word: 'Tray', label: 'Send this card to the tray', onPress: onToTray });
+  push(onToTray && { key: 'tray', glyph: '▭', word: TRAY_WORD, label: `Send this card to the ${TRAY_WORD.toLowerCase()}`, onPress: onToTray });
   push(onDuplicate && { key: 'dup', glyph: '⧉', word: 'Duplicate', onPress: onDuplicate });
   push(onPickCopy && { key: 'mine', glyph: hasCopy ? '✓' : '☐', word: 'My card', label: hasCopy ? 'My card: one of yours, tap to change' : 'My card: pick which of your copies this is', onPress: onPickCopy });
   push(onStyle && { key: 'style', glyph: '▢', word: art ? 'Backing' : 'Sleeve', onPress: onStyle });

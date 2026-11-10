@@ -24,6 +24,7 @@ import { ComposeAllSheet } from '@/components/binder/ComposeAllSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import { CardTray } from '@/components/binder/CardTray';
 import { HAND_RESERVE_DESKTOP, HandTray } from '@/components/binder/HandTray';
+import { HandOrPageSheet, type HandOrPage } from '@/components/binder/HandOrPageSheet';
 import { flag } from '@/lib/flags';
 
 /** MIC-017 editor-hand ('dev' flag): the tray becomes a hand of cards under the page. */
@@ -373,6 +374,8 @@ export function BinderScreen({
   const [handDealing, setHandDealing] = useState<string | null>(null);
   // What the last deal did, shown in the hand's bar (no toast over the page).
   const [handNote, setHandNote] = useState<string | null>(null);
+  // The browser's multi-select "Add all", waiting for hand-or-page (both browse paths).
+  const [multiPick, setMultiPick] = useState<{ ids: string[]; first: HandOrPage } | null>(null);
   const autoDealtRef = useRef<Set<string>>(new Set());
   const [handLanguages] = useLanguagePref();
   const [handH, setHandH] = useState(0);
@@ -2268,7 +2271,7 @@ export function BinderScreen({
     if (!selectedSlot) return;
     if (store.moveSlotToTray(binder.id, page.id, selectedSlot.id)) {
       setSelectedSlotId(null);
-      quietToast('To the tray', true);
+      quietToast(HAND ? 'To your hand' : 'To the tray', true);
     }
   };
   const handleTrayArm = (slotId: string | null) => {
@@ -2292,13 +2295,13 @@ export function BinderScreen({
   };
   const handleTrayRemove = (slot: DemoSlot) => {
     store.removeTraySlot(binder.id, slot.id);
-    quietToast('Removed from the tray', true);
+    quietToast(HAND ? 'Removed from your hand' : 'Removed from the tray', true);
   };
   /** A tray card into a pocket: a free pocket takes it, a one-by-one occupant trades places with it. */
   const landFromTray = (slotId: string, toPage: DemoPage, row: number, col: number) => {
     const r = store.moveSlotFromTray(binder.id, slotId, toPage.id, row, col);
-    if (r === 'moved') quietToast('Placed from the tray', true);
-    else if (r === 'swapped') quietToast('Swapped with the tray', true);
+    if (r === 'moved') quietToast(HAND ? 'Placed from your hand' : 'Placed from the tray', true);
+    else if (r === 'swapped') quietToast(HAND ? 'Swapped with your hand' : 'Swapped with the tray', true);
     else showToast('It does not fit there.');
   };
   /** A tap while a move is armed. True when the tap was spent on the move (landed or refused). */
@@ -2404,12 +2407,40 @@ export function BinderScreen({
   // Batch "Add all to a binder" (multi-select): fill THIS page, then keep going on fresh pages
   // inserted directly behind it, and report the result in one toast.
   const handlePickCards = (cardIds: string[]) => {
-    if (pickToHand) {
-      const n = store.addCardsToTray(binder.id, cardIds);
-      closePicker();
-      quietToast(`${n} card${n === 1 ? '' : 's'} added to your hand`, true);
+    // MIC-017 hand: the cards may go to the hand OR this page, from either browse path (owner
+    // 2026-11-10); the path the search started from leads.
+    if (HAND && editing && canEdit) {
+      setMultiPick({ ids: cardIds, first: pickToHand ? 'hand' : 'page' });
       return;
     }
+    placeCardsInBinder(cardIds);
+  };
+  const handHeld = new Set((binder.tray ?? []).map((s) => s.cardId).filter((id): id is string => !!id));
+  const handRoom = Math.max(0, 24 - (binder.tray?.length ?? 0));
+  const pageRoom = page.rows * page.cols - occupiedCells(page).size;
+  const multiFresh = multiPick ? multiPick.ids.filter((id) => !handHeld.has(id)) : [];
+  const pickHandOrPage = (to: HandOrPage) => {
+    const sel = multiPick;
+    setMultiPick(null);
+    if (!sel) return;
+    if (to === 'hand') {
+      const n = store.addCardsToTray(binder.id, multiFresh.slice(0, handRoom));
+      closePicker();
+      const left = multiFresh.length - n;
+      const dup = sel.ids.length - multiFresh.length;
+      const msg =
+        `${n} card${n === 1 ? '' : 's'} added to your hand` +
+        (left > 0 ? `; ${left} didn't fit (a hand holds 24)` : '') +
+        (dup > 0 ? `; ${dup} already in it` : '');
+      if (left > 0) showToast(msg);
+      else quietToast(msg, true);
+      return;
+    }
+    const take = sel.ids.slice(0, Math.max(0, pageRoom));
+    placeCardsInBinder(take, sel.ids.length - take.length);
+  };
+  /** Cards into the binder from this page on; `notFit` cards were left out for want of pockets. */
+  const placeCardsInBinder = (cardIds: string[], notFit = 0) => {
     // One batch pass, so the cards never collide on a cell — a per-card loop re-read stale state
     // and 409'd on every card but the first.
     //
@@ -2446,8 +2477,11 @@ export function BinderScreen({
         droppedClaims + cardIds.filter((id, i) => entryIds[i] === undefined && ownsCard(id)).length;
       showToast(
         parityNote(`Added ${added} card${added === 1 ? '' : 's'}`, blanksInserted) +
-          catalogArtNote(short, added),
+          catalogArtNote(short, added) +
+          (notFit > 0 ? ` ${notFit} didn't fit on this page.` : ''),
       );
+    } else if (notFit > 0) {
+      showToast(`This page has no empty pockets; ${notFit} card${notFit === 1 ? '' : 's'} not added.`);
     }
   };
 
@@ -3784,6 +3818,16 @@ export function BinderScreen({
           onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
           onTasted={onSheetTasted}
         />
+        {HAND && multiPick ? (
+          <HandOrPageSheet
+            count={multiPick.ids.length}
+            handRoom={Math.min(handRoom, multiFresh.length)}
+            pageRoom={pageRoom}
+            first={multiPick.first}
+            onPick={pickHandOrPage}
+            onClose={() => setMultiPick(null)}
+          />
+        ) : null}
         {HAND ? (
           <CompletePageSheet
             visible={handFillOpen}

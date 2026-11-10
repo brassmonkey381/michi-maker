@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { REVIEW_MODEL, REVIEW_SCHEMA, SAME_PICTURE_BITS, dhashHex, hammingHex, noticeText, parseAnswer, verdictFor } from '../../supabase/functions/image-review/classify.ts';
+import { REVIEW_MODEL, REVIEW_SCHEMA, SAME_PICTURE_BITS, dhashHex, hammingHex, isModelType, noticeText, parseAnswer, renderUrl, sniffImage, verdictFor } from '../../supabase/functions/image-review/classify.ts';
 
 test('only safe is approved; suggestive is held too (owner default, 2026-11-09)', () => {
   assert.equal(verdictFor('safe'), 'approved');
@@ -62,4 +62,28 @@ test('the picture fingerprint survives small changes and tells different picture
   assert.equal(hammingHex(a, dhashHex(brighter)), 0);
   assert.ok(hammingHex(a, dhashHex(flipped)) > SAME_PICTURE_BITS);
   assert.throws(() => dhashHex([1, 2, 3]));
+});
+
+test('the image type comes from the bytes, not the label the server gave it', () => {
+  const b = (...xs: (number | string)[]) => new Uint8Array(xs.flatMap((x) => (typeof x === 'string' ? [...x].map((c) => c.charCodeAt(0)) : [x])));
+  assert.equal(sniffImage(b(0xff, 0xd8, 0xff, 0xe0)), 'image/jpeg');
+  assert.equal(sniffImage(b(0x89, 'PNG', 0x0d, 0x0a, 0x1a, 0x0a)), 'image/png');
+  assert.equal(sniffImage(b('GIF89a')), 'image/gif');
+  assert.equal(sniffImage(b('RIFF', 0, 0, 0, 0, 'WEBPVP8 ')), 'image/webp');
+  assert.equal(sniffImage(b(0, 0, 0, 0x1c, 'ftypavif', 0, 0, 0, 0)), 'image/avif');
+  assert.equal(sniffImage(b(0, 0, 0, 0x18, 'ftypheic', 0, 0, 0, 0)), 'image/heic');
+  assert.equal(sniffImage(b('<svg xmlns="http://www.w3.org/2000/svg">')), 'image/svg+xml');
+  assert.equal(sniffImage(b('<!DOCTYPE html><html>')), 'text/html');
+  assert.equal(sniffImage(b(1, 2, 3)), 'unknown');
+  assert.equal(isModelType('image/webp'), true);
+  assert.equal(isModelType('image/avif'), false);
+});
+
+test('a Storage object URL maps to its re-encoded copy; any other URL does not', () => {
+  assert.equal(
+    renderUrl('https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/u1/p.jpg'),
+    'https://piikwvntldytjejxmcla.supabase.co/storage/v1/render/image/public/binder-art/u1/p.jpg?width=1568&resize=contain&quality=80',
+  );
+  assert.equal(renderUrl('https://example.com/p.jpg'), null);
+  assert.equal(renderUrl('https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/sign/x/p.jpg?token=t'), null);
 });

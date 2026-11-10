@@ -38,7 +38,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk@1';
 import { publishableKey, secretKey } from '../_shared/keys.ts';
-import { NOTICE_EVERY_MIN, REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, SAME_PICTURE_BITS, dhashHex, hammingHex, noticeText, parseAnswer, verdictFor, type ReviewLabel } from './classify.ts';
+import { NOTICE_EVERY_MIN, REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, SAME_PICTURE_BITS, dhashHex, hammingHex, isModelType, noticeText, parseAnswer, renderUrl, sniffImage, verdictFor, type ModelType, type ReviewLabel } from './classify.ts';
 
 /** Checks per invocation; cron runs every minute, so a backlog drains across runs. */
 const BATCH = 20;
@@ -117,6 +117,29 @@ async function knownPicture(admin: any, sha256: string, dhash: string | null): P
   const { data: all } = await admin.from('flagged_images').select('status, label, dhash').not('dhash', 'is', null).neq('status', 'approved').limit(5000);
   const near = (all ?? []).find((r: { dhash: string }) => hammingHex(r.dhash, dhash) <= SAME_PICTURE_BITS);
   return near ? { status: near.status, label: near.label } : null;
+}
+
+/** The API's limit on one base64 image, with a margin for the encoding. */
+const MODEL_MAX_BYTES = 3_700_000;
+
+/**
+ * A copy of the picture the model can read: Supabase Storage re-encodes it (image transformation,
+ * resized to 1568 px, webp). For files whose bytes are not jpeg/png/gif/webp (AVIF, HEIC, ...), files
+ * too large to send, and files the API refused. Null when the URL is not a Storage object or the copy
+ * is not readable either.
+ */
+async function convertedCopy(url: string): Promise<{ type: ModelType; bytes: Uint8Array } | null> {
+  const r = renderUrl(url);
+  if (!r) return null;
+  try {
+    const res = await fetch(r, { headers: { Accept: 'image/webp,image/png;q=0.9,image/jpeg;q=0.8' } });
+    if (!res.ok) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const type = sniffImage(bytes);
+    return isModelType(type) && bytes.length <= MODEL_MAX_BYTES ? { type, bytes } : null;
+  } catch {
+    return null;
+  }
 }
 
 function base64(bytes: Uint8Array): string {
@@ -275,18 +298,36 @@ Deno.serve(async (req) => {
         label = (known.label as ReviewLabel) ?? 'explicit';
         reason = 'Same picture as one flagged before';
       } else {
-        const okType = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(got.mediaType);
-        const source = okType
-          ? { type: 'base64' as const, media_type: got.mediaType as 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp', data: base64(got.bytes) }
-          : { type: 'url' as const, url: row.image_url };
-        const res = await ai.messages.create({
-          model: REVIEW_MODEL,
-          max_tokens: 256,
-          thinking: { type: 'disabled' },
-          system: REVIEW_SYSTEM,
-          output_config: { format: { type: 'json_schema', schema: REVIEW_SCHEMA as unknown as Record<string, unknown> } },
-          messages: [{ role: 'user', content: [{ type: 'image', source }, { type: 'text', text: 'Label this image.' }] }],
-        });
+        // The type comes from the BYTES, never the server's Content-Type (sniffImage). Anything the
+        // model cannot take as it is goes as Storage's re-encoded copy.
+        const sniffed = sniffImage(got.bytes);
+        const ask = (img: { type: ModelType; bytes: Uint8Array }) =>
+          ai.messages.create({
+            model: REVIEW_MODEL,
+            max_tokens: 256,
+            thinking: { type: 'disabled' },
+            system: REVIEW_SYSTEM,
+            output_config: { format: { type: 'json_schema', schema: REVIEW_SCHEMA as unknown as Record<string, unknown> } },
+            messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: img.type, data: base64(img.bytes) } }, { type: 'text', text: 'Label this image.' }] }],
+          });
+        const asIs = isModelType(sniffed) && got.bytes.length <= MODEL_MAX_BYTES ? { type: sniffed, bytes: got.bytes } : null;
+        let res;
+        if (asIs) {
+          try {
+            res = await ask(asIs);
+          } catch (e) {
+            // The API refused the image itself (a 400 about it): try the re-encoded copy once.
+            const msg = String((e as Error)?.message ?? e);
+            if (!/^400\b/.test(msg) || !/image/i.test(msg)) throw e;
+            const copy = await convertedCopy(row.image_url);
+            if (!copy) throw new Error(`${sniffed} refused, no converted copy: ${msg}`.slice(0, 200));
+            res = await ask(copy);
+          }
+        } else {
+          const copy = await convertedCopy(row.image_url);
+          if (!copy) throw new Error(`file is ${sniffed} (${got.bytes.length} bytes), no converted copy`);
+          res = await ask(copy);
+        }
         if (res.stop_reason === 'refusal') {
           label = 'refused';
           reason = String(res.stop_details?.category ?? 'refused');

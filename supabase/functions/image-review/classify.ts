@@ -114,3 +114,45 @@ export function hammingHex(a: string, b: string): number {
 
 /** At or under this many differing bits, two pictures count as the same one. */
 export const SAME_PICTURE_BITS = 6;
+
+/** The image types the model accepts. */
+export const MODEL_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
+export type ModelType = (typeof MODEL_TYPES)[number];
+
+/**
+ * What the bytes really are, from their first bytes. The server's Content-Type is not trusted:
+ * 2026-11-10, four uploads served as image/jpeg were refused by the API ("Image format image/jpeg not
+ * supported"), so the label and the bytes disagreed.
+ */
+export function sniffImage(b: Uint8Array): string {
+  const at = (i: number, s: string) => [...s].every((c, k) => b[i + k] === c.charCodeAt(0));
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b.length >= 8 && b[0] === 0x89 && at(1, 'PNG')) return 'image/png';
+  if (at(0, 'GIF8')) return 'image/gif';
+  if (at(0, 'RIFF') && at(8, 'WEBP')) return 'image/webp';
+  if (at(4, 'ftyp')) {
+    const brand = String.fromCharCode(...b.subarray(8, 12));
+    if (brand === 'avif' || brand === 'avis') return 'image/avif';
+    if (/^(heic|heix|hevc|heim|heis|mif1|msf1)$/.test(brand)) return 'image/heic';
+    return `video/${brand.trim() || 'unknown'}`;
+  }
+  if (at(0, 'BM')) return 'image/bmp';
+  if (at(0, 'II*') || (at(0, 'MM') && b[3] === 0x2a)) return 'image/tiff';
+  const head = new TextDecoder().decode(b.subarray(0, 256)).trimStart().toLowerCase();
+  if (head.startsWith('<svg') || (head.startsWith('<?xml') && head.includes('<svg'))) return 'image/svg+xml';
+  if (head.startsWith('<!doctype html') || head.startsWith('<html')) return 'text/html';
+  return 'unknown';
+}
+
+export function isModelType(t: string): t is ModelType {
+  return (MODEL_TYPES as readonly string[]).includes(t);
+}
+
+/**
+ * A Supabase Storage public object URL as its image-transformation URL (a resized copy the storage
+ * server re-encodes; asked for with Accept: image/webp). Null for any other URL.
+ */
+export function renderUrl(url: string, width = 1568): string | null {
+  const m = /^(https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/)object\/public\/([^?#]+)/.exec(url);
+  return m ? `${m[1]}render/image/public/${m[2]}?width=${width}&resize=contain&quality=80` : null;
+}

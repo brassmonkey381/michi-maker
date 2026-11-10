@@ -75,6 +75,10 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { defaultBinderPublic } from '@/data/sharingDefaults';
 import { importRemoteArtToBucket } from '@/lib/importArt';
 import { useAuth } from '@/store/auth';
+import { flag } from '@/lib/flags';
+
+/** MIC-034 auto names ('dev' flag): new binders start with their name and description unlocked. */
+const AUTO_NAMES = flag('auto-names');
 
 const CLOUD = isSupabaseConfigured;
 
@@ -253,6 +257,11 @@ interface BinderStore {
     pageId: string,
   ) => { pageIndex: number; blanksInserted: number } | null;
   updatePage: (binderId: string, pageId: string, patch: Partial<DemoPage>) => void;
+  /**
+   * MIC-034 auto names: set unlocked titles and descriptions WITHOUT an undo step (the cards
+   * changed, not the owner's words). `save` writes them; the editor saves once, on leaving a page.
+   */
+  setAutoText: (binderId: string, binderPatch: Partial<DemoBinder> | null, pagePatches: Record<string, Partial<DemoPage>>, save: boolean) => void;
   /** Uniform pocket layout for the whole binder. Cards REFLOW in reading order into the new grid
    *  (spilling onto extra pages when it holds fewer); refuses only when a single piece can never
    *  fit, or when the reflow would need more pages than the tier allows. */
@@ -954,6 +963,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         ...init,
         pages,
         title,
+        // MIC-034: a made-up name (a new or seeded binder) is the app's to replace with an auto
+        // name; a title the caller chose is the owner's.
+        ...(AUTO_NAMES && title !== init?.title ? { titleLocked: false } : {}),
+        ...(AUTO_NAMES && !init?.description ? { descriptionLocked: false } : {}),
       };
       if (binder.isDemo) {
         // At most ONE demo binder per account — clear any prior one first (delete + replace in a
@@ -1354,6 +1367,32 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (target && !target.isExample) persist(() => repo.updatePage(pageId, patch));
     },
     [binders, commit, persist],
+  );
+
+  const setAutoText = useCallback(
+    (binderId: string, binderPatch: Partial<DemoBinder> | null, pagePatches: Record<string, Partial<DemoPage>>, save: boolean) => {
+      if (!canEditRef.current) return;
+      const target = binders.find((b) => b.id === binderId);
+      if (!target || target.isExample) return;
+      const hasPages = Object.keys(pagePatches).length > 0;
+      if (!binderPatch && !hasPages) return;
+      setHistory((h) => ({
+        ...h,
+        present: h.present.map((b) =>
+          b.id !== binderId
+            ? b
+            : {
+                ...b,
+                ...(binderPatch ?? {}),
+                pages: hasPages ? b.pages.map((p) => (pagePatches[p.id] ? { ...p, ...pagePatches[p.id] } : p)) : b.pages,
+              },
+        ),
+      }));
+      if (!save) return;
+      if (binderPatch) persist(() => repo.updateBinder(binderId, binderPatch));
+      for (const [pageId, patch] of Object.entries(pagePatches)) persist(() => repo.updatePage(pageId, patch));
+    },
+    [binders, persist],
   );
 
   /**
@@ -2936,6 +2975,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       insertPage,
       duplicatePage,
       updatePage,
+      setAutoText,
       setBinderPageSize,
       setBinderBackground,
       setPageStyle,
@@ -3005,6 +3045,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       insertPage,
       duplicatePage,
       updatePage,
+      setAutoText,
       setBinderPageSize,
       setBinderBackground,
       setPageStyle,

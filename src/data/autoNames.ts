@@ -13,6 +13,14 @@ import type { CatalogCard } from 'tcgscan-browse';
 
 import { speciesOf } from './pageCompleter.ts';
 
+/**
+ * Is this field the owner's? Edited or kept means yes. Never set (a field from before auto names,
+ * or a column not written yet) means yes when it has text: nothing typed is ever replaced.
+ */
+export function isFieldLocked(locked: boolean | undefined, text: string | undefined): boolean {
+  return locked ?? !!text?.trim();
+}
+
 /** The fields the rules read; a CatalogCard has them all. */
 export type NameCard = Pick<CatalogCard, 'name' | 'types' | 'illustrator' | 'setName' | 'evolutionLine'> & {
   sceneTags?: readonly string[];

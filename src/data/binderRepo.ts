@@ -33,6 +33,9 @@ function binderRow(binder: DemoBinder): Tables['binders']['Insert'] {
     id: binder.id,
     title: binder.title,
     description: binder.description ?? null,
+    // MIC-034: only when set, so a write never names a column before its migration is live.
+    ...(binder.titleLocked !== undefined ? { title_locked: binder.titleLocked } : {}),
+    ...(binder.descriptionLocked !== undefined ? { description_locked: binder.descriptionLocked } : {}),
     layout_style: binder.layoutStyle,
     cover_card_id: binder.coverCardId ?? null,
     is_public: binder.isPublic ?? false,
@@ -62,6 +65,8 @@ function pageRow(page: DemoPage, binderId: string, position: number): Tables['bi
     position,
     title: page.title ?? null,
     notes: page.description ?? null,
+    ...(page.titleLocked !== undefined ? { title_locked: page.titleLocked } : {}),
+    ...(page.descriptionLocked !== undefined ? { notes_locked: page.descriptionLocked } : {}),
     rows: page.rows,
     cols: page.cols,
     background_color: page.backgroundColor ?? null,
@@ -151,6 +156,8 @@ interface PageRowIn {
   updated_at?: string;
   title: string | null;
   notes: string | null;
+  title_locked?: boolean | null;
+  notes_locked?: boolean | null;
   rows: number;
   cols: number;
   background_color: string | null;
@@ -172,6 +179,8 @@ interface BinderRowIn {
   binder_slots?: SlotRowIn[] | null;
   title: string;
   description: string | null;
+  title_locked?: boolean | null;
+  description_locked?: boolean | null;
   layout_style: MichiLayoutStyle;
   cover_card_id: string | null;
   cover: BinderCover | null;
@@ -248,6 +257,8 @@ function mapPage(row: PageRowIn): DemoPage {
     id: row.id,
     title: row.title ?? undefined,
     description: row.notes ?? undefined,
+    titleLocked: row.title_locked ?? undefined,
+    descriptionLocked: row.notes_locked ?? undefined,
     rows: row.rows,
     cols: row.cols,
     backgroundColor: normalizeSurface(row.background_color),
@@ -268,6 +279,8 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     id: row.id,
     title: row.title,
     description: row.description ?? undefined,
+    titleLocked: row.title_locked ?? undefined,
+    descriptionLocked: row.description_locked ?? undefined,
     layoutStyle: row.layout_style,
     isExample: false,
     isDemo: row.is_demo ?? undefined,
@@ -468,6 +481,8 @@ export async function updateBinder(id: string, patch: Partial<DemoBinder>): Prom
   const row: BinderUpdate = {};
   if (patch.title !== undefined) row.title = patch.title;
   if (patch.description !== undefined) row.description = patch.description ?? null;
+  if (patch.titleLocked !== undefined) row.title_locked = patch.titleLocked;
+  if (patch.descriptionLocked !== undefined) row.description_locked = patch.descriptionLocked;
   if (patch.layoutStyle !== undefined) row.layout_style = patch.layoutStyle;
   if (patch.coverCardId !== undefined) row.cover_card_id = patch.coverCardId ?? null;
   // The column is jsonb, so the generated type is Json; a BinderCover is a plain object of
@@ -541,6 +556,8 @@ export async function updatePage(id: string, patch: Partial<DemoPage>): Promise<
   const row: PageUpdate = {};
   if (patch.title !== undefined) row.title = patch.title ?? null;
   if (patch.description !== undefined) row.notes = patch.description ?? null;
+  if (patch.titleLocked !== undefined) row.title_locked = patch.titleLocked;
+  if (patch.descriptionLocked !== undefined) row.notes_locked = patch.descriptionLocked;
   if (patch.rows !== undefined) row.rows = patch.rows;
   if (patch.cols !== undefined) row.cols = patch.cols;
   if (patch.backgroundColor !== undefined) row.background_color = patch.backgroundColor ?? null;

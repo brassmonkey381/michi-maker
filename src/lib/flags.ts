@@ -18,6 +18,9 @@ export const FLAGS = {
   // Phone: pages turn by swipe (editing too) with small arrows over the page's edges; the page
   // strip is a Settings toggle, off by default (owner 2026-11-10).
   'phone-nav': 'dev',
+  // MIC-034: page and binder names and descriptions fill themselves from the cards until the
+  // owner edits or keeps one (owner 2026-11-10). Needs the name-lock migration (20261110120000).
+  'auto-names': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

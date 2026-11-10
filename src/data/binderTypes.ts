@@ -315,6 +315,12 @@ export interface DemoPage {
   track?: BinderTrack | null;
   /** Free-text page description (persisted to binder_pages.notes). */
   description?: string;
+  /**
+   * MIC-034 auto names: has the owner made this field theirs (edited or kept it)? Absent reads as
+   * "locked if it has text" (see isFieldLocked), so a name from before auto names is never touched.
+   */
+  titleLocked?: boolean;
+  descriptionLocked?: boolean;
   rows: number;
   cols: number;
   backgroundColor?: string;
@@ -365,6 +371,9 @@ export interface DemoBinder {
   id: string;
   title: string;
   description?: string;
+  /** MIC-034 auto names: the owner's own title / description (see DemoPage.titleLocked). */
+  titleLocked?: boolean;
+  descriptionLocked?: boolean;
   layoutStyle: MichiLayoutStyle;
   /** Premade, read-only-by-default reference binders ship with the app. */
   isExample: boolean;

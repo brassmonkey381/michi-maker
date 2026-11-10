@@ -351,10 +351,12 @@ export function LabeledInput({
   multiline = false,
   style,
   testID,
+  onBlur,
 }: {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   multiline?: boolean;
   style?: object;
@@ -367,6 +369,7 @@ export function LabeledInput({
       <TextInput
         value={value}
         onChangeText={onChangeText}
+        onBlur={onBlur}
         placeholder={placeholder}
         placeholderTextColor={theme.textSecondary}
         multiline={multiline}

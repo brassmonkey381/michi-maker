@@ -17,6 +17,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BinderCoverSheet } from '@/components/binder/BinderCoverSheet';
 import { SoundtrackField } from '@/components/binder/SoundtrackField';
 import { GroupSummary, Group, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
+import { NameField } from '@/components/binder/inspector/NameField';
+import { isFieldLocked } from '@/data/autoNames';
+import { flag } from '@/lib/flags';
+
+/** MIC-034 auto names ('dev'): the fields lock on the first edit or Keep, and save debounced. */
+const AUTO_NAMES = flag('auto-names');
 import { MatPanel } from '@/components/binder/inspector/MatPanel';
 import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { BinderTrack, DemoBinder, DemoPage } from '@/data/binderTypes';
@@ -35,6 +41,31 @@ const PAGE_SIZE_OPTIONS = REAL_PAGE_SIZES.map((s) => ({ id: s.label, label: s.la
 
 export function BinderFields({ binder }: { binder: DemoBinder }) {
   const store = useBinders();
+  if (AUTO_NAMES) {
+    return (
+      <View style={styles.section}>
+        <NameField
+          label="Binder title"
+          value={binder.title}
+          onSave={(title) => store.updateBinder(binder.id, { title, titleLocked: true })}
+          auto={!isFieldLocked(binder.titleLocked, binder.title)}
+          onKeep={() => store.updateBinder(binder.id, { title: binder.title, titleLocked: true })}
+          placeholder="Binder title"
+          testID="binder-title-field"
+        />
+        <NameField
+          label="Binder description"
+          value={binder.description ?? ''}
+          onSave={(description) => store.updateBinder(binder.id, { description, descriptionLocked: true })}
+          auto={!isFieldLocked(binder.descriptionLocked, binder.description)}
+          onKeep={() => store.updateBinder(binder.id, { description: binder.description, descriptionLocked: true })}
+          placeholder="What is this binder about?"
+          multiline
+          testID="binder-description-field"
+        />
+      </View>
+    );
+  }
   return (
     <View style={styles.section}>
       <LabeledInput

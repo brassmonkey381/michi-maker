@@ -181,6 +181,8 @@ export type Database = {
           is_public: boolean
           moderation_hold: boolean
           notes: string | null
+          notes_locked: boolean | null
+          title_locked: boolean | null
           track: Json | null
           position: number
           rows: number
@@ -200,6 +202,8 @@ export type Database = {
           is_public?: boolean
           moderation_hold?: boolean
           notes?: string | null
+          notes_locked?: boolean | null
+          title_locked?: boolean | null
           track?: Json | null
           position?: number
           rows?: number
@@ -219,6 +223,8 @@ export type Database = {
           is_public?: boolean
           moderation_hold?: boolean
           notes?: string | null
+          notes_locked?: boolean | null
+          title_locked?: boolean | null
           track?: Json | null
           position?: number
           rows?: number
@@ -837,6 +843,8 @@ export type Database = {
           cover_card_id: string | null
           created_at: string
           description: string | null
+          description_locked: boolean | null
+          title_locked: boolean | null
           id: string
           is_demo: boolean
           is_public: boolean
@@ -859,6 +867,8 @@ export type Database = {
           cover_card_id?: string | null
           created_at?: string
           description?: string | null
+          description_locked?: boolean | null
+          title_locked?: boolean | null
           id?: string
           is_demo?: boolean
           is_public?: boolean
@@ -881,6 +891,8 @@ export type Database = {
           cover_card_id?: string | null
           created_at?: string
           description?: string | null
+          description_locked?: boolean | null
+          title_locked?: boolean | null
           id?: string
           is_demo?: boolean
           is_public?: boolean

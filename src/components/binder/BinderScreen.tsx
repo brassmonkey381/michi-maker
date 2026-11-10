@@ -129,6 +129,10 @@ import { downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
 import { track, type CardAddVia } from '@/lib/analytics';
 import { AUTO_DEAL_ORDER, dealToHand, HAND_QUICK_DEALS } from '@/data/handDeal';
 import { useLanguagePref } from '@/store/languagePref';
+import { useAutoNames } from '@/hooks/use-auto-names';
+
+/** MIC-034 auto names ('dev' flag): names and descriptions follow the cards until the owner's. */
+const AUTO_NAMES = flag('auto-names');
 import { buildPageImage, canCopyPicture, copyPictureToClipboard, pageImageFileName, sharePageImage } from '@/lib/pageImage';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
@@ -1128,6 +1132,9 @@ export function BinderScreen({
     }, 900);
     return () => clearTimeout(t);
   }, [autoKey]);
+
+  // MIC-034: names and descriptions follow the cards while the editor is open.
+  useAutoNames(binder, pageIndex, AUTO_NAMES && editing && store.canEdit && !!binder && !binder.isExample && !binder.isDemo);
 
   if (!binder) {
     return (

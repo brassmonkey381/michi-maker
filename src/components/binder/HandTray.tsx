@@ -114,6 +114,7 @@ export function HandTray({
                         <TrayChip
                           slot={slot}
                           large={false}
+                          removeOnlyArmed
                           armed={slot.id === armedId}
                           onArm={onArm}
                           onDragStart={onDragStart}

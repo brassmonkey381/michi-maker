@@ -3703,7 +3703,7 @@ export function BinderScreen({
             hand={24}
             onClose={() => setHandFillOpen(false)}
             onPlaced={(placements, label) => {
-              const n = store.addCardsToTray(binder.id, placements.map((p) => p.cardId).filter((id): id is string => !!id));
+              const n = store.addCardsToTray(binder.id, placements.map((p) => p.cardId).filter((id): id is string => !!id).slice(0, 24));
               showToast(n ? `${n} card${n === 1 ? '' : 's'} dealt to your hand: ${label}` : 'Those cards are already in your hand', true);
             }}
             onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}

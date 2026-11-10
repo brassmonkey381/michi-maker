@@ -154,7 +154,10 @@ export const TrayChip = memo(function TrayChip({
   ghostOn,
   ghostX,
   ghostY,
+  removeOnlyArmed,
 }: {
+  /** The hand (MIC-017): the × shows only on the armed card, not on all 24. */
+  removeOnlyArmed?: boolean;
   slot: DemoSlot;
   large: boolean;
   armed: boolean;
@@ -202,9 +205,11 @@ export const TrayChip = memo(function TrayChip({
           ) : null}
         </View>
       </GestureDetector>
+      {removeOnlyArmed && !armed ? null : (
       <Pressable onPress={() => onRemove(slot)} hitSlop={10} accessibilityLabel="Remove this card from the tray" style={styles.remove}>
         <Text style={styles.removeText}>×</Text>
       </Pressable>
+      )}
     </View>
   );
 });

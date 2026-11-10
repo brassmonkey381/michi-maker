@@ -374,6 +374,8 @@ fakemichi, replacing same-titled ones).
 ## Open for the owner
 
 - Add cards: decided, one sparing suggestion per candidate, see above.
-- **[owner]** When Strata and Lines both fit the same cards, both are offered. Agreed?
+- When Strata and Lines both fit the same cards, both are offered: decided yes (owner, 2026-11-10,
+  MIC-011). Already how `arrangeCandidates` works (every fitting mode is a candidate; the top three
+  never repeat a mode).
 - Spread as one canvas: decided no, single pages only (2026-10-21).
-- **[owner]** Stratum table above: words to add, move, or remove.
+- Stratum table above: decided, no changes to its words (owner, 2026-11-10, MIC-011).

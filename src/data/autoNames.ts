@@ -171,3 +171,27 @@ export function autoBinderText(pages: readonly (readonly NameCard[])[]): AutoTex
   const description = `${cap(numberWord(n))} card${n === 1 ? '' : 's'} on ${numberWord(filled)} page${filled === 1 ? '' : 's'}: ${extra ? featuring.join(', ') : list(featuring)}${extra}${typeBit}.`;
   return { title, description };
 }
+
+/**
+ * The facts the ✨ sends (MIC-034 part 2): plain text, no ids, no pictures, short. Counts help the
+ * model weigh what the cards share.
+ */
+export function factsText(cards: readonly NameCard[], pages = 1): string {
+  if (!cards.length) return '';
+  const f = pageFacts(cards);
+  const counts = (values: readonly string[], n = 4) => {
+    const m = new Map<string, number>();
+    for (const v of values) if (v) m.set(v, (m.get(v) ?? 0) + 1);
+    return [...m].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, n).map(([k, c]) => `${k} ${c}`).join(', ');
+  };
+  const lines = [
+    `${f.n} card${f.n === 1 ? '' : 's'}${pages > 1 ? ` on ${pages} pages` : ''}: ${f.names.slice(0, 12).map(cap).join(', ')}${f.names.length > 12 ? ` and ${f.names.length - 12} more` : ''}`,
+    `Types: ${counts(cards.map((c) => c.types[0] ?? ''))}`,
+    `Artists: ${counts(cards.map((c) => c.illustrator.trim()), 3)}`,
+    `Sets: ${counts(cards.map((c) => c.setName), 3)}`,
+  ];
+  const scenes = counts(cards.flatMap((c) => (c.sceneTags ?? []).slice(0, 3).map((t) => t.toLowerCase())), 5);
+  if (scenes) lines.push(`Scenes in the art: ${scenes}`);
+  if (f.line && f.line.present >= 2) lines.push(`Evolution line: ${f.line.stages.map(cap).join(' > ')} (${f.line.present} of ${f.line.stages.length} here)`);
+  return lines.filter((l) => !/: $/.test(l)).join('\n');
+}

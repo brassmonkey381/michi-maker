@@ -71,3 +71,12 @@ test('a binder: its main Pokémon, else its friends', () => {
   const mixed = autoBinderText([[card('Eevee', { types: ['A'], setName: '1' }), card('Mew', { types: ['B'], setName: '2' }), card('Abra', { types: ['C'], setName: '3' })]]);
   assert.equal(mixed.title, 'Eevee and friends');
 });
+
+test('the facts the ✨ sends: short plain lines, empty fields left out', async () => {
+  const { factsText } = await import('./autoNames.ts');
+  const t = factsText([card('Charmander', { evolutionLine: char }), card('Charizard', { evolutionLine: char, sceneTags: ['volcano'] })]);
+  assert.match(t, /^2 cards: Charmander, Charizard\nTypes: Fire 2\n/);
+  assert.match(t, /Evolution line: Charmander > Charmeleon > Charizard \(2 of 3 here\)/);
+  assert.match(t, /Scenes in the art: volcano 1/);
+  assert.equal(factsText([]), '');
+});

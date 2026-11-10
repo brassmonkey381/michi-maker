@@ -13,6 +13,9 @@ import { LabeledInput, Row, Seg, WearRow, styles } from '@/components/binder/ins
 import { NameField } from '@/components/binder/inspector/NameField';
 import { isFieldLocked } from '@/data/autoNames';
 import { flag } from '@/lib/flags';
+import { factsText } from '@/data/autoNames';
+import { cardsOf, useNameCards } from '@/hooks/use-auto-names';
+import { askNameIdeas } from '@/lib/nameIdeas';
 
 /** MIC-034 auto names ('dev'): the fields lock on the first edit or Keep, and save debounced. */
 const AUTO_NAMES = flag('auto-names');
@@ -41,6 +44,9 @@ export function PageFields({
   const { user } = useAuth();
   const artViewBeta = canEditArtView(user?.id);
   const artView = page.artView ?? 'inherit';
+  const lookup = useNameCards(binder, AUTO_NAMES);
+  const facts = AUTO_NAMES ? factsText(cardsOf(page, lookup)) : '';
+  const ideasFor = (field: 'title' | 'description') => (facts ? () => askNameIdeas({ kind: 'page', field, subjectId: page.id, facts }) : undefined);
   return (
     <View style={styles.section}>
       {AUTO_NAMES ? (
@@ -53,6 +59,7 @@ export function PageFields({
             onKeep={() => store.updatePage(binder.id, page.id, { title: page.title, titleLocked: true })}
             placeholder="Untitled page"
             testID="page-title-field"
+            ideas={ideasFor('title')}
           />
           <NameField
             label="Page description"
@@ -63,6 +70,7 @@ export function PageFields({
             placeholder="What's on this page?"
             multiline
             testID="page-description-field"
+            ideas={ideasFor('description')}
           />
         </>
       ) : (

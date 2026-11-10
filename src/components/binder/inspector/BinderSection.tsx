@@ -20,6 +20,9 @@ import { GroupSummary, Group, LabeledInput, PillButton, Row, Seg, ToggleChip, We
 import { NameField } from '@/components/binder/inspector/NameField';
 import { isFieldLocked } from '@/data/autoNames';
 import { flag } from '@/lib/flags';
+import { factsText } from '@/data/autoNames';
+import { cardsOf, useNameCards } from '@/hooks/use-auto-names';
+import { askNameIdeas } from '@/lib/nameIdeas';
 
 /** MIC-034 auto names ('dev'): the fields lock on the first edit or Keep, and save debounced. */
 const AUTO_NAMES = flag('auto-names');
@@ -41,7 +44,11 @@ const PAGE_SIZE_OPTIONS = REAL_PAGE_SIZES.map((s) => ({ id: s.label, label: s.la
 
 export function BinderFields({ binder }: { binder: DemoBinder }) {
   const store = useBinders();
+  const lookup = useNameCards(binder, AUTO_NAMES);
   if (AUTO_NAMES) {
+    const filled = binder.pages.map((p) => cardsOf(p, lookup)).filter((c) => c.length);
+    const facts = factsText(filled.flat(), filled.length);
+    const ideasFor = (field: 'title' | 'description') => (facts ? () => askNameIdeas({ kind: 'binder', field, subjectId: binder.id, facts }) : undefined);
     return (
       <View style={styles.section}>
         <NameField
@@ -52,6 +59,7 @@ export function BinderFields({ binder }: { binder: DemoBinder }) {
           onKeep={() => store.updateBinder(binder.id, { title: binder.title, titleLocked: true })}
           placeholder="Binder title"
           testID="binder-title-field"
+          ideas={ideasFor('title')}
         />
         <NameField
           label="Binder description"
@@ -62,6 +70,7 @@ export function BinderFields({ binder }: { binder: DemoBinder }) {
           placeholder="What is this binder about?"
           multiline
           testID="binder-description-field"
+          ideas={ideasFor('description')}
         />
       </View>
     );

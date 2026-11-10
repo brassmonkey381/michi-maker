@@ -20,11 +20,16 @@ const SETTLE_MS = 1500;
 
 type Pending = { binder: Partial<DemoBinder> | null; pages: Record<string, Partial<DemoPage>> };
 
-export function useAutoNames(binder: DemoBinder | undefined, pageIndex: number, on: boolean): void {
-  const store = useBinders();
-  const { catalog } = useCatalog(false);
-  const [fetched, setFetched] = useState<ReadonlyMap<string, NameCard>>(new Map());
+/** Cards fetched by id this session, shared by every name surface (the kit caches the rows too). */
+const fetchedCards = new Map<string, NameCard>();
 
+/**
+ * Look up a binder's cards by id for naming: the catalogue when loaded, else fetched once by id.
+ * Re-renders when a fetch lands.
+ */
+export function useNameCards(binder: DemoBinder | undefined, on: boolean): (id: string) => NameCard | undefined {
+  const { catalog } = useCatalog(false);
+  const [version, setVersion] = useState(0);
   const ids = useMemo(() => {
     if (!binder) return [] as string[];
     const out = new Set<string>();
@@ -32,12 +37,10 @@ export function useAutoNames(binder: DemoBinder | undefined, pageIndex: number, 
     return [...out];
   }, [binder]);
   const idsKey = ids.join(',');
-
   const lookup = useMemo(() => {
-    return (id: string): NameCard | undefined => (catalog?.getCard(id) as NameCard | undefined) ?? fetched.get(id);
-  }, [catalog, fetched]);
-
-  // Cards this device cannot name yet: fetch them once.
+    void version;
+    return (id: string): NameCard | undefined => (catalog?.getCard(id) as NameCard | undefined) ?? fetchedCards.get(id);
+  }, [catalog, version]);
   useEffect(() => {
     if (!on || !ids.length) return;
     const missing = ids.filter((id) => !lookup(id));
@@ -45,12 +48,8 @@ export function useAutoNames(binder: DemoBinder | undefined, pageIndex: number, 
     let live = true;
     fetchCardsByIds(missing)
       .then((cards) => {
-        if (!live || !cards.length) return;
-        setFetched((m) => {
-          const next = new Map(m);
-          for (const c of cards) next.set(c.id, c);
-          return next;
-        });
+        for (const c of cards) fetchedCards.set(c.id, c);
+        if (live && cards.length) setVersion((v) => v + 1);
       })
       .catch(() => {});
     return () => {
@@ -59,17 +58,26 @@ export function useAutoNames(binder: DemoBinder | undefined, pageIndex: number, 
     // idsKey stands in for ids.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [on, idsKey, lookup]);
+  return lookup;
+}
+
+/** A page's cards in reading order, as far as they are known. */
+export function cardsOf(page: DemoPage, lookup: (id: string) => NameCard | undefined): NameCard[] {
+  return [...page.slots]
+    .filter((s) => s.cardId)
+    .sort((a, b) => a.row - b.row || a.col - b.col)
+    .map((s) => lookup(s.cardId!))
+    .filter((c): c is NameCard => !!c);
+}
+
+export function useAutoNames(binder: DemoBinder | undefined, pageIndex: number, on: boolean): void {
+  const store = useBinders();
+  const lookup = useNameCards(binder, on);
 
   // What the rules say now, for every unlocked field that differs from what is shown.
   const want = useMemo((): Pending | null => {
     if (!on || !binder) return null;
-    const pageCards = binder.pages.map((p) =>
-      [...p.slots]
-        .filter((s) => s.cardId)
-        .sort((a, b) => a.row - b.row || a.col - b.col)
-        .map((s) => lookup(s.cardId!))
-        .filter((c): c is NameCard => !!c),
-    );
+    const pageCards = binder.pages.map((p) => cardsOf(p, lookup));
     // Wait until every card on a page is known, or a half-read page gets a half-right name.
     const known = binder.pages.map((p, i) => pageCards[i].length === p.slots.filter((s) => s.cardId).length);
     const pages: Record<string, Partial<DemoPage>> = {};

@@ -40,6 +40,8 @@ export function HandOrPageSheet({
     { key: 'page', title: 'Add to this page', detail: fits(count, pageRoom, 'This page has no empty pockets'), room: pageRoom },
   ];
   if (first === 'page') options.reverse();
+  // A choice with no room never leads: the other one does, and the full one says why below it.
+  if (options[0].room <= 0 && options[1].room > 0) options.reverse();
   return (
     <DialogCard title={`Add ${count} card${count === 1 ? '' : 's'}`} onClose={onClose} maxWidth={420}>
       <View style={styles.list} testID="hand-or-page">

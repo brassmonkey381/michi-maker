@@ -40,6 +40,9 @@ export const FLAGS = {
   // MIC-017 piece 10: the page-limit offer shows your own binder's next page; /plans as membership
   // cards. UI only: the same offers, checkout and prices.
   'plans-context': 'dev',
+  // MIC-017 piece 11: a profile is a holo collector card with three featured cards (needs the
+  // additive profiles.featured_card_ids column, migration 20261110160000; fails soft without it).
+  'profile-card': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

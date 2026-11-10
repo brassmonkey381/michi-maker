@@ -31,7 +31,12 @@ import { fetchPublicBinders } from '@/data/binderRepo';
 import { sortByRecentEdit, type DemoBinder } from '@/data/binderTypes';
 import { CONTEST, categoryLabel } from '@/data/contest';
 import { fetchWinsForOwner, type ContestWinner } from '@/data/contestRepo';
-import { fetchProfile, type PublicProfile } from '@/data/profileRepo';
+import { fetchFeaturedCards, fetchProfile, saveFeaturedCards, type PublicProfile } from '@/data/profileRepo';
+import { CollectorCard } from '@/components/people/CollectorCard';
+import { flag } from '@/lib/flags';
+
+/** MIC-017 piece 11 ('dev'): the profile as a collector card. */
+const PROFILE_CARD = flag('profile-card');
 import { isSupabaseConfigured } from '@/lib/env';
 import { useAuth } from '@/store/auth';
 
@@ -52,6 +57,8 @@ export default function ProfileRoute() {
   const { user } = useAuth();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [reporting, setReporting] = useState(false);
+  // The featured cards: undefined while loading, null when none are saved.
+  const [featured, setFeatured] = useState<{ id: string; ids: string[] | null } | null>(null);
 
   /* eslint-disable react-hooks/set-state-in-effect -- fetch-on-id-change: reset to loading, then resolve. */
   useEffect(() => {
@@ -85,6 +92,10 @@ export default function ProfileRoute() {
           fetchWinsForOwner(profile.id).catch(() => [] as ContestWinner[]),
         ]);
         if (active) setState({ status: 'ok', profile, binders, wins });
+        if (PROFILE_CARD) {
+          const ids = await fetchFeaturedCards(profile.id).catch(() => null);
+          if (active) setFeatured({ id: profile.id, ids });
+        }
       } catch {
         if (active) setState({ status: 'missing' });
       }
@@ -129,6 +140,23 @@ export default function ProfileRoute() {
           </View>
         ) : (
           <View style={styles.body}>
+            {PROFILE_CARD ? (
+              <CollectorCard
+                name={name}
+                bio={state.profile.bio}
+                binders={state.binders}
+                featured={featured?.id === state.profile.id ? featured.ids : null}
+                wins={state.wins.length}
+                own={user?.id === state.profile.id}
+                onSaveFeatured={async (ids) => {
+                  if (!user) return false;
+                  const ok = await saveFeaturedCards(user.id, ids);
+                  if (ok) setFeatured({ id: state.profile.id, ids });
+                  return ok;
+                }}
+              />
+            ) : (
+            <>
             {/* CONTEST WINNERS wear a small trophy on the avatar's corner and one quiet line under
                 the name that goes to the Hall of Fame. On the account, not the binder (owner call,
                 2026-10-11): the person won, and the binder may be edited or deleted later. */}
@@ -176,6 +204,8 @@ export default function ProfileRoute() {
                 {state.profile.bio}
               </ThemedText>
             ) : null}
+            </>
+            )}
 
             <View style={styles.section}>
               <ThemedText type="smallBold" style={styles.sectionTitle}>

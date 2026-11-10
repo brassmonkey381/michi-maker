@@ -208,3 +208,30 @@ export async function removeUpvote(profileId: string, voterId: string): Promise<
     .eq('voter_id', voterId);
   if (error) throw new Error(`remove upvote: ${error.message}`);
 }
+
+/**
+ * A maker's three featured cards (MIC-017 piece 11), from profiles.featured_card_ids. Null when
+ * none are saved, or when the column is not on this project yet (the card then shows the first
+ * cards of their most-liked binder).
+ */
+export async function fetchFeaturedCards(profileId: string): Promise<string[] | null> {
+  const { data, error } = await requireSupabase()
+    .from('profiles')
+    .select('featured_card_ids' as never)
+    .eq('id', profileId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const ids = (data as { featured_card_ids?: unknown }).featured_card_ids;
+  return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string').slice(0, 3) : null;
+}
+
+/** Save the signed-in maker's featured cards. False when the write did not land (RLS, no column). */
+export async function saveFeaturedCards(userId: string, ids: readonly string[]): Promise<boolean> {
+  const { data, error } = await requireSupabase()
+    .from('profiles')
+    .update({ featured_card_ids: ids.slice(0, 3) } as never)
+    .eq('id', userId)
+    .select('id')
+    .maybeSingle();
+  return !error && !!data;
+}

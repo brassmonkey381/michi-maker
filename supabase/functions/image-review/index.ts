@@ -38,7 +38,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk@1';
 import { publishableKey, secretKey } from '../_shared/keys.ts';
-import { NOTICE_EVERY_MIN, REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, SAME_PICTURE_BITS, dhashHex, hammingHex, isModelType, noticeText, parseAnswer, renderUrl, sniffImage, verdictFor, type ModelType, type ReviewLabel } from './classify.ts';
+import { NOTICE_EVERY_MIN, REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, SAME_PICTURE_BITS, dhashHex, hammingHex, isModelType, noticeText, parseAnswer, renderUrl, samePictureRows, sniffImage, verdictFor, type ModelType, type ReviewLabel } from './classify.ts';
 
 /** Checks per invocation; cron runs every minute, so a backlog drains across runs. */
 const BATCH = 20;
@@ -195,12 +195,35 @@ async function decide(req: Request, body: { id?: number; decision?: string; take
   const { data: review } = await admin.from('image_reviews').select('id, slot_id, binder_id, owner_id, image_url').eq('id', body.id).maybeSingle();
   if (!review) return json({ error: 'not_found' }, 404);
 
-  const { data: fpRow } = await admin.from('image_reviews').select('sha256').eq('id', review.id).maybeSingle();
+  const { data: fpRow } = await admin.from('image_reviews').select('sha256, dhash').eq('id', review.id).maybeSingle();
   if (fpRow?.sha256) {
     await admin.from('flagged_images').update({ status: body.decision, decided_at: new Date().toISOString() }).eq('sha256', fpRow.sha256);
   }
+  // APPROVE FOLLOWS THE PICTURE (owner, 2026-11-10): every copy of it, in any slot of any binder,
+  // is approved with it, so a page held only by a copy is released by the page-hold trigger and
+  // Studio lists each picture once. Copies are found by fingerprint (samePictureRows), and a slot
+  // is only touched while it still holds the copy that was checked. REMOVE stays per slot: it
+  // deletes a file, and that is never done to someone else's copy without its own decision.
+  let decidedIds: number[] = [review.id];
   if (body.decision === 'approved') {
-    await admin.from('binder_slots').update({ image_review: 'approved', image_reviewed_at: new Date().toISOString() }).eq('id', review.slot_id).eq('image_url', review.image_url);
+    const now = new Date().toISOString();
+    let copies: { id: number; slot_id: string; image_url: string; sha256: string | null; dhash: string | null }[] = [];
+    if (fpRow?.sha256 || fpRow?.dhash) {
+      const { data: open } = await admin
+        .from('image_reviews')
+        .select('id, slot_id, image_url, sha256, dhash')
+        .eq('status', 'done')
+        .is('decision', null)
+        .neq('id', review.id);
+      copies = samePictureRows({ sha256: fpRow?.sha256 ?? null, dhash: fpRow?.dhash ?? null }, open ?? []);
+      for (const sha of new Set(copies.map((c) => c.sha256).filter((s): s is string => !!s && s !== fpRow?.sha256))) {
+        await admin.from('flagged_images').update({ status: 'approved', decided_at: now }).eq('sha256', sha);
+      }
+    }
+    for (const r of [{ slot_id: review.slot_id, image_url: review.image_url }, ...copies]) {
+      await admin.from('binder_slots').update({ image_review: 'approved', image_reviewed_at: now }).eq('id', r.slot_id).eq('image_url', r.image_url);
+    }
+    decidedIds = [review.id, ...copies.map((c) => c.id)];
   } else {
     // Clear the slot first (the image stops showing to anyone), then delete our file.
     await admin.from('binder_slots').update({ image_url: null }).eq('id', review.slot_id).eq('image_url', review.image_url);
@@ -214,8 +237,8 @@ async function decide(req: Request, body: { id?: number; decision?: string; take
       for (const b of binders ?? []) await asCaller.rpc('admin_remove_binder', { p_binder_id: b.id });
     }
   }
-  await admin.from('image_reviews').update({ decision: body.decision, decided_by: who?.user?.id ?? null, decided_at: new Date().toISOString() }).eq('id', review.id);
-  return json({ ok: true });
+  await admin.from('image_reviews').update({ decision: body.decision, decided_by: who?.user?.id ?? null, decided_at: new Date().toISOString() }).in('id', decidedIds);
+  return json({ ok: true, decided: decidedIds.length });
 }
 
 Deno.serve(async (req) => {

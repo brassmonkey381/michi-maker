@@ -156,3 +156,20 @@ export function renderUrl(url: string, width = 1568): string | null {
   const m = /^(https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/)object\/public\/([^?#]+)/.exec(url);
   return m ? `${m[1]}render/image/public/${m[2]}?width=${width}&resize=contain&quality=80` : null;
 }
+
+/**
+ * The review rows that show the SAME picture as `target`: the same SHA-256, or (when both have one)
+ * a difference hash within SAME_PICTURE_BITS. Studio's Approve follows the picture to every copy
+ * (owner, 2026-11-10: "if I manually say the art is safe, then anywhere the art exists should be
+ * markable as public"). The target row itself is included when it is in `rows`.
+ */
+export function samePictureRows<T extends { id: number; sha256: string | null; dhash: string | null }>(
+  target: { sha256: string | null; dhash: string | null },
+  rows: T[],
+): T[] {
+  return rows.filter(
+    (r) =>
+      (!!target.sha256 && r.sha256 === target.sha256) ||
+      (!!target.dhash && !!r.dhash && hammingHex(r.dhash, target.dhash) <= SAME_PICTURE_BITS),
+  );
+}

@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { REVIEW_MODEL, REVIEW_SCHEMA, SAME_PICTURE_BITS, dhashHex, hammingHex, isModelType, noticeText, parseAnswer, renderUrl, sniffImage, verdictFor } from '../../supabase/functions/image-review/classify.ts';
+import { REVIEW_MODEL, REVIEW_SCHEMA, SAME_PICTURE_BITS, dhashHex, hammingHex, isModelType, noticeText, parseAnswer, renderUrl, samePictureRows, sniffImage, verdictFor } from '../../supabase/functions/image-review/classify.ts';
 
 test('only safe is approved; suggestive is held too (owner default, 2026-11-09)', () => {
   assert.equal(verdictFor('safe'), 'approved');
@@ -86,4 +86,16 @@ test('a Storage object URL maps to its re-encoded copy; any other URL does not',
   );
   assert.equal(renderUrl('https://example.com/p.jpg'), null);
   assert.equal(renderUrl('https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/sign/x/p.jpg?token=t'), null);
+});
+
+test('approve follows the picture: same SHA-256, or a near difference hash; nothing else', () => {
+  const target = { sha256: 'aa', dhash: '0000000000000000' };
+  const rows = [
+    { id: 1, sha256: 'aa', dhash: null },
+    { id: 2, sha256: 'bb', dhash: '0000000000000003' }, // 2 bits off: the same picture re-saved
+    { id: 3, sha256: 'cc', dhash: 'ffffffffffffffff' }, // a different picture
+    { id: 4, sha256: null, dhash: null },
+  ];
+  assert.deepEqual(samePictureRows(target, rows).map((r) => r.id), [1, 2]);
+  assert.deepEqual(samePictureRows({ sha256: null, dhash: null }, rows), []);
 });

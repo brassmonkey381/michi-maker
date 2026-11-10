@@ -40,6 +40,13 @@ Titles: 2 to 5 words, title case, no quotation marks, no ending punctuation. Mak
 Descriptions: two or three sentences, at most 320 characters. Describe the ART first: the scenery, the most common characters and what they are doing, and how the art connects across the cards (for example along an evolution line). Then, only if the facts show one to three rarities or one to three sets, you may add a short note about them. Example of the style: "Three evolution lines for the Kanto starters: Charmander, Squirtle and Bulbasaur. Illustration Rares only. Squirtle sinks deeper into the ocean as he evolves, Charmander rises into the clouds as he becomes Charizard, and Bulbasaur grows into Venusaur in the jungle."
 Rules: no em dashes or en dashes; no emoji; never mention AI, tags, data, or how the binder was made; do not invent cards, people or facts that are not given; English.`;
 
+/** What to write, said plainly per field (a first live run asked for descriptions and got titles). */
+const ASK = {
+  title: (kind: string) => `Write three short TITLES for this ${kind} (2 to 5 words each).`,
+  description: (kind: string) =>
+    `Write three DESCRIPTIONS for this ${kind}. Each one is two or three full sentences about the art and the characters, never a title or a phrase.`,
+} as const;
+
 const SCHEMA = {
   type: 'object',
   properties: { options: { type: 'array', items: { type: 'string' } } },
@@ -107,7 +114,7 @@ Deno.serve(async (req) => {
       thinking: { type: 'disabled' },
       system: SYSTEM,
       output_config: { format: { type: 'json_schema', schema: SCHEMA as unknown as Record<string, unknown> } },
-      messages: [{ role: 'user', content: `Write three ${kind} ${field} options.\n\nFacts:\n${facts}` }],
+      messages: [{ role: 'user', content: `${ASK[field](kind)}\n\nFacts:\n${facts}` }],
     });
     const text = res.content.find((c) => c.type === 'text');
     const parsed = text && text.type === 'text' ? (JSON.parse(text.text) as { options?: unknown }) : null;

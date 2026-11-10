@@ -43,6 +43,9 @@ export const FLAGS = {
   // MIC-017 piece 11: a profile is a holo collector card with three featured cards (needs the
   // additive profiles.featured_card_ids column, migration 20261110160000; fails soft without it).
   'profile-card': 'dev',
+  // MIC-017 piece 12: a complete or master set as a checklist binder (gaps labelled with number,
+  // name and price) with the completion bar and the price to finish.
+  'setbinders-build': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

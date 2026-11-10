@@ -58,6 +58,11 @@ import { FAN_ART_SOURCES, fetchFanArtForPanel, type FanArtSource } from '@/lib/f
 import { fetchStockArtForPanel } from '@/lib/stockArt';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
+import { SetBuildView } from '@/components/collect/SetBuildView';
+import { flag } from '@/lib/flags';
+
+/** MIC-017 piece 12 ('dev'): the checklist build view for a set. */
+const SET_BUILD = flag('setbinders-build');
 
 const kindOptionsFor = (game: string) => kindsFor(game).map((k) => ({ id: k.id, label: k.label, blurb: k.blurb }));
 /**
@@ -249,7 +254,7 @@ export default function CollectScreen() {
   // when first asked for, into state from the promise's callback; everything else is the
   // catalogue alone and is derived below.
   const [priced, setPriced] = useState<PriceSummary | null>(null);
-  const wantPrices = kind === 'master' || sort.key === 'value';
+  const wantPrices = kind === 'master' || sort.key === 'value' || (SET_BUILD && kind === 'complete' && !!set);
   useEffect(() => {
     if (!wantPrices || priced) return;
     let live = true;
@@ -684,6 +689,15 @@ export default function CollectScreen() {
                 {cameoCount ? ` · ${cameoCount} cameos` : ''}
                 {result.missing.length ? ` · ${result.missing.length} Pokémon have no card` : ''}
               </ThemedText>
+              {SET_BUILD && (kind === 'complete' || kind === 'master') && set && catalog && result.pockets.length ? (
+                <SetBuildView
+                  pockets={result.pockets}
+                  cardOf={(id) => catalog.getCard(id)}
+                  owned={ownedIds ?? null}
+                  priceOf={(id) => priced?.[id]?.cur}
+                  width={Math.max(260, Math.min(width, 900) - 64)}
+                />
+              ) : null}
               {perSpecies.length > 1 ? (
                 <ThemedText type="small" themeColor="textSecondary">{perSpecies.map((s) => `${s.count} ${s.species}`).join(' · ')}</ThemedText>
               ) : null}

@@ -23,6 +23,11 @@ import { CompletePageSheet } from '@/components/binder/CompletePageSheet';
 import { ComposeAllSheet } from '@/components/binder/ComposeAllSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import { CardTray } from '@/components/binder/CardTray';
+import { HandTray } from '@/components/binder/HandTray';
+import { flag } from '@/lib/flags';
+
+/** MIC-017 editor-hand ('dev' flag): the tray becomes a hand of cards under the page. */
+const HAND = flag('editor-hand');
 import {
   CARD_PICKER_RAIL_WIDTH,
   CardPicker,
@@ -357,6 +362,10 @@ export function BinderScreen({
   });
   const [pageIndex, setPageIndex] = useState(fillResume?.at ?? 0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
+  // MIC-017 hand: the picker is open to fill the hand (each pick lands in the tray, the sheet stays).
+  const [pickToHand, setPickToHand] = useState(false);
+  const [handFillOpen, setHandFillOpen] = useState(false);
+  const [handH, setHandH] = useState(0);
   // A placement waiting on "which copy?" - held whole, because the answer arrives from a sheet
   // that does not know the pocket, the footprint, or whether we are still adding.
   const [copyChoice, setCopyChoice] = useState<{
@@ -1577,6 +1586,7 @@ export function BinderScreen({
 
   const closePicker = () => {
     setPickerCell(null);
+    setPickToHand(false);
     setSimilarSeed(null); // consume the one-shot seed so a later normal open doesn't re-run it
     // THE COLOUR SEED TOO (owner, 2026-11-06, phone): it stayed set after Colors, and the sheet
     // remounts the browser on every open, so Replace kept reopening the colour picker. And an
@@ -1885,6 +1895,11 @@ export function BinderScreen({
 
   const handlePickCard = (cardId: string, card?: CatalogCard) => {
     if (!pickerCell) return;
+    if (pickToHand) {
+      const n = store.addCardsToTray(binder.id, [cardId]);
+      showToast(n ? `In your hand${card?.name ? `: ${card.name}` : ''}` : 'Already in your hand', !!n);
+      return;
+    }
     const { rows, cols } = footprintForKind(card?.kind ?? resolveCard(cardId)?.kind);
     const { row, col } = pickerCell;
     // ASK ONLY WHEN THERE IS A QUESTION. Own an unplaced copy of this card and the pocket could
@@ -2322,6 +2337,12 @@ export function BinderScreen({
   // Batch "Add all to a binder" (multi-select): fill THIS page, then keep going on fresh pages
   // inserted directly behind it, and report the result in one toast.
   const handlePickCards = (cardIds: string[]) => {
+    if (pickToHand) {
+      const n = store.addCardsToTray(binder.id, cardIds);
+      closePicker();
+      showToast(`${n} card${n === 1 ? '' : 's'} added to your hand`, true);
+      return;
+    }
     // One batch pass, so the cards never collide on a cell — a per-card loop re-read stale state
     // and 409'd on every card but the first.
     //
@@ -3229,7 +3250,7 @@ export function BinderScreen({
               // estimate of chrome the page component cannot see, wrong by about a hundred pixels,
               // and silently wrong again every time anything was added to the editor's header.
               viewportTop={viewportTop + callerChrome}
-              viewportBottom={phone && editing && canEdit ? phoneBarH : 0}
+              viewportBottom={(phone && editing && canEdit ? phoneBarH : 0) + (HAND && editing && canEdit ? handH : 0)}
               // A TURN PAST THE LAST PAGE ADDS ONE (owner, 2026-11-05: "moving to the right
               // creates a new page ... up to 1 empty page at the end"): only while editing, and
               // only when the last page holds something, so the binder never trails two blanks.
@@ -3321,6 +3342,31 @@ export function BinderScreen({
               onCoverContext={onCoverContext}
               renderGrid={renderGrid}
             />
+
+            {HAND && editing && canEdit ? (
+              <HandTray
+                slots={binder.tray ?? []}
+                armedId={moving?.pageId === null ? moving.slotId : null}
+                onArm={handleTrayArm}
+                onDragStart={handleTrayDragStart}
+                onDrop={handleTrayDrop}
+                onRemove={handleTrayRemove}
+                onClear={() => {
+                  const n = store.clearTray(binder.id);
+                  if (n) showToast(`Hand cleared, ${n} card${n === 1 ? '' : 's'} removed`, true);
+                }}
+                onSuggest={() => setHandFillOpen(true)}
+                onSearch={() => {
+                  setPickToHand(true);
+                  openPickerAt({ row: 0, col: 0 });
+                }}
+                ghostOn={ghostOn}
+                ghostX={ghostX}
+                ghostY={ghostY}
+                trayRef={trayRef}
+                onHeight={setHandH}
+              />
+            ) : null}
 
             {/* DELETING THE BINDER IS NOT AN EDITING TOOL. It sat at the foot of the editor,
                 below the pages, where the only reason to scroll past your own binder was to find
@@ -3592,7 +3638,7 @@ export function BinderScreen({
           onToggleCollapsed={() => setCardsCollapsed((v) => !v)}
           collapsedLabel="Cards"
           trayHead={
-            editing ? (
+            editing && !HAND ? (
               <CardTray
                 slots={binder.tray ?? []}
                 armedId={moving?.pageId === null ? moving.slotId : null}
@@ -3650,6 +3696,20 @@ export function BinderScreen({
           onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
           onTasted={onSheetTasted}
         />
+        {HAND ? (
+          <CompletePageSheet
+            visible={handFillOpen}
+            page={page}
+            hand={24}
+            onClose={() => setHandFillOpen(false)}
+            onPlaced={(placements, label) => {
+              const n = store.addCardsToTray(binder.id, placements.map((p) => p.cardId).filter((id): id is string => !!id));
+              showToast(n ? `${n} card${n === 1 ? '' : 's'} dealt to your hand: ${label}` : 'Those cards are already in your hand', true);
+            }}
+            onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
+            onTasted={onSheetTasted}
+          />
+        ) : null}
 
         <AutoFillSheet
           visible={autoFillOpen}

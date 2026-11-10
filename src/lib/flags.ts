@@ -14,6 +14,7 @@ export const FLAGS = {
   'side-nav': 'dev',
   'pockets-sleeves': 'dev',
   'binder-book': 'dev',
+  'editor-hand': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

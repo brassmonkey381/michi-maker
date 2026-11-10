@@ -874,6 +874,14 @@ export async function replaceBinder(binder: DemoBinder): Promise<void> {
 }
 
 /** Every tray row of a binder, in one delete. */
+/** Cards straight into the tray (MIC-017 hand: "fill the hand" from a search or a suggestion). */
+export async function insertTraySlots(binderId: string, slots: readonly DemoSlot[]): Promise<void> {
+  if (slots.length === 0) return;
+  const supabase = requireSupabase();
+  const { error } = await supabase.from('binder_slots').insert(slots.map((slot) => slotRow(slot, null, binderId)));
+  if (error) throw new Error(`add to tray: ${error.message}`);
+}
+
 export async function clearTray(binderId: string): Promise<void> {
   const supabase = requireSupabase();
   const { error } = await supabase.from('binder_slots').delete().eq('binder_id', binderId);

@@ -143,7 +143,7 @@ export function CardTray({
   );
 }
 
-const TrayChip = memo(function TrayChip({
+export const TrayChip = memo(function TrayChip({
   slot,
   large,
   armed,

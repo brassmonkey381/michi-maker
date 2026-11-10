@@ -419,6 +419,11 @@ interface BinderStore {
   removeTraySlot: (binderId: string, slotId: string) => void;
   /** Empty the tray: one commit, one Undo, one delete. Returns how many cards went. */
   clearTray: (binderId: string) => number;
+  /**
+   * Cards straight into the tray, after what is there (MIC-017 hand). Cards already in the tray
+   * are skipped. One commit, one Undo, one insert. Returns how many went in.
+   */
+  addCardsToTray: (binderId: string, cardIds: readonly string[]) => number;
   /** Move (or same-footprint-swap) a slot from one page to another — dragging across the spread. */
   moveSlotAcrossPages: (
     binderId: string,
@@ -2766,6 +2771,23 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  const addCardsToTray = useCallback(
+    (binderId: string, cardIds: readonly string[]): number => {
+      const target = binders.find((b) => b.id === binderId);
+      if (!target) return 0;
+      const have = new Set((target.tray ?? []).map((s) => s.cardId).filter(Boolean));
+      const fresh = [...new Set(cardIds)].filter((id) => id && !have.has(id));
+      if (!fresh.length) return 0;
+      const start = nextTrayCol(target.tray);
+      const added: DemoSlot[] = fresh.map((cardId, i) => ({ id: uuidv4(), row: 0, col: start + i, rowSpan: 1, colSpan: 1, type: 'card', cardId }));
+      track('pocket.tray', { dir: 'fill', n: added.length });
+      commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, tray: [...(b.tray ?? []), ...added] } : b)));
+      if (!target.isExample) persist(() => repo.insertTraySlots(binderId, added), binderId);
+      return added.length;
+    },
+    [binders, commit, persist],
+  );
+
   const clearTray = useCallback(
     (binderId: string): number => {
       const target = binders.find((b) => b.id === binderId);
@@ -2941,6 +2963,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       moveSlotFromTray,
       removeTraySlot,
       clearTray,
+      addCardsToTray,
       moveSlotAcrossPages,
       removeSlot,
       mergeSlots,
@@ -3009,6 +3032,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       moveSlotFromTray,
       removeTraySlot,
       clearTray,
+      addCardsToTray,
       moveSlotAcrossPages,
       removeSlot,
       mergeSlots,

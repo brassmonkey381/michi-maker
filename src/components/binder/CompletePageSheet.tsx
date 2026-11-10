@@ -41,12 +41,15 @@ type FillPreview = { method: CompleteMethod; placements: ComposePlacement[] | nu
 
 export function CompletePageSheet({
   visible,
-  page,
+  page: realPage,
   onClose,
   onPlaced,
   onSimilarLocked,
   onTasted,
+  hand,
 }: {
+  /** MIC-017 hand: deal this many cards to the hand instead of filling the empty pockets. */
+  hand?: number;
   visible: boolean;
   page: DemoPage;
   onClose: () => void;
@@ -57,6 +60,12 @@ export function CompletePageSheet({
   /** A free taste was just taken by a tap in here; the editor shows its toast. */
   onTasted?: (feature: TasteFeature) => void;
 }) {
+  // THE HAND'S FILL: the same fills, gates and samples, asked for `hand` cards. The page gets
+  // extra empty rows so the completer has that many pockets to fill; nothing is placed on it.
+  const page = useMemo(
+    () => (hand ? { ...realPage, rows: realPage.rows + Math.ceil(hand / Math.max(1, realPage.cols)) } : realPage),
+    [realPage, hand],
+  );
   const { catalog, guestGated } = useCatalog(visible);
   // The auth-based gate, not the tier, which reads 'guest' for a beat while a member's entitlements load.
   const guest = guestGated;
@@ -68,7 +77,7 @@ export function CompletePageSheet({
   const SERVER: readonly CompleteMethod[] = ['theme', 'similar'];
   const serverFills = tierFindSimilar || taste.offer('fillPage');
   const [languages] = useLanguagePref();
-  const pageKey = `${page.id}:${page.slots.map((s) => `${s.id}@${s.row},${s.col}`).join('|')}`;
+  const pageKey = `${page.id}:${hand ?? 0}:${page.slots.map((s) => `${s.id}@${s.row},${s.col}`).join('|')}`;
   // A guest's catalogue: the page's cards by id, then each fill's candidates as they are fetched.
   const [guestStore, setGuestStore] = useState<{ key: string; store: CardStore } | null>(null);
   useEffect(() => {
@@ -151,9 +160,11 @@ export function CompletePageSheet({
   };
 
   return (
-    <DialogCard visible={visible} title="Complete this page" onClose={onClose} maxWidth={640} scroll={false}>
+    <DialogCard visible={visible} title={hand ? 'Deal cards to your hand' : 'Complete this page'} onClose={onClose} maxWidth={640} scroll={false}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-        The cards already here say what the empty pockets should hold. Tap a fill to place it; the placed cards stay where they are, and Undo takes the new ones out.
+        {hand
+          ? `The cards on this page say what fits. Pick a way to match them and up to ${hand} cards land in your hand; drag the ones you like into pockets.`
+          : 'The cards already here say what the empty pockets should hold. Tap a fill to place it; the placed cards stay where they are, and Undo takes the new ones out.'}
       </ThemedText>
       {guest && !guestFillOpen ? (
         // The guest's one fill is spent: the free account, and nothing about PRO.

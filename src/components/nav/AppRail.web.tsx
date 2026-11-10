@@ -29,7 +29,11 @@ import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '
 import { freshPinned } from '@/data/changelog';
 import { NavIcon } from '@/components/nav/NavIcon';
 import { navGroups, navHiddenOn, type NavGroup, type NavItem } from '@/components/nav/navItems';
+import { flag } from '@/lib/flags';
 import { useAuth } from '@/store/auth';
+
+/** MIC-017 side-nav: no glyphs, bigger text, bold section rules. Constant for the page load. */
+const PLAIN = flag('side-nav');
 
 /**
  * The items live in nav/navItems now, shared with the phone drawer (nav/MobileNav). Two copies of
@@ -60,7 +64,7 @@ export function AppRail() {
   if (navHiddenOn(pathname)) return null;
 
   return (
-    <ThemedView style={styles.rail}>
+    <ThemedView style={[styles.rail, PLAIN && styles.railPlain]}>
       <Pressable
         onPress={() => router.push('/')}
         accessibilityLabel="Michi-Maker home"
@@ -125,8 +129,8 @@ function RailGroup({
   // and opens tcgscan.ai in a new tab. Only the group holding it ever shows a pending state.
   const { opening, open } = useTcgscanOpen();
   return (
-    <View style={[styles.group, !first && styles.groupRuled]} accessibilityRole="list" accessibilityLabel={label}>
-      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.groupLabel}>
+    <View style={[styles.group, !first && styles.groupRuled, PLAIN && !first && styles.groupRuledPlain]} accessibilityRole="list" accessibilityLabel={label}>
+      <ThemedText type="smallBold" themeColor={PLAIN ? undefined : 'textSecondary'} style={[styles.groupLabel, PLAIN && styles.groupLabelPlain]}>
         {label}
       </ThemedText>
       <View style={styles.items}>
@@ -144,21 +148,24 @@ function RailGroup({
               testID={item.glow ? 'rail-item-glow' : undefined}
               style={(state) => [
                 styles.item,
+                PLAIN && styles.itemPlain,
                 hovered(state) && !active && styles.itemHover,
                 active && styles.itemActive,
                 (state.pressed || busy) && styles.pressed,
               ]}>
               {item.glow ? <Glow /> : null}
               {active ? <View style={styles.itemBar} /> : null}
-              <ThemedText
-                themeColor={lit ? undefined : 'textSecondary'}
-                style={[styles.itemIcon, item.glow && styles.itemTextGlow]}>
-                <NavIcon name={item.icon} />
-              </ThemedText>
+              {PLAIN ? null : (
+                <ThemedText
+                  themeColor={lit ? undefined : 'textSecondary'}
+                  style={[styles.itemIcon, item.glow && styles.itemTextGlow]}>
+                  <NavIcon name={item.icon} />
+                </ThemedText>
+              )}
               <ThemedText
                 type={lit ? 'smallBold' : 'small'}
                 themeColor={lit ? undefined : 'textSecondary'}
-                style={[styles.itemText, item.glow && styles.itemTextGlow]}
+                style={[styles.itemText, PLAIN && styles.itemTextPlain, item.glow && styles.itemTextGlow]}
                 numberOfLines={1}>
                 {/* The Scan Cards link mints a sign-in ticket before it navigates; it says so while
                     that is happening rather than looking like a link that missed the press. */}
@@ -316,4 +323,10 @@ const styles = StyleSheet.create({
   },
   bottomLink: { fontSize: FontSize.sm },
   pressed: { opacity: 0.7 },
+  // MIC-017 side-nav ('dev' flag): words only, larger, and each section closed by a strong rule.
+  railPlain: { width: 232 },
+  groupRuledPlain: { borderTopWidth: 2, borderTopColor: Palette.ink, paddingTop: Spacing.three },
+  groupLabelPlain: { fontSize: FontSize.sm, fontWeight: Weight.bold, letterSpacing: 1.6, opacity: 1, marginBottom: Spacing.two },
+  itemPlain: { minHeight: 34, paddingVertical: 5 },
+  itemTextPlain: { fontSize: FontSize.md, lineHeight: 22 },
 });

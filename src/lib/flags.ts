@@ -10,7 +10,8 @@ import { flagOn, type FlagState } from '@/lib/devFlagRules';
 import { DEV_MODE } from '@/lib/devMode';
 
 export const FLAGS = {
-  // 'results-binder': 'dev',
+  // MIC-017 redesign pieces (owner's picks, 2026-11-10)
+  'side-nav': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

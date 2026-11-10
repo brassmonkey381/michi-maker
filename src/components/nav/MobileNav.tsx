@@ -30,6 +30,10 @@ import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { freshPinned } from '@/data/changelog';
 import { NavIcon } from '@/components/nav/NavIcon';
+import { flag } from '@/lib/flags';
+
+/** MIC-017 side-nav: no glyphs, bigger text, bold section rules. Constant for the page load. */
+const PLAIN = flag('side-nav');
 import { navGroups, navHiddenOn, type NavItem } from '@/components/nav/navItems';
 
 export function MobileNav() {
@@ -220,8 +224,8 @@ function Group({
   opening: boolean;
 }) {
   return (
-    <View style={[styles.group, !first && styles.groupRuled]}>
-      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.groupLabel}>
+    <View style={[styles.group, !first && styles.groupRuled, PLAIN && !first && styles.groupRuledPlain]}>
+      <ThemedText type="smallBold" themeColor={PLAIN ? undefined : 'textSecondary'} style={[styles.groupLabel, PLAIN && styles.groupLabelPlain]}>
         {label.toUpperCase()}
       </ThemedText>
       {items.map((item) => {
@@ -237,12 +241,14 @@ function Group({
             testID={`mobile-nav-${item.label}`}
             style={({ pressed }) => [styles.item, active && styles.itemActive, (pressed || busy) && styles.pressed]}>
             {/* Web only: the glyph takes the label's colour. Native renders nothing here. */}
-            <ThemedText style={[styles.itemIcon, item.glow && styles.itemGlow]} themeColor={active ? undefined : 'textSecondary'}>
-              <NavIcon name={item.icon} size={18} />
-            </ThemedText>
+            {PLAIN ? null : (
+              <ThemedText style={[styles.itemIcon, item.glow && styles.itemGlow]} themeColor={active ? undefined : 'textSecondary'}>
+                <NavIcon name={item.icon} size={18} />
+              </ThemedText>
+            )}
             <ThemedText
               type={active || item.glow ? 'smallBold' : 'default'}
-              style={[styles.itemText, item.glow && styles.itemGlow]}>
+              style={[styles.itemText, PLAIN && styles.itemTextPlain, item.glow && styles.itemGlow]}>
               {busy ? 'Opening…' : item.label}
             </ThemedText>
             {item.tag ? <ThemedText style={styles.tag}>{item.tag}</ThemedText> : null}
@@ -330,6 +336,10 @@ const styles = StyleSheet.create({
   itemActive: { backgroundColor: Palette.selectionSoft, borderLeftColor: Palette.accent },
   itemIcon: { width: 18, height: 18, lineHeight: 18 },
   itemText: { fontSize: FontSize.control, fontWeight: Weight.medium, flexShrink: 1 },
+  // MIC-017 side-nav ('dev' flag): words only, larger, each section closed by a strong rule.
+  itemTextPlain: { fontSize: FontSize.lg, lineHeight: 24 },
+  groupRuledPlain: { borderTopWidth: 2, borderTopColor: Palette.ink, paddingTop: Spacing.three + Spacing.half },
+  groupLabelPlain: { fontSize: FontSize.sm, fontWeight: Weight.bold, letterSpacing: 1.6, opacity: 1, marginBottom: Spacing.two },
   itemGlow: { color: Palette.accent, fontWeight: Weight.semibold },
   external: { fontSize: FontSize.sm, marginLeft: 'auto', opacity: 0.7 },
   tag: { fontSize: 10, lineHeight: 14, fontWeight: Weight.bold, letterSpacing: 0.5, textTransform: 'uppercase', color: Palette.accent, backgroundColor: Palette.panel, borderRadius: Radius.pill, paddingHorizontal: 6, paddingVertical: 1, marginLeft: 6 },

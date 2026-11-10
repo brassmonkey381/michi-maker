@@ -37,6 +37,9 @@ export const FLAGS = {
   // MIC-017 piece 9: the Share sheet leads with Instagram (story / square / page + caption), a QR
   // code (and a printable QR card) and the page picture.
   'share-minimal': 'dev',
+  // MIC-017 piece 10: the page-limit offer shows your own binder's next page; /plans as membership
+  // cards. UI only: the same offers, checkout and prices.
+  'plans-context': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

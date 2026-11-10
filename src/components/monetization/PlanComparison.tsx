@@ -46,6 +46,7 @@ import { useTier } from '@/hooks/use-tier';
 import { rememberAuthReturn } from '@/lib/authReturn';
 import { useTrial } from '@/hooks/use-trial';
 import { useAuth } from '@/store/auth';
+import { flag } from '@/lib/flags';
 
 /** How far the PRO/VIP header tabs rise above the table body. */
 const TAB_RISE = Spacing.four;
@@ -55,6 +56,25 @@ const TAB_RISE = Spacing.four;
  * it is the one mark the eye can find while scanning a column at speed. Only PRO gets it, because
  * the whole job of this table is to make one column legible from across the room.
  */
+/**
+ * MEMBERSHIP CARDS (MIC-017 piece 10, 'plans-context'): the plans as cards you pick up, at every
+ * width, each led by a card face. Layout only: the same columns, rows, prices and buttons as the
+ * phone's cards (planCards), so no checkout path changes.
+ */
+const MEMBERSHIP = flag('plans-context');
+
+function MemberFace({ pro }: { pro: boolean }) {
+  return (
+    <View style={[styles.memberFace, pro ? styles.memberFacePro : styles.memberFaceFree]} testID={`member-face-${pro ? 'pro' : 'free'}`}>
+      <View style={styles.memberTop}>
+        <Text style={[styles.memberBrand, pro && styles.memberInkPro]}>michi-maker</Text>
+        <View style={[styles.memberChip, pro && styles.memberChipPro]} />
+      </View>
+      <Text style={[styles.memberTier, pro && styles.memberInkPro]}>{pro ? 'PRO MEMBER' : 'FREE MEMBER'}</Text>
+    </View>
+  );
+}
+
 function Tick() {
   return (
     <View style={styles.tick}>
@@ -331,12 +351,13 @@ export function PlanComparison({ resumeKey }: { resumeKey?: string | null } = {}
    * because it was the half that used to be off-screen entirely.
    */
   const planCards = () => (
-    <View style={styles.phoneCards}>
+    <View style={[styles.phoneCards, MEMBERSHIP && !phone && styles.memberCardsWide]}>
       {[
         { key: 'pro', head: proHeadBody, cell: (row: (typeof COMPARISON)[number]) => row.pro, pro: true, foot: () => paidFoot(proHead) },
         { key: 'free', head: freeHeadBody, cell: (row: (typeof COMPARISON)[number]) => freeCell(row), pro: false, foot: freeFoot },
       ].map((col) => (
-        <View key={col.key} style={[styles.phoneCard, col.pro && styles.phoneCardPro]} testID={`plan-card-${col.key}`}>
+        <View key={col.key} style={[styles.phoneCard, col.pro && styles.phoneCardPro, MEMBERSHIP && !phone && styles.memberCardWide]} testID={`plan-card-${col.key}`}>
+          {MEMBERSHIP ? <MemberFace pro={col.pro} /> : null}
           <View style={styles.phoneHead}>{col.head()}</View>
           <View style={styles.phoneRows}>
             {COMPARISON.map((row) => (
@@ -511,7 +532,7 @@ export function PlanComparison({ resumeKey }: { resumeKey?: string | null } = {}
     // (1440 on this page) capped at 720 and left-aligned, while the table centred itself at
     // 1040 — so the fine print visibly failed to line up with the table above it.
     <View style={styles.block} onLayout={(e) => setBlockW(e.nativeEvent.layout.width)}>
-      {phone ? planCards() : (
+      {phone || MEMBERSHIP ? planCards() : (
       <>
       {/* The indicator is hidden, not the scrolling: RN Web renders a horizontal ScrollView with
           a permanent scrollbar TRACK even when nothing overflows, which is the useless bar this
@@ -662,6 +683,18 @@ export const PLAN_BLOCK_WIDTH = 1040;
 const BLOCK_WIDTH = PLAN_BLOCK_WIDTH;
 
 const styles = StyleSheet.create({
+  // Membership cards (MIC-017 piece 10).
+  memberCardsWide: { flexDirection: 'row', alignItems: 'flex-start', gap: 20 },
+  memberCardWide: { flex: 1, minWidth: 0 },
+  memberFace: { aspectRatio: 1.586, maxHeight: 190, borderRadius: 14, padding: 16, justifyContent: 'space-between', marginBottom: 12 },
+  memberFaceFree: { backgroundColor: '#e7e9ee', borderWidth: 1, borderColor: '#d3d7df' },
+  memberFacePro: { backgroundColor: '#1f3f8f', borderWidth: 1, borderColor: '#2f5bd0' },
+  memberTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  memberBrand: { fontSize: 15, fontWeight: '800', color: '#30343c', letterSpacing: 0.3 },
+  memberInkPro: { color: '#ffffff' },
+  memberChip: { width: 34, height: 26, borderRadius: 5, backgroundColor: '#c8ccd4' },
+  memberChipPro: { backgroundColor: '#e2c46c' },
+  memberTier: { fontSize: 18, fontWeight: '800', color: '#30343c', letterSpacing: 2 },
   everyPlan: { paddingTop: Spacing.three, paddingHorizontal: Spacing.two },
   everyPlanText: { color: Palette.muted, fontSize: FontSize.sm, lineHeight: 18 },
   everyPlanLead: { fontWeight: Weight.semibold, color: Palette.ink },

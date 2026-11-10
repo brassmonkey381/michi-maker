@@ -13,7 +13,10 @@
  * excludes. It cannot collide with the uninvited prompts in practice either: those are modal, so
  * there is no "+ New" to press behind them.
  */
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { BinderGrid } from '@/components/binder/BinderGrid';
+import type { DemoPage } from '@/data/binderTypes';
 
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { SignInPerk } from '@/components/auth/SignInPerk';
@@ -48,6 +51,28 @@ export interface CapWall {
   offersTrial?: false;
   /** Dialog heading. Short, and never a pitch. */
   title: string;
+  /**
+   * IN CONTEXT (MIC-017 piece 10, 'plans-context'): the binder's last page and the empty page it
+   * wants next, shown above the offer so it sells what the person was doing, not a price table.
+   */
+  preview?: { page: DemoPage; nextNo: number };
+}
+
+function NextPagePreview({ page, nextNo }: { page: DemoPage; nextNo: number }) {
+  const empty: DemoPage = { ...page, id: 'next', slots: [] };
+  return (
+    <View style={styles.preview} testID="cap-preview">
+      <View style={styles.previewPage}>
+        <BinderGrid page={page} width={116} />
+        <Text style={styles.previewLabel}>page {nextNo - 1}</Text>
+      </View>
+      <Text style={styles.arrow}>→</Text>
+      <View style={styles.previewPage}>
+        <BinderGrid page={empty} width={116} />
+        <Text style={styles.previewLabel}>page {nextNo}</Text>
+      </View>
+    </View>
+  );
 }
 
 /**
@@ -99,6 +124,7 @@ export function CapGateDialog({
   if (!wall) return <AuthSheet visible={guestAuth} onClose={onCloseGuestAuth ?? (() => {})} />;
   return (
     <DialogCard visible title={<WallTitle text={wall.title} />} onClose={() => onDismiss('close')} maxWidth={420}>
+      {wall.preview ? <NextPagePreview page={wall.preview.page} nextNo={wall.preview.nextNo} /> : null}
       {wall.isGuest ? (
         <SignInPerk surface="cap_gate" message={wall.message} />
       ) : (
@@ -121,6 +147,10 @@ export function CapGateDialog({
 
 const styles = StyleSheet.create({
   later: { alignSelf: 'center', marginTop: Spacing.three },
+  preview: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: Spacing.three },
+  previewPage: { alignItems: 'center', gap: 4 },
+  previewLabel: { fontSize: 12, color: Palette.muted },
+  arrow: { fontSize: 22, color: Palette.muted },
   plan: { color: Palette.accent, fontWeight: '800', letterSpacing: 0.5 },
   laterText: { color: Palette.muted },
 });

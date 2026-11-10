@@ -133,6 +133,8 @@ import { useAutoNames } from '@/hooks/use-auto-names';
 
 /** MIC-034 auto names ('dev' flag): names and descriptions follow the cards until the owner's. */
 const AUTO_NAMES = flag('auto-names');
+/** MIC-017 piece 10 ('dev'): the page-limit offer in context. */
+const PLANS_CONTEXT = flag('plans-context');
 import { buildPageImage, canCopyPicture, copyPictureToClipboard, pageImageFileName, sharePageImage } from '@/lib/pageImage';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
@@ -792,6 +794,26 @@ export function BinderScreen({
   const onCoversLocked = () => coversWall(guestWall ? 'Binder covers: dress the binder and decorate all four cover surfaces. Create a free account to use them.' : 'Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.');
   // One wall, one report: a dialog on its first hit today, the toast after that.
   const capGate = useCapGate(showLimitToast);
+  /** The binder hit its page limit: the offer with its own next page (piece 10), else the toast. */
+  const pageLimitHit = () => {
+    if (PLANS_CONTEXT && binder && store.tier !== 'guest') {
+      const last = binder.pages[binder.pages.length - 1];
+      capGate.hit({
+        limit: 'pagesPerBinder',
+        surface: 'binder_editor',
+        isGuest: false,
+        title: `“${binder.title || 'This binder'}” wants page ${binder.pages.length + 1}`,
+        message: pageLimitMessage(store.tier, store.limits),
+        trialMessage: pageTrialMessage(store.limits),
+        tier: store.tier,
+        used: binder.pages.length,
+        cap: store.limits.pagesPerBinder,
+        ...(last ? { preview: { page: last, nextNo: binder.pages.length + 1 } } : {}),
+      });
+      return;
+    }
+    pageLimitHit();
+  };
 
   // Hovering the binder title answers the same question the tap does, without taking the screen.
   //
@@ -1526,7 +1548,7 @@ export function BinderScreen({
     // The server refuses pages past the cap at insert, so a copy with too many would half-save
     // and show the banner (owner, 2026-09-17). Say so first.
     if (!store.pagesFit(binder.pages.length)) {
-      showLimitToast(pageLimitMessage(store.tier, store.limits));
+      pageLimitHit();
       return;
     }
     const copy = store.duplicateBinder(binder.id);
@@ -1564,7 +1586,7 @@ export function BinderScreen({
   // the day it is wanted again.
   const handleAddPage = () => {
     if (store.pageLimitReached(binder.id)) {
-      showLimitToast(pageLimitMessage(store.tier, store.limits));
+      pageLimitHit();
       return;
     }
     store.addPage(binder.id);
@@ -1582,7 +1604,7 @@ export function BinderScreen({
     if (result.status !== 'ok') {
       // A full target is the page cap like any other, so it gets the same prominent tone and
       // route out rather than being flattened into the generic "couldn't send" line.
-      if (result.status === 'target-full') showLimitToast(pageLimitMessage(store.tier, store.limits));
+      if (result.status === 'target-full') pageLimitHit();
       else {
         showToast(
           result.status === 'size-mismatch'
@@ -2235,7 +2257,7 @@ export function BinderScreen({
     setAddElsewhereIds(null);
     // Anything the target binder's page cap left out is named, never dropped in silence — and
     // so are owned cards whose free copies ran out (they land as catalogue-art pockets).
-    if (unplaced > 0) showLimitToast(pageLimitMessage(store.tier, store.limits));
+    if (unplaced > 0) pageLimitHit();
     else if (added > 0) {
       const short =
         droppedClaims + ids.filter((id, i) => entryIds[i] === undefined && ownsCard(id)).length;
@@ -3377,7 +3399,7 @@ export function BinderScreen({
               growReady={editing && binder.pages.length > 0 && occupiedCells(binder.pages[binder.pages.length - 1]).size > 0}
               onGrow={() => {
                 if (store.pageLimitReached(binder.id)) {
-                  showLimitToast(pageLimitMessage(store.tier, store.limits));
+                  pageLimitHit();
                   return false;
                 }
                 store.addPage(binder.id);

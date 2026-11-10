@@ -117,7 +117,7 @@ export function CardTray({
       {open ? (
         ordered.length === 0 ? (
           <Text style={styles.emptyText}>
-            Cards you take off a page wait here. Drag one back into any pocket, or tap it and then tap a pocket.
+            Drag cards off a page to keep them here.
           </Text>
         ) : (
           <View style={styles.strip}>

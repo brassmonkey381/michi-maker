@@ -177,7 +177,7 @@ export const WALKTHROUGH_COPY = {
   ring: {
     index: 1,
     title: 'Pick a pocket',
-    body: 'Tap the ringed pocket above. The card browser opens beside your binder.',
+    body: 'Tap the ringed pocket above.',
     // Up, because the callout sits UNDER the pocket it names: below always fits, where above runs
     // off the top of the page for a pocket on the first row.
     arrow: 'up',
@@ -186,14 +186,14 @@ export const WALKTHROUGH_COPY = {
   card: {
     index: 2,
     title: 'Find a card, then drop it in',
-    body: 'Search below for any card you like, then press the ＋ in its corner. It lands in the pocket you picked.',
+    body: 'Search for a card, then press its ＋.',
     arrow: 'down',
   },
   /** Over the binder, pointing at the card that just landed. */
   placed: {
     index: 3,
     title: 'Now fill the page around it',
-    body: 'Tap the card you just placed and choose Fill page. Michi builds the rest of the page to match it.',
+    body: 'Tap your card, then choose Fill page.',
     arrow: 'up',
   },
 } as const satisfies Record<WalkthroughStep, WalkthroughCopy>;
@@ -207,7 +207,7 @@ export const WALKTHROUGH_COPY = {
  */
 export const WALKTHROUGH_COPY_GUEST_PLACED: WalkthroughCopy = {
   ...WALKTHROUGH_COPY.placed,
-  body: 'Tap the card you just placed and choose Fill page. Michi builds the rest of the page to match it. Your first fill is free.',
+  body: 'Tap your card, then choose Fill page for free.',
 };
 
 /**
@@ -233,7 +233,7 @@ export const SEEDED_COPY = {
     index: 1,
     total: SEEDED_TOTAL,
     title: 'Tap Complete to fill the page',
-    body: 'Pick a fill and the empty pockets get matching cards. Or tap a pocket and pick a card yourself.',
+    body: 'Then pick a fill.',
     arrow: 'up',
   },
   /** The same place, once the page is full. The owner's line (2026-10-30). */
@@ -242,7 +242,7 @@ export const SEEDED_COPY = {
     total: SEEDED_TOTAL,
     title: 'Create an account to save your binder',
     highlight: 'Create an account',
-    body: 'It is free. Your page comes with you.',
+    body: 'It’s free.',
     arrow: 'up',
   },
   /** Under page two's first empty pocket, ringed; the card browser is open beside it with its
@@ -251,7 +251,7 @@ export const SEEDED_COPY = {
     index: 3,
     total: SEEDED_TOTAL,
     title: 'Add a card yourself',
-    body: 'This is page 2. In the card browser, tap the Theme button to search card art by theme. Then press ＋ on a card and it lands in the ringed pocket.',
+    body: 'Tap the Theme button, then press ＋ on a card for the ringed pocket.',
     arrow: 'up',
   },
 } as const satisfies Record<SeededStep, WalkthroughCopy>;

@@ -3586,7 +3586,7 @@ export function BinderScreen({
               <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
             ) : walkthrough.copy && wantSearch && searchInSheet ? (
               // The sheet covers the ringed pocket, so the line names the ＋ below it instead.
-              <WalkthroughBanner copy={{ ...walkthrough.copy, arrow: 'down', body: 'Tap the Theme button below to search card art by theme. Then press ＋ on a card and it goes into page 2.' }} onDismiss={walkthrough.dismiss} />
+              <WalkthroughBanner copy={{ ...walkthrough.copy, arrow: 'down', body: 'Tap the Theme button below, then press ＋ on a card.' }} onDismiss={walkthrough.dismiss} />
             ) : undefined
           }
           // Same on a phone: the sheet is up while a pocket has asked for it, and gone otherwise.

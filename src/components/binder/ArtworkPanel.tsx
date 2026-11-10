@@ -271,7 +271,7 @@ export function ArtworkPanel({
             removeClippedSubviews
             ListHeaderComponent={
               <Text style={styles.hint}>
-                {query.trim() ? `${shown} of ${slices.length} pieces match.` : 'Drag a piece into a pocket, or tap it then tap the pocket.'}
+                {query.trim() ? `${shown} of ${slices.length} pieces match.` : 'Drag a piece into a pocket.'}
               </Text>
             }
             ListEmptyComponent={

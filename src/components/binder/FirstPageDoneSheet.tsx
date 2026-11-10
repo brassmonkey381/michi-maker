@@ -18,15 +18,15 @@ import { cardThumbUrl } from '@/lib/catalogConfig';
 /** What to try next, in plain words. The two that name a control say where it is on this screen. */
 function nextMoves(narrow: boolean): { title: string; body: string }[] {
   return [
-    { title: 'Fill a page from one card', body: 'Tap any card, then Fill page. The empty pockets get cards that match it.' },
-    { title: 'Search card art by theme', body: 'In the card browser, type theme: and a word, like theme:rain. The Theme button runs an example.' },
-    { title: 'Search by look', body: 'Tap a card, then Similar: cards that look like it.' },
+    { title: 'Fill a page from one card', body: 'Tap any card, then Fill page.' },
+    { title: 'Search card art by theme', body: 'Type theme: and a word, like theme:rain.' },
+    { title: 'Search by look', body: 'Tap a card, then Similar.' },
     // Owner, 2026-11-06: on a phone Art is a tab in the card browser; Arrange gets a mention.
     {
       title: 'Add a picture, then Arrange',
-      body: narrow ? 'Add, then the Artwork tab: upload and crop. Arrange seats the page.' : 'Open Art on the left: upload and crop. Arrange seats the page.',
+      body: narrow ? 'Add, then Artwork, then Arrange.' : 'Open Art on the left, then Arrange.',
     },
-    { title: narrow ? 'Swipe to turn pages' : 'Use the arrow keys to turn pages', body: 'When a page is full, a new one is added for you.' },
+    { title: narrow ? 'Swipe to turn pages' : 'Use the arrow keys to turn pages', body: 'A full page adds the next one.' },
   ];
 }
 
@@ -66,9 +66,7 @@ export function FirstPageDoneSheet({
           </View>
         ) : null}
         <Text style={styles.lead}>
-          {ownCard
-            ? 'You started with three cards, filled the page, and added one yourself. That is how every page here gets made. Things to try next:'
-            : 'You started with three cards and filled the page around them. That is how every page here gets made. Things to try next:'}
+          {'Try these next:'}
         </Text>
         <View style={styles.list}>
           {NEXT.map((n, i) => (

@@ -121,7 +121,7 @@ export function HandTray({
         ordered.length === 0 ? (
           phone && !tools ? null :
           <Text style={styles.empty}>
-            Your hand is empty. Suggest deals cards that fit this page; Search adds the ones you pick. Drag a card up into a pocket, or a card from the page down here.
+            Tap Suggest to deal cards, then drag them into pockets.
           </Text>
         ) : (
           <View style={styles.area} onLayout={(e) => setAreaW(Math.floor(e.nativeEvent.layout.width) - 2 * Spacing.three)} testID="hand-cards">

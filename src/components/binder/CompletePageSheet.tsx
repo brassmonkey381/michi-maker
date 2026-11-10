@@ -163,8 +163,8 @@ export function CompletePageSheet({
     <DialogCard visible={visible} title={hand ? 'Deal cards to your hand' : 'Complete this page'} onClose={onClose} maxWidth={640} scroll={false}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
         {hand
-          ? `The cards on this page say what fits. Pick a way to match them and up to ${hand} cards land in your hand; drag the ones you like into pockets.`
-          : 'The cards already here say what the empty pockets should hold. Tap a fill to place it; the placed cards stay where they are, and Undo takes the new ones out.'}
+          ? `Pick a fill to deal up to ${hand} cards to your hand.`
+          : 'Tap a fill; Undo takes the new cards out.'}
       </ThemedText>
       {guest && !guestFillOpen ? (
         // The guest's one fill is spent: the free account, and nothing about PRO.

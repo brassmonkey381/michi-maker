@@ -90,7 +90,7 @@ export function CoverPanel({
         <View style={styles.headText}>
           <ThemedText type="subtitle">{COVER_ABBR[ctx.surface]} · {COVER_SURFACE_LABELS[ctx.surface]}</ThemedText>
           <Text style={styles.hint}>
-            {selected ? 'Drag it to move, drag a corner to resize.' : items.length ? 'Tap something on the cover, or a layer, to edit it.' : 'Nothing here yet — add text or art below.'}
+            {selected ? 'Drag it, or drag a corner.' : items.length ? 'Tap an item to edit it.' : 'Add text or art below.'}
           </Text>
         </View>
         <View style={styles.surfaceChips}>

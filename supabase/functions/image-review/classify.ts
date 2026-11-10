@@ -11,8 +11,9 @@ export const REVIEW_SYSTEM = [
   'You check images that users put into binders on a public trading-card collecting site.',
   'Label the image:',
   '- safe: no sexual content.',
-  '- suggestive: sexualised posing or framing, lingerie, or partial nudity without explicit acts.',
-  '- explicit: exposed genitals or breasts, sexual acts, or pornographic or hentai content, drawn or photographed.',
+  '- suggestive: sexualised posing or framing, lingerie or swimwear, with no nudity.',
+  '- explicit: any nudity (bare breasts or nipples, genitals, bare buttocks, a nude figure even if the pose hides details), sexual acts, or pornographic or hentai content, drawn or photographed.',
+  'If you are unsure whether an image shows nudity, choose explicit.',
   'Set minor_concern to true if the image sexualises anyone who appears to be under 18, including drawn characters who look childlike.',
   'Give a reason of at most 12 words.',
 ].join('\n');
@@ -32,13 +33,16 @@ export type ReviewLabel = 'safe' | 'suggestive' | 'explicit' | 'refused' | 'unch
 export type SlotVerdict = 'approved' | 'flagged' | 'unchecked';
 
 /**
- * What a label does to the slot. Only "safe" is shown to visitors. Suggestive is HELD too (owner's
- * default, 2026-11-09); a refusal is treated like a flag (the model declined to look, a person
- * should); an image that could not be fetched or classified waits as unchecked.
+ * What a label does to the slot. Safe and SUGGESTIVE are shown (owner, 2026-11-10: "SUGGESTIVE is
+ * OK. NUDITY IS NOT OK"; the hold line is "nudity, or whatever the AI flags as porn", which is the
+ * model's 'explicit'). A suggestive image that sexualises a minor is still held (minor_concern). A
+ * refusal is treated like a flag (the model declined to look, a person should); an image that could
+ * not be fetched or classified waits as unchecked. The suggestive label is kept for the record.
  */
-export function verdictFor(label: ReviewLabel): SlotVerdict {
+export function verdictFor(label: ReviewLabel, minorConcern = false): SlotVerdict {
   // held: a page-mate of an explicit image (see image-review), flagged with it.
   if (label === 'safe') return 'approved';
+  if (label === 'suggestive') return minorConcern ? 'flagged' : 'approved';
   if (label === 'unchecked') return 'unchecked';
   return 'flagged';
 }

@@ -3,7 +3,7 @@
  * search the binders via theme, scenery, art style, set, palette, etc. via our understanding of
  * each binder and binder page's cards. The user does not need special access").
  *
- *  POST { rpc: <search_cards RPC body> }  →  { rows: <search_binders_by_cards rows> }
+ *  POST { rpc: <search_cards RPC body> }  →  { rows: <search_binder_pages_by_cards rows> }
  *
  * The search runs in full on the card server (the data project's search_cards, with this
  * project's DATA_SECRET_KEY, so a theme or scene query is not clamped), and its card ids rank the
@@ -66,6 +66,18 @@ Deno.serve(async (req) => {
 
   // 2. The public binders those cards fill most.
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, secretKey(), { auth: { persistSession: false } });
+  // Through their pages (search_binder_pages_by_cards): each row also names the pages holding the
+  // search's cards (match_pages, the post-it) and shows the best one. Every page with a found card
+  // counts; the binder ranking is the same whole-binder fill as before. Until that migration runs,
+  // the older binder-only ranking answers (no post-it, opens at the start).
+  const paged = await admin.rpc('search_binder_pages_by_cards', {
+    p_card_ids: ids,
+    p_min_share: 0.0001,
+    p_min_cards: 1,
+    p_rank: 'binder',
+    p_limit: 60,
+  });
+  if (!paged.error) return json(200, { rows: paged.data ?? [] });
   const { data, error } = await admin.rpc('search_binders_by_cards', { p_card_ids: ids, p_limit: 60 });
   if (error) return json(502, { error: 'binder ranking failed' });
   return json(200, { rows: data ?? [] });

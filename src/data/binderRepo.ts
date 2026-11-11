@@ -1124,6 +1124,8 @@ export interface RankedBinderRow {
   page_count?: number | null;
   /** The one page a tile draws: the first public page holding anything. Null when none is public. */
   face_page_id?: string | null;
+  /** search_binder_pages_by_cards: the 1-based public page numbers that matched. */
+  match_pages?: number[] | null;
 }
 
 /** Where a list left off: the last ranked row. Opaque to callers; hand it back for the next page. */
@@ -1185,6 +1187,7 @@ export async function hydrateRankedBinders(rows: RankedBinderRow[]): Promise<Dem
         authorName: r.author_name ?? undefined,
         likeCount: Number(r.like_count),
         ...(asTiles && r.page_count != null ? { pageCount: Number(r.page_count) } : {}),
+        ...(r.match_pages?.length ? { matchPages: r.match_pages.map(Number) } : {}),
       },
     ];
   });
@@ -1297,6 +1300,32 @@ export async function searchBindersByCards(cardIds: readonly string[], limit = 4
   const supabase = requireSupabase();
   const { data, error } = await supabase.rpc('search_binders_by_cards' as never, { p_card_ids: cardIds.slice(0, 2000), p_limit: limit } as never);
   if (error) return null;
+  return hydrateRankedBinders((data ?? []) as RankedBinderRow[]);
+}
+
+/**
+ * DISCOVER BY PAGES (MIC-017 piece 8, owner 2026-11-11): public binders whose PAGES the given cards
+ * fill, each card weighted by a share (a colour: how much of its art is that colour). A page
+ * matches at `minShare` of its filled pockets; each binder comes back with its matching page
+ * numbers (matchPages) and shows its best matching page. Falls back to the binder-only ranking
+ * (no matchPages) until search_binder_pages_by_cards is on this project.
+ */
+export async function searchBinderPagesByShares(
+  cardIds: readonly string[],
+  shares: readonly number[],
+  opts: { minShare: number; minCards: number; limit?: number },
+): Promise<DemoBinder[] | null> {
+  if (!cardIds.length) return [];
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('search_binder_pages_by_cards' as never, {
+    p_card_ids: cardIds.slice(0, 20000),
+    p_shares: shares.slice(0, 20000),
+    p_min_share: opts.minShare,
+    p_min_cards: opts.minCards,
+    p_rank: 'page',
+    p_limit: opts.limit ?? 40,
+  } as never);
+  if (error) return searchBindersByCards(cardIds.slice(0, 2000), opts.limit ?? 40);
   return hydrateRankedBinders((data ?? []) as RankedBinderRow[]);
 }
 

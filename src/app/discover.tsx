@@ -29,7 +29,10 @@ import {
   View,
 } from 'react-native';
 
-import { expandThemeFields, parseQuery, searchByColors, searchCards, srgbToLab } from 'tcgscan-browse';
+import { expandThemeFields, parseQuery, searchCards, srgbToLab } from 'tcgscan-browse';
+
+import { cardsInFamily, PAGE_MATCH_MIN_CARDS, PAGE_MATCH_SHARE } from '@/data/colourFamilies';
+import { loadedColorIndexes, loadPokemonColorIndexes } from '@/lib/colorIndexes';
 
 import { AccountButton } from '@/components/auth/AccountButton';
 import { PeopleSearch } from '@/components/people/PeopleSearch';
@@ -58,6 +61,7 @@ import {
   OFFICIAL_AUTHOR,
   searchBindersPage,
   searchBindersByCards,
+  searchBinderPagesByShares,
   discoverByQuery,
   type BinderListCursor,
   type DiscoverSort,
@@ -212,8 +216,9 @@ export default function DiscoverScreen() {
   const [frameW, setFrameW] = useState(0);
   const measureFrame = (w: number) => setFrameW((cur) => (Math.abs(cur - w) > 1 ? Math.round(w) : cur));
   // The way back rides in the address, so it survives a reload and a new tab.
-  const openBinder = (id: string) =>
-    router.push(`/binder/${id}?back=${encodeURIComponent(returnTo.current)}` as Href);
+  // A search result opens at its first matching page (MIC-017 piece 8, owner 2026-11-11).
+  const openBinder = (id: string, page?: number) =>
+    router.push(`/binder/${id}?back=${encodeURIComponent(returnTo.current)}${page ? `&page=${page}` : ''}` as Href);
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<DemoBinder[] | null>(null);
@@ -407,8 +412,16 @@ export default function DiscoverScreen() {
     setColourHits(null);
     setQuery('');
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(sw.hex.slice(i, i + 2), 16));
-    searchByColors([{ ...srgbToLab(r, g, b), w: 1 }], 'art', { limit: 400 })
-      .then((ids) => searchBindersByCards(ids))
+    // BY PAGE (owner, 2026-11-11: "binders with PAGEs that exhibit a lot of black"): each card's
+    // share of the colour comes from the palette index, and a page matches when about a third of
+    // its art is that colour (data/colourFamilies). The binders come back through those pages.
+    loadPokemonColorIndexes()
+      .then(() => {
+        const indexes = loadedColorIndexes();
+        if (!indexes.length) return null;
+        const { ids, shares } = cardsInFamily(indexes, sw.name, srgbToLab(r, g, b));
+        return searchBinderPagesByShares(ids, shares, { minShare: PAGE_MATCH_SHARE, minCards: PAGE_MATCH_MIN_CARDS });
+      })
       .then((hits) => setColourHits(hits ?? 'unavailable'))
       .catch(() => setColourHits([]));
   };
@@ -520,7 +533,7 @@ export default function DiscoverScreen() {
               ) : (
                 <View style={[styles.grid, { gap: GRID_GAP }]}>
                   {colourHits.map((b) => (
-                    <BinderThumb key={b.id} binder={b} width={tileW} onPress={() => openBinder(b.id)} />
+                    <BinderThumb key={b.id} binder={b} width={tileW} matchPages={b.matchPages} onPress={() => openBinder(b.id, b.matchPages?.[0])} />
                   ))}
                 </View>
               )}
@@ -549,7 +562,7 @@ export default function DiscoverScreen() {
                 ) : null}
                 <View style={[styles.grid, { gap: GRID_GAP }]}>
                   {(shownResults ?? results).map((b) => (
-                    <BinderThumb key={b.id} binder={b} width={tileW} onPress={() => openBinder(b.id)} />
+                    <BinderThumb key={b.id} binder={b} width={tileW} matchPages={b.matchPages} onPress={() => openBinder(b.id, b.matchPages?.[0])} />
                   ))}
                 </View>
                 {resultsNext ? (

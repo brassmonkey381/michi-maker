@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CoverSurface } from '@/components/binder/BinderCover';
@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Radii, Radius, Shadows } from '@/constants/theme';
 import { binderModel } from '@/data/binderModels';
 import { binderMetaLine } from '@/data/binderShape';
+import { pagesTagText } from '@/data/colourFamilies';
 import { facePage } from '@/data/previewPages';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 import { cardThumbUrl } from '@/lib/catalogConfig';
@@ -18,9 +19,38 @@ interface BinderThumbProps {
   onPress: () => void;
   /** Optional trailing control in the title row (e.g. the ⋯ actions button). */
   accessory?: ReactNode;
+  /**
+   * MIC-017 piece 8: a Discover search result's matching page numbers, shown as a post-it on the
+   * page's bottom edge (owner, 2026-11-11). Every number, runs as ranges; "+N" only on overflow.
+   */
+  matchPages?: readonly number[];
 }
 
-export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbProps) {
+/** The post-it's type: 11px, and a digit or comma at about 6.4px. */
+const TAG_CHAR_W = 6.4;
+const TAG_PAD = 14;
+
+/** The post-it on a search result's bottom edge: which pages matched. */
+function PagesTag({ pages, width }: { pages: readonly number[]; width: number }) {
+  // Measured: the space the tag can take is the tile's width less the tag's own margins.
+  const [room, setRoom] = useState(width - 16);
+  const text = pagesTagText(pages, Math.max(6, Math.floor((room - TAG_PAD) / TAG_CHAR_W)));
+  return (
+    <View
+      style={styles.tagRow}
+      pointerEvents="none"
+      onLayout={(e) => setRoom((cur) => (Math.abs(cur - e.nativeEvent.layout.width) > 1 ? e.nativeEvent.layout.width : cur))}
+      testID="binder-pages-tag">
+      <View style={styles.tag}>
+        <ThemedText style={styles.tagText} numberOfLines={1} accessibilityLabel={`Matching pages: ${pages.join(', ')}`}>
+          {text}
+        </ThemedText>
+      </View>
+    </View>
+  );
+}
+
+export function BinderThumb({ binder, width, onPress, accessory, matchPages }: BinderThumbProps) {
   // The first page with something in it, so a binder that opens on a blank page still shows
   // what it holds (previewPages.facePage).
   const firstPage = facePage(binder.pages);
@@ -88,6 +118,7 @@ export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbPr
       ) : (
         <View style={[styles.placeholder, { width, height: boxH }]} />
       )}
+      {matchPages?.length ? <PagesTag pages={matchPages} width={width} /> : null}
     </Pressable>
   );
 }
@@ -117,6 +148,22 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.75,
   },
+  // Overlaps the page's bottom edge by half its height, like a sticky note on a binder page.
+  tagRow: { marginTop: -12, paddingHorizontal: 8, alignItems: 'flex-start' },
+  tag: {
+    maxWidth: '100%',
+    backgroundColor: '#f7e27a',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 2,
+    transform: [{ rotate: '-1.5deg' }],
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  tagText: { fontSize: 11, lineHeight: 15, fontWeight: '700', color: '#3b3420' },
   pageShadow: { borderRadius: Radii.page, ...Shadows.page },
   /** The shelf's box: a cover shorter than it sits in the middle. */
   box: { justifyContent: 'center', alignItems: 'center' },

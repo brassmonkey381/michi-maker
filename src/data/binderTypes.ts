@@ -394,6 +394,11 @@ export interface DemoBinder {
   isFeatured?: boolean;
   /** The author's display name, shown on Featured binders. One day this links to their profile. */
   authorName?: string;
+  /**
+   * MIC-017 piece 8: on a Discover search result, the 1-based public page numbers that matched
+   * (the post-it on the tile; opening the result flips to the first). Absent everywhere else.
+   */
+  matchPages?: number[];
   coverCardId?: string;
   /**
    * The real binder these pages live in: model, colourway, and whatever has been stuck to its four

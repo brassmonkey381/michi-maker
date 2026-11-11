@@ -164,11 +164,11 @@ const SWATCHES = [
  * A search as cards: the card server answers the query (names, theme:, the full grammar), and the
  * binders those cards fill most come back ranked. Null when there is nothing to rank by.
  */
-async function rankByCards(q: string): Promise<DemoBinder[] | null> {
-  const parsed = parseQuery(q);
-  const viaServer = await discoverByQuery({
+/** A search body for the card server's search_cards. */
+function cardSearchBody(parsed: ReturnType<typeof parseQuery>, fields: ReturnType<typeof parseQuery>['fields']): Record<string, unknown> {
+  return {
     p_words: parsed.words,
-    p_fields: expandThemeFields(parsed.fields, { on: true, game: 'pokemon' }).fields,
+    p_fields: expandThemeFields(fields, { on: true, game: 'pokemon' }).fields,
     p_compares: parsed.comparisons.map((c) => ({ field: c.field, op: c.op, value: c.value })),
     p_facets: null,
     p_min_price: parsed.minPrice,
@@ -177,7 +177,22 @@ async function rankByCards(q: string): Promise<DemoBinder[] | null> {
     p_dir: parsed.sortDir,
     p_limit: 400,
     p_offset: 0,
-  });
+  };
+}
+
+async function rankByCards(q: string): Promise<DemoBinder[] | null> {
+  const parsed = parseQuery(q);
+  // PLAIN WORDS ARE ALSO WHAT THE ART SHOWS (owner, 2026-11-11: search binders by theme, scenery,
+  // art style). "watercolor" or "rainy city" with no field words is asked twice: as words (names,
+  // card text) and as themes (every word must be in the art); the name matches lead.
+  const plain = parsed.words.length > 0 && parsed.fields.length === 0 && parsed.comparisons.length === 0;
+  const [byWords, byArt] = await Promise.all([
+    discoverByQuery(cardSearchBody(parsed, parsed.fields)),
+    plain
+      ? discoverByQuery(cardSearchBody({ ...parsed, words: [] }, parsed.words.map((w) => ({ key: 'theme', value: w }))))
+      : Promise.resolve(null),
+  ]);
+  const viaServer = byWords || byArt ? [...(byWords ?? []), ...(byArt ?? []).filter((x) => !(byWords ?? []).some((y) => y.id === x.id))] : null;
   if (viaServer) return viaServer;
   try {
     const page = await searchCards(parseQuery(q), { limit: 400 });
@@ -521,7 +536,7 @@ export default function DiscoverScreen() {
               <View style={styles.center}>
                 <ActivityIndicator />
               </View>
-            ) : results.length === 0 ? (
+            ) : (shownResults ?? results).length === 0 ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
                 {`No public binders match “${q}”.`}
               </ThemedText>

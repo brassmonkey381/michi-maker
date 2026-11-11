@@ -133,6 +133,7 @@ import { dealToHand, HAND_QUICK_DEALS } from '@/data/handDeal';
 const HAND_PICK_ACTIONS = ['Add to hand', 'Add to page'] as const;
 import { TrashCan, type TrashRect } from '@/components/binder/TrashCan';
 import { HandSpread } from '@/components/binder/HandSpread';
+import { DialogCard } from '@/components/ui/DialogCard';
 import type { GridLift } from '@/components/binder/BinderGrid';
 import { TopLayer } from '@/components/binder/TopLayer';
 import { useLanguagePref } from '@/store/languagePref';
@@ -530,6 +531,15 @@ export function BinderScreen({
    */
   const [selectMode, setSelectMode] = useState(false);
   const modifierHeld = useRef(false);
+  // Shift-click selects a RANGE (owner, 2026-11-11: "control + click ... should work everywhere";
+  // Shift where the surface has an order): from the last pocket or hand card clicked.
+  const shiftHeld = useRef(false);
+  const pocketAnchor = useRef<string | null>(null);
+  const handAnchor = useRef<string | null>(null);
+  // Hand cards picked with Ctrl/Cmd/Shift-click; releasing the key offers what to do with them.
+  const [handMulti, setHandMulti] = useState<Set<string>>(new Set());
+  const handMultiRef = useRef(handMulti);
+  const [handMultiOpen, setHandMultiOpen] = useState(false);
   const multiIdsRef = useRef(multiIds);
   // FILLING KEEPS GOING, ALWAYS. Placing a card moves to the next empty pocket and the browser
   // stays where it is; nothing the reader did not ask for closes it. This was a "Keep adding"
@@ -714,6 +724,9 @@ export function BinderScreen({
   useEffect(() => {
     multiIdsRef.current = multiIds;
   }, [multiIds]);
+  useEffect(() => {
+    handMultiRef.current = handMulti;
+  }, [handMulti]);
 
   // Web: track the Ctrl/Cmd modifier so a click can extend a multi-selection, and pop the bulk
   // action modal when it's released with pockets selected. Gated to edit mode.
@@ -722,11 +735,15 @@ export function BinderScreen({
     const isMod = (e: KeyboardEvent) => e.key === 'Control' || e.key === 'Meta';
     const down = (e: KeyboardEvent) => {
       if (isMod(e)) modifierHeld.current = true;
+      if (e.key === 'Shift') shiftHeld.current = true;
     };
     const up = (e: KeyboardEvent) => {
-      if (!isMod(e)) return;
-      modifierHeld.current = false;
+      if (e.key === 'Shift') shiftHeld.current = false;
+      else if (isMod(e)) modifierHeld.current = false;
+      else return;
+      if (modifierHeld.current || shiftHeld.current) return; // another one still down
       if (multiIdsRef.current.size > 0) setMultiActionsOpen(true);
+      if (handMultiRef.current.size > 0) setHandMultiOpen(true);
     };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
@@ -1762,6 +1779,21 @@ export function BinderScreen({
   const handleSelectSlot = (slot: DemoSlot) => {
     if (landMove(page, slot.row, slot.col)) return;
     if (takeColourFrom(slot)) return;
+    if (shiftHeld.current && Platform.OS === 'web') {
+      // A RANGE in reading order, from the last pocket clicked (or the selected one) to this one.
+      const anchorId = pocketAnchor.current ?? selectedSlotId;
+      const order = [...page.slots].sort((a, b) => a.row - b.row || a.col - b.col);
+      const ai = order.findIndex((x) => x.id === anchorId);
+      const bi = order.findIndex((x) => x.id === slot.id);
+      setMultiIds((cur) => {
+        const next = new Set(cur);
+        if (ai < 0) next.add(slot.id);
+        else for (const x of order.slice(Math.min(ai, bi), Math.max(ai, bi) + 1)) next.add(x.id);
+        return next;
+      });
+      setSelectedSlotId(null);
+      return;
+    }
     if (modifierHeld.current || selectMode) {
       setMultiIds((cur) => {
         const next = new Set(cur);
@@ -1770,9 +1802,11 @@ export function BinderScreen({
         else next.add(slot.id);
         return next;
       });
+      pocketAnchor.current = slot.id;
       setSelectedSlotId(null);
       return;
     }
+    pocketAnchor.current = slot.id;
     clearMulti();
     setSelectedSlotId(slot.id);
     // RE-AIM. Tapping a FILLED pocket never called setPickerCell, so with the browser aimed at
@@ -2351,6 +2385,24 @@ export function BinderScreen({
     }
   };
   const handleTrayArm = (slotId: string | null) => {
+    if (HAND && slotId && Platform.OS === 'web' && (modifierHeld.current || shiftHeld.current)) {
+      const order = [...(binder.tray ?? [])].sort((a, b) => a.col - b.col);
+      setHandMulti((cur) => {
+        const next = new Set(cur);
+        if (shiftHeld.current && handAnchor.current) {
+          const ai = order.findIndex((x) => x.id === handAnchor.current);
+          const bi = order.findIndex((x) => x.id === slotId);
+          if (ai >= 0 && bi >= 0) for (const x of order.slice(Math.min(ai, bi), Math.max(ai, bi) + 1)) next.add(x.id);
+          else next.add(slotId);
+        } else if (next.has(slotId)) next.delete(slotId);
+        else next.add(slotId);
+        return next;
+      });
+      if (!shiftHeld.current) handAnchor.current = slotId;
+      setMoving(null);
+      return;
+    }
+    handAnchor.current = slotId;
     setMoving(slotId ? { pageId: null, slotId } : null);
     setSelectedSlotId(null);
     clearMulti();
@@ -3617,6 +3669,7 @@ export function BinderScreen({
               <HandTray
                 slots={binder.tray ?? []}
                 armedId={moving?.pageId === null ? moving.slotId : null}
+                markedIds={handMulti}
                 onArm={handleTrayArm}
                 onDragStart={handleTrayDragStart}
                 onDrop={handleTrayDrop}
@@ -4021,6 +4074,50 @@ export function BinderScreen({
           onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
           onTasted={onSheetTasted}
         />
+        {HAND && handMultiOpen && handMulti.size > 0 ? (
+          <DialogCard visible title={`${handMulti.size} card${handMulti.size === 1 ? '' : 's'} from your hand`} onClose={() => { setHandMultiOpen(false); setHandMulti(new Set()); }} maxWidth={380}>
+            <View style={{ gap: Spacing.two }} testID="hand-multi-sheet">
+              <Pressable
+                accessibilityRole="button"
+                testID="hand-multi-page"
+                style={({ pressed }) => [styles.handMultiBtn, styles.handMultiPrimary, pressed && { opacity: 0.85 }]}
+                onPress={() => {
+                  // This page's empty pockets, in reading order, for the picked cards in hand order.
+                  const ids = [...(binder.tray ?? [])].sort((a, b) => a.col - b.col).filter((x) => handMulti.has(x.id));
+                  const taken = new Set(occupiedCells(page));
+                  let placed = 0;
+                  for (const t of ids) {
+                    let cell: { row: number; col: number } | null = null;
+                    for (let r = 0; r < page.rows && !cell; r += 1) for (let c = 0; c < page.cols && !cell; c += 1) if (!taken.has(`${r},${c}`)) cell = { row: r, col: c };
+                    if (!cell) break;
+                    if (store.moveSlotFromTray(binder.id, t.id, page.id, cell.row, cell.col) === 'moved') {
+                      taken.add(`${cell.row},${cell.col}`);
+                      placed += 1;
+                    }
+                  }
+                  setHandMultiOpen(false);
+                  setHandMulti(new Set());
+                  const left = ids.length - placed;
+                  showToast(`${placed} added to this page${left ? `; ${left} stayed in your hand (no room)` : ''}`, placed > 0);
+                }}>
+                <Text style={styles.handMultiPrimaryText}>Add to this page</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                testID="hand-multi-remove"
+                style={({ pressed }) => [styles.handMultiBtn, pressed && { opacity: 0.85 }]}
+                onPress={() => {
+                  for (const id of handMulti) store.removeTraySlot(binder.id, id);
+                  const n = handMulti.size;
+                  setHandMultiOpen(false);
+                  setHandMulti(new Set());
+                  showToast(`${n} removed from your hand`, true);
+                }}>
+                <Text style={styles.handMultiText}>Remove from hand</Text>
+              </Pressable>
+            </View>
+          </DialogCard>
+        ) : null}
         {HAND && multiPick ? (
           <HandOrPageSheet
             count={multiPick.ids.length}
@@ -5121,6 +5218,10 @@ const styles = StyleSheet.create({
   // A contained danger chip, centred and sized to its label — so the tap target is the button,
   // not the whole row width (an easy place to fat-finger a destructive action).
   // Floating drag preview that follows the finger while a slice is dragged from the tray.
+  handMultiBtn: { minHeight: 44, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Palette.hairline },
+  handMultiPrimary: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  handMultiPrimaryText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.md },
+  handMultiText: { color: Palette.ink, fontWeight: Weight.semibold, fontSize: FontSize.md },
   dragGhostCard: { width: 56, height: 78, zIndex: 500 },
   liftGhost: {
     position: 'absolute',

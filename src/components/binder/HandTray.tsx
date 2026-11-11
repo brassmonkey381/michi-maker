@@ -50,6 +50,7 @@ function tilt(id: string): number {
 export function HandTray({
   slots,
   armedId,
+  markedIds,
   onArm,
   onDragStart,
   onDrop,
@@ -80,6 +81,8 @@ export function HandTray({
   dealing?: string | null;
   slots: readonly DemoSlot[];
   armedId: string | null;
+  /** Cards picked with Ctrl/Cmd/Shift-click (desktop multi-select): ringed like an armed card. */
+  markedIds?: ReadonlySet<string>;
   onArm: (slotId: string | null) => void;
   onDragStart: (slot: DemoSlot) => void;
   onDrop: (slot: DemoSlot, windowX: number, windowY: number) => void;
@@ -208,7 +211,8 @@ export function HandTray({
               {L.rows.map((row, r) =>
                 row.map((i, k) => {
                     const slot = ordered[i];
-                    const up = slot.id === hovered || slot.id === armedId;
+                    const marked = !!markedIds?.has(slot.id);
+                    const up = slot.id === hovered || slot.id === armedId || marked;
                     return (
                       <View
                         key={slot.id}
@@ -228,7 +232,7 @@ export function HandTray({
                           large={false}
                           size={{ w: L.cardW, h: L.cardH }}
                           removeOnlyArmed
-                          armed={slot.id === armedId}
+                          armed={slot.id === armedId || marked}
                           onArm={onArm}
                           onDragStart={onDragStart}
                           onDrop={onDrop}

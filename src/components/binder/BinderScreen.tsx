@@ -3367,8 +3367,9 @@ export function BinderScreen({
       <Pressable onPress={toggleEditing} hitSlop={10} testID="binder-mode-btn">
         {/* A filled pill so entering/leaving the workbench reads as a real mode change. NAMES THE
             MODE IT SWITCHES TO, both ways round. */}
-        <View style={styles.modeBtn}>
-          <Text style={styles.modeBtnText}>{editing ? 'Viewing Mode' : 'Edit Mode'}</Text>
+        <View style={[styles.modeBtn, phone && PHONE_NAV && styles.modeBtnPhone]}>
+          {/* Phone (phone-nav): "View" / "Edit", so the binder's name has room (QA 2026-11-11). */}
+          <Text style={styles.modeBtnText}>{phone && PHONE_NAV ? (editing ? 'View' : 'Edit') : editing ? 'Viewing Mode' : 'Edit Mode'}</Text>
         </View>
       </Pressable>
     );
@@ -3422,7 +3423,7 @@ export function BinderScreen({
                   accessibilityRole="button"
                   testID="binder-title"
                   accessibilityLabel={titleA11y}>
-                  <ThemedText type="subtitle" numberOfLines={1} style={styles.phoneTitleText}>
+                  <ThemedText type="subtitle" numberOfLines={PHONE_NAV ? 2 : 1} style={[styles.phoneTitleText, PHONE_NAV && styles.phoneTitleTextTwo]}>
                     {titleWords}
                     {editing ? <Text style={styles.titlePen}> ✎</Text> : null}
                   </ThemedText>
@@ -5072,6 +5073,9 @@ const styles = StyleSheet.create({
   pillDangerText: { color: Palette.dangerAlt },
   /** In the flow and taking what is left, so it truncates rather than drawing over its neighbours. */
   phoneTitlePress: { flex: 1, minWidth: 0 },
+  // phone-nav: a long name takes two short lines rather than an ellipsis after four letters.
+  phoneTitleTextTwo: { fontSize: FontSize.md, lineHeight: 19 },
+  modeBtnPhone: { paddingHorizontal: 14 },
   phoneTitleText: { fontFamily: Fonts?.brand, fontSize: FontSize.lg, lineHeight: 24 },
   /** 375 wide on an iPhone 13 mini: the Art chip, undo and redo, the page group and the gear
    *  all on ONE row, which the old 16px gutters and gaps could not do, so the chip and the gear

@@ -597,8 +597,9 @@ export default function DiscoverScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={`Binders in ${sw.name}`}
                       testID="discover-swatch"
-                      style={[styles.swatch, { backgroundColor: sw.hex }, colour?.hex === sw.hex && styles.swatchOn]}
-                    />
+                      style={styles.swatchHit}>
+                      <View style={[styles.swatch, { backgroundColor: sw.hex }, colour?.hex === sw.hex && styles.swatchOn]} />
+                    </Pressable>
                   ))}
                 </View>
               </View>
@@ -856,7 +857,8 @@ const styles = StyleSheet.create({
   // MIC-017 piece 8: Binders | Makers, colour swatches, theme chips.
   v2Bar: { gap: 10, marginTop: 10, marginBottom: 6 },
   v2Row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
-  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginHorizontal: -9 },
+  swatchHit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   swatch: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: 'transparent' },
   swatchOn: { borderColor: Palette.ink },
   // The old scroll view's bottom room, for the phone's menu button.

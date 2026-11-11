@@ -77,7 +77,9 @@ interface CardPickerProps {
   onPickCard: (cardId: string, card?: CatalogCard) => void;
   onPickVUnion: (pieces: readonly string[]) => void;
   /** Batch-add the multi-selected cards to the binder ("Add all to a binder"). */
-  onPickCards?: (cardIds: string[], cards?: CatalogCard[]) => void;
+  onPickCards?: (cardIds: string[], cards?: CatalogCard[], action?: number) => void;
+  /** The selection panel's add buttons (CardBrowse.pickCardsActions). */
+  pickCardsActions?: readonly string[];
   /** Place a custom artwork image (a themed background) at the chosen shape. */
   onPickArtwork: (imageUrl: string, rowSpan: number, colSpan: number) => void;
   /** Save the embedded Slice Studio's pieces to the slice tray (Artwork tab). */
@@ -173,6 +175,7 @@ export function CardPicker({
   onPickCard,
   onPickVUnion,
   onPickCards,
+  pickCardsActions,
   onPickArtwork,
   onSaveSlices,
   trayCount,
@@ -518,6 +521,7 @@ export function CardPicker({
           onPickCard={onPickCard}
           onPickVUnion={onPickVUnion}
           onPickCards={onPickCards}
+          pickCardsActions={pickCardsActions}
           dense={dense}
           quickAction={quickPlace}
           initialSimilar={initialSimilar}

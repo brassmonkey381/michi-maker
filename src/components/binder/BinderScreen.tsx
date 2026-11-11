@@ -128,6 +128,9 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
 import { track, type CardAddVia } from '@/lib/analytics';
 import { dealToHand, HAND_QUICK_DEALS } from '@/data/handDeal';
+
+/** The selection panel's buttons in the editor: 0 = the hand, 1 = this page. */
+const HAND_PICK_ACTIONS = ['Add to hand', 'Add to page'] as const;
 import { TrashCan, type TrashRect } from '@/components/binder/TrashCan';
 import type { GridLift } from '@/components/binder/BinderGrid';
 import { TopLayer } from '@/components/binder/TopLayer';
@@ -2507,7 +2510,13 @@ export function BinderScreen({
 
   // Batch "Add all to a binder" (multi-select): fill THIS page, then keep going on fresh pages
   // inserted directly behind it, and report the result in one toast.
-  const handlePickCards = (cardIds: string[]) => {
+  const handlePickCards = (cardIds: string[], _cards?: unknown, action?: number) => {
+    // The selection panel's own buttons (owner, 2026-11-11): 0 = Add to hand, 1 = Add to page.
+    if (HAND && editing && canEdit && (action === 0 || action === 1)) {
+      if (action === 0) addSelectionToHand(cardIds);
+      else addSelectionToPage(cardIds);
+      return;
+    }
     // MIC-017 hand: the cards may go to the hand OR this page, from either browse path (owner
     // 2026-11-10); the path the search started from leads.
     if (HAND && editing && canEdit) {
@@ -2539,6 +2548,38 @@ export function BinderScreen({
     }
     const take = sel.ids.slice(0, Math.max(0, pageRoom));
     placeCardsInBinder(take, sel.ids.length - take.length);
+  };
+  /** A selection into the hand: what fits (a hand holds 24), skipping cards it already holds. */
+  const addSelectionToHand = (ids: string[]) => {
+    const fresh = ids.filter((id) => !handHeld.has(id));
+    const n = store.addCardsToTray(binder.id, fresh.slice(0, handRoom));
+    closePicker();
+    const left = fresh.length - n;
+    const dup = ids.length - fresh.length;
+    const msg = `${n} card${n === 1 ? '' : 's'} added to your hand` + (left > 0 ? `; ${left} didn't fit (a hand holds 24)` : '') + (dup > 0 ? `; ${dup} already in it` : '');
+    if (left > 0) showToast(msg);
+    else quietToast(msg, true);
+  };
+  /**
+   * A selection onto THIS page: its empty pockets in reading order. What does not fit goes to the
+   * hand (owner's rule, 2026-11-11), so nothing picked is lost and no page is added unasked.
+   */
+  const addSelectionToPage = (ids: string[]) => {
+    const onPage = ids.slice(0, Math.max(0, pageRoom));
+    const over = ids.slice(onPage.length).filter((id) => !handHeld.has(id));
+    if (onPage.length) {
+      const entryIds = assignCopies(onPage);
+      store.addCardsToBinder(binder.id, onPage, { startPageIndex: pageIndex, entryIds });
+    }
+    const toHand = over.length ? store.addCardsToTray(binder.id, over.slice(0, handRoom)) : 0;
+    closePicker();
+    const lost = over.length - toHand;
+    const msg =
+      `${onPage.length} card${onPage.length === 1 ? '' : 's'} added to this page` +
+      (toHand ? `; ${toHand} went to your hand` : '') +
+      (lost > 0 ? `; ${lost} didn't fit anywhere` : '');
+    if (toHand || lost) showToast(msg, true);
+    else quietToast(msg, true);
   };
   /** Cards into the binder from this page on; `notFit` cards were left out for want of pockets. */
   const placeCardsInBinder = (cardIds: string[], notFit = 0) => {
@@ -3855,6 +3896,8 @@ export function BinderScreen({
           onPickCard={handlePickCard}
           onPickVUnion={handlePickVUnion}
           onPickCards={handlePickCards}
+          // TWO BUTTONS, NOT A QUESTION (owner, 2026-11-11: "(Add to hand) | (Add to Page)").
+          pickCardsActions={HAND && editing && canEdit ? HAND_PICK_ACTIONS : undefined}
           onPickArtwork={handlePickArtwork}
           onSaveSlices={(slices) => {
             // The embedded studio disables Save past the cap; this is the belt-and-braces guard.

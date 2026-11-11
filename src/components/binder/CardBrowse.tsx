@@ -55,6 +55,8 @@ const DEMO_PRESSES_BEFORE_OFFER = 5;
 export const CARD_BROWSE_TILE_WIDTH = 140;
 /** MIC-017: with the hand on, "Add all" asks hand or page (HandOrPageSheet). */
 const ADD_ALL_LABEL = flag('editor-hand') ? 'Add to hand or page' : undefined;
+/** The selection panel's cards fill it (owner, 2026-11-11: "images scale up based on the number of cards"). */
+const BIG_SELECTION = flag('editor-hand');
 /** MIC-017 piece 5: the new browse header and layout ('dev' flag). */
 const BROWSE_DOCK = flag('browse-dock');
 /** The hand's search (MIC-017 part 2): about two more cards per row in the side panel. */
@@ -67,6 +69,7 @@ export function CardBrowse({
   onPickCard,
   onPickVUnion,
   onPickCards,
+  pickCardsActions,
   selectedCardId,
   cardActions,
   moreCardActions,
@@ -92,7 +95,9 @@ export function CardBrowse({
   /** Place an assembled V-UNION (Size=V-UNION group tiles). */
   onPickVUnion?: (pieces: readonly string[]) => void;
   /** Batch-place the multi-selected ids ("Add all to a binder"). */
-  onPickCards?: (cardIds: string[], cards?: CatalogCard[]) => void;
+  onPickCards?: (cardIds: string[], cards?: CatalogCard[], action?: number) => void;
+  /** Several add buttons in the selection panel (the editor: "Add to hand" | "Add to page"); onPickCards gets the index. */
+  pickCardsActions?: readonly string[];
   selectedCardId?: string;
   /** Per-card tap actions. When set, replaces the default "Place in pocket" sheet — home uses
    *  this to offer "Add to a binder…" instead of a functionless place. */
@@ -522,7 +527,10 @@ export function CardBrowse({
         onPickCard={onPickCard ?? (() => {})}
         onPickVUnion={onPickVUnion}
         onPickCards={onPickCards}
-        pickCardsLabel={ADD_ALL_LABEL}
+        // The hand-or-page wording only where there is a hand (the editor); /browse adds to a binder.
+        pickCardsLabel={pickCardsActions ? ADD_ALL_LABEL : undefined}
+        pickCardsActions={onPickCards ? pickCardsActions : undefined}
+        bigSelection={BIG_SELECTION}
         /**
          * WHILE THE DROPPER IS ARMED, A TILE IS A COLOUR, NOT A CARD.
          *

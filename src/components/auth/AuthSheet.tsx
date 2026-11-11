@@ -26,6 +26,7 @@ import {
   Switch,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 import { ArtistPanel } from '@/components/auth/ArtistPanel';
@@ -38,6 +39,16 @@ import { providerAvatarUrl, withAvatarOfferAccepted } from '@/data/avatarConsent
 import { track } from '@/lib/analytics';
 import { pruneAvatars, uploadAvatarImage } from '@/lib/uploadAvatar';
 import { useAuth, type OAuthProvider } from '@/store/auth';
+import { flag } from '@/lib/flags';
+
+/**
+ * B4-A (owner pick 2026-11-11; 'auth-compact' dev flag): "make sure we fit everything when possible
+ * on open and dont need to scroll". The two modes are tabs at the very top (the switch used to sit
+ * at the bottom, below the fold on a phone), the title and spacing are tighter, and the card is as
+ * tall as its content. Every surface that opens the account sheet gets it, since they all open
+ * this one component.
+ */
+const COMPACT = flag('auth-compact');
 import type { Profile } from '@/types/domain';
 
 /**
@@ -48,6 +59,11 @@ import type { Profile } from '@/types/domain';
  */
 export function AuthSheet({ visible, onClose, onAuthed }: { visible: boolean; onClose: () => void; onAuthed?: () => void }) {
   const auth = useAuth();
+  // THE CAP IS THE WINDOW, NOT A PERCENTAGE. maxHeight: '90%' was 90% of the card's wrapper, and the
+  // wrapper is only as tall as the card's content, so the card was always 10% shorter than what it
+  // held: the reason "Already have an account? Sign in" sat below the fold even with room to spare
+  // (owner, 2026-11-11). Now it may use the window, less the backdrop's padding.
+  const { height: windowH } = useWindowDimensions();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -57,7 +73,7 @@ export function AuthSheet({ visible, onClose, onAuthed }: { visible: boolean; on
           style={styles.center}>
           {/* Stop backdrop taps from closing when interacting with the card. */}
           <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-            <ThemedView type="backgroundElement" style={styles.card}>
+            <ThemedView type="backgroundElement" style={[styles.card, COMPACT ? { maxHeight: windowH - 2 * Spacing.four } : null]}>
               {auth.isSignedIn ? (
                 <ProfileView onClose={onClose} />
               ) : (
@@ -211,7 +227,35 @@ function AuthForm({ onClose, onAuthed, isGuest }: { onClose: () => void; onAuthe
   const placeholder = theme.textSecondary;
 
   return (
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
+    <ScrollView keyboardShouldPersistTaps="handled" style={COMPACT ? styles.scrollFit : undefined} contentContainerStyle={[styles.form, COMPACT && styles.formCompact]}>
+      {COMPACT ? (
+        <View style={styles.headerRow}>
+          <View style={[styles.tabs, { borderColor: theme.backgroundSelected }]} accessibilityRole="tablist">
+            {([true, false] as const).map((create) => (
+              <Pressable
+                key={create ? 'create' : 'signin'}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isCreate === create }}
+                onPress={() => {
+                  setIsCreate(create);
+                  setError(null);
+                  setInfo(null);
+                }}
+                testID={create ? 'auth-tab-create' : 'auth-tab-signin'}
+                style={[styles.tab, isCreate === create && { backgroundColor: theme.backgroundSelected }]}>
+                <ThemedText type="smallBold" themeColor={isCreate === create ? 'text' : 'textSecondary'}>
+                  {create ? 'Create account' : 'Sign in'}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
+          <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close">
+            <ThemedText type="small" themeColor="textSecondary">
+              Close
+            </ThemedText>
+          </Pressable>
+        </View>
+      ) : (
       <View style={styles.headerRow}>
         <ThemedText type="subtitle" style={styles.heading}>
           {isCreate ? 'Create account' : 'Welcome back'}
@@ -222,6 +266,7 @@ function AuthForm({ onClose, onAuthed, isGuest }: { onClose: () => void; onAuthe
           </ThemedText>
         </Pressable>
       </View>
+      )}
       <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
         {isCreate
           ? isGuest
@@ -299,6 +344,7 @@ function AuthForm({ onClose, onAuthed, isGuest }: { onClose: () => void; onAuthe
             busy={busy}
             onPress={submitPassword}
           />
+          {COMPACT ? null : (
           <Pressable onPress={() => setIsCreate((v) => !v)} style={styles.switchRow}>
             <ThemedText type="small" themeColor="textSecondary">
               {isCreate ? 'Already have an account? ' : 'New here? '}
@@ -307,6 +353,7 @@ function AuthForm({ onClose, onAuthed, isGuest }: { onClose: () => void; onAuthe
               </ThemedText>
             </ThemedText>
           </Pressable>
+          )}
         </>
       ) : (
         <>
@@ -826,6 +873,12 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     gap: Spacing.three,
   },
+  // B4-A: tighter, so the whole sheet shows at 360x740.
+  formCompact: { padding: Spacing.three, gap: Spacing.two },
+  // The scroll area is as tall as what it holds (it was 16px short, clipping the bottom padding).
+  scrollFit: { flexGrow: 0, flexShrink: 1, flexBasis: 'auto' },
+  tabs: { flexDirection: 'row', flex: 1, borderWidth: 1, borderRadius: Radius.pill, padding: 2, gap: 2, marginRight: Spacing.three },
+  tab: { flex: 1, minHeight: 36, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.pill },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',

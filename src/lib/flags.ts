@@ -55,6 +55,11 @@ export const FLAGS = {
   // MIC-017 B2-A: Home opens on your last binder ("Keep going") with New binder / My binders /
   // Discover, and featured binders as a grid (owner pick 2026-11-11).
   'home-first': 'dev',
+  // MIC-017 B4-A: the account sheet as a compact card, Create account | Sign in tabs at the top,
+  // sized to its content so everything shows without scrolling (owner pick 2026-11-11).
+  'auth-compact': 'dev',
+  // MIC-017 B5-A: the editor's Settings split into "This binder" | "My view" tabs.
+  'settings-tabs': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

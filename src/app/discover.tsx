@@ -31,7 +31,7 @@ import {
 
 import { expandThemeFields, parseQuery, searchCards, srgbToLab } from 'tcgscan-browse';
 
-import { cardsInFamily, PAGE_MATCH_BAR, PAGE_MATCH_MIN_CARDS, PAGE_MIN_RESULTS, PAGE_TOP_UP_SHARE } from '@/data/colourFamilies';
+import { cardsInFamily, PAGE_MATCH_BAR, PAGE_MATCH_MIN_CARDS, PAGE_SHARE_FLOOR } from '@/data/colourFamilies';
 import { loadedColorIndexes, loadPokemonColorIndexes } from '@/lib/colorIndexes';
 
 import { AccountButton } from '@/components/auth/AccountButton';
@@ -511,11 +511,8 @@ export default function DiscoverScreen() {
         const indexes = loadedColorIndexes();
         if (!indexes.length) return null;
         const { ids, shares } = cardsInFamily(indexes, sw.name, srgbToLab(r, g, b));
-        const at = await searchBinderPagesByShares(ids, shares, { minShare: PAGE_MATCH_BAR[sw.name], minCards: PAGE_MATCH_MIN_CARDS });
-        if (!at || at.length >= PAGE_MIN_RESULTS) return at;
-        const near = await searchBinderPagesByShares(ids, shares, { minShare: PAGE_TOP_UP_SHARE, minCards: PAGE_MATCH_MIN_CARDS });
-        const have = new Set(at.map((x) => x.binder_id));
-        return [...at, ...(near ?? []).filter((x) => !have.has(x.binder_id))];
+        // No top-up of near pages (owner, 2026-11-11: results that are "not PINK"): only pages at the bar.
+        return searchBinderPagesByShares(ids, shares, { minShare: PAGE_MATCH_BAR[sw.name], minCards: PAGE_MATCH_MIN_CARDS, floor: PAGE_SHARE_FLOOR });
       })
       .then((hits) => setColourHits(hits ?? 'unavailable'))
       .catch(() => setColourHits([]));

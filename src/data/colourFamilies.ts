@@ -18,6 +18,20 @@
  *
  * A card's SHARE of a family is the weighted sum of its colours' membership. A page's share is the
  * average over its filled pockets (search_binder_pages_by_cards); it matches at that family's bar.
+ *
+ * v3 STRICTER (owner, 2026-11-11: "many of these results are not PINK"). v2 let one or two pinkish
+ * cards carry a blue or orange page past a 0.15 bar, and its soft edges counted the purple Psychic
+ * energy as half pink. Now: (1) the shared zone between two centres is the middle 30% of the span,
+ * not the middle half, so violet stays purple and crimson stays red; (2) a card counts toward a
+ * family only when that family is its first or second biggest; (3) purple, pink, green and red
+ * match at 0.25, about three strongly coloured cards in nine; (4) no top-up of near pages. Fewer
+ * binders per swatch, all of them that colour.
+ *
+ * PINK IS LIGHT, PLUM IS PURPLE. The palettes showed why purple pages came back as pink: dark
+ * magenta, plum and mauve (#985d7f, #973480) and the Psychic energy's lilac (#ad73a9) all sit at
+ * hue 300-330, the old pink centre. People call those purple. So from hue 290 to 345 a colour is
+ * pink only when it is light (V >= 0.7), else purple; from 345 round to red, a light, soft colour
+ * (V >= 0.8, S <= 0.5) is pink (rose), the rest red.
  */
 import type { Lab } from 'tcgscan-browse';
 
@@ -31,13 +45,13 @@ export type ColourFamily = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'pur
  * yellow 43/31, green 118/62, blue 199/77, purple 23/18, pink 23/20, black 21/16.
  */
 export const PAGE_MATCH_BAR: Record<ColourFamily, number> = {
-  red: 0.17,
+  red: 0.25,
   orange: 0.35,
   yellow: 0.35,
-  green: 0.15,
+  green: 0.25,
   blue: 0.35,
-  purple: 0.15,
-  pink: 0.15,
+  purple: 0.25,
+  pink: 0.25,
   black: 0.35,
 };
 /** Fewer binders than this at the bar: the closest pages, down to PAGE_TOP_UP_SHARE, follow. */
@@ -45,6 +59,11 @@ export const PAGE_MIN_RESULTS = 8;
 export const PAGE_TOP_UP_SHARE = 0.1;
 /** A page needs this many cards before it can stand for a colour. */
 export const PAGE_MATCH_MIN_CARDS = 3;
+/**
+ * A page's share is averaged over at least this many pockets, so a page with three cards on it
+ * cannot stand for a colour on one strongly coloured card (search_binder_pages_by_cards p_floor).
+ */
+export const PAGE_SHARE_FLOOR = 6;
 /** Cards below this share are not sent: they barely move a page's average. */
 const CARD_MIN_SHARE = 0.1;
 
@@ -74,6 +93,9 @@ export function hsvOf(c: { L: number; a: number; b: number }): { h: number; s: n
   return { h, s: mx ? d / mx : 0, v: mx };
 }
 
+/** From hue 290 to 345, lighter than this reads pink, darker reads purple. */
+const PINK_MIN_V = 0.7;
+
 const CENTRES: readonly [ColourFamily, number][] = [
   ['red', 0],
   ['orange', 28],
@@ -91,13 +113,16 @@ export function colourMemberships(c: { L: number; a: number; b: number }): Parti
   if (c.L <= 28 || v <= 0.2) return { black: 1 };
   const floor = v >= 0.8 ? 0.13 : v >= 0.55 ? 0.2 : 0.28;
   if (s < floor) return {};
+  if (h >= 290 && h < 345) return v >= PINK_MIN_V ? { pink: 1 } : { purple: 1 };
+  if (h >= 345 || h < 8) return v >= 0.8 && s <= 0.5 ? { pink: 1 } : { red: 1 };
+  if (h >= 255 && h < 290) return { purple: 1 };
   for (let i = 0; i < CENTRES.length - 1; i += 1) {
     const [fa, ha] = CENTRES[i];
     const [fb, hb] = CENTRES[i + 1];
     if (h < ha || h > hb) continue;
     const t = (h - ha) / (hb - ha);
-    // Full membership in the inner half of the span near each centre; shared in the middle half.
-    const near = (w: number) => Math.min(1, Math.max(0, (w - 0.25) / 0.5));
+    // Full membership in the outer 35% of the span on each side; shared only in the middle 30%.
+    const near = (w: number) => Math.min(1, Math.max(0, (w - 0.35) / 0.3));
     const out: Partial<Record<ColourFamily, number>> = {};
     out[fa] = near(1 - t);
     out[fb] = (out[fb] ?? 0) + near(t);
@@ -121,9 +146,12 @@ export function colourFamily(c: { L: number; a: number; b: number }): ColourFami
 
 /** How much of one card's art (its weighted palette) is in `family`, 0..1. */
 export function familyShare(colours: readonly Lab[], family: ColourFamily): number {
-  let s = 0;
-  for (const c of colours) s += c.w * (colourMemberships(c)[family] ?? 0);
-  return Math.min(1, s);
+  const all: Partial<Record<ColourFamily, number>> = {};
+  for (const c of colours) for (const [k, m] of Object.entries(colourMemberships(c)) as [ColourFamily, number][]) all[k] = (all[k] ?? 0) + c.w * m;
+  const mine = all[family] ?? 0;
+  // Only a card's first or second family counts: a speck of pink on a blue card is not pink.
+  const bigger = Object.values(all).filter((v) => (v ?? 0) > mine).length;
+  return bigger >= 2 ? 0 : Math.min(1, mine);
 }
 
 /** The palette index's surface this module needs (ColorIndex from tcgscan-browse). */

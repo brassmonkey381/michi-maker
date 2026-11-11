@@ -1339,7 +1339,8 @@ export async function searchBindersByCardsRows(cardIds: readonly string[], limit
 export async function searchBinderPagesByShares(
   cardIds: readonly string[],
   shares: readonly number[],
-  opts: { minShare: number; minCards: number; limit?: number },
+  /** floor: a page's share is averaged over at least this many pockets (p_floor). */
+  opts: { minShare: number; minCards: number; limit?: number; floor?: number },
 ): Promise<RankedBinderRow[] | null> {
   if (!cardIds.length) return [];
   const supabase = requireSupabase();
@@ -1350,6 +1351,7 @@ export async function searchBinderPagesByShares(
     p_min_cards: opts.minCards,
     p_rank: 'page',
     p_limit: opts.limit ?? 60,
+    ...(opts.floor ? { p_floor: opts.floor } : null),
   } as never);
   if (error) return searchBindersByCardsRows(cardIds.slice(0, 2000), opts.limit ?? 60);
   return (data ?? []) as RankedBinderRow[];

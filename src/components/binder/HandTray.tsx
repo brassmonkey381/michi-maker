@@ -18,6 +18,22 @@
  * Behind the 'editor-hand' dev flag; BinderScreen decides where it sits and owns every store call.
  */
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+
+/**
+ * Phone: are the hand's controls showing? Folds when cards arrive; opens when the hand empties.
+ * Owned by the editor (not the hand) since 2026-11-11, because the button that toggles it now
+ * rides the tool bar (HandCorner), outside the hand.
+ */
+export function useHandTools(n: number): [boolean, (v: boolean | ((t: boolean) => boolean)) => void] {
+  const [tools, setTools] = useState(n === 0);
+  const [seenN, setSeenN] = useState(n);
+  if (n !== seenN) {
+    setSeenN(n);
+    if (n > seenN) setTools(false);
+    else if (n === 0) setTools(true);
+  }
+  return [tools, setTools];
+}
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
@@ -68,10 +84,13 @@ export function HandTray({
   onQuick,
   dealing,
   note,
-  chevronBottom = 0,
+  tools: toolsProp,
+  dropCue = false,
 }: {
-  /** Phone: how far above the screen's bottom the chevron sits (the tool bar's height). */
-  chevronBottom?: number;
+  /** Phone: the controls' fold state, from useHandTools in the editor (HandCorner toggles it). */
+  tools?: boolean;
+  /** A page card is being dragged: the hand says it takes cards (owner, 2026-11-11). */
+  dropCue?: boolean;
   /** What the last deal did ("12 dealt: same type"), beside the title. */
   note?: string | null;
   /** Desktop: one-tap deals shown beside Suggest (members only; BinderScreen decides). */
@@ -127,13 +146,8 @@ export function HandTray({
   const [hovered, setHovered] = useState<string | null>(null);
   // Phone: are the hand's controls showing? Folds when cards arrive; opens when the hand empties.
   const n = ordered.length;
-  const [tools, setTools] = useState(n === 0);
-  const [seenN, setSeenN] = useState(n);
-  if (n !== seenN) {
-    setSeenN(n);
-    if (n > seenN) setTools(false);
-    else if (n === 0) setTools(true);
-  }
+  const [ownTools] = useHandTools(n);
+  const tools = toolsProp ?? ownTools;
   const showHeader = !phone || tools;
   // Phone, folded and empty: the hand takes no height at all; only its chevron shows, over the
   // page's bottom-right corner (owner, 2026-11-10).
@@ -163,7 +177,7 @@ export function HandTray({
     <View
       ref={trayRef}
       collapsable={false}
-      style={[styles.hand, phone && styles.handPhone, bare && styles.handBare]}
+      style={[styles.hand, phone && styles.handPhone, bare && styles.handBare, dropCue && styles.handCue]}
       testID="editor-hand"
       onLayout={(e) => onHeight(Math.round(e.nativeEvent.layout.height))}>
       {showHeader ? (
@@ -206,7 +220,7 @@ export function HandTray({
             Tap Suggest to deal cards, then drag them into pockets.
           </Text>
         ) : (
-          <View ref={areaRef} style={[styles.area, phone && styles.areaPhone]} onLayout={(e) => setAreaW(Math.floor(e.nativeEvent.layout.width) - (phone ? Spacing.three + 48 : 2 * Spacing.three))} testID="hand-cards">
+          <View ref={areaRef} style={styles.area} onLayout={(e) => setAreaW(Math.floor(e.nativeEvent.layout.width) - 2 * Spacing.three)} testID="hand-cards">
             <View style={{ width: L.width, height: L.height + LIFT, alignSelf: 'center' }}>
               {L.rows.map((row, r) =>
                 row.map((i, k) => {
@@ -249,38 +263,48 @@ export function HandTray({
           </View>
         )
       ) : null}
-      {phone && onSpread && n > 0 ? (
-        // SPREAD THE HAND (owner, 2026-11-11): beside the chevron, in the same fixed corner.
-        <Pressable
-          onPress={onSpread}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Spread the hand across the screen"
-          testID="hand-spread-open"
-          style={[styles.toolsBtn, styles.spreadBtn, Platform.OS === 'web' ? ({ position: 'fixed', bottom: chevronBottom + 8, right: 54 } as unknown as object) : { right: 54 }]}>
-          <Text style={styles.spreadBtnText}>⤢</Text>
-        </Pressable>
-      ) : null}
-      {phone ? (
-        <Pressable
-          onPress={() => setTools((t) => !t)}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: tools }}
-          accessibilityLabel={tools ? 'Hide the hand controls' : 'Show the hand controls: Deal, Suggest, Search, Clear'}
-          testID="hand-tools"
-          // ONE PLACE, ALWAYS (owner 2026-11-10: "keeps jumping around ... I like it in the bottom
-          // right"): pinned to the screen's bottom-right corner just above the tool bar, so it
-          // never moves as the hand grows, folds or empties.
-          style={[styles.toolsBtn, Platform.OS === 'web' ? ({ position: 'fixed', bottom: chevronBottom + 8, right: 10 } as unknown as object) : null]}>
-          <Text style={styles.toolsBtnText}>{tools ? '▾' : '▴'}</Text>
-        </Pressable>
+      {dropCue && phone ? (
+        <View style={styles.cueTag} pointerEvents="none" testID="hand-drop-cue">
+          <Text style={styles.cueTagText}>Drop here to put it in your hand</Text>
+        </View>
       ) : null}
     </View>
   );
 }
 
+/**
+ * THE HAND'S CORNER (phones): spread and the controls' chevron, riding the tool bar's top-right
+ * edge (owner, 2026-11-11: "the chevron should be lower in the bottom right ... in line with the
+ * bottom edge toolbar"). They were position: fixed inside the scrolling page, which iOS Safari
+ * placed mid-page, over the last pocket. PhoneToolBar hangs this off its own top edge instead.
+ */
+export function HandCorner({ tools, onToggle, onSpread, n }: { tools: boolean; onToggle: () => void; onSpread?: () => void; n: number }) {
+  return (
+    <View style={styles.corner} pointerEvents="box-none">
+      {onSpread && n > 0 ? (
+        <Pressable onPress={onSpread} hitSlop={8} accessibilityRole="button" accessibilityLabel="Spread the hand across the screen" testID="hand-spread-open" style={[styles.toolsBtn, styles.spreadBtn]}>
+          <Text style={styles.spreadBtnText}>⤢</Text>
+        </Pressable>
+      ) : null}
+      <Pressable
+        onPress={onToggle}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: tools }}
+        accessibilityLabel={tools ? 'Hide the hand controls' : 'Show the hand controls: Deal, Suggest, Search, Clear'}
+        testID="hand-tools"
+        style={styles.toolsBtn}>
+        <Text style={styles.toolsBtnText}>{tools ? '▾' : '▴'}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  corner: { flexDirection: 'row', gap: 8 },
+  handCue: { borderRadius: Radius.panel, borderWidth: 2, borderStyle: 'dashed', borderColor: Palette.accent, backgroundColor: Palette.accentSoft },
+  cueTag: { alignSelf: 'center', marginTop: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.pill, backgroundColor: Palette.accent },
+  cueTagText: { color: Palette.accentText, fontSize: FontSize.sm, fontWeight: Weight.bold },
   hand: {
     borderTopWidth: 1,
     borderTopColor: Palette.hairline,
@@ -290,11 +314,8 @@ const styles = StyleSheet.create({
   // Phone: the hand sits on the page's own ground, close under it (owner 2026-11-10).
   handPhone: { borderTopWidth: 0, backgroundColor: 'transparent', paddingBottom: Spacing.one, minHeight: 40 },
   handBare: { minHeight: 0, height: 0, paddingBottom: 0, overflow: 'visible' },
-  headerPhone: { paddingTop: 0, paddingRight: 52 },
+  headerPhone: { paddingTop: 0 },
   toolsBtn: {
-    position: 'absolute',
-    right: Spacing.two,
-    bottom: Spacing.one,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -319,10 +340,8 @@ const styles = StyleSheet.create({
   btnPrimaryText: { color: Palette.accentText },
   empty: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 17, paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },
   area: { paddingHorizontal: Spacing.three },
-  // Phone: room on the right for the pinned chevron, so it never sits on a card.
-  areaPhone: { paddingRight: 48 },
   card: { position: 'absolute' },
-  dealRowPhone: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two, paddingRight: 52, gap: 4 },
+  dealRowPhone: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two, gap: 4 },
   notePhone: { fontSize: FontSize.sm, color: Palette.muted },
   quick: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: Spacing.two, marginRight: Spacing.one, borderRightWidth: 1, borderRightColor: Palette.hairline },
   note: { fontSize: FontSize.sm, color: Palette.muted, marginLeft: Spacing.two, flexShrink: 1 },

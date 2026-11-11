@@ -23,7 +23,7 @@ import { CompletePageSheet } from '@/components/binder/CompletePageSheet';
 import { ComposeAllSheet } from '@/components/binder/ComposeAllSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import { CardTray } from '@/components/binder/CardTray';
-import { HAND_RESERVE_DESKTOP, HandTray } from '@/components/binder/HandTray';
+import { HAND_RESERVE_DESKTOP, HandCorner, HandTray, useHandTools } from '@/components/binder/HandTray';
 import { HandOrPageSheet, type HandOrPage } from '@/components/binder/HandOrPageSheet';
 import { flag } from '@/lib/flags';
 
@@ -543,6 +543,8 @@ export function BinderScreen({
   const [handMulti, setHandMulti] = useState<Set<string>>(new Set());
   const handMultiRef = useRef(handMulti);
   const [handMultiOpen, setHandMultiOpen] = useState(false);
+  // A PAGE card is being dragged (not a hand card): the hand shows that it takes cards.
+  const [pageDrag, setPageDrag] = useState(false);
   const multiIdsRef = useRef(multiIds);
   // FILLING KEEPS GOING, ALWAYS. Placing a card moves to the next empty pocket and the browser
   // stays where it is; nothing the reader did not ask for closes it. This was a "Keep adding"
@@ -757,6 +759,8 @@ export function BinderScreen({
   }, [editing]);
 
   const binder = store.getBinder(binderId);
+  // Phone: the hand's controls, folded or open (HandTray shows them, HandCorner toggles them).
+  const [handTools, setHandTools] = useHandTools(binder?.tray?.length ?? 0);
   // The facing page of the open spread (BinderPages pairs 2·3, 4·5, …; page 1 faces the cover),
   // offered to Arrange when the binder is double-sided. MEMOISED: a fresh object literal here was
   // a new prop every render, and the sheet re-read the cards, re-fetched depth words and re-ran
@@ -2420,6 +2424,7 @@ export function BinderScreen({
   const endTrash = () => {
     trashHot.current = false;
     setTrashOn(false);
+    setPageDrag(false);
     setLifted(null);
   };
   /** Is this release over the trash? The pointer's hot state (web), else the drop point. */
@@ -2781,6 +2786,7 @@ export function BinderScreen({
   // z-index styles read — doesn't trip react-hooks/immutability.
   const startColumnDrag = (col: number) => {
     armTrash();
+    if (HAND) setPageDrag(true);
     prevRef.current?.remeasure();
     curRef.current?.remeasure();
     nextRef.current?.remeasure();
@@ -2811,7 +2817,7 @@ export function BinderScreen({
       // it springs back. Measured at drop time, because the dock scrolls and resizes.
       trayRef.current?.measureInWindow((x, y, w, h) => {
         if (!w || win.x < x || win.x > x + w || win.y < y || win.y > y + h) return;
-        if (store.moveSlotToTray(binder.id, fromPageId, slotId)) quietToast('To the tray', true);
+        if (store.moveSlotToTray(binder.id, fromPageId, slotId)) quietToast(HAND ? 'To your hand' : 'To the tray', true);
       });
       return;
     }
@@ -2986,7 +2992,9 @@ export function BinderScreen({
         dropTargets={p.id === page.id ? dropTargets : undefined}
         lift={HAND ? lift : undefined}
         onLift={onLift}
-        {...(role === 'current'
+        // The phone's single page drops through the same path when the hand is on (owner,
+        // 2026-11-11: "unable to drag a card back from page into my hand").
+        {...(role === 'current' || (role === 'single' && HAND)
           ? {
               onCrossDrop: (slotId: string, x: number, y: number) => handleCrossDrop(p.id, slotId, x, y),
               onDragStart: () => startColumnDrag(1),
@@ -3696,8 +3704,8 @@ export function BinderScreen({
                 ghostY={ghostY}
                 trayRef={trayRef}
                 onHeight={setHandH}
-                chevronBottom={phoneBarH}
-                onSpread={phone ? () => setSpreadOpen(true) : undefined}
+                tools={handTools}
+                dropCue={pageDrag}
                 quick={handMember ? HAND_QUICK_DEALS : undefined}
                 onQuick={(k) => dealHand([k], false)}
                 dealing={handDealing}
@@ -3774,6 +3782,9 @@ export function BinderScreen({
               onSettings={() => setSettingsOpen(true)}
               undo={PHONE_NAV ? { onUndo: store.undo, onRedo: store.redo, canUndo: store.canUndo } : undefined}
               onLayoutHeight={setPhoneBarH}
+              corner={
+                HAND ? <HandCorner tools={handTools} onToggle={() => setHandTools((t) => !t)} onSpread={() => setSpreadOpen(true)} n={binder.tray?.length ?? 0} /> : undefined
+              }
             />
           ) : null}
 

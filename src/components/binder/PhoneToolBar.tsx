@@ -35,7 +35,10 @@ export function PhoneToolBar({
   onSettings,
   undo,
   onLayoutHeight,
+  corner,
 }: {
+  /** Hung off the bar's top-right edge: the hand's spread and controls buttons (HandCorner). */
+  corner?: React.ReactNode;
   /** MIC-017 phone-nav: Undo takes Settings' place (Settings moves to the header); a long press redoes. */
   undo?: { onUndo: () => void; onRedo: () => void; canUndo: boolean };
   onAdd: () => void;
@@ -58,6 +61,11 @@ export function PhoneToolBar({
       style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}
       onLayout={(e) => onLayoutHeight(e.nativeEvent.layout.height)}
       testID="phone-tool-bar">
+      {corner ? (
+        <View style={styles.corner} pointerEvents="box-none">
+          {corner}
+        </View>
+      ) : null}
       <Tab glyph="＋" word="Add" label="Add a card or a picture to this page" onPress={onAdd} testID="phone-tab-add" />
       <Tab
         glyph="⧉"
@@ -137,6 +145,7 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.surface,
     zIndex: 30,
   },
+  corner: { position: 'absolute', right: 10, bottom: '100%', marginBottom: 6 },
   tab: { flex: 1, minWidth: 0, alignItems: 'center', gap: 2, paddingVertical: 2 },
   icon: { alignSelf: 'stretch', height: 34, borderRadius: Radius.control, backgroundColor: Palette.accentSoft, alignItems: 'center', justifyContent: 'center' },
   iconOn: { backgroundColor: Palette.accent },

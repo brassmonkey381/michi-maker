@@ -21,7 +21,7 @@ import type { DemoBinder } from '@/data/binderTypes';
 import { groupMakers, type Maker } from '@/data/makers';
 import { fetchAvatarsByUsername } from '@/data/profileRepo';
 
-const POOL = 200;
+const POOL = 300;
 const SHOW = 3;
 
 export function MakersFeed({ width, phone }: { width: number; phone: boolean }) {
@@ -34,8 +34,11 @@ export function MakersFeed({ width, phone }: { width: number; phone: boolean }) 
     Promise.all([fetchDiscoverRows('likes', POOL), fetchDiscoverRows('recent', POOL)])
       .then(([liked, newest]) => {
         if (!live) return;
-        const t = groupMakers(liked, 'likes');
-        const r = groupMakers(newest, 'recent');
+        // One pool from both rankings (a binder in both counts once), so a maker with many pages
+        // and few likes is still in it.
+        const pool = [...newest, ...liked];
+        const t = groupMakers(pool, 'pages');
+        const r = groupMakers(pool, 'recent');
         setTop(t);
         setRecent(r);
         return fetchAvatarsByUsername([...t, ...r].map((m) => m.name));
@@ -57,7 +60,7 @@ export function MakersFeed({ width, phone }: { width: number; phone: boolean }) 
         <Text style={styles.searchText}>Find a maker by name</Text>
       </Pressable>
       <PeopleSearch visible={searchOpen} onClose={() => setSearchOpen(false)} />
-      <MakerSection title="Top makers" note="Ranked by the likes on their public binders." makers={top} avatars={avatars} width={width} phone={phone} testID="makers-top" />
+      <MakerSection title="Top makers" note="Ranked by the public pages they have made." makers={top} avatars={avatars} width={width} phone={phone} testID="makers-top" />
       <MakerSection title="Recently active makers" note="Who has shared a binder lately." makers={recent} avatars={avatars} width={width} phone={phone} testID="makers-recent" />
     </View>
   );
@@ -140,7 +143,7 @@ function MakerCard({ maker, avatar, width }: { maker: Maker; avatar: string | nu
         <ProfileAvatarButton username={maker.name} avatarUrl={avatar} size={36} onPress={open} />
         <View style={styles.headText}>
           <Text style={styles.name} numberOfLines={1}>@{maker.name}</Text>
-          <Text style={styles.meta} numberOfLines={1}>{`${n} binder${n === 1 ? '' : 's'} · ♥ ${maker.likes}`}</Text>
+          <Text style={styles.meta} numberOfLines={1}>{`${n} binder${n === 1 ? '' : 's'} · ${maker.pages} page${maker.pages === 1 ? '' : 's'}`}</Text>
         </View>
       </View>
       <View style={styles.thumbs}>

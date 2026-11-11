@@ -336,7 +336,8 @@ const styles = StyleSheet.create({
   handCell: { width: `${100 / 6}%`, aspectRatio: 2.5 / 3.5, padding: 1 },
   cellVeiled: { opacity: 0.55 },
   veilPill: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.tag, backgroundColor: Palette.accent },
-  softCard: { justifyContent: 'center', gap: Spacing.two, borderStyle: 'dashed', backgroundColor: Palette.panel },
+  // The whole row, so the offer's sentence and button sit side by side instead of a narrow column.
+  softCard: { flexBasis: '100%', maxWidth: '100%', justifyContent: 'center', gap: Spacing.two, borderStyle: 'dashed', backgroundColor: Palette.panel },
   cellImg: { width: '100%', height: '100%', borderRadius: 2 },
   cellFresh: { borderWidth: 2, borderColor: Palette.accent },
   cellArt: { width: '100%', height: '100%', borderRadius: 2, backgroundColor: Palette.accentSoft, opacity: 0.8 },

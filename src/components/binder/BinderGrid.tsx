@@ -1,10 +1,11 @@
 import { useHoverSuspended } from '@/components/binder/hoverGate';
+import { TopLayer } from '@/components/binder/TopLayer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { createContext, forwardRef, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode, type Ref, Fragment } from 'react';
 import type { PocketBarPlacement } from '@/data/viewPrefs';
 import { useRouter } from 'expo-router';
-import { AccessibilityInfo, Linking, PixelRatio, Pressable, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Linking, PixelRatio, Pressable, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle, Platform } from 'react-native';
 import { affiliateConfigured, productUrl, sendBrowseCommand } from 'tcgscan-browse';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -634,6 +635,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   const [dragId, setDragId] = useState<string | null>(null);
+  const toolAnchorRef = useRef<View>(null);
   // SLEEVES MOTION (MIC-017, owner 2026-11-10: "basically always"): every card that arrives in a
   // pocket slides in through that pocket's opening edge, and every card that leaves one (moved,
   // swapped, removed, sent to the hand, undone) slides out through its old pocket's edge. Cards on
@@ -1283,6 +1285,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               })
           : null}
 
+        <View ref={toolAnchorRef} collapsable={false} pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1 }} />
         {/* Quick-action toolbar anchored to the selected pocket (edit mode). */}
         {onReplaceSlot && resizeSlot && slotToolbar ? (
           <SlotToolbar
@@ -1293,6 +1296,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             gap={gap}
             captionH={captionH}
             innerW={innerW}
+            innerH={page.rows * (cellH + gap + captionH) - gap}
+            anchorRef={toolAnchorRef}
             onReplace={onReplaceSlot}
             onEditArt={resizeSlot.type === 'artwork' && resizeSlot.imageUrl ? onEditArtSlot : undefined}
             onDuplicate={onDuplicateSlot}
@@ -1326,6 +1331,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
  */
 function SlotToolbar({
   slot,
+  innerH,
+  anchorRef,
   cellW,
   cellH,
   gap,
@@ -1379,6 +1386,8 @@ function SlotToolbar({
   placement?: PocketBarPlacement;
   /** The bar's own view, for the host's hint to measure. */
   barRef?: Ref<View>;
+  innerH?: number;
+  anchorRef?: React.RefObject<View | null>;
   onAutoFill?: () => void;
   onPickCopy?: () => void;
   /** Whether this pocket already names one of the owner's copies (ticked in the label). */
@@ -1392,6 +1401,17 @@ function SlotToolbar({
   // piece has few enough actions to need no second face.
   const [more, setMore] = useState(false);
   const twoFaces = slot.type !== 'artwork';
+  // THE MENU IN THE TOP LAYER (owner, 2026-11-11, pocket menu changes 1-3): drawn above the page
+  // bar, the hand and the docks, so nothing on the page can paint over it. It needs the grid's place
+  // in the window, re-read while it is open (the page scrolls and the docks resize).
+  const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const read = () => anchorRef?.current?.measureInWindow((x, y) => setOrigin((o) => (o && Math.abs(o.x - x) < 1 && Math.abs(o.y - y) < 1 ? o : { x, y })));
+    read();
+    const t = setInterval(read, 250);
+    return () => clearInterval(t);
+  }, [anchorRef]);
   const stepX = cellW + gap;
   const stepY = cellH + gap + captionH;
   const slotLeft = slot.col * stepX;
@@ -1410,18 +1430,29 @@ function SlotToolbar({
     const rightOf = slotLeft + slotW + 8;
     left = rightOf + size.w <= innerW ? rightOf : Math.max(0, slotLeft - size.w - 8);
     top = slotTop;
+    // A bottom-row card: the column grows UP from the card's bottom edge, so it stays inside the
+    // page and never covers the page bar or the hand under it.
+    if (innerH && top + size.h > innerH) top = Math.max(0, slotTop + slotH - size.h);
   } else {
     left = Math.max(0, Math.min(centerX - size.w / 2, innerW - size.w));
     if (placement === 'below') {
       top = slotTop + slotH + 8;
+      // Below a bottom-row card there is no page left: it opens above the card instead.
+      if (innerH && top + size.h > innerH) top = Math.max(0, slotTop - size.h - 8);
     } else {
       const aboveTop = slotTop - size.h - 8;
       top = aboveTop < 0 ? slotTop + 8 : aboveTop;
     }
   }
   const narrow = innerW < 500;
-
-  return (
+  // THE CLOSE IN THE MENU'S TOP-RIGHT CORNER, not a row of its own at the end.
+  const closeX = (
+    <Pressable onPress={onDeselect} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear selection" style={styles.menuClose}>
+      <Text style={styles.menuCloseText}>✕</Text>
+    </Pressable>
+  );
+  const inTop = origin;
+  const bar = (
     <View
       ref={barRef}
       collapsable={false}
@@ -1436,8 +1467,11 @@ function SlotToolbar({
         styles.slotToolbar,
         hint && styles.slotToolbarHint,
         beside ? styles.slotToolbarBeside : null,
-        { left, top, maxWidth: innerW, flexWrap: beside ? 'nowrap' : 'wrap', justifyContent: 'center', opacity: size.w ? 1 : 0 },
+        { left: left + (inTop ? origin.x : 0), top: top + (inTop ? origin.y : 0), maxWidth: innerW, flexWrap: beside ? 'nowrap' : 'wrap', justifyContent: 'center', opacity: size.w ? 1 : 0 },
+        inTop ? ({ position: 'fixed', zIndex: 10 } as unknown as object) : null,
+        { paddingTop: 18 },
       ]}>
+      {closeX}
       {narrow ? (
         // ON A PHONE (owner, 2026-10-29): the three verbs people reach for, then More. Everything
         // else, Remove included, sits one tap behind it, so the bar covers one row of the page
@@ -1462,7 +1496,6 @@ function SlotToolbar({
             {onAutoFill ? <ToolButton compact label="✨ Fill page" onPress={onAutoFill} /> : null}
             {onSimilar ? <ToolButton compact label="Similar" onPress={onSimilar} /> : null}
             <ToolButton compact label="More ⋯" onPress={() => setMore(true)} accessibilityLabel="More actions: colors, move, tray, duplicate, my card, sleeve, remove" />
-            <ToolButton compact label="✕" onPress={onDeselect} accessibilityLabel="Clear selection" />
           </>
         )
       ) : (
@@ -1496,11 +1529,11 @@ function SlotToolbar({
             crowded toolbar and the card is gone rather than copied. */}
         <View style={styles.toolDivider} />
         <ToolButton label="Remove" tone="danger" onPress={onRemove} />
-        <ToolButton label="✕" onPress={onDeselect} accessibilityLabel="Clear selection" />
         </>
       )}
     </View>
   );
+  return inTop ? <TopLayer>{bar}</TopLayer> : bar;
 }
 
 function ToolButton({
@@ -3207,6 +3240,8 @@ const styles = StyleSheet.create({
   cutH: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1.5, borderBottomWidth: 1.5, borderStyle: 'dashed', borderColor: Palette.danger },
   /** A fold: one quiet line down the crease. */
   foldV: { position: 'absolute', top: 0, bottom: 0, width: 0, borderLeftWidth: 1, borderStyle: 'dashed', borderColor: Palette.muted2 },
+  menuClose: { position: 'absolute', top: 2, right: 4, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  menuCloseText: { fontSize: 12, fontWeight: '700', color: Palette.muted },
   slotToolbar: {
     position: 'absolute',
     zIndex: 60,

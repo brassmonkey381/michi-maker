@@ -75,6 +75,9 @@ import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useScanImages } from '@/hooks/use-scan-images';
 import { useTheme } from '@/hooks/use-theme';
 
+/** MIC-017 B5-A ('dev'): Settings in two tabs. */
+const SETTINGS_TABS = flag('settings-tabs');
+
 /** Which slot a rendered grid occupies — lets the caller wire the right handlers/refs per grid.
  *  'partner' is the facing page of a double-sided spread: fully interactive in edit mode (the
  *  first touch makes it the active page), read-only otherwise. */
@@ -378,6 +381,9 @@ export function BinderPages({
   // Called unconditionally so hook order never varies; the prop wins when the caller has its own.
   // MIC-017 phone-nav: swipe pages (also while editing), arrows over the page's edges, strip optional.
   const swipeNav = PHONE_NAV && phone;
+  // B5-A (owner pick 2026-11-11; 'settings-tabs' dev flag): Settings in two tabs, "This binder"
+  // (what is saved in the binder) and "My view" (how you look at binders, this device only).
+  const [settingsTab, setSettingsTab] = useState<'binder' | 'view'>('binder');
   const [phoneStrip, setPhoneStripState] = useState(readPhoneStrip);
   const setPhoneStrip = (on: boolean) => {
     setPhoneStripState(on);
@@ -1505,7 +1511,23 @@ export function BinderPages({
               <View style={styles.settingsHead}>
                 {/* "Binder" when the binder's own look is in here (editing); "View" when only how
                     you look at it is. A sheet of zips and sleeves called View said the wrong thing. */}
-                <ThemedText type="subtitle">{settingsExtras ? 'Settings' : 'View'}</ThemedText>
+                {SETTINGS_TABS && settingsExtras ? (
+                  <View style={styles.settingsTabs} accessibilityRole="tablist">
+                    {(['binder', 'view'] as const).map((t) => (
+                      <Pressable
+                        key={t}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: settingsTab === t }}
+                        onPress={() => setSettingsTab(t)}
+                        testID={`settings-tab-${t}`}
+                        style={[styles.settingsTab, settingsTab === t && styles.settingsTabOn]}>
+                        <Text style={[styles.settingsTabText, settingsTab === t && styles.settingsTabTextOn]}>{t === 'binder' ? 'This binder' : 'My view'}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : (
+                  <ThemedText type="subtitle">{settingsExtras ? 'Settings' : 'View'}</ThemedText>
+                )}
                 <Pressable onPress={onCloseSettings} hitSlop={10}>
                   <Text style={styles.fieldsDone}>Done</Text>
                 </Pressable>
@@ -1525,6 +1547,7 @@ export function BinderPages({
         {/* THE BINDER'S LOOK FIRST, in its own groups (Pages, Binder, Pockets), then how YOU view
             it. The view rows are a group of their own with a note, because they are the one thing
             in this sheet that is not saved in the binder and the heading alone could not say so. */}
+        {!(SETTINGS_TABS && settingsExtras) || settingsTab === 'binder' ? (<>
         {settingsActions ? (
           <View style={styles.settingsGroups}>
             <View style={styles.settingsGroupHead}>
@@ -1543,7 +1566,8 @@ export function BinderPages({
             <View style={styles.settingsRowControls}>{autoFlip}</View>
           </View>
         ) : null}
-        <View style={[styles.settingsGroups, settingsExtras ? styles.settingsGroupsAfter : null]}>
+        </>) : null}
+        <View style={[styles.settingsGroups, settingsExtras && !SETTINGS_TABS ? styles.settingsGroupsAfter : null, SETTINGS_TABS && settingsExtras && settingsTab !== 'view' ? styles.hidden : null]}>
           {settingsExtras ? (
             <View style={styles.settingsGroupHead}>
               <Text style={styles.settingsGroupTitle}>Your view</Text>
@@ -2728,6 +2752,12 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   fieldsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10 },
+  settingsTabs: { flexDirection: 'row', borderRadius: 999, borderWidth: 1, borderColor: Palette.hairline, padding: 2, gap: 2 },
+  settingsTab: { minHeight: 34, paddingHorizontal: 14, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  settingsTabOn: { backgroundColor: Palette.accent },
+  settingsTabText: { fontSize: 14, fontWeight: '700', color: Palette.ink },
+  settingsTabTextOn: { color: Palette.accentText },
+  hidden: { display: 'none' },
   settingsCard: {
     width: '100%',
     maxWidth: 560,

@@ -1281,6 +1281,16 @@ export async function fetchDiscoverPage(
   return { binders: await hydrateRankedBinders(rows), next: cursorAfter(rows, limit) };
 }
 
+/**
+ * Discover's ranking as ROWS only (no binder faces loaded): who made each public binder, its likes
+ * and when it went public. Makers group these (data/makers). Empty when the RPC fails.
+ */
+export async function fetchDiscoverRows(sort: DiscoverSort, limit = 200): Promise<RankedBinderRow[]> {
+  const { data, error } = await requireSupabase().rpc('discover_binders', { p_sort: sort, p_limit: limit, p_contest: null, p_author: null, p_exclude_author: null });
+  if (error) return [];
+  return (data ?? []) as RankedBinderRow[];
+}
+
 /** The first page of Discover, as a plain list. */
 export async function fetchDiscoverBinders(
   sort: DiscoverSort,

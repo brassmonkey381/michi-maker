@@ -35,7 +35,7 @@ import { cardsInFamily, PAGE_MATCH_BAR, PAGE_MATCH_MIN_CARDS, PAGE_MIN_RESULTS, 
 import { loadedColorIndexes, loadPokemonColorIndexes } from '@/lib/colorIndexes';
 
 import { AccountButton } from '@/components/auth/AccountButton';
-import { PeopleSearch } from '@/components/people/PeopleSearch';
+import { MakersFeed } from '@/components/people/MakersFeed';
 import { flag } from '@/lib/flags';
 import { BinderCoverGrid } from '@/components/binder/BinderCoverGrid';
 import { BinderThumb } from '@/components/binder/BinderThumb';
@@ -315,7 +315,8 @@ export default function DiscoverScreen() {
   const [cardHits, setCardHits] = useState<RankedBinderRow[] | null>(null);
   const [colour, setColour] = useState<(typeof SWATCHES)[number] | null>(null);
   const [colourHits, setColourHits] = useState<RankedBinderRow[] | 'unavailable' | null>(null);
-  const [peopleOpen, setPeopleOpen] = useState(false);
+  // Binders | Makers (owner, 2026-11-11: Makers is a feed of makers, not a people search).
+  const [mode, setMode] = useState<'binders' | 'makers'>('binders');
   const reqId = useRef(0);
   // A PAGE AT A TIME (2026-09-20). Both lists used to stop at 40 with no way past: the 41st public
   // binder existed only for someone who searched for it. Each list now remembers where it left
@@ -584,8 +585,8 @@ export default function DiscoverScreen() {
               <View style={styles.v2Row}>
                 <Seg
                   options={[{ id: 'binders', label: 'Binders' }, { id: 'makers', label: 'Makers' }]}
-                  value="binders"
-                  onChange={(id) => id === 'makers' && setPeopleOpen(true)}
+                  value={mode}
+                  onChange={(id) => setMode(id as 'binders' | 'makers')}
                 />
                 <View style={styles.swatches}>
                   {SWATCHES.map((sw) => (
@@ -601,7 +602,6 @@ export default function DiscoverScreen() {
                   ))}
                 </View>
               </View>
-              <PeopleSearch visible={peopleOpen} onClose={() => setPeopleOpen(false)} />
             </View>
           ) : null}
 
@@ -638,7 +638,9 @@ export default function DiscoverScreen() {
             </View>
           ) : null}
 
-          {!isSupabaseConfigured ? (
+          {DISCOVER_V2 && mode === 'makers' && !searching && !colour ? (
+            <MakersFeed width={contentW} phone={phone} />
+          ) : !isSupabaseConfigured ? (
             <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
               Public binder search isn’t available in this build.
             </ThemedText>

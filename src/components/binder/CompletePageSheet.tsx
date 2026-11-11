@@ -18,6 +18,7 @@ import { Image } from 'expo-image';
 import { cardThumbUrl, findSimilarToMany, loadColorIndex } from 'tcgscan-browse';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
+import { CapGateOffer } from '@/components/monetization/CapGateOffer';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
@@ -118,7 +119,10 @@ export function CompletePageSheet({
     const learn = (cards: readonly CatalogCard[]) => (cat as CardStore).add?.(cards);
     const onPage = guest ? cardsOnPage(page, cat) : [];
     for (const m of methods) {
-      if (SERVER.includes(m) && !serverFills && !guest) continue;
+      // THE HAND SHOWS WHAT A LOCKED FILL WOULD DEAL (owner, 2026-11-11, option C): blurred, under
+      // PRO. Finding them spends nothing (theme_fill and the similarity and palette fills are not
+      // metered); only dealing them does.
+      if (SERVER.includes(m) && !serverFills && !guest && !hand) continue;
       const base = {
         similar: (ids: string[], limit: number) => findSimilarToMany(ids, limit, { languages }),
         theme: (ids: string[], limit: number, fullArt: boolean | undefined) => themeFill(ids, limit, { fullArt }),
@@ -199,13 +203,13 @@ export function CompletePageSheet({
             return (
               <Pressable
                 key={m.key}
-                disabled={!ready && !locked}
+                disabled={(!ready && !locked) || (locked && !!hand)}
                 onPress={() => (locked ? onSimilarLocked?.() : none ? undefined : pick(m.key, p!.placements!))}
                 accessibilityRole="button"
                 accessibilityLabel={`${m.label}. ${m.description}`}
                 style={({ pressed }) => [styles.card, pressed && styles.pressed, none && styles.dimmed]}>
                 {hand ? (
-                  <HandPreview placements={p?.placements ?? []} pending={!ready && !locked} />
+                  <HandPreview placements={p?.placements ?? []} pending={!ready} veiled={locked} />
                 ) : (
                   <Preview page={page} placements={p?.placements ?? []} pending={!ready && !locked} />
                 )}
@@ -230,6 +234,19 @@ export function CompletePageSheet({
               </Pressable>
             );
           })}
+          {hand && !guest && COMPLETE_METHODS.some((m) => methods.includes(m.key) && SERVER.includes(m.key) && !serverFills) ? (
+            // OPTION C'S SOFT CARD (owner, 2026-11-11): the existing trial CTA ("Try PRO for FREE"
+            // for an account that can still have the free days, else the upgrade note), reused.
+            <View style={[styles.card, styles.softCard]} testID="suggest-gate">
+              <ThemedText type="smallBold">Keep the ideas coming</ThemedText>
+              <CapGateOffer
+                message="Theme, look-alike and palette ideas are part of PRO. Deal by type, artist and lines stays free."
+                trialMessage="Try PRO for FREE and deal these ideas any time. Deal by type, artist and lines stays free."
+                surface="suggest_gate"
+                onBeforePress={onClose}
+              />
+            </View>
+          ) : null}
         </ScrollView>
       )}
     </DialogCard>
@@ -243,7 +260,7 @@ const HAND_SUGGEST: readonly CompleteMethod[] = ['theme', 'similar', 'palette'];
  * THE HAND'S PREVIEW (owner, 2026-11-11: Suggest "should not show the original cards from the
  * card page"): only the cards this fill would deal, up to twelve.
  */
-function HandPreview({ placements, pending }: { placements: readonly ComposePlacement[]; pending: boolean }) {
+function HandPreview({ placements, pending, veiled }: { placements: readonly ComposePlacement[]; pending: boolean; veiled?: boolean }) {
   const ids = placements.map((p) => p.cardId).filter((id): id is string => !!id).slice(0, 12);
   const cells = pending ? Array.from({ length: 6 }, () => '') : ids;
   return (
@@ -251,12 +268,18 @@ function HandPreview({ placements, pending }: { placements: readonly ComposePlac
       {cells.map((id, i) => (
         <View key={id || `p${i}`} style={styles.handCell}>
           {id ? (
-            <Image source={{ uri: cardThumbUrl(id, 245) }} style={styles.cellImg} contentFit="cover" transition={0} />
+            // Locked (option C): the cards it found, faded and blurred under the PRO pill.
+            <Image source={{ uri: cardThumbUrl(id, 245) }} style={[styles.cellImg, veiled && styles.cellVeiled]} contentFit="cover" transition={0} blurRadius={veiled ? 3 : 0} />
           ) : (
             <View style={[styles.cellOpen, styles.cellPending]} />
           )}
         </View>
       ))}
+      {veiled ? (
+        <View style={styles.veilPill} pointerEvents="none" testID="suggest-pro-pill">
+          <Text style={styles.proPillText}>PRO</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -311,6 +334,9 @@ const styles = StyleSheet.create({
   cell: { aspectRatio: 2.5 / 3.5, padding: 1 },
   handLeaf: { flexDirection: 'row', flexWrap: 'wrap', minHeight: 60, borderRadius: Radius.sm, overflow: 'hidden', backgroundColor: Palette.hairline, padding: 1 },
   handCell: { width: `${100 / 6}%`, aspectRatio: 2.5 / 3.5, padding: 1 },
+  cellVeiled: { opacity: 0.55 },
+  veilPill: { position: 'absolute', top: 6, right: 6, paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.tag, backgroundColor: Palette.accent },
+  softCard: { justifyContent: 'center', gap: Spacing.two, borderStyle: 'dashed', backgroundColor: Palette.panel },
   cellImg: { width: '100%', height: '100%', borderRadius: 2 },
   cellFresh: { borderWidth: 2, borderColor: Palette.accent },
   cellArt: { width: '100%', height: '100%', borderRadius: 2, backgroundColor: Palette.accentSoft, opacity: 0.8 },

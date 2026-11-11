@@ -804,6 +804,8 @@ export type CapSurface =
   | 'build_wizard'
   | 'slice_studio'
   | 'print_gate'
+  /** MIC-017: the hand's Suggest sheet once a free account's ideas are spent (option C). */
+  | 'suggest_gate'
   | 'plans'
   | 'collection_list'
   | 'add_to_collection'

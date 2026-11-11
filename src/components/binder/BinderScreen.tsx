@@ -127,7 +127,7 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
 import { track, type CardAddVia } from '@/lib/analytics';
-import { AUTO_DEAL_ORDER, dealToHand, HAND_QUICK_DEALS } from '@/data/handDeal';
+import { dealToHand, HAND_QUICK_DEALS } from '@/data/handDeal';
 import { TrashCan, type TrashRect } from '@/components/binder/TrashCan';
 import type { GridLift } from '@/components/binder/BinderGrid';
 import { TopLayer } from '@/components/binder/TopLayer';
@@ -418,7 +418,6 @@ export function BinderScreen({
   const [handNote, setHandNote] = useState<string | null>(null);
   // The browser's multi-select "Add all", waiting for hand-or-page (both browse paths).
   const [multiPick, setMultiPick] = useState<{ ids: string[]; first: HandOrPage } | null>(null);
-  const autoDealtRef = useRef<Set<string>>(new Set());
   const [handLanguages] = useLanguagePref();
   const [handH, setHandH] = useState(0);
   // A placement waiting on "which copy?" - held whole, because the answer arrives from a sheet
@@ -1163,9 +1162,10 @@ export function BinderScreen({
     // hanging over empty space. Page count and index are in here for exactly that.
   }, [wantRing, wantPlaced, wantSearch, ringPage, binder?.pages.length, pageIndex, width, artworkOpen, cardsCollapsed]);
 
-  // THE AUTOMATIC DEAL (MIC-017 hand part 2, desktop, members): opening a page that has cards
-  // while the hand is empty deals it the first free fill that finds anything (type, then artist,
-  // then lines). Once per page per visit, so clearing the hand does not refill it.
+  // NO AUTOMATIC DEAL (owner, 2026-11-11: "turn off the AUTO SUGGEST HAND thing ... it shouldnt be
+  // constantly running and filling my hand for me"). It dealt into an empty hand on every page
+  // turn and after the last card left; now the hand changes only when Suggest or Deal is tapped,
+  // or a card is dragged in or out.
   const autoPage = binder ? binder.pages[Math.min(pageIndex, binder.pages.length - 1)] : undefined;
   // THE HAND'S ONE-TAP DEALS (MIC-017 part 2, desktop, members): a free fill straight into the
   // hand, no sheet (data/handDeal). `auto` tries each fill in turn until one finds cards.
@@ -1184,7 +1184,7 @@ export function BinderScreen({
     setHandNote(auto ? 'Dealing cards that fit this page…' : null);
     (async () => {
       for (const m of methods) {
-        const ids = await dealToHand(m as (typeof AUTO_DEAL_ORDER)[number], forPage, room, have, handLanguages).catch(() => [] as string[]);
+        const ids = await dealToHand(m as (typeof HAND_QUICK_DEALS)[number]['key'], forPage, room, have, handLanguages).catch(() => [] as string[]);
         if (!ids.length) continue;
         const n = store.addCardsToTray(binderId, ids);
         track('autofill.run', { method: m, placed: n, guest: false, taste: false, source: 'server', sheet: auto ? 'hand_auto' : 'hand' });
@@ -1195,19 +1195,6 @@ export function BinderScreen({
       setHandNote(auto ? null : 'Nothing found for that; try Suggest');
     })().finally(() => setHandDealing(null));
   };
-  const autoKey =
-    HAND && editing && width >= PHONE_MAX_WIDTH && store.tier !== 'guest' && binder && !binder.isExample && !binder.isDemo && !(binder.tray?.length) && autoPage?.slots.some((s) => s.cardId)
-      ? autoPage.id
-      : null;
-  useEffect(() => {
-    if (!autoKey) return;
-    const t = setTimeout(() => {
-      if (autoDealtRef.current.has(autoKey)) return;
-      autoDealtRef.current.add(autoKey);
-      dealHand(AUTO_DEAL_ORDER, true);
-    }, 900);
-    return () => clearTimeout(t);
-  }, [autoKey]);
 
   // MIC-034: names and descriptions follow the cards while the editor is open.
   useAutoNames(binder, pageIndex, AUTO_NAMES && editing && store.canEdit && !!binder && !binder.isExample && !binder.isDemo);

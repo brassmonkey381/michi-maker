@@ -978,7 +978,7 @@ export function BinderScreen({
   // the bottom, and the ring is lost on a small screen. Wide screens only.
   const pageHint = useEditorHint(
     'page-bar',
-    editing && !studio && !walkthrough.copy && !moving && !selectedSlotId && pickerCell === null && !!hintPage && pageHalfFull(hintPage) && width >= PHONE_MAX_WIDTH,
+    editing && !studio && !walkthrough.copy && !moving && !tipOpen && !selectedSlotId && pickerCell === null && !!hintPage && pageHalfFull(hintPage) && width >= PHONE_MAX_WIDTH,
   );
   const editorHint = pocketHint.copy ? pocketHint : pageHint.copy ? pageHint : null;
   /**
@@ -1021,7 +1021,8 @@ export function BinderScreen({
   useEffect(() => {
     // Not over a seeded arrival's walkthrough: an ad click on a wide screen was meeting the
     // shortcuts card and the Complete callout in the same second.
-    if (Platform.OS !== 'web' || !editing || width < PHONE_MAX_WIDTH || seeded) return;
+    // Nor over B1-A's first-run tip: that arrival gets ONE tip (QA 2026-11-11 found three at once).
+    if (Platform.OS !== 'web' || !editing || width < PHONE_MAX_WIDTH || seeded || firstRunTip) return;
     try {
       if (typeof localStorage === 'undefined' || localStorage.getItem(SHORTCUTS_SEEN_KEY)) return;
     } catch {
@@ -1029,7 +1030,7 @@ export function BinderScreen({
     }
     const t = setTimeout(() => setShortcutsOpen(true), 400);
     return () => clearTimeout(t);
-  }, [editing, width, seeded]);
+  }, [editing, width, seeded, firstRunTip]);
   /**
    * WHERE THE RING GOES: the first empty pocket in reading order on the page being edited, in
    * window coords. Re-measured on everything that moves that grid - the window's width, either
@@ -4494,7 +4495,7 @@ export function BinderScreen({
         {tipOpen && editing && !walkthrough.copy ? (
           <View
             testID="firstrun-tip"
-            style={[styles.firstRunTip, phone ? { bottom: 96 } : { top: 120 }]}
+            style={[styles.firstRunTip, phone ? { bottom: 96 } : styles.firstRunTipWide]}
             pointerEvents="box-none">
             <View style={styles.firstRunTipCard}>
               <View style={styles.firstRunTipWords}>
@@ -5003,6 +5004,8 @@ const styles = StyleSheet.create({
   moveBannerCancel: { textDecorationLine: 'underline' },
   /** Above the page (60) and the ring (65), below the docks (70): it must never cover a panel. */
   // Above the docks (70) and the Theme button's veil (75): the words must never sit in the dim.
+  // Wide screens: top right, beside the page rather than over its top row.
+  firstRunTipWide: { top: 112, left: 'auto', right: 72, alignItems: 'flex-end', maxWidth: 360 },
   firstRunTip: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingHorizontal: Spacing.three, zIndex: 80 },
   firstRunTipCard: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, width: '100%', maxWidth: 440, padding: Spacing.three, borderRadius: Radius.panel, backgroundColor: Palette.ink },
   firstRunTipWords: { flex: 1, gap: 2 },

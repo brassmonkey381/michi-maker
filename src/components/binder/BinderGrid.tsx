@@ -1468,7 +1468,11 @@ function SlotToolbar({
         hint && styles.slotToolbarHint,
         beside ? styles.slotToolbarBeside : null,
         { left: left + (inTop ? origin.x : 0), top: top + (inTop ? origin.y : 0), maxWidth: innerW, flexWrap: beside ? 'nowrap' : 'wrap', justifyContent: 'center', opacity: size.w ? 1 : 0 },
-        inTop ? ({ position: 'fixed', zIndex: 10 } as unknown as object) : null,
+        // CLICKABLE IN THE TOP LAYER (owner, 2026-11-11: "whatever i click on actually ignores the menu
+        // and selects the card under the menu"). The top layer's host is pointer-events: none so it
+        // never blocks the app; whatever lives in it has to opt back in, or every click on the menu
+        // falls through to the card beneath it (since a6444a5).
+        inTop ? ({ position: 'fixed', zIndex: 10, pointerEvents: 'auto' } as unknown as object) : null,
         { paddingTop: 18 },
       ]}>
       {closeX}

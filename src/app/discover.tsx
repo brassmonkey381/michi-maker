@@ -29,7 +29,7 @@ import {
   View,
 } from 'react-native';
 
-import { parseQuery, searchByColors, searchCards, srgbToLab } from 'tcgscan-browse';
+import { expandThemeFields, parseQuery, searchByColors, searchCards, srgbToLab } from 'tcgscan-browse';
 
 import { AccountButton } from '@/components/auth/AccountButton';
 import { PeopleSearch } from '@/components/people/PeopleSearch';
@@ -58,6 +58,7 @@ import {
   OFFICIAL_AUTHOR,
   searchBindersPage,
   searchBindersByCards,
+  discoverByQuery,
   type BinderListCursor,
   type DiscoverSort,
 } from '@/data/binderRepo';
@@ -159,12 +160,25 @@ const SWATCHES = [
   { hex: '#e86fae', name: 'pink' },
   { hex: '#2b2b33', name: 'black' },
 ] as const;
-const THEME_CHIPS = ['night', 'forest', 'ocean', 'sunset', 'city', 'snow'];
 /**
  * A search as cards: the card server answers the query (names, theme:, the full grammar), and the
  * binders those cards fill most come back ranked. Null when there is nothing to rank by.
  */
 async function rankByCards(q: string): Promise<DemoBinder[] | null> {
+  const parsed = parseQuery(q);
+  const viaServer = await discoverByQuery({
+    p_words: parsed.words,
+    p_fields: expandThemeFields(parsed.fields, { on: true, game: 'pokemon' }).fields,
+    p_compares: parsed.comparisons.map((c) => ({ field: c.field, op: c.op, value: c.value })),
+    p_facets: null,
+    p_min_price: parsed.minPrice,
+    p_max_price: parsed.maxPrice,
+    p_sort: parsed.sort,
+    p_dir: parsed.sortDir,
+    p_limit: 400,
+    p_offset: 0,
+  });
+  if (viaServer) return viaServer;
   try {
     const page = await searchCards(parseQuery(q), { limit: 400 });
     if (page.failed || !page.cards.length) return null;
@@ -437,7 +451,7 @@ export default function DiscoverScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search by title, page, description or creator"
+            placeholder={DISCOVER_V2 ? 'Search binders by Pokémon, theme, scenery, art style, set…' : 'Search by title, page, description or creator'}
             placeholderTextColor={Palette.muted}
             autoCorrect={false}
             autoCapitalize="none"
@@ -466,13 +480,6 @@ export default function DiscoverScreen() {
                     />
                   ))}
                 </View>
-              </View>
-              <View style={styles.v2Row}>
-                {THEME_CHIPS.map((t) => (
-                  <Pressable key={t} onPress={() => { setColour(null); setColourHits(null); setQuery(`theme:${t}`); }} accessibilityRole="button" testID="discover-theme" style={[styles.themeChip, q === `theme:${t}` && styles.themeChipOn]}>
-                    <Text style={[styles.themeChipText, q === `theme:${t}` && styles.themeChipTextOn]}>{t}</Text>
-                  </Pressable>
-                ))}
               </View>
               <PeopleSearch visible={peopleOpen} onClose={() => setPeopleOpen(false)} />
             </View>
@@ -717,10 +724,6 @@ const styles = StyleSheet.create({
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   swatch: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: 'transparent' },
   swatchOn: { borderColor: Palette.ink },
-  themeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairlineStrong },
-  themeChipOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
-  themeChipText: { fontSize: FontSize.sm, color: Palette.ink, fontWeight: '600' },
-  themeChipTextOn: { color: Palette.accentText },
   // The old scroll view's bottom room, for the phone's menu button.
   shellTail: { height: BottomTabInset + Spacing.four },
   h1: { flexShrink: 1 },

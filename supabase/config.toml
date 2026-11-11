@@ -52,3 +52,8 @@ verify_jwt = false
 # with the admin's own token, which the function checks itself (is_admin). No platform JWT gate.
 [functions.image-review]
 verify_jwt = false
+
+# MIC-017 piece 8: Discover's search for everyone, logged out included (owner 2026-11-11: "the user
+# does not need special access"). Read-only; it returns public binders only, never card results.
+[functions.discover-search]
+verify_jwt = false

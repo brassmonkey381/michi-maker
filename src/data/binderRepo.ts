@@ -1299,3 +1299,19 @@ export async function searchBindersByCards(cardIds: readonly string[], limit = 4
   if (error) return null;
   return hydrateRankedBinders((data ?? []) as RankedBinderRow[]);
 }
+
+/**
+ * DISCOVER'S ONE SEARCH (owner, 2026-11-11): any query (a Pokémon, a theme or scene, an art style,
+ * set:, the full grammar) runs in full on the server and comes back as the public binders its
+ * cards fill most (the discover-search edge function). Everyone gets it; only binders return.
+ * Null when the function is not deployed or fails, so the caller falls back.
+ */
+export async function discoverByQuery(rpcBody: Record<string, unknown>): Promise<DemoBinder[] | null> {
+  try {
+    const { data, error } = await requireSupabase().functions.invoke<{ rows?: RankedBinderRow[] }>('discover-search', { body: { rpc: rpcBody } });
+    if (error || !data || !Array.isArray(data.rows)) return null;
+    return hydrateRankedBinders(data.rows);
+  } catch {
+    return null;
+  }
+}

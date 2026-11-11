@@ -68,13 +68,16 @@ Deno.serve(async (req) => {
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, secretKey(), { auth: { persistSession: false } });
   // Through their pages (search_binder_pages_by_cards): each row also names the pages holding the
   // search's cards (match_pages, the post-it) and shows the best one. Every page with a found card
-  // counts; the binder ranking is the same whole-binder fill as before. Until that migration runs,
-  // the older binder-only ranking answers (no post-it, opens at the start).
+  // counts. RANKED BY PAGE SHARE (owner, 2026-11-11: a page that is mostly Charizard beats a big
+  // binder with two): the best page's found cards over its filled pockets, never fewer than 4, then
+  // how many pages match, then how many cards. Until that migration runs, the older binder-only
+  // ranking answers (no post-it, opens at the start).
   const paged = await admin.rpc('search_binder_pages_by_cards', {
     p_card_ids: ids,
     p_min_share: 0.0001,
     p_min_cards: 1,
-    p_rank: 'binder',
+    p_rank: 'page',
+    p_floor: 4,
     p_limit: 60,
   });
   if (!paged.error) return json(200, { rows: paged.data ?? [] });

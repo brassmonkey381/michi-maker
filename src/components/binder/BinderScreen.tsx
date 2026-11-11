@@ -132,6 +132,7 @@ import { dealToHand, HAND_QUICK_DEALS } from '@/data/handDeal';
 /** The selection panel's buttons in the editor: 0 = the hand, 1 = this page. */
 const HAND_PICK_ACTIONS = ['Add to hand', 'Add to page'] as const;
 import { TrashCan, type TrashRect } from '@/components/binder/TrashCan';
+import { HandSpread } from '@/components/binder/HandSpread';
 import type { GridLift } from '@/components/binder/BinderGrid';
 import { TopLayer } from '@/components/binder/TopLayer';
 import { useLanguagePref } from '@/store/languagePref';
@@ -388,6 +389,8 @@ export function BinderScreen({
   const [pickToHand, setPickToHand] = useState(false);
   const [handFillOpen, setHandFillOpen] = useState(false);
   const [trashOn, setTrashOn] = useState(false);
+  // The hand spread across the screen (phones, MIC-017).
+  const [spreadOpen, setSpreadOpen] = useState(false);
   const trashHot = useRef(false);
   const trashRect = useRef<TrashRect | null>(null);
   // Over a hot trash can the dragged card shrinks toward it, so the red can shows around the card.
@@ -3636,6 +3639,7 @@ export function BinderScreen({
                 trayRef={trayRef}
                 onHeight={setHandH}
                 chevronBottom={phoneBarH}
+                onSpread={phone ? () => setSpreadOpen(true) : undefined}
                 quick={handMember ? HAND_QUICK_DEALS : undefined}
                 onQuick={(k) => dealHand([k], false)}
                 dealing={handDealing}
@@ -3729,6 +3733,26 @@ export function BinderScreen({
               the trashcan ... the hand / page at the lowest"). One body-level layer (TopLayer), so
               no z-index inside the editor can reach over it; inside it, lowest first: the trash
               can, then the card being dragged. */}
+          {HAND && editing && canEdit && spreadOpen && phone ? (
+            <HandSpread
+              slots={binder.tray ?? []}
+              dockTop={Math.max(0, windowH - phoneBarH - handH)}
+              onClose={() => setSpreadOpen(false)}
+              onAdd={(slot) => {
+                // The next empty pocket on the page in view, in reading order.
+                const taken = occupiedCells(page);
+                let cell: { row: number; col: number } | null = null;
+                for (let r = 0; r < page.rows && !cell; r += 1) for (let c = 0; c < page.cols && !cell; c += 1) if (!taken.has(`${r},${c}`)) cell = { row: r, col: c };
+                setSpreadOpen(false);
+                if (!cell) {
+                  showToast('This page is full. Turn to a page with room, or clear a pocket.');
+                  return;
+                }
+                const res = store.moveSlotFromTray(binder.id, slot.id, page.id, cell.row, cell.col);
+                showToast(res === 'moved' ? `Added to page ${idx + 1}` : 'It does not fit there.', res === 'moved');
+              }}
+            />
+          ) : null}
           {HAND && editing && canEdit ? (
             <TopLayer>
               <TrashCan active={trashOn} bottom={phone ? phoneBarH : 0} onHot={onTrashHot} rectRef={trashRect} />

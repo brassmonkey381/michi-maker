@@ -57,6 +57,7 @@ export function HandTray({
   onClear,
   onSuggest,
   onSearch,
+  onSpread,
   ghostOn,
   ghostX,
   ghostY,
@@ -86,6 +87,8 @@ export function HandTray({
   onClear: () => void;
   onSuggest: () => void;
   onSearch: () => void;
+  /** Phones: spread the hand across the screen (HandSpread). */
+  onSpread?: () => void;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
   ghostY: SharedValue<number>;
@@ -242,6 +245,18 @@ export function HandTray({
           </View>
         )
       ) : null}
+      {phone && onSpread && n > 0 ? (
+        // SPREAD THE HAND (owner, 2026-11-11): beside the chevron, in the same fixed corner.
+        <Pressable
+          onPress={onSpread}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Spread the hand across the screen"
+          testID="hand-spread-open"
+          style={[styles.toolsBtn, styles.spreadBtn, Platform.OS === 'web' ? ({ position: 'fixed', bottom: chevronBottom + 8, right: 54 } as unknown as object) : { right: 54 }]}>
+          <Text style={styles.spreadBtnText}>⤢</Text>
+        </Pressable>
+      ) : null}
       {phone ? (
         <Pressable
           onPress={() => setTools((t) => !t)}
@@ -286,6 +301,8 @@ const styles = StyleSheet.create({
     borderColor: Palette.hairline,
     zIndex: 200,
   },
+  spreadBtn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  spreadBtnText: { fontSize: FontSize.md, color: Palette.accentText, fontWeight: Weight.bold },
   toolsBtnText: { fontSize: FontSize.md, color: Palette.ink, fontWeight: Weight.bold },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, gap: Spacing.two },
   titleBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },

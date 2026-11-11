@@ -47,6 +47,14 @@ const ASK = {
     `Write three DESCRIPTIONS for this ${kind}. Each one is two or three full sentences about the art and the characters, never a title or a phrase.`,
 } as const;
 
+/**
+ * NO ART LINES, NO SCENERY (owner, 2026-11-11): without the per-card art captions (a guest's facts,
+ * or cards the catalogue has none for) the model guessed the scenery ("sun-scorched land"). Then it
+ * describes only what the facts say: the characters, their types, the rarity and the sets.
+ */
+const NO_ART =
+  ' The facts do not say what the art shows: describe only the characters, their types, the rarity and the sets. Do not describe scenery, poses, colours or backgrounds.';
+
 const SCHEMA = {
   type: 'object',
   properties: { options: { type: 'array', items: { type: 'string' } } },
@@ -114,7 +122,7 @@ Deno.serve(async (req) => {
       thinking: { type: 'disabled' },
       system: SYSTEM,
       output_config: { format: { type: 'json_schema', schema: SCHEMA as unknown as Record<string, unknown> } },
-      messages: [{ role: 'user', content: `${ASK[field](kind)}\n\nFacts:\n${facts}` }],
+      messages: [{ role: 'user', content: `${ASK[field](kind)}${field === 'description' && !facts.includes('The art on each card:') ? NO_ART : ''}\n\nFacts:\n${facts}` }],
     });
     if (res.stop_reason !== 'end_turn') console.warn('[name-ideas] stop_reason', res.stop_reason, field);
     const text = res.content.find((c) => c.type === 'text');

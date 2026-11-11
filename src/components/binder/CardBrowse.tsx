@@ -527,8 +527,8 @@ export function CardBrowse({
         onPickCard={onPickCard ?? (() => {})}
         onPickVUnion={onPickVUnion}
         onPickCards={onPickCards}
-        // The hand-or-page wording only where there is a hand (the editor); /browse adds to a binder.
-        pickCardsLabel={pickCardsActions ? ADD_ALL_LABEL : undefined}
+        // The hand-or-page wording only where there is a hand (the editor); /browse says "Add to a binder" (owner, 2026-11-11).
+        pickCardsLabel={pickCardsActions ? ADD_ALL_LABEL : 'Add to a binder'}
         pickCardsActions={onPickCards ? pickCardsActions : undefined}
         bigSelection={BIG_SELECTION}
         /**

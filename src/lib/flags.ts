@@ -30,7 +30,9 @@ export const FLAGS = {
   // remembered on the device) and a quiet empty shelf (owner 2026-11-10: "shelf toggle").
   'mybinders-shelf': 'dev',
   // MIC-017 piece 7: /new-binder as a conversation; page one builds beside it.
-  'newbinder-chat': 'dev',
+  // OFF (owner, 2026-11-11: "I don't think I chose a chat wizard for the ftue. I liked our simple
+  // wizard"): the chat came from the build order, not a pick. ?dev shows the simple wizard again.
+  'newbinder-chat': 'off',
   // MIC-017 piece 8: Discover ranks binders by how much of them a search's cards fill, searches by
   // colour and theme, and has a Binders | Makers switch.
   'discover-v2': 'dev',

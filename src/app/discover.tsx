@@ -60,9 +60,11 @@ import {
   fetchDiscoverPage,
   OFFICIAL_AUTHOR,
   searchBindersPage,
-  searchBindersByCards,
+  searchBindersByCardsRows,
   searchBinderPagesByShares,
   discoverByQuery,
+  hydrateRankedBinders,
+  type RankedBinderRow,
   type BinderListCursor,
   type DiscoverSort,
 } from '@/data/binderRepo';
@@ -136,6 +138,93 @@ const keptShelf = (sort: DiscoverSort) => {
   return kept && Date.now() - kept.at < SHELF_CACHE_MS ? kept : undefined;
 };
 
+/**
+ * SEARCH RESULTS, A PAGE AT A TIME (owner, 2026-11-11: "it takes a long time to load every binder
+ * because we display a huge grid amount at once ... land in a carousel that scrolls left/right and
+ * has Load more binders"). The ranking arrives whole (`rows`, cheap: ids and scores); each binder's
+ * tile loads only when its carousel page is reached, `batch` at a time. The feed's own shapes: a
+ * paged carousel on wider screens, a two-across grid on a phone, Load more under both. `extra` are
+ * binders found another way (title matches), shown after every ranked row, with their own next page.
+ */
+function RankedResults({
+  rows,
+  extra,
+  extraNext,
+  onMoreExtra,
+  moreExtraBusy,
+  batch,
+  phone,
+  contentW,
+  tileW,
+  perShelf,
+  onOpen,
+  testID,
+}: {
+  rows: readonly RankedBinderRow[];
+  extra?: readonly DemoBinder[];
+  extraNext?: boolean;
+  onMoreExtra?: () => void;
+  moreExtraBusy?: boolean;
+  batch: number;
+  phone: boolean;
+  contentW: number;
+  tileW: number;
+  perShelf: number;
+  onOpen: (b: DemoBinder) => void;
+  testID: string;
+}) {
+  const [shown, setShown] = useState<{ upTo: number; binders: DemoBinder[] }>({ upTo: 0, binders: [] });
+  const [busy, setBusy] = useState(false);
+  const loadRows = (from: number) => {
+    if (busy || from >= rows.length) return;
+    setBusy(true);
+    const slice = rows.slice(from, from + batch);
+    hydrateRankedBinders([...slice])
+      .then((more) => setShown((cur) => (cur.upTo === from ? { upTo: from + slice.length, binders: [...cur.binders, ...more] } : cur)))
+      .catch(() => setShown((cur) => (cur.upTo === from ? { ...cur, upTo: from + slice.length } : cur)))
+      .finally(() => setBusy(false));
+  };
+  // The first page, once (the list is keyed by its query, so a new search is a new list).
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    loadRows(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const rowsLeft = shown.upTo < rows.length;
+  const ranked = new Set(rows.map((r) => r.binder_id));
+  const list = rowsLeft ? shown.binders : [...shown.binders, ...(extra ?? []).filter((b) => !ranked.has(b.id))];
+  const more = rowsLeft || !!extraNext;
+  const loadMore = () => (rowsLeft ? loadRows(shown.upTo) : onMoreExtra?.());
+  const tile = (b: DemoBinder) => (
+    <BinderThumb key={b.id} binder={b} width={phone ? tileW : tileW} matchPages={b.matchPages} onPress={() => onOpen(b)} />
+  );
+  if (!list.length) {
+    return busy || rowsLeft ? (
+      <View style={styles.center}>
+        <ActivityIndicator />
+      </View>
+    ) : null;
+  }
+  return (
+    <View testID={testID}>
+      {phone ? (
+        <View style={[styles.grid, { gap: GRID_GAP }]}>{list.map(tile)}</View>
+      ) : (
+        <PagedCarousel
+          width={contentW}
+          prevLabel="Previous binders"
+          nextLabel="More binders"
+          onReachEnd={more ? loadMore : undefined}
+          pages={shelfPages(list, perShelf, tile)}
+        />
+      )}
+      {more ? <LoadMore busy={busy || !!moreExtraBusy} onPress={loadMore} testID={`${testID}-more`} /> : null}
+    </View>
+  );
+}
+
 /** "Load more": the next page of a list that has one. */
 function LoadMore({ busy, onPress, testID }: { busy: boolean; onPress: () => void; testID: string }) {
   return (
@@ -184,7 +273,7 @@ function cardSearchBody(parsed: ReturnType<typeof parseQuery>, fields: ReturnTyp
   };
 }
 
-async function rankByCards(q: string): Promise<DemoBinder[] | null> {
+async function rankByCards(q: string): Promise<RankedBinderRow[] | null> {
   const parsed = parseQuery(q);
   // PLAIN WORDS ARE ALSO WHAT THE ART SHOWS (owner, 2026-11-11: search binders by theme, scenery,
   // art style). "watercolor" or "rainy city" with no field words is asked twice: as words (names,
@@ -196,12 +285,12 @@ async function rankByCards(q: string): Promise<DemoBinder[] | null> {
       ? discoverByQuery(cardSearchBody({ ...parsed, words: [] }, parsed.words.map((w) => ({ key: 'theme', value: w }))))
       : Promise.resolve(null),
   ]);
-  const viaServer = byWords || byArt ? [...(byWords ?? []), ...(byArt ?? []).filter((x) => !(byWords ?? []).some((y) => y.id === x.id))] : null;
+  const viaServer = byWords || byArt ? [...(byWords ?? []), ...(byArt ?? []).filter((x) => !(byWords ?? []).some((y) => y.binder_id === x.binder_id))] : null;
   if (viaServer) return viaServer;
   try {
     const page = await searchCards(parseQuery(q), { limit: 400 });
     if (page.failed || !page.cards.length) return null;
-    return await searchBindersByCards(page.cards.map((c) => c.id));
+    return await searchBindersByCardsRows(page.cards.map((c) => c.id), 60);
   } catch {
     return null;
   }
@@ -223,9 +312,9 @@ export default function DiscoverScreen() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<DemoBinder[] | null>(null);
   // MIC-017 piece 8: binders ranked by how much of them the search's cards fill (null: not ranked).
-  const [cardHits, setCardHits] = useState<DemoBinder[] | null>(null);
+  const [cardHits, setCardHits] = useState<RankedBinderRow[] | null>(null);
   const [colour, setColour] = useState<(typeof SWATCHES)[number] | null>(null);
-  const [colourHits, setColourHits] = useState<DemoBinder[] | 'unavailable' | null>(null);
+  const [colourHits, setColourHits] = useState<RankedBinderRow[] | 'unavailable' | null>(null);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const reqId = useRef(0);
   // A PAGE AT A TIME (2026-09-20). Both lists used to stop at 40 with no way past: the 41st public
@@ -425,8 +514,6 @@ export default function DiscoverScreen() {
       .then((hits) => setColourHits(hits ?? 'unavailable'))
       .catch(() => setColourHits([]));
   };
-  // Search results: the card-ranked binders first, then the title/creator matches not already shown.
-  const shownResults = results && cardHits ? [...cardHits, ...results.filter((b) => !cardHits.some((c) => c.id === b.id))] : results;
 
   const loadMoreResults = async () => {
     if (!resultsNext || loadingMore) return;
@@ -531,11 +618,17 @@ export default function DiscoverScreen() {
                   No public binders lean that way yet. Try another colour.
                 </ThemedText>
               ) : (
-                <View style={[styles.grid, { gap: GRID_GAP }]}>
-                  {colourHits.map((b) => (
-                    <BinderThumb key={b.id} binder={b} width={tileW} matchPages={b.matchPages} onPress={() => openBinder(b.id, b.matchPages?.[0])} />
-                  ))}
-                </View>
+                <RankedResults
+                  key={`colour-${colour.hex}`}
+                  rows={colourHits}
+                  batch={phone ? 8 : perShelf}
+                  phone={phone}
+                  contentW={contentW}
+                  tileW={phone ? tileW : shelfTileW}
+                  perShelf={perShelf}
+                  onOpen={(b) => openBinder(b.id, b.matchPages?.[0])}
+                  testID="discover-colour-results"
+                />
               )}
             </View>
           ) : null}
@@ -549,7 +642,7 @@ export default function DiscoverScreen() {
               <View style={styles.center}>
                 <ActivityIndicator />
               </View>
-            ) : (shownResults ?? results).length === 0 ? (
+            ) : results.length === 0 && !cardHits?.length ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
                 {`No public binders match “${q}”.`}
               </ThemedText>
@@ -560,14 +653,21 @@ export default function DiscoverScreen() {
                     {`Binders with the most “${q}” come first.`}
                   </ThemedText>
                 ) : null}
-                <View style={[styles.grid, { gap: GRID_GAP }]}>
-                  {(shownResults ?? results).map((b) => (
-                    <BinderThumb key={b.id} binder={b} width={tileW} matchPages={b.matchPages} onPress={() => openBinder(b.id, b.matchPages?.[0])} />
-                  ))}
-                </View>
-                {resultsNext ? (
-                  <LoadMore busy={loadingMore === 'results'} onPress={loadMoreResults} testID="discover-more-results" />
-                ) : null}
+                <RankedResults
+                  key={`q-${q}`}
+                  rows={cardHits ?? []}
+                  extra={results}
+                  extraNext={!!resultsNext}
+                  onMoreExtra={loadMoreResults}
+                  moreExtraBusy={loadingMore === 'results'}
+                  batch={phone ? 8 : perShelf}
+                  phone={phone}
+                  contentW={contentW}
+                  tileW={phone ? tileW : shelfTileW}
+                  perShelf={perShelf}
+                  onOpen={(b) => openBinder(b.id, b.matchPages?.[0])}
+                  testID="discover-results"
+                />
               </>
             )
           ) : (

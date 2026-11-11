@@ -1295,12 +1295,12 @@ export async function fetchDiscoverBinders(
  * on the card server first. Returns null when the RPC is not on this project yet (PGRST202) or
  * fails, so Discover falls back to its title/creator search.
  */
-export async function searchBindersByCards(cardIds: readonly string[], limit = 40): Promise<DemoBinder[] | null> {
+export async function searchBindersByCardsRows(cardIds: readonly string[], limit = 40): Promise<RankedBinderRow[] | null> {
   if (!cardIds.length) return [];
   const supabase = requireSupabase();
   const { data, error } = await supabase.rpc('search_binders_by_cards' as never, { p_card_ids: cardIds.slice(0, 2000), p_limit: limit } as never);
   if (error) return null;
-  return hydrateRankedBinders((data ?? []) as RankedBinderRow[]);
+  return (data ?? []) as RankedBinderRow[];
 }
 
 /**
@@ -1314,7 +1314,7 @@ export async function searchBinderPagesByShares(
   cardIds: readonly string[],
   shares: readonly number[],
   opts: { minShare: number; minCards: number; limit?: number },
-): Promise<DemoBinder[] | null> {
+): Promise<RankedBinderRow[] | null> {
   if (!cardIds.length) return [];
   const supabase = requireSupabase();
   const { data, error } = await supabase.rpc('search_binder_pages_by_cards' as never, {
@@ -1323,23 +1323,24 @@ export async function searchBinderPagesByShares(
     p_min_share: opts.minShare,
     p_min_cards: opts.minCards,
     p_rank: 'page',
-    p_limit: opts.limit ?? 40,
+    p_limit: opts.limit ?? 60,
   } as never);
-  if (error) return searchBindersByCards(cardIds.slice(0, 2000), opts.limit ?? 40);
-  return hydrateRankedBinders((data ?? []) as RankedBinderRow[]);
+  if (error) return searchBindersByCardsRows(cardIds.slice(0, 2000), opts.limit ?? 60);
+  return (data ?? []) as RankedBinderRow[];
 }
 
 /**
  * DISCOVER'S ONE SEARCH (owner, 2026-11-11): any query (a Pokémon, a theme or scene, an art style,
  * set:, the full grammar) runs in full on the server and comes back as the public binders its
- * cards fill most (the discover-search edge function). Everyone gets it; only binders return.
+ * cards fill most (the discover-search edge function), as ranked ROWS: the screen loads each
+ * binder's tile a carousel page at a time (hydrateRankedBinders). Everyone gets it.
  * Null when the function is not deployed or fails, so the caller falls back.
  */
-export async function discoverByQuery(rpcBody: Record<string, unknown>): Promise<DemoBinder[] | null> {
+export async function discoverByQuery(rpcBody: Record<string, unknown>): Promise<RankedBinderRow[] | null> {
   try {
     const { data, error } = await requireSupabase().functions.invoke<{ rows?: RankedBinderRow[] }>('discover-search', { body: { rpc: rpcBody } });
     if (error || !data || !Array.isArray(data.rows)) return null;
-    return hydrateRankedBinders(data.rows);
+    return data.rows;
   } catch {
     return null;
   }

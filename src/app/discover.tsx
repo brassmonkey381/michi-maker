@@ -31,7 +31,7 @@ import {
 
 import { expandThemeFields, parseQuery, searchCards, srgbToLab } from 'tcgscan-browse';
 
-import { cardsInFamily, PAGE_MATCH_MIN_CARDS, PAGE_MATCH_SHARE } from '@/data/colourFamilies';
+import { cardsInFamily, PAGE_MATCH_BAR, PAGE_MATCH_MIN_CARDS, PAGE_MIN_RESULTS, PAGE_TOP_UP_SHARE } from '@/data/colourFamilies';
 import { loadedColorIndexes, loadPokemonColorIndexes } from '@/lib/colorIndexes';
 
 import { AccountButton } from '@/components/auth/AccountButton';
@@ -502,14 +502,19 @@ export default function DiscoverScreen() {
     setQuery('');
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(sw.hex.slice(i, i + 2), 16));
     // BY PAGE (owner, 2026-11-11: "binders with PAGEs that exhibit a lot of black"): each card's
-    // share of the colour comes from the palette index, and a page matches when about a third of
-    // its art is that colour (data/colourFamilies). The binders come back through those pages.
+    // share of the colour comes from the palette index, and a page matches at that colour's own
+    // bar (data/colourFamilies). The binders come back through those pages. A rare colour with
+    // few binders at its bar is topped up with the closest pages, after the matches.
     loadPokemonColorIndexes()
-      .then(() => {
+      .then(async () => {
         const indexes = loadedColorIndexes();
         if (!indexes.length) return null;
         const { ids, shares } = cardsInFamily(indexes, sw.name, srgbToLab(r, g, b));
-        return searchBinderPagesByShares(ids, shares, { minShare: PAGE_MATCH_SHARE, minCards: PAGE_MATCH_MIN_CARDS });
+        const at = await searchBinderPagesByShares(ids, shares, { minShare: PAGE_MATCH_BAR[sw.name], minCards: PAGE_MATCH_MIN_CARDS });
+        if (!at || at.length >= PAGE_MIN_RESULTS) return at;
+        const near = await searchBinderPagesByShares(ids, shares, { minShare: PAGE_TOP_UP_SHARE, minCards: PAGE_MATCH_MIN_CARDS });
+        const have = new Set(at.map((x) => x.binder_id));
+        return [...at, ...(near ?? []).filter((x) => !have.has(x.binder_id))];
       })
       .then((hits) => setColourHits(hits ?? 'unavailable'))
       .catch(() => setColourHits([]));

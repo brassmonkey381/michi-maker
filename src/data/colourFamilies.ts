@@ -3,48 +3,126 @@
  * PAGES show a lot of one colour, not binders holding many cards with a speck of it.
  *
  * Every card in the palette index has three dominant art colours, each with a coverage weight
- * (0..1). A colour belongs to one family by its lightness and hue (CIELAB as LCh): black is any
- * colour with L* at most 28 (navy and charcoal count, mid greys do not); a colour with chroma under
- * 18 is grey and in no swatch's family; the rest fall into hue bins. A card's SHARE of a family is
- * the sum of the weights of its colours in that family, so a card whose art is two thirds black
- * has a black share near 0.67.
+ * (0..1). v2 (owner, 2026-11-11: "why do some of the colors have no results (purple and pink?)",
+ * "I like lavender and pastel pink", "maybe a page can land in both?"):
  *
- * A page's share is the average over its filled pockets (search_binder_pages_by_cards). It matches
- * at PAGE_MATCH_SHARE: about a third of the art across the page in that colour, which with three
- * clusters per card means it is the page's leading colour. Calibrated on 1,879 live public pages
- * (2026-11-10): black at 0.35 matched 21 pages in 16 binders (0.30: 38 in 27, 0.40: 7 in 6).
+ *  - FAMILIES BY THE HUE PEOPLE SEE. A colour is named by its HSV hue (Lab converted to sRGB),
+ *    not its CIELAB hue: in Lab pure blue sits near 306 degrees, so violet art was counted blue.
+ *    Centres: red 0, orange 28, yellow 52, green 125, blue 215, purple 275, pink 322 (magenta).
+ *  - SOFT EDGES. A colour in the outer quarter of the span between two centres counts for both, in
+ *    proportion (violet is part blue, part purple); nearer a centre it counts fully for that one.
+ *  - SOFT COLOURS IN, GREYS OUT. The saturation floor is lower for light colours (S >= 0.13 when
+ *    V >= 0.8, 0.20 when V >= 0.55, 0.28 below), so lavender, pastel pink, baby blue, mint and
+ *    butter yellow join their families; near-greys stay out. Black is L* <= 28 or V <= 0.2.
+ *  - EVERY SWATCH ON ITS OWN. A page has a share of every family; it can match blue AND purple.
+ *
+ * A card's SHARE of a family is the weighted sum of its colours' membership. A page's share is the
+ * average over its filled pockets (search_binder_pages_by_cards); it matches at that family's bar.
  */
 import type { Lab } from 'tcgscan-browse';
 
 export type ColourFamily = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'black';
 
-/** A page matches a colour when at least this much of its pockets' art is that colour. */
-export const PAGE_MATCH_SHARE = 0.35;
+/**
+ * PER-SWATCH BARS. Purple and pink are 2.2% and 2.1% of all palette colour, blue 15.7%, so one bar
+ * for all never let purple or pink through. Each bar is three times its family's average share,
+ * held between 0.15 and 0.35; black stays at 0.35 (the owner asked for heavy black). Calibrated on
+ * 1,879 live public pages (2026-11-11): pages / binders at the bar, red 87/59, orange 60/46,
+ * yellow 43/31, green 118/62, blue 199/77, purple 23/18, pink 23/20, black 21/16.
+ */
+export const PAGE_MATCH_BAR: Record<ColourFamily, number> = {
+  red: 0.17,
+  orange: 0.35,
+  yellow: 0.35,
+  green: 0.15,
+  blue: 0.35,
+  purple: 0.15,
+  pink: 0.15,
+  black: 0.35,
+};
+/** Fewer binders than this at the bar: the closest pages, down to PAGE_TOP_UP_SHARE, follow. */
+export const PAGE_MIN_RESULTS = 8;
+export const PAGE_TOP_UP_SHARE = 0.1;
 /** A page needs this many cards before it can stand for a colour. */
 export const PAGE_MATCH_MIN_CARDS = 3;
 /** Cards below this share are not sent: they barely move a page's average. */
-const CARD_MIN_SHARE = 0.2;
+const CARD_MIN_SHARE = 0.1;
 
-/** The family one palette colour belongs to, or null for greys and near-whites. */
-export function colourFamily(c: { L: number; a: number; b: number }): ColourFamily | null {
-  if (c.L <= 28) return 'black';
-  const chroma = Math.hypot(c.a, c.b);
-  if (chroma < 18) return null;
-  let h = (Math.atan2(c.b, c.a) * 180) / Math.PI;
+/** sRGB (0..1) from CIELAB (D65). */
+function labToRgb(L: number, a: number, b: number): [number, number, number] {
+  const fy = (L + 16) / 116;
+  const fx = fy + a / 500;
+  const fz = fy - b / 200;
+  const f = (t: number) => (t ** 3 > 0.008856 ? t ** 3 : (t - 16 / 116) / 7.787);
+  const X = 0.95047 * f(fx);
+  const Y = f(fy);
+  const Z = 1.08883 * f(fz);
+  const lin = [3.2406 * X - 1.5372 * Y - 0.4986 * Z, -0.9689 * X + 1.8758 * Y + 0.0415 * Z, 0.0557 * X - 0.204 * Y + 1.057 * Z];
+  const g = lin.map((c) => Math.min(1, Math.max(0, c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)));
+  return [g[0], g[1], g[2]];
+}
+
+/** Hue (degrees), saturation and value of a Lab colour, as people would read it on screen. */
+export function hsvOf(c: { L: number; a: number; b: number }): { h: number; s: number; v: number } {
+  const [r, g, b] = labToRgb(c.L, c.a, c.b);
+  const mx = Math.max(r, g, b);
+  const d = mx - Math.min(r, g, b);
+  let h = 0;
+  if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h *= 60;
   if (h < 0) h += 360;
-  if (h >= 330 || h < 20) return c.L >= 55 ? 'pink' : 'red';
-  if (h < 50) return c.L >= 72 && chroma < 40 ? 'pink' : 'red';
-  if (h < 75) return 'orange';
-  if (h < 105) return 'yellow';
-  if (h < 190) return 'green';
-  if (h < 300) return 'blue';
-  return h >= 315 && c.L >= 55 ? 'pink' : 'purple';
+  return { h, s: mx ? d / mx : 0, v: mx };
+}
+
+const CENTRES: readonly [ColourFamily, number][] = [
+  ['red', 0],
+  ['orange', 28],
+  ['yellow', 52],
+  ['green', 125],
+  ['blue', 215],
+  ['purple', 275],
+  ['pink', 322],
+  ['red', 360],
+];
+
+/** How much one palette colour belongs to each family (0..1 each; greys belong to none). */
+export function colourMemberships(c: { L: number; a: number; b: number }): Partial<Record<ColourFamily, number>> {
+  const { h, s, v } = hsvOf(c);
+  if (c.L <= 28 || v <= 0.2) return { black: 1 };
+  const floor = v >= 0.8 ? 0.13 : v >= 0.55 ? 0.2 : 0.28;
+  if (s < floor) return {};
+  for (let i = 0; i < CENTRES.length - 1; i += 1) {
+    const [fa, ha] = CENTRES[i];
+    const [fb, hb] = CENTRES[i + 1];
+    if (h < ha || h > hb) continue;
+    const t = (h - ha) / (hb - ha);
+    // Full membership in the inner half of the span near each centre; shared in the middle half.
+    const near = (w: number) => Math.min(1, Math.max(0, (w - 0.25) / 0.5));
+    const out: Partial<Record<ColourFamily, number>> = {};
+    out[fa] = near(1 - t);
+    out[fb] = (out[fb] ?? 0) + near(t);
+    return out;
+  }
+  return {};
+}
+
+/** The family one palette colour belongs to most, or null for greys. */
+export function colourFamily(c: { L: number; a: number; b: number }): ColourFamily | null {
+  let best: ColourFamily | null = null;
+  let top = 0;
+  for (const [k, w] of Object.entries(colourMemberships(c)) as [ColourFamily, number][]) {
+    if (w > top) {
+      top = w;
+      best = k;
+    }
+  }
+  return best;
 }
 
 /** How much of one card's art (its weighted palette) is in `family`, 0..1. */
 export function familyShare(colours: readonly Lab[], family: ColourFamily): number {
   let s = 0;
-  for (const c of colours) if (colourFamily(c) === family) s += c.w;
+  for (const c of colours) s += c.w * (colourMemberships(c)[family] ?? 0);
   return Math.min(1, s);
 }
 

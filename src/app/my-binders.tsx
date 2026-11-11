@@ -492,7 +492,8 @@ export default function MyBindersScreen() {
                     onOpen={openBinder}
                     minTile={104}
                     minCols={3}
-                    maxCols={6}
+                    maxCols={SHELF ? 5 : 6}
+                    pageSize={SHELF ? 10 : undefined}
                     testID="my-binders-grid"
                     accessory={(binder) => {
                       const hit = q && showBinderSearch ? matchBinder(binder, q) : null;

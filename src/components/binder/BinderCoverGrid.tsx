@@ -13,6 +13,7 @@ import { useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { BinderThumb } from '@/components/binder/BinderThumb';
+import { PagedCarousel } from '@/components/PagedCarousel';
 import type { DemoBinder } from '@/data/binderTypes';
 
 export function BinderCoverGrid({
@@ -24,6 +25,7 @@ export function BinderCoverGrid({
   minCols = 2,
   maxCols = 6,
   gap = 12,
+  pageSize,
   testID,
 }: {
   binders: readonly DemoBinder[];
@@ -36,11 +38,42 @@ export function BinderCoverGrid({
   minCols?: number;
   maxCols?: number;
   gap?: number;
+  /**
+   * AT MOST THIS MANY A PAGE, IN A CAROUSEL (owner, 2026-11-11: "My Binders GRID MODE should show
+   * only 10 at a time max in the grid (scale based on screen width), with a carousel for
+   * navigating"). The columns still come from the width; a page holds as many whole rows as stay
+   * within pageSize (5 x 2 on a desk, 3 x 3 on a phone), paged with the Discover carousel.
+   */
+  pageSize?: number;
   testID?: string;
 }) {
   const [width, setWidth] = useState(0);
   const cols = width > 0 ? Math.max(minCols, Math.min(maxCols, Math.floor((width + gap) / (minTile + gap)))) : minCols;
   const tileWidth = width > 0 ? Math.floor((width - gap * (cols - 1)) / cols) : 0;
+  if (pageSize && tileWidth > 0) {
+    const perPage = Math.max(cols, Math.floor(pageSize / cols) * cols);
+    // The trailing cell (New binder) counts as one more tile, on the last page.
+    const cells: (DemoBinder | null)[] = [...binders, ...(trailing ? [null] : [])];
+    const pages: ReactNode[] = [];
+    for (let i = 0; i < cells.length; i += perPage) {
+      pages.push(
+        <View key={i} style={[styles.grid, { gap, width }]}>
+          {cells.slice(i, i + perPage).map((binder) =>
+            binder ? (
+              <BinderThumb key={binder.id} binder={binder} width={tileWidth} onPress={() => onOpen(binder.id)} accessory={accessory?.(binder)} />
+            ) : (
+              <View key="trailing">{trailing?.(tileWidth)}</View>
+            ),
+          )}
+        </View>,
+      );
+    }
+    return (
+      <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} testID={testID}>
+        <PagedCarousel width={width} pages={pages} prevLabel="Previous binders" nextLabel="More binders" />
+      </View>
+    );
+  }
   return (
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={[styles.grid, { gap }]} testID={testID}>
       {tileWidth > 0

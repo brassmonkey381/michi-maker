@@ -77,7 +77,9 @@ export function CompletePageSheet({
   // THE SERVER FILLS, Same theme and Like the whole page, are PRO for a member; a free account
   // spends a fillPage sample on each pick (owner, 2026-10-30: "3 free uses max too for theme
   // complete and similar complete"). Previews run while a sample is left; none left locks both.
-  const SERVER: readonly CompleteMethod[] = ['theme', 'similar'];
+  // THE HAND'S SUGGEST (owner, 2026-11-11): only the three fills the one-tap Deal buttons cannot
+  // do (theme, similarity, palette), each a sample for a free account like the server fills.
+  const SERVER: readonly CompleteMethod[] = hand ? HAND_SUGGEST : ['theme', 'similar'];
   const serverFills = tierFindSimilar || taste.offer('fillPage');
   const [languages] = useLanguagePref();
   const pageKey = `${page.id}:${hand ?? 0}:${page.slots.map((s) => `${s.id}@${s.row},${s.col}`).join('|')}`;
@@ -95,8 +97,11 @@ export function CompletePageSheet({
   // One fill for a guest, ever on this device: open this visit, or still on offer.
   const guestFillOpen = guest && (taste.active('fillPage') || taste.offer('fillPage'));
   const methods = useMemo(
-    () => (cat ? completeMethodsFor(page, cat).filter((m) => !guest || GUEST_COMPLETE_METHODS.includes(m)) : []),
-    [cat, page, guest],
+    () =>
+      cat
+        ? completeMethodsFor(page, cat).filter((m) => (!guest || GUEST_COMPLETE_METHODS.includes(m)) && (!hand || HAND_SUGGEST.includes(m)))
+        : [],
+    [cat, page, guest, hand],
   );
   const empties = useMemo(() => emptyPockets(page).length, [page]);
   // A fill with no entry yet is pending; entries land one by one as the fills answer.
@@ -199,19 +204,23 @@ export function CompletePageSheet({
                 accessibilityRole="button"
                 accessibilityLabel={`${m.label}. ${m.description}`}
                 style={({ pressed }) => [styles.card, pressed && styles.pressed, none && styles.dimmed]}>
-                <Preview page={page} placements={p?.placements ?? []} pending={!ready && !locked} />
+                {hand ? (
+                  <HandPreview placements={p?.placements ?? []} pending={!ready && !locked} />
+                ) : (
+                  <Preview page={page} placements={p?.placements ?? []} pending={!ready && !locked} />
+                )}
                 <View style={styles.titleRow}>
                   <ThemedText type="smallBold" numberOfLines={1} style={styles.cardTitle}>
                     {m.label}
                   </ThemedText>
-                  {locked ? (
+                  {locked && !hand ? (
                     <View style={styles.proPill}>
                       <Text style={styles.proPillText}>PRO</Text>
                     </View>
                   ) : null}
                 </View>
                 <ThemedText type="small" themeColor="textSecondary" numberOfLines={2} style={styles.cardDesc}>
-                  {locked ? (m.key === 'theme' ? 'The scene these cards share, for the whole page.' : 'Find Similar, for the whole page at once.') : none ? (p?.failed ? 'Could not reach the server.' : m.key === 'theme' ? 'No scene two of these cards share, or the server does not have theme fill yet.' : 'Nothing found for this page.') : m.description}
+                  {locked ? (m.key === 'palette' ? m.description : m.key === 'theme' ? 'The scene these cards share, for the whole page.' : 'Find Similar, for the whole page at once.') : none ? (p?.failed ? 'Could not reach the server.' : m.key === 'theme' ? 'No scene two of these cards share, or the server does not have theme fill yet.' : 'Nothing found for this page.') : m.description}
                 </ThemedText>
                 {!hand && ready && p!.placements!.length > 0 && p!.placements!.length < empties ? (
                   <ThemedText type="small" themeColor="textSecondary" style={styles.cardDesc}>
@@ -224,6 +233,31 @@ export function CompletePageSheet({
         </ScrollView>
       )}
     </DialogCard>
+  );
+}
+
+/** The hand's Suggest: theme, similarity and palette only (the Deal buttons do type, artist, lines). */
+const HAND_SUGGEST: readonly CompleteMethod[] = ['theme', 'similar', 'palette'];
+
+/**
+ * THE HAND'S PREVIEW (owner, 2026-11-11: Suggest "should not show the original cards from the
+ * card page"): only the cards this fill would deal, up to twelve.
+ */
+function HandPreview({ placements, pending }: { placements: readonly ComposePlacement[]; pending: boolean }) {
+  const ids = placements.map((p) => p.cardId).filter((id): id is string => !!id).slice(0, 12);
+  const cells = pending ? Array.from({ length: 6 }, () => '') : ids;
+  return (
+    <View style={styles.handLeaf} testID="hand-suggest-preview">
+      {cells.map((id, i) => (
+        <View key={id || `p${i}`} style={styles.handCell}>
+          {id ? (
+            <Image source={{ uri: cardThumbUrl(id, 245) }} style={styles.cellImg} contentFit="cover" transition={0} />
+          ) : (
+            <View style={[styles.cellOpen, styles.cellPending]} />
+          )}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -275,6 +309,8 @@ const styles = StyleSheet.create({
   dimmed: { opacity: 0.55 },
   leaf: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: Radius.sm, overflow: 'hidden', backgroundColor: Palette.hairline },
   cell: { aspectRatio: 2.5 / 3.5, padding: 1 },
+  handLeaf: { flexDirection: 'row', flexWrap: 'wrap', minHeight: 60, borderRadius: Radius.sm, overflow: 'hidden', backgroundColor: Palette.hairline, padding: 1 },
+  handCell: { width: `${100 / 6}%`, aspectRatio: 2.5 / 3.5, padding: 1 },
   cellImg: { width: '100%', height: '100%', borderRadius: 2 },
   cellFresh: { borderWidth: 2, borderColor: Palette.accent },
   cellArt: { width: '100%', height: '100%', borderRadius: 2, backgroundColor: Palette.accentSoft, opacity: 0.8 },

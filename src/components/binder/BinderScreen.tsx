@@ -128,6 +128,7 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
 import { track, type CardAddVia } from '@/lib/analytics';
 import { AUTO_DEAL_ORDER, dealToHand, HAND_QUICK_DEALS } from '@/data/handDeal';
+import { TrashCan, type TrashRect } from '@/components/binder/TrashCan';
 import { useLanguagePref } from '@/store/languagePref';
 import { useAutoNames } from '@/hooks/use-auto-names';
 
@@ -376,6 +377,28 @@ export function BinderScreen({
   // MIC-017 hand: the picker is open to fill the hand (each pick lands in the tray, the sheet stays).
   const [pickToHand, setPickToHand] = useState(false);
   const [handFillOpen, setHandFillOpen] = useState(false);
+  const [trashOn, setTrashOn] = useState(false);
+  const trashHot = useRef(false);
+  const trashRect = useRef<TrashRect | null>(null);
+  const onTrashHot = useCallback((h: boolean) => {
+    trashHot.current = h;
+  }, []);
+  // A drag that ends anywhere without a drop handler (a cancelled gesture) still puts the can away.
+  useEffect(() => {
+    if (!trashOn || Platform.OS !== 'web' || typeof window === 'undefined') return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const up = () => {
+      t = setTimeout(() => {
+        trashHot.current = false;
+        setTrashOn(false);
+      }, 400);
+    };
+    window.addEventListener('pointerup', up);
+    return () => {
+      window.removeEventListener('pointerup', up);
+      if (t) clearTimeout(t);
+    };
+  }, [trashOn]);
   // MIC-017 hand part 2: the one-tap deal running now, and the pages already dealt to by itself.
   const [handDealing, setHandDealing] = useState<string | null>(null);
   // What the last deal did, shown in the hand's bar (no toast over the page).
@@ -2308,7 +2331,30 @@ export function BinderScreen({
     setSelectedSlotId(null);
     clearMulti();
   };
+  // THE TRASH CAN (owner, 2026-11-11): shown while a card is dragged; a release over it throws the
+  // card away (a hand card leaves the hand, a page card empties its pocket), with Undo.
+  const armTrash = () => {
+    if (HAND) setTrashOn(true);
+  };
+  const endTrash = () => {
+    trashHot.current = false;
+    setTrashOn(false);
+  };
+  /** Is this release over the trash? The pointer's hot state (web), else the drop point. */
+  const overTrash = (x?: number, y?: number) => {
+    if (!HAND) return false;
+    if (trashHot.current) return true;
+    const r = trashRect.current;
+    return x != null && y != null && !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+  };
+  const trashFromPage = (pageId: string, slotId: string) => {
+    endTrash();
+    store.removeSlot(binder.id, pageId, slotId);
+    setSelectedSlotId(null);
+    showToast('Thrown away', true);
+  };
   const handleTrayDragStart = (slot: DemoSlot) => {
+    armTrash();
     prevRef.current?.remeasure();
     curRef.current?.remeasure();
     nextRef.current?.remeasure();
@@ -2317,6 +2363,13 @@ export function BinderScreen({
   };
   const handleTrayDrop = (slot: DemoSlot, windowX: number, windowY: number) => {
     setDragTray(null);
+    if (overTrash(windowX, windowY)) {
+      endTrash();
+      store.removeTraySlot(binder.id, slot.id);
+      showToast('Thrown away', true);
+      return;
+    }
+    endTrash();
     const hit = resolveSpreadHit(windowX, windowY);
     if (!hit) return;
     const toPage = binder.pages.find((p) => p.id === hit.pageId);
@@ -2592,8 +2645,11 @@ export function BinderScreen({
       store.moveSlot(binder.id, pageId, slotId, r, c);
     }
   };
-  const handleDropSlot = (slotId: string, toRow: number, toCol: number) =>
+  const handleDropSlot = (slotId: string, toRow: number, toCol: number) => {
+    if (overTrash()) return trashFromPage(page.id, slotId);
+    endTrash();
     handleDropOnPage(page.id, slotId, toRow, toCol);
+  };
 
   // Spread cross-page drag: re-measure the grids at drag start, then on drop convert the reported
   // drop point (source-grid-local) into the shared window frame and resolve a page + cell. Keeping
@@ -2604,6 +2660,7 @@ export function BinderScreen({
   // function (not an inline JSX arrow) so mutating the `dragCol` shared value — which the column
   // z-index styles read — doesn't trip react-hooks/immutability.
   const startColumnDrag = (col: number) => {
+    armTrash();
     prevRef.current?.remeasure();
     curRef.current?.remeasure();
     nextRef.current?.remeasure();
@@ -2625,6 +2682,8 @@ export function BinderScreen({
   const handleCrossDrop = (fromPageId: string, slotId: string, localX: number, localY: number) => {
     dragCol.value = -1; // drag ended → drop the column back to its normal stacking
     const win = sourceRefFor(fromPageId).current?.localToWindow(localX, localY);
+    if (overTrash(win?.x, win?.y)) return trashFromPage(fromPageId, slotId);
+    endTrash();
     if (!win) return; // source grid not measured yet → springs back
     const hit = resolveSpreadHit(win.x, win.y);
     if (!hit) {
@@ -2806,7 +2865,7 @@ export function BinderScreen({
               onCrossDrop: (slotId: string, x: number, y: number) => handleCrossDrop(p.id, slotId, x, y),
               onDragStart: () => startColumnDrag(1),
             }
-          : { onDropSlot: handleDropSlot })}
+          : { onDropSlot: handleDropSlot, onDragStart: armTrash })}
       />
       {p.id === page.id ? (
         <PageWearBar
@@ -3511,11 +3570,14 @@ export function BinderScreen({
                 trayRef={trayRef}
                 onHeight={setHandH}
                 chevronBottom={phoneBarH}
-                quick={handMember && !phone ? HAND_QUICK_DEALS : undefined}
+                quick={handMember ? HAND_QUICK_DEALS : undefined}
                 onQuick={(k) => dealHand([k], false)}
                 dealing={handDealing}
                 note={handNote}
               />
+            ) : null}
+            {HAND && editing && canEdit ? (
+              <TrashCan active={trashOn} phone={phone} bottom={phone ? phoneBarH : Math.min(handH, HAND_RESERVE_DESKTOP)} onHot={onTrashHot} rectRef={trashRect} />
             ) : null}
 
             {/* DELETING THE BINDER IS NOT AN EDITING TOOL. It sat at the foot of the editor,
@@ -3863,7 +3925,8 @@ export function BinderScreen({
             visible={handFillOpen}
             page={page}
             hand={Math.max(1, 24 - (binder.tray?.length ?? 0))}
-            handHas={new Set((binder.tray ?? []).map((s) => s.cardId).filter((id): id is string => !!id))}
+            // Left out: what the hand holds AND what the page already shows (owner, 2026-11-11).
+            handHas={new Set([...(binder.tray ?? []), ...page.slots].map((s) => s.cardId).filter((id): id is string => !!id))}
             onClose={() => setHandFillOpen(false)}
             onPlaced={(placements, label) => {
               const n = store.addCardsToTray(binder.id, placements.map((p) => p.cardId).filter((id): id is string => !!id).slice(0, 24));

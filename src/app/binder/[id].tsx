@@ -60,12 +60,14 @@ function pageParam(page: string | string[] | undefined): number {
 }
 
 export default function BinderRoute() {
-  const { id, print, edit, slice, fill, page, back, resume, seeded } = useLocalSearchParams<{
+  const { id, print, edit, slice, fill, page, back, resume, seeded, tip } = useLocalSearchParams<{
     id: string;
     print?: string;
     edit?: string;
     /** `1` when my-binders just made this binder for a tagged ad arrival (data/seedPages). */
     seeded?: string;
+    /** `1` when the new-binder wizard's reveal opened this binder (MIC-017 B1-A): one tip. */
+    tip?: string;
     slice?: string;
     /** `<page>.<pocket>` (zero-based): reopen the Fill page sheet there - the way back from a sign-in (lib/authReturn). */
     fill?: string;
@@ -108,6 +110,7 @@ export default function BinderRoute() {
         initialPrintOpen={print === '1'}
         initialEditing={edit === '1' || slice === '1' || !!fill}
         seeded={seeded === 'wizard' ? 'wizard' : seeded === '1'}
+        firstRunTip={tip === '1'}
         initialStudioOpen={slice === '1'}
         initialFillAt={fill || null}
         initialPageIndex={openAt}

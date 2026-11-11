@@ -39,6 +39,7 @@ import { useCatalog } from '@/hooks/use-catalog';
 import { useBinders } from '@/store/binders';
 import { NewBinderChat } from '@/components/wizard/NewBinderChat';
 import { flag } from '@/lib/flags';
+import { BinderGrid } from '@/components/binder/BinderGrid';
 
 type Kind = 'pokemon' | 'set' | 'artist' | 'three';
 
@@ -96,6 +97,8 @@ const ASK: Record<Kind, string> = {
 
 /** MIC-017 piece 7 ('dev'): the chat in place of the step wizard. */
 const NEWBINDER_CHAT = flag('newbinder-chat');
+/** MIC-017 B1-A ('dev'): note not stop, the page-one reveal, one tip in the editor. */
+const FIRSTRUN_A = flag('firstrun-a');
 
 export default function NewBinderScreen() {
   return NEWBINDER_CHAT ? <NewBinderChat /> : <NewBinderWizard />;
@@ -131,6 +134,9 @@ function NewBinderWizard() {
   // the first pages of what they chose. `capSeen` is the selection it was shown for, so it asks
   // once per pick and not again on the way back.
   const [capAsk, setCapAsk] = useState(false);
+  // B1-A: the binder just made, shown page by page before the editor opens.
+  const [revealId, setRevealId] = useState<string | null>(null);
+  const [revealPage, setRevealPage] = useState(0);
   const [capSeen, setCapSeen] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   // THE THREE PICKS COME FROM THE KIT'S BROWSER (owner, 2026-11-05: "use the browse kit to find
@@ -203,16 +209,16 @@ function NewBinderWizard() {
   };
   // A set is one pick, so the question comes with it; a typed name settles only on Create.
   const setKey = kind === 'set' && set && overCap && !loading ? set.id : null;
-  if (setKey && capSeen !== setKey) {
+  if (setKey && capSeen !== setKey && !FIRSTRUN_A) {
     setCapSeen(setKey);
     askCap();
   }
   const createLabel = ready
-    ? `Create binder · ${overCap ? `${capped.length} / ${chosen.length}` : capped.length} ${chosen.length === 1 ? 'card' : 'cards'}`
+    ? `Create binder · ${overCap && !FIRSTRUN_A ? `${capped.length} / ${chosen.length}` : capped.length} ${chosen.length === 1 ? 'card' : 'cards'}`
     : 'Create binder';
   const create = (truncate = false) => {
     if (!kind) return;
-    if (!truncate && store.tier === 'guest' && chosen.length > capped.length) {
+    if (!truncate && !FIRSTRUN_A && store.tier === 'guest' && chosen.length > capped.length) {
       askCap();
       return;
     }
@@ -223,8 +229,16 @@ function NewBinderWizard() {
       setRefused(true);
       return;
     }
+    if (FIRSTRUN_A && kind !== 'three') {
+      // The three-card binder is one page waiting for Complete: it goes straight to its walkthrough.
+      setRevealPage(0);
+      setRevealId(made.id);
+      track('wizard.reveal', { wizard: 'new-binder', kind, pages: pages.length });
+      return;
+    }
     router.replace(`/binder/${made.id}?edit=1${kind === 'three' ? '&seeded=wizard' : ''}` as Href);
   };
+  const revealed = revealId ? store.getBinder(revealId) : undefined;
 
   const step = kind ? 2 : 1;
   const back = () => {
@@ -409,6 +423,13 @@ function NewBinderWizard() {
               </Pressable>
             </View>
           ) : null}
+          {FIRSTRUN_A && overCap && !loading ? (
+            <View style={styles.capNote} testID="wizard-cap-note">
+              <Text style={styles.capNoteText}>
+                Your first binder holds {pageCap} pages. The first {capped.length} cards go in now; a free account has room for the other {chosen.length - capped.length}.
+              </Text>
+            </View>
+          ) : null}
           {chosen.length > capped.length && store.tier !== 'guest' ? <Text style={styles.capLine}>The first {cardCap} cards go in. PRO holds more.</Text> : null}
           <Pressable
             onPress={() => create()}
@@ -441,6 +462,45 @@ function NewBinderWizard() {
           </View>
         </View>
       </Modal>
+      {FIRSTRUN_A && revealed ? (
+        <View style={styles.reveal} testID="wizard-reveal">
+          <ScrollView contentContainerStyle={styles.revealBody}>
+            <Text style={styles.revealEyebrow}>YOUR BINDER</Text>
+            <Text style={styles.revealTitle}>
+              {revealed.title}, page {revealPage === 0 ? 'one' : revealPage + 1}
+            </Text>
+            <View style={styles.revealPage}>
+              {revealed.pages[revealPage] ? (
+                <BinderGrid page={revealed.pages[revealPage]} width={Math.min(width - Spacing.three * 2, 520)} pageStyle={revealed.pageStyle} outerEdge="right" />
+              ) : null}
+            </View>
+            <Text style={styles.pageLine}>
+              Page {revealPage + 1} of {revealed.pages.length}
+            </Text>
+          </ScrollView>
+          <View style={styles.foot}>
+            {revealed.pages.length > 1 ? (
+              <Pressable
+                onPress={() => setRevealPage((i) => (i + 1) % revealed.pages.length)}
+                accessibilityRole="button"
+                testID="wizard-reveal-turn"
+                style={({ pressed }) => [styles.revealGhost, pressed && styles.pressed]}>
+                <Text style={styles.revealGhostText}>{revealPage + 1 < revealed.pages.length ? 'Turn the page' : 'Back to page one'}</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => {
+                track('wizard.reveal_continue', { wizard: 'new-binder', pages_seen: revealPage + 1 });
+                router.replace(`/binder/${revealed.id}?edit=1&tip=1` as Href);
+              }}
+              accessibilityRole="button"
+              testID="wizard-reveal-continue"
+              style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
+              <Text style={styles.primaryText}>Keep building</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
       <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
       <Toast spec={toast} onDismiss={() => setToast(null)} />
       </SafeAreaView>
@@ -515,6 +575,15 @@ const styles = StyleSheet.create({
   secondary: { alignSelf: 'flex-start', paddingVertical: 10, paddingHorizontal: 16, borderRadius: Radius.pill, borderWidth: 1.5, borderColor: Palette.accent },
   secondaryText: { color: Palette.accent, fontWeight: Weight.bold },
   foot: { padding: Spacing.three, paddingBottom: Spacing.four, gap: Spacing.two },
+  capNote: { backgroundColor: Palette.accentSoft, borderRadius: Radius.control, paddingHorizontal: Spacing.three, paddingVertical: 10 },
+  capNoteText: { fontSize: FontSize.sm, lineHeight: 19, color: Palette.ink },
+  reveal: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: Palette.surface, zIndex: 50 },
+  revealBody: { paddingHorizontal: Spacing.three, paddingTop: Spacing.four, gap: Spacing.two, alignItems: 'center' },
+  revealEyebrow: { alignSelf: 'stretch', fontSize: FontSize.xs, fontWeight: Weight.bold, letterSpacing: 1.2, color: Palette.muted },
+  revealTitle: { alignSelf: 'stretch', fontSize: 28, lineHeight: 32, fontWeight: Weight.bold, color: Palette.ink },
+  revealPage: { marginTop: Spacing.two, borderRadius: Radius.panel, overflow: 'hidden' },
+  revealGhost: { height: 50, borderRadius: Radius.control, borderWidth: 1.5, borderColor: Palette.accent, alignItems: 'center', justifyContent: 'center' },
+  revealGhostText: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.accent },
   capLine: { fontSize: FontSize.sm, color: Palette.muted, textAlign: 'center' },
   primary: { height: 50, borderRadius: Radius.control, backgroundColor: Palette.accent, alignItems: 'center', justifyContent: 'center' },
   primaryOff: { opacity: 0.4 },

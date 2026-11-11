@@ -199,6 +199,8 @@ interface BinderScreenProps {
   seeded?: boolean | 'wizard';
   /** Arrive with the Slice Studio open on the current page (`?slice=1`, from the slice guide). */
   initialStudioOpen?: boolean;
+  /** MIC-017 B1-A: arrived from the wizard's reveal, so the editor shows one tip, once. */
+  firstRunTip?: boolean;
   /**
    * Arrive with a pocket selected and the Fill page sheet open (`?fill=<page>.<pocket>`, both
    * zero-based): the way back from a web sign-in a guest started inside that sheet (lib/authReturn).
@@ -234,6 +236,7 @@ export function BinderScreen({
   initialEditing = false,
   seeded = false,
   initialStudioOpen = false,
+  firstRunTip = false,
   initialFillAt = null,
   initialPageIndex = 0,
 }: BinderScreenProps) {
@@ -912,6 +915,8 @@ export function BinderScreen({
   const [fillPlaced, setFillPlaced] = useState(false);
   // The seeded payoff card opens account creation on a tap (owner, 2026-10-30).
   const [walkthroughAuthOpen, setWalkthroughAuthOpen] = useState(false);
+  // B1-A's one tip: shown on arrival from the reveal, gone on its cross or the first change.
+  const [tipOpen, setTipOpen] = useState(firstRunTip);
   // THE CELEBRATION (owner, 2026-11-05): a seeded arrival's own card lands, and a card says what
   // to try next. A beat after the "added" toast, so the two do not land in the same frame.
   const [doneOpen, setDoneOpen] = useState(false);
@@ -4475,6 +4480,22 @@ export function BinderScreen({
             <WalkthroughBanner copy={walkthrough.copy} arrowX={ringRect.x + ringRect.width / 2 - ringLeft} onDismiss={walkthrough.dismiss} />
           </View>
         ) : null}
+        {tipOpen && editing && !walkthrough.copy ? (
+          <View
+            testID="firstrun-tip"
+            style={[styles.firstRunTip, phone ? { bottom: 96 } : { top: 120 }]}
+            pointerEvents="box-none">
+            <View style={styles.firstRunTipCard}>
+              <View style={styles.firstRunTipWords}>
+                <Text style={styles.firstRunTipTitle}>Tap any card to swap it.</Text>
+                <Text style={styles.firstRunTipBody}>Drag cards between pockets to arrange the page.</Text>
+              </View>
+              <Pressable onPress={() => setTipOpen(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close tip" testID="firstrun-tip-close">
+                <Text style={styles.firstRunTipX}>✕</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
         <AuthSheet visible={walkthroughAuthOpen} onClose={() => setWalkthroughAuthOpen(false)} />
         <FirstPageDoneSheet
           visible={doneOpen}
@@ -4971,6 +4992,12 @@ const styles = StyleSheet.create({
   moveBannerCancel: { textDecorationLine: 'underline' },
   /** Above the page (60) and the ring (65), below the docks (70): it must never cover a panel. */
   // Above the docks (70) and the Theme button's veil (75): the words must never sit in the dim.
+  firstRunTip: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingHorizontal: Spacing.three, zIndex: 80 },
+  firstRunTipCard: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, width: '100%', maxWidth: 440, padding: Spacing.three, borderRadius: Radius.panel, backgroundColor: Palette.ink },
+  firstRunTipWords: { flex: 1, gap: 2 },
+  firstRunTipTitle: { color: Palette.surface, fontWeight: Weight.bold, fontSize: FontSize.md },
+  firstRunTipBody: { color: Palette.surface, fontSize: FontSize.sm, lineHeight: 19 },
+  firstRunTipX: { color: Palette.surface, fontSize: 16, fontWeight: Weight.bold },
   walkthroughFloat: { position: 'absolute', width: 440, maxWidth: '92%', zIndex: 80 },
   flex: { flex: 1 },
   dismiss: { flex: 1, backgroundColor: Palette.scrim30 },

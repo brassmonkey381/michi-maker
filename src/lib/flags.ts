@@ -57,6 +57,10 @@ export const FLAGS = {
   // MIC-017 B2-A: Home opens on your last binder ("Keep going") with New binder / My binders /
   // Discover, and featured binders as a grid (owner pick 2026-11-11).
   'home-first': 'dev',
+  // MIC-017 B1-A (owner pick 2026-11-11, "Michi first run A"): the same two wizard steps; a guest
+  // over the page limit gets a note instead of a stop; then a reveal of page one; then the editor
+  // with one tip.
+  'firstrun-a': 'dev',
   // MIC-017 B4-A: the account sheet as a compact card, Create account | Sign in tabs at the top,
   // sized to its content so everything shows without scrolling (owner pick 2026-11-11).
   'auth-compact': 'dev',

@@ -7,6 +7,9 @@ import { AccountButton } from '@/components/auth/AccountButton';
 import { GuestBanner } from '@/components/auth/GuestBanner';
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
+import { BinderCoverGrid } from '@/components/binder/BinderCoverGrid';
+import { HomeKeepGoing } from '@/components/HomeKeepGoing';
+import { flag } from '@/lib/flags';
 import { TcgscanPairing } from '@/components/TcgscanPairing';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
@@ -43,6 +46,9 @@ import { useBinders } from '@/store/binders';
  * every home carousel at once; a future language selector would feed its state in here.
  */
 const HOME_LANGUAGES: CardLanguage[] | undefined = undefined;
+
+/** MIC-017 B2-A ('dev'): your binder first. */
+const HOME_FIRST = flag('home-first');
 
 export default function HomeScreen() {
   // First-time web visitors get the marketing page; any landing CTA sets the seen flag
@@ -255,7 +261,10 @@ export default function HomeScreen() {
           </View>
 
           {/* Quick-nav to the personal + browse pages, only where the rail isn't shown. */}
-          {railHidden ? (
+          {HOME_FIRST ? (
+            <HomeKeepGoing binders={store.userBinders} width={Math.min(width, MaxContentWidthWide)} phone={phone} />
+          ) : null}
+          {railHidden && !HOME_FIRST ? (
             <View style={styles.quickNav} testID="home-quick-nav">
               <Pressable
                 onPress={() => router.push('/my-binders' as Href)}
@@ -279,6 +288,28 @@ export default function HomeScreen() {
 
           {store.featuredBinders.length > 0 ? (
             <HomeSection title="Featured Binders">
+              {HOME_FIRST ? (
+                // A grid, two across on a phone, no sideways carousel (B2-A).
+                <BinderCoverGrid
+                  binders={store.featuredBinders}
+                  onOpen={openBinder}
+                  minTile={150}
+                  minCols={2}
+                  maxCols={4}
+                  pageSize={phone ? undefined : 8}
+                  testID="home-featured-grid"
+                  accessory={(b) =>
+                    b.authorName ? (
+                      <ProfileAvatarButton
+                        username={b.authorName}
+                        avatarUrl={featuredAvatars.get(b.authorName.toLowerCase())}
+                        size={TILE_AVATAR}
+                        onPress={() => router.push(`/u/${b.authorName}` as Href)}
+                      />
+                    ) : null
+                  }
+                />
+              ) : (
               <BinderCarousel
                 binders={store.featuredBinders}
                 onOpen={openBinder}
@@ -293,6 +324,7 @@ export default function HomeScreen() {
                   ) : null
                 }
               />
+              )}
             </HomeSection>
           ) : null}
 

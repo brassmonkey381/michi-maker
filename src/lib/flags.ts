@@ -52,6 +52,9 @@ export const FLAGS = {
   // MIC-017 piece 14: the How-To index is pictures first, titles only (owner: less text, bigger
   // pictures).
   'learn-clean': 'dev',
+  // MIC-017 B2-A: Home opens on your last binder ("Keep going") with New binder / My binders /
+  // Discover, and featured binders as a grid (owner pick 2026-11-11).
+  'home-first': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

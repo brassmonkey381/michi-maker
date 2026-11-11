@@ -321,6 +321,15 @@ interface BinderGridProps {
   onCrossDrop?: (slotId: string, localX: number, localY: number) => void;
   /** Fired when a slot drag begins — lets the editor re-measure sibling grids for hit-testing. */
   onDragStart?: () => void;
+  /**
+   * THE DRAGGED CARD ABOVE EVERYTHING (owner, 2026-11-11: "the card being dragged should be on
+   * top, and then the trashcan ... the hand / page at the lowest"). With `lift`, this grid draws
+   * no ghost of its own: the drag's pointer (window coords) and grab point go into these values
+   * and the editor draws the card in its top layer, over the trash can.
+   */
+  lift?: GridLift;
+  /** A drag began with `lift`: the slot and its size on screen. */
+  onLift?: (slot: DemoSlot, w: number, h: number) => void;
   /** Footprints to highlight as legal drop targets while a slice is armed/dragged from the tray. */
   dropTargets?: readonly { row: number; col: number; rs: number; cs: number }[];
   /** Card ids the viewer owns (own ≥ 1) — card slots for these get a green ✓ corner badge.
@@ -416,6 +425,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     finishAskable,
     onCrossDrop,
     onDragStart,
+    lift: gridLift,
+    onLift,
     dropTargets,
     ownedIds,
     onOwnedPress,
@@ -994,7 +1005,9 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               onTap={onSlotPress}
               onDropSlot={onDropSlot}
               onCrossDrop={onCrossDrop}
-              onDragStart={onDragStart}>
+              onDragStart={onDragStart}
+              lift={gridLift}
+              onLift={onLift}>
               {sleeveWrap(slot, content)}
             </DraggableSlot>
           );
@@ -1187,8 +1200,9 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             );
           })}
 
-        {/* Floating ghost of the slot being dragged (rendered above everything). */}
-        {dragged ? (
+        {/* Floating ghost of the slot being dragged (rendered above everything). With `lift` the
+            editor draws it instead, above the trash can. */}
+        {dragged && !gridLift ? (
           <Animated.View
             pointerEvents="none"
             style={[
@@ -1625,7 +1639,18 @@ interface DraggableSlotProps {
   onDropSlot?: (slotId: string, toRow: number, toCol: number) => void;
   onCrossDrop?: (slotId: string, absoluteX: number, absoluteY: number) => void;
   onDragStart?: () => void;
+  lift?: GridLift;
+  onLift?: (slot: DemoSlot, w: number, h: number) => void;
   children: ReactNode;
+}
+
+/** The editor's top-layer ghost for a pocket drag: pointer and grab point, in window coords. */
+export interface GridLift {
+  on: SharedValue<number>;
+  x: SharedValue<number>;
+  y: SharedValue<number>;
+  grabX: SharedValue<number>;
+  grabY: SharedValue<number>;
 }
 
 function DraggableSlot({
@@ -1645,6 +1670,8 @@ function DraggableSlot({
   onDropSlot,
   onCrossDrop,
   onDragStart,
+  lift,
+  onLift,
   children,
 }: DraggableSlotProps) {
   const gesture = useMemo(() => {
@@ -1657,13 +1684,25 @@ function DraggableSlot({
         dragX.value = 0;
         dragY.value = 0;
       })
-      .onStart(() => {
+      .onStart((e) => {
         runOnJS(onSetDragId)(slot.id);
         if (onDragStart) runOnJS(onDragStart)();
+        if (lift) {
+          lift.grabX.value = e.x;
+          lift.grabY.value = e.y;
+          lift.x.value = e.absoluteX;
+          lift.y.value = e.absoluteY;
+          lift.on.value = 1;
+          if (onLift) runOnJS(onLift)(slot, slot.colSpan * cellW + (slot.colSpan - 1) * gap, slot.rowSpan * cellH + (slot.rowSpan - 1) * (gap + captionH));
+        }
       })
       .onUpdate((e) => {
         dragX.value = e.translationX;
         dragY.value = e.translationY;
+        if (lift) {
+          lift.x.value = e.absoluteX;
+          lift.y.value = e.absoluteY;
+        }
       })
       .onEnd((e) => {
         // In the spread, report the dragged card's CENTRE in this grid's inner-content coords
@@ -1684,13 +1723,14 @@ function DraggableSlot({
         }
       })
       .onFinalize(() => {
+        if (lift) lift.on.value = 0;
         runOnJS(onSetDragId)(null);
       });
     const tap = Gesture.Tap().onEnd(() => {
       if (onTap) runOnJS(onTap)(slot);
     });
     return Gesture.Exclusive(pan, tap);
-  }, [slot, cellW, cellH, gap, captionH, dragX, dragY, onSetDragId, onTap, onDropSlot, onCrossDrop, onDragStart]);
+  }, [slot, cellW, cellH, gap, captionH, dragX, dragY, onSetDragId, onTap, onDropSlot, onCrossDrop, onDragStart, lift, onLift]);
 
   // THE CARD SETTLES, it does not teleport. A move, a swap and a resize all used to be a frame
   // swap: the card was in one pocket, then it was in another, with nothing in between. Springing

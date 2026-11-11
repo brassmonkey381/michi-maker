@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 
 import { cardThumbUrl } from '@/lib/catalogConfig';
@@ -129,6 +129,8 @@ import { downloadBinderHiresImage, type ShareImageOptions } from '@/lib/appUrl';
 import { track, type CardAddVia } from '@/lib/analytics';
 import { AUTO_DEAL_ORDER, dealToHand, HAND_QUICK_DEALS } from '@/data/handDeal';
 import { TrashCan, type TrashRect } from '@/components/binder/TrashCan';
+import type { GridLift } from '@/components/binder/BinderGrid';
+import { TopLayer } from '@/components/binder/TopLayer';
 import { useLanguagePref } from '@/store/languagePref';
 import { useAutoNames } from '@/hooks/use-auto-names';
 
@@ -213,6 +215,11 @@ const EYEDROPPER_BANNER = { position: 'absolute' as const, top: 8, left: 12, rig
 /** Cards whose owned mark is mid-write, so a double tap cannot add two copies. Module-level on
  *  purpose: the screen returns early above where the handler sits, so a hook cannot live there. */
 const owningBusy = new Set<string>();
+
+/** The trash can's heat, which the dragged card shrinks with (owner, 2026-11-11). */
+function setHeat(v: SharedValue<number>, hot: boolean) {
+  v.value = withTiming(hot ? 1 : 0, { duration: 140 });
+}
 
 export function BinderScreen({
   binderId,
@@ -380,9 +387,15 @@ export function BinderScreen({
   const [trashOn, setTrashOn] = useState(false);
   const trashHot = useRef(false);
   const trashRect = useRef<TrashRect | null>(null);
-  const onTrashHot = useCallback((h: boolean) => {
-    trashHot.current = h;
-  }, []);
+  // Over a hot trash can the dragged card shrinks toward it, so the red can shows around the card.
+  const trashHeat = useSharedValue(0);
+  const onTrashHot = useCallback(
+    (h: boolean) => {
+      trashHot.current = h;
+      setHeat(trashHeat, h);
+    },
+    [trashHeat],
+  );
   // A drag that ends anywhere without a drop handler (a cancelled gesture) still puts the can away.
   useEffect(() => {
     if (!trashOn || Platform.OS !== 'web' || typeof window === 'undefined') return;
@@ -665,6 +678,24 @@ export function BinderScreen({
   const ghostStyle = useAnimatedStyle(() => ({
     opacity: ghostOn.value,
     transform: [{ translateX: ghostX.value - 34 }, { translateY: ghostY.value - 24 }],
+  }));
+  // A POCKET'S CARD, DRAGGED, IN THE TOP LAYER (owner, 2026-11-11): above the trash can, which is
+  // above the page and the hand. The grids report the pointer here instead of drawing a ghost.
+  const liftOn = useSharedValue(0);
+  const liftX = useSharedValue(0);
+  const liftY = useSharedValue(0);
+  const liftGX = useSharedValue(0);
+  const liftGY = useSharedValue(0);
+  const lift = useMemo<GridLift>(() => ({ on: liftOn, x: liftX, y: liftY, grabX: liftGX, grabY: liftGY }), [liftOn, liftX, liftY, liftGX, liftGY]);
+  const [lifted, setLifted] = useState<{ slot: DemoSlot; w: number; h: number } | null>(null);
+  const onLift = useCallback((slot: DemoSlot, w: number, h: number) => setLifted({ slot, w, h }), []);
+  const liftStyle = useAnimatedStyle(() => ({
+    opacity: liftOn.value * (1 - trashHeat.value * 0.15),
+    transform: [{ translateX: liftX.value - liftGX.value }, { translateY: liftY.value - liftGY.value }, { scale: 1.04 - trashHeat.value * 0.62 }],
+  }));
+  const trayGhostStyle = useAnimatedStyle(() => ({
+    opacity: ghostOn.value,
+    transform: [{ translateX: ghostX.value - 28 }, { translateY: ghostY.value - 39 }, { scale: 1 - trashHeat.value * 0.45 }],
   }));
 
   // NOTE: we deliberately do NOT prefetch the ~27MB catalog here. Viewing/editing a binder
@@ -2339,6 +2370,7 @@ export function BinderScreen({
   const endTrash = () => {
     trashHot.current = false;
     setTrashOn(false);
+    setLifted(null);
   };
   /** Is this release over the trash? The pointer's hot state (web), else the drop point. */
   const overTrash = (x?: number, y?: number) => {
@@ -2768,6 +2800,8 @@ export function BinderScreen({
             : {})}
           onCrossDrop={(slotId, x, y) => handleCrossDrop(p.id, slotId, x, y)}
           onDragStart={() => startColumnDrag(role === 'prev' ? 0 : 2)}
+          lift={HAND ? lift : undefined}
+          onLift={onLift}
         />
       );
     }
@@ -2811,6 +2845,8 @@ export function BinderScreen({
           }}
           onCrossDrop={(slotId, x, y) => handleCrossDrop(p.id, slotId, x, y)}
           onDragStart={() => startColumnDrag(isPrev ? 0 : 2)}
+          lift={HAND ? lift : undefined}
+          onLift={onLift}
         />
       );
     }
@@ -2860,6 +2896,8 @@ export function BinderScreen({
         }}
         onPickCopySlot={pickCopyForSelected}
         dropTargets={p.id === page.id ? dropTargets : undefined}
+        lift={HAND ? lift : undefined}
+        onLift={onLift}
         {...(role === 'current'
           ? {
               onCrossDrop: (slotId: string, x: number, y: number) => handleCrossDrop(p.id, slotId, x, y),
@@ -3576,9 +3614,6 @@ export function BinderScreen({
                 note={handNote}
               />
             ) : null}
-            {HAND && editing && canEdit ? (
-              <TrashCan active={trashOn} phone={phone} bottom={phone ? phoneBarH : Math.min(handH, HAND_RESERVE_DESKTOP)} onHot={onTrashHot} rectRef={trashRect} />
-            ) : null}
 
             {/* DELETING THE BINDER IS NOT AN EDITING TOOL. It sat at the foot of the editor,
                 below the pages, where the only reason to scroll past your own binder was to find
@@ -3662,7 +3697,29 @@ export function BinderScreen({
               <SliceThumb slice={dragSlice} style={StyleSheet.absoluteFill} />
             </Animated.View>
           ) : null}
-          {dragTray?.cardId ? (
+          {/* THE TOP LAYERS (owner, 2026-11-11: "the card being dragged should be on top, and then
+              the trashcan ... the hand / page at the lowest"). One body-level layer (TopLayer), so
+              no z-index inside the editor can reach over it; inside it, lowest first: the trash
+              can, then the card being dragged. */}
+          {HAND && editing && canEdit ? (
+            <TopLayer>
+              <TrashCan active={trashOn} bottom={phone ? phoneBarH : 0} onHot={onTrashHot} rectRef={trashRect} />
+              {lifted ? (
+                <Animated.View pointerEvents="none" style={[styles.liftGhost, { width: lifted.w, height: lifted.h }, liftStyle]}>
+                  {lifted.slot.cardId ? (
+                    <Image source={{ uri: cardThumbUrl(lifted.slot.cardId, 640) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />
+                  ) : lifted.slot.imageUrl ? (
+                    <Image source={{ uri: lifted.slot.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />
+                  ) : null}
+                </Animated.View>
+              ) : null}
+              {dragTray?.cardId ? (
+                <Animated.View pointerEvents="none" style={[styles.dragGhost, styles.dragGhostCard, trayGhostStyle]}>
+                  <Image source={{ uri: cardThumbUrl(dragTray.cardId, 245) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />
+                </Animated.View>
+              ) : null}
+            </TopLayer>
+          ) : dragTray?.cardId ? (
             <Animated.View pointerEvents="none" style={[styles.dragGhost, styles.dragGhostCard, ghostStyle]}>
               <Image source={{ uri: cardThumbUrl(dragTray.cardId, 245) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />
             </Animated.View>
@@ -5010,7 +5067,21 @@ const styles = StyleSheet.create({
   // A contained danger chip, centred and sized to its label — so the tap target is the button,
   // not the whole row width (an easy place to fat-finger a destructive action).
   // Floating drag preview that follows the finger while a slice is dragged from the tray.
-  dragGhostCard: { width: 56, height: 78 },
+  dragGhostCard: { width: 56, height: 78, zIndex: 500 },
+  liftGhost: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    borderRadius: 6,
+    overflow: 'hidden',
+    backgroundColor: Palette.panel,
+    zIndex: 500,
+    shadowColor: '#000',
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 14,
+  },
   // The Arrange bar: bottom centre, over the page being previewed, under the docks.
   arrangeFloat: { position: 'absolute', bottom: 20, left: 0, right: 0, alignItems: 'center', zIndex: 71, pointerEvents: 'box-none' },
   dragGhost: {

@@ -4,7 +4,7 @@
  * animate, color switch, etc, when a card is in range and can be released to be thrown in the
  * trash."
  *
- * It slides in at the screen's bottom-left only while a card is being dragged. While the pointer
+ * It slides in at the bottom centre of the screen, only while a card is being dragged. While the pointer
  * is over it (with RANGE px of slack), it is HOT: it grows, turns red, tips its lid open and
  * wiggles, and `onHot` tells the editor a release here throws the card away. The editor decides
  * what that means (a hand card leaves the hand, a page card empties its pocket) and offers Undo.
@@ -42,15 +42,13 @@ interface TrashCanProps {
   active: boolean;
   /** Distance from the screen's bottom edge (the phone's tool bar). */
   bottom: number;
-  /** Phone: bottom-left, opposite the hand's chevron. Wider: bottom centre, clear of the side rails. */
-  phone: boolean;
   /** Hot changed: a release now throws the card away. */
   onHot: (hot: boolean) => void;
   /** The can's window rectangle, for a drop-point test. */
   rectRef?: { current: TrashRect | null };
 }
 
-export function TrashCan({ active, bottom, phone, onHot, rectRef }: TrashCanProps) {
+export function TrashCan({ active, bottom, onHot, rectRef }: TrashCanProps) {
   const ref = useRef<View>(null);
   const [hot, setHot] = useState(false);
   const hotRef = useRef(false);
@@ -84,7 +82,7 @@ export function TrashCan({ active, bottom, phone, onHot, rectRef }: TrashCanProp
     const t = setTimeout(read, 200);
     read();
     return () => clearTimeout(t);
-  }, [active, rectRef, bottom, phone]);
+  }, [active, rectRef, bottom]);
 
   // The pointer, while a drag is on (web: window events still arrive during a held gesture).
   useEffect(() => {
@@ -125,7 +123,7 @@ export function TrashCan({ active, bottom, phone, onHot, rectRef }: TrashCanProp
       style={[
         styles.can,
         hot ? styles.canHot : null,
-        place(phone, bottom),
+        place(bottom),
         wrapStyle,
       ]}
       accessibilityElementsHidden={!active}
@@ -146,8 +144,12 @@ export function TrashCan({ active, bottom, phone, onHot, rectRef }: TrashCanProp
   );
 }
 
-function place(phone: boolean, bottom: number): object {
-  const at = phone ? { left: 14, bottom: bottom + 14 } : { left: '50%', marginLeft: -SIZE / 2, bottom: bottom + 18 };
+/**
+ * ONE PLACE, ALWAYS (owner, 2026-11-11: "just ONE trash icon, in the same spot always"): bottom
+ * centre of the screen, whatever the hand is doing; on a phone, just above the tool bar.
+ */
+function place(bottom: number): object {
+  const at = { left: '50%', marginLeft: -SIZE / 2, bottom: bottom + 18 };
   return Platform.OS === 'web' ? ({ position: 'fixed', ...at } as unknown as object) : at;
 }
 
@@ -175,5 +177,6 @@ const styles = StyleSheet.create({
   lidBar: { width: 26, height: 3, borderRadius: 1.5 },
   body: { width: 20, height: 20, borderBottomLeftRadius: 4, borderBottomRightRadius: 4, flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center', paddingVertical: 4 },
   rib: { width: 2, height: '100%', borderRadius: 1 },
-  label: { position: 'absolute', top: -20, fontSize: 11, fontWeight: '700', color: HOT },
+  // A white pill, so the word reads over card art as well as over the page.
+  label: { position: 'absolute', top: -22, fontSize: 11, fontWeight: '700', color: HOT, backgroundColor: '#ffffff', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8, overflow: 'hidden' },
 });

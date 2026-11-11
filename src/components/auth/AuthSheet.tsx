@@ -62,7 +62,8 @@ export function AuthSheet({ visible, onClose, onAuthed }: { visible: boolean; on
   // THE CAP IS THE WINDOW, NOT A PERCENTAGE. maxHeight: '90%' was 90% of the card's wrapper, and the
   // wrapper is only as tall as the card's content, so the card was always 10% shorter than what it
   // held: the reason "Already have an account? Sign in" sat below the fold even with room to spare
-  // (owner, 2026-11-11). Now it may use the window, less the backdrop's padding.
+  // (owner, 2026-11-11). Now it may use the window, less the backdrop's padding. Live for everyone
+  // since the owner's yes 2026-11-11 ("With fix live"); the B4-A tabs stay behind 'auth-compact'.
   const { height: windowH } = useWindowDimensions();
 
   return (
@@ -73,7 +74,7 @@ export function AuthSheet({ visible, onClose, onAuthed }: { visible: boolean; on
           style={styles.center}>
           {/* Stop backdrop taps from closing when interacting with the card. */}
           <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-            <ThemedView type="backgroundElement" style={[styles.card, COMPACT ? { maxHeight: windowH - 2 * Spacing.four } : null]}>
+            <ThemedView type="backgroundElement" style={[styles.card, { maxHeight: windowH - 2 * Spacing.four }]}>
               {auth.isSignedIn ? (
                 <ProfileView onClose={onClose} />
               ) : (
@@ -227,7 +228,7 @@ function AuthForm({ onClose, onAuthed, isGuest }: { onClose: () => void; onAuthe
   const placeholder = theme.textSecondary;
 
   return (
-    <ScrollView keyboardShouldPersistTaps="handled" style={COMPACT ? styles.scrollFit : undefined} contentContainerStyle={[styles.form, COMPACT && styles.formCompact]}>
+    <ScrollView keyboardShouldPersistTaps="handled" style={styles.scrollFit} contentContainerStyle={[styles.form, COMPACT && styles.formCompact]}>
       {COMPACT ? (
         <View style={styles.headerRow}>
           <View style={[styles.tabs, { borderColor: theme.backgroundSelected }]} accessibilityRole="tablist">

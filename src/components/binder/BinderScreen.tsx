@@ -3986,7 +3986,9 @@ export function BinderScreen({
           visible={sidesShown && (!phone || cardsWantsPanel)}
           page={page}
           cell={pickerCell}
-          slot={slotAtCell}
+          // Hand Search borrows pocket (0,0) only to open the sheet; its card is not the subject.
+          slot={pickToHand ? undefined : slotAtCell}
+          toHand={pickToHand}
           onClose={closePicker}
           onPickCard={handlePickCard}
           onPickVUnion={handlePickVUnion}

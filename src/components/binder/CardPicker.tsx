@@ -23,6 +23,7 @@ import type { CatalogCard } from '@/lib/catalog';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { flatChip, sheet } from '@/constants/ui';
 import { cardPictureAction } from '@/lib/cardPicture';
+import { pickerPrimaryLabel, pickerSelectedCard, pickerTitle } from '@/data/pickerCopy';
 
 /** Tasteful tonal inserts for filling a pocket with negative space. */
 const INSERT_TONES: { label: string; color: string }[] = [
@@ -122,6 +123,8 @@ interface CardPickerProps {
   guest?: boolean;
   /** A denser card grid (MIC-017: picking for the editor hand on desktop). */
   dense?: boolean;
+  /** Opened from the hand's Search: nothing in the browser names a pocket (owner, 2026-11-12). */
+  toHand?: boolean;
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
   /**
    * A PICTURE INSERT (owner, 2026-11-03: "allow uploading as inserts too"): an upload of your own
@@ -183,6 +186,7 @@ export function CardPicker({
   trayHead,
   guest,
   dense = false,
+  toHand = false,
   armedSliceId,
   onArmSlice,
   onSliceDragStart,
@@ -260,7 +264,8 @@ export function CardPicker({
   // footprints derive from the card's kind at drop time (BinderScreen.footprintForKind), so the
   // browse stays one list. The sheet gets a definite height so its FlatList has a bounded viewport.
   const sizeLabel = `${shape.rows}×${shape.cols}`;
-  const title = slot ? 'Edit pocket' : 'Add to pocket';
+  const target = toHand ? 'hand' : 'pocket';
+  const title = pickerTitle(target, !!slot);
 
   // Place a themed background (our owned procedural art) as a spanning artwork. Seeded from the
   // pocket so a page of themes doesn't render identically. Fills the whole footprint as one
@@ -413,7 +418,7 @@ export function CardPicker({
     key: 'quick-place',
     // Occupied pockets say so: a one-tap replace should not look like a one-tap add. The sheet
     // spells out whose card is being replaced; the pill has room for one glyph.
-    label: slot ? '⇄' : '＋',
+    label: slot && !toHand ? '⇄' : '＋',
     onPress: (c) => onPickCard(c.id, c),
   });
 
@@ -517,7 +522,22 @@ export function CardPicker({
             // away the pages it has already loaded (see the kit's onEndReached).
             key="fill-session"
           catalog={catalog}
-          selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
+          selectedCardId={pickerSelectedCard(target, slot ?? undefined)}
+          // From the hand the sheet's main button says where the card goes (owner, 2026-11-12:
+          // it said Replace "<the pocket's card>" while adding to the hand).
+          cardActions={
+            toHand
+              ? (_card, b) => [
+                  { key: 'place', kind: 'primary', label: (c: CatalogCard) => pickerPrimaryLabel('hand', c.id), onPress: (c: CatalogCard) => onPickCard(c.id, c) },
+                  b.moreLikeThis,
+                  b.lessLikeThis,
+                  b.findSimilar,
+                  b.viewSet,
+                  b.viewIllustrator,
+                  cardPictureAction('picker', onToast ?? (() => {})),
+                ].filter((a): a is CardAction => Boolean(a))
+              : undefined
+          }
           onPickCard={onPickCard}
           onPickVUnion={onPickVUnion}
           onPickCards={onPickCards}

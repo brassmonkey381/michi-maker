@@ -9,6 +9,7 @@ import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { BinderCoverGrid } from '@/components/binder/BinderCoverGrid';
 import { HomeKeepGoing } from '@/components/HomeKeepGoing';
+import { HomeDesktopRow } from '@/components/HomeDesktopRow';
 import { flag } from '@/lib/flags';
 import { TcgscanPairing } from '@/components/TcgscanPairing';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
@@ -229,7 +230,8 @@ export default function HomeScreen() {
     <PageShell maxWidth={MaxContentWidthWide} back={false} footer={false}>
           {/* Today's puzzle, when this person has not seen it. Renders nothing otherwise, including
               for guests and for anyone who said no once. */}
-          <DailyPuzzleCard />
+          {/* Wide screens under home-first carry the puzzle in their own panel (HomeDesktopRow). */}
+          {HOME_FIRST && !phone ? null : <DailyPuzzleCard />}
           <View style={[styles.headerRow, phone && styles.headerRowPhone]}>
             <ThemedText type="title" style={[styles.h1, phone && styles.h1Phone]}>
               <Wordmark />
@@ -262,7 +264,12 @@ export default function HomeScreen() {
 
           {/* Quick-nav to the personal + browse pages, only where the rail isn't shown. */}
           {HOME_FIRST ? (
-            <HomeKeepGoing binders={store.userBinders} width={Math.min(width, MaxContentWidthWide)} phone={phone} />
+            phone ? (
+              <HomeKeepGoing binders={store.userBinders} width={Math.min(width, MaxContentWidthWide)} phone={phone} />
+            ) : (
+              // Owner 2026-11-12: three panels across on desktop, Keep going + puzzle + What's new.
+              <HomeDesktopRow binders={store.userBinders} />
+            )
           ) : null}
           {railHidden && !HOME_FIRST ? (
             <View style={styles.quickNav} testID="home-quick-nav">

@@ -324,6 +324,23 @@ const tagsFor = (w) => [`scene:${w}`, `object:${w}`, ...(SPECIAL_WORDS[w] ? [`${
  *     of the pair being thrown away. The grader's verdict on a word is remembered per pair.
  */
 const inspected = new Map();
+
+/**
+ * MINOR SCENE WORDS DO NOT ANSWER A PUZZLE (owner, 2026-11-11, after Exeggcute 589941 answered the
+ * city + house day: the tagger read a basketball court as house and city). tcgscan-data rates each
+ * scene word on a card dominant / prominent / minor in public.scene_tag_salience. A card is not a
+ * match for a word when that word is only a minor scene on it and the card has no object tag for
+ * it. A word with no row (older tagging) counts as not minor. Until the table exists, no check.
+ */
+const SALIENCE = (await dataSql(`select to_regclass('public.scene_tag_salience') is not null as ok`))[0]?.ok === true;
+console.log(`  scene salience: ${SALIENCE ? 'minor scene words skipped' : 'table not live yet, not applied'}`);
+const notMinor = (w) => {
+  if (!SALIENCE) return '';
+  const word = w.replace(/'/g, "''");
+  return `and (c.scene_tags && ${textArray([`object:${w}`])} or not exists (
+         select 1 from public.scene_tag_salience z
+          where z.product_id = c.id::text and z.kind = 'scene' and z.word = '${word}' and z.salience = 'minor'))`;
+};
 const graded = new Map();
 const reported = new Set();
 const inspect = async (s) => {
@@ -361,6 +378,8 @@ const inspect = async (s) => {
           ) t
          where c.scene_tags && ${textArray(tagsFor(s.w1))}
            and c.scene_tags && ${textArray(tagsFor(s.w2))}
+           ${notMinor(s.w1)}
+           ${notMinor(s.w2)}
          group by c.id, c.name, c.number, c.rarity, c.set_name, c.illustrator, c.full_art_kind, c.full_art_score
       )
       select *, least(w1, w2) as weakest,

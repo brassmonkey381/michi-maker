@@ -102,6 +102,46 @@ table(await appSql(`
    where created >= now() - interval '72 hours' and (status_code is null or status_code not between 200 and 299)
    order by created desc limit 5;`));
 
+out('\n6. Last 24 h: every review created or finished');
+table(await appSql(`
+  select count(*) as rows,
+         count(*) filter (where created_at >= now() - interval '24 hours') as created,
+         count(*) filter (where status = 'done' and checked_at >= now() - interval '24 hours') as finished,
+         count(*) filter (where status = 'done' and checked_at >= now() - interval '24 hours' and model is not null
+           and label in ('safe','suggestive','explicit','refused') and coalesce(reason,'') not like 'Same picture%') as model_answers,
+         count(*) filter (where coalesce(reason,'') like 'Same picture%' and checked_at >= now() - interval '24 hours') as matched_known_picture,
+         count(*) filter (where status = 'error') as error_now
+    from public.image_reviews
+   where created_at >= now() - interval '24 hours' or checked_at >= now() - interval '24 hours';`));
+table(await appSql(`
+  select to_char(created_at, 'MM-DD HH24:MI') as created, to_char(checked_at, 'MM-DD HH24:MI') as checked,
+         binder_id, status, coalesce(label, '-') as label, attempts, left(coalesce(reason, ''), 90) as reason_or_error
+    from public.image_reviews
+   where created_at >= now() - interval '24 hours' or checked_at >= now() - interval '24 hours'
+   order by coalesce(checked_at, created_at) desc limit 60;`));
+
+out('\n7. Last successful Anthropic call (a model answer stored on a review)');
+table(await appSql(`
+  select max(checked_at) as last_model_answer, max(model) as model,
+         count(*) as model_answers_ever
+    from public.image_reviews
+   where status = 'done' and model is not null and label in ('safe','suggestive','explicit','refused')
+     and coalesce(reason,'') not like 'Same picture%' and coalesce(reason,'') not like 'Procedural%';`));
+
+out('\n8. Function secrets present (names only, never values)');
+{
+  const tok = process.env.SUPABASE_ACCESS_TOKEN;
+  if (!tok) out('  could not check: no management token in the environment');
+  else {
+    const res = await fetch('https://api.supabase.com/v1/projects/piikwvntldytjejxmcla/secrets', { headers: { Authorization: `Bearer ${tok}` } });
+    if (!res.ok) out(`  could not check: secrets list refused (${res.status})`);
+    else {
+      const names = new Set((await res.json()).map((s) => s.name));
+      for (const n of ['ANTHROPIC_API_KEY', 'IMAGE_REVIEW_SECRET']) out(`  ${n}: ${names.has(n) ? 'yes' : 'NO'}`);
+    }
+  }
+}
+
 fs.mkdirSync(`${ROOT}/state/out`, { recursive: true });
 fs.writeFileSync(`${ROOT}/state/out/image-review-health.txt`, lines.join('\n') + '\n');
 out('\nOK: read-only, nothing written to the database. Saved to state/out/image-review-health.txt');

@@ -177,3 +177,30 @@ export function samePictureRows<T extends { id: number; sha256: string | null; d
       (!!target.dhash && !!r.dhash && hammingHex(r.dhash, target.dhash) <= SAME_PICTURE_BITS),
   );
 }
+
+/** MIC-029 gap 3: a stall email goes out at most this often while the check stays stuck. */
+export const STALL_EVERY_MIN = 6 * 60;
+
+/** The admin email when image_review_stall() says the check is stuck. Plain words, no images. */
+export function stallText(reasons: string[], studioUrl: string): { subject: string; text: string } {
+  const lines = reasons.length ? reasons : ['stuck for a reason the check did not name'];
+  return {
+    subject: 'Michi image check has stopped',
+    text: [
+      'The image safety check is not keeping up. Pictures waiting for it stay hidden from visitors until it runs, so nothing unchecked is shown.',
+      '',
+      ...lines.map((l) => `- ${l}`),
+      '',
+      `Studio's Health panel shows the same: ${studioUrl}`,
+      `You will get this at most every ${STALL_EVERY_MIN / 60} hours while it stays stuck.`,
+    ].join('\n'),
+  };
+}
+
+/** Send a stall email now? Only when stalled and the last one is older than STALL_EVERY_MIN. */
+export function stallDue(stalled: boolean, lastSentIso: string | null, nowMs: number): boolean {
+  if (!stalled) return false;
+  if (!lastSentIso) return true;
+  const last = Date.parse(lastSentIso);
+  return Number.isNaN(last) || nowMs - last >= STALL_EVERY_MIN * 60e3;
+}

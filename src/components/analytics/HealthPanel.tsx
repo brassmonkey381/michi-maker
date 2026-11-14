@@ -12,17 +12,10 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { toneOf } from '@/data/healthTone';
 import { fetchHealth, type HealthRow } from '@/data/studioOps';
 
 const HOUR = 3_600_000;
-/** Hours of silence after which a signal turns amber, then red (double). Unlisted: never. */
-const STALE_HOURS: Record<string, number> = {
-  'Michi event recorded': 24,
-  'TCGScan event recorded': 72,
-  'Account created': 24 * 7,
-  'Free trial started': 24 * 14,
-  'Stripe webhook wrote': 24 * 30,
-};
 
 function ago(iso: string | null): string {
   if (!iso) return 'never';
@@ -35,22 +28,6 @@ function ago(iso: string | null): string {
   if (ms < HOUR) return `${Math.max(1, Math.round(ms / 60_000))} min ago`;
   if (ms < 48 * HOUR) return `${Math.round(ms / HOUR)}h ago`;
   return `${Math.round(ms / (24 * HOUR))} days ago`;
-}
-
-type Tone = 'ok' | 'warn' | 'bad';
-
-function toneOf(r: HealthRow): Tone {
-  // A scheduled thing is judged by how much runway is left, not by when it was last touched.
-  if (r.signal.startsWith('Daily puzzle')) {
-    if (!r.at) return 'bad';
-    const daysAhead = (Date.parse(r.at) - Date.now()) / (24 * HOUR);
-    return daysAhead < 1 ? 'bad' : daysAhead < 3 ? 'warn' : 'ok';
-  }
-  const limit = STALE_HOURS[r.signal];
-  if (!limit) return 'ok';
-  if (!r.at) return 'bad';
-  const hours = (Date.now() - Date.parse(r.at)) / HOUR;
-  return hours > limit * 2 ? 'bad' : hours > limit ? 'warn' : 'ok';
 }
 
 export function HealthPanel() {

@@ -38,7 +38,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk@1';
 import { publishableKey, secretKey } from '../_shared/keys.ts';
-import { NOTICE_EVERY_MIN, REVIEW_MODEL, REVIEW_SCHEMA, REVIEW_SYSTEM, SAME_PICTURE_BITS, dhashHex, hammingHex, isModelType, noticeText, parseAnswer, renderUrl, samePictureRows, sniffImage, verdictFor, type ModelType, type ReviewLabel } from './classify.ts';
+import { NOTICE_EVERY_MIN, REVIEW_MODEL, stallDue, stallText, REVIEW_SCHEMA, REVIEW_SYSTEM, SAME_PICTURE_BITS, dhashHex, hammingHex, isModelType, noticeText, parseAnswer, renderUrl, samePictureRows, sniffImage, verdictFor, type ModelType, type ReviewLabel } from './classify.ts';
 
 /** Checks per invocation; cron runs every minute, so a backlog drains across runs. */
 const BATCH = 20;
@@ -189,6 +189,34 @@ async function notifyAdmin(admin: any): Promise<void> {
   await admin.from('admin_notices').upsert({ kind: 'image-review', last_sent_at: now });
 }
 
+/**
+ * MIC-029 gap 3: email the admin when the check is stuck (image_review_stall), at most every
+ * STALL_EVERY_MIN. Runs at the top of every scheduled call, BEFORE the model key is looked at, so a
+ * missing or broken key still produces the email. Never throws: an alert must not stop the check.
+ */
+// deno-lint-ignore no-explicit-any
+async function stallAlert(admin: any): Promise<void> {
+  try {
+    const key = Deno.env.get('RESEND_API_KEY');
+    const to = Deno.env.get('ADMIN_NOTIFY_EMAIL');
+    if (!key || !to) return;
+    const { data } = await admin.rpc('image_review_stall');
+    const st = Array.isArray(data) ? data[0] : data;
+    if (!st) return;
+    const { data: last } = await admin.from('admin_notices').select('last_sent_at').eq('kind', 'image-review-stall').maybeSingle();
+    if (!stallDue(st.stalled === true, last?.last_sent_at ?? null, Date.now())) return;
+    const { subject, text } = stallText(st.reasons ?? [], 'https://michi-maker.com/studio');
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: 'michi-maker <hello@tcgscan.ai>', to: [to], subject, text }),
+    });
+    if (res.ok) await admin.from('admin_notices').upsert({ kind: 'image-review-stall', last_sent_at: new Date().toISOString() });
+  } catch {
+    // the next minute's run tries again
+  }
+}
+
 async function decide(req: Request, body: { id?: number; decision?: string; takedown?: boolean }): Promise<Response> {
   const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
   if (!token) return json({ error: 'unauthorized' }, 401);
@@ -261,10 +289,10 @@ Deno.serve(async (req) => {
   const expected = Deno.env.get('IMAGE_REVIEW_SECRET');
   if (!expected) return json({ error: 'not_configured' }, 500);
   if (req.headers.get('x-image-review-secret') !== expected) return json({ error: 'forbidden' }, 403);
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, secretKey(), { auth: { persistSession: false } });
+  await stallAlert(admin);
   const aiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!aiKey) return json({ error: 'not_configured: ANTHROPIC_API_KEY' }, 500);
-
-  const admin = createClient(Deno.env.get('SUPABASE_URL')!, secretKey(), { auth: { persistSession: false } });
   const ai = new Anthropic({ apiKey: aiKey });
 
   const started = Date.now();

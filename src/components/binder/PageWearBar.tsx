@@ -25,6 +25,7 @@ import { ART_VIEWS, PAGE_ART_VIEWS, resolveArtView } from '@/data/artView';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 import { withMatStyle } from '@/data/matStyle';
 import { isImageRef, resolveWear } from '@/data/pageStyle';
+import { SELECT_GLYPH, SELECT_ON, SELECT_ON_TEXT, SELECT_WORD } from '@/constants/selectButton';
 import { useBinders } from '@/store/binders';
 
 type Kind = 'background' | 'sleeve' | 'artBacking' | 'artView';
@@ -181,10 +182,10 @@ export function PageWearBar({
                 : 'Select several pockets'
             }
             testID="binder-select-toggle"
-            style={({ pressed }) => [styles.chip, select.on && styles.chipOn, pressed && styles.pressed]}>
+            style={({ pressed }) => [styles.chip, select.on && styles.selectOn, pressed && styles.pressed]}>
             {/* Two overlapping squares: several pockets (owner, 2026-11-07: the ⊕ said nothing about 'multiple'). */}
-            <Text style={[styles.chipGlyph, select.on && styles.chipTextOn]}>{'⧉'}</Text>
-            {compact && !select.on ? null : <Text style={[styles.chipText, select.on && styles.chipTextOn]}>Select</Text>}
+            <Text style={[styles.chipGlyph, select.on && styles.selectTextOn]}>{SELECT_GLYPH}</Text>
+            {compact && !select.on ? null : <Text style={[styles.chipText, select.on && styles.selectTextOn]}>{SELECT_WORD}</Text>}
             {select.on && select.count > 0 ? (
               <View style={styles.count} testID="binder-select-count">
                 <Text style={styles.countText}>{select.count}</Text>
@@ -342,9 +343,12 @@ const styles = StyleSheet.create({
   chipGlyph: { fontSize: FontSize.md, lineHeight: 16, color: Palette.ink2 },
   chipOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
   chipTextOn: { color: Palette.accentText },
+  /** The multi-select chip's own on state (constants/selectButton): 6.70:1, the kit's pill. */
+  selectOn: { backgroundColor: SELECT_ON, borderColor: SELECT_ON },
+  selectTextOn: { color: SELECT_ON_TEXT },
   /** The count, inside the chip: a small number, not a second control. */
   count: { minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, backgroundColor: Palette.surface, alignItems: 'center', justifyContent: 'center' },
-  countText: { fontSize: FontSize.xs, fontWeight: Weight.bold, color: Palette.accent, fontVariant: ['tabular-nums'] },
+  countText: { fontSize: FontSize.xs, fontWeight: Weight.bold, color: SELECT_ON, fontVariant: ['tabular-nums'] },
   swatch: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.25)', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   swatchNone: { backgroundColor: Palette.panel },
   /** A diagonal through an empty swatch: "none", the way a colour picker draws it. */

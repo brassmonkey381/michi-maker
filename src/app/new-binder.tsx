@@ -16,7 +16,7 @@
  * A phone's landing CTAs come here (welcome.tsx); a wide screen keeps the plain editor.
  */
 import { Image } from 'expo-image';
-import { useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { fetchSetCards, getApiKey, getApiUrl, type CatalogCard } from 'tcgscan-browse';
@@ -119,7 +119,12 @@ function NewBinderWizard() {
   const manifestReady = useImageManifest();
   const store = useBinders();
   const { width } = useWindowDimensions();
-  const [kind, setKind] = useState<Kind | null>(null);
+  // `/new-binder?kind=set&set=<id>` opens on that set, picked and loaded, ready for Create binder:
+  // the "Start a <set> binder" link on each /sets/<slug> planner page (MIC-037). The guest cap
+  // below applies exactly as it does to a set picked by hand. An unknown id leaves the set list.
+  const params = useLocalSearchParams<{ kind?: string; set?: string }>();
+  const linkedSet = params.kind === 'set' && params.set ? String(params.set) : '';
+  const [kind, setKind] = useState<Kind | null>(linkedSet ? 'set' : null);
   // The card sheet's Share picture says where the picture went (MIC-032).
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
@@ -132,7 +137,7 @@ function NewBinderWizard() {
   const [picked, setPicked] = useState<CatalogCard[]>([]);
   const [sets, setSets] = useState<SetMeta[]>([]);
   const [set, setSet] = useState<SetMeta | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!linkedSet);
   const [refused, setRefused] = useState(false);
   // A GUEST WHOSE BINDER WANTS MORE THAN THE GUEST CAP (owner, 2026-11-05): a modal, as soon as a
   // set over the cap is picked or Create is pressed on a search, with two ways on: an account, or
@@ -154,6 +159,29 @@ function NewBinderWizard() {
     track('wizard.shown', { wizard: 'new-binder', width });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
   }, []);
+
+  // A linked set (see `linkedSet`): the set list, then that set and its cards, once on arrival.
+  useEffect(() => {
+    if (!linkedSet) return;
+    let live = true;
+    fetchSets()
+      .then(async (all) => {
+        if (!live) return;
+        setSets(all);
+        const s = all.find((x) => x.id === linkedSet);
+        if (!s) return;
+        setSet(s);
+        const found = await fetchSetCards(s.id, ['en']);
+        if (live) setCards(released(found));
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [linkedSet]);
 
   // The set list, once, when asked for (from the kind's press, not an effect).
   const loadSets = () => {

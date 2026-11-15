@@ -19,7 +19,7 @@
  * handing over. Research behind the shapes: the 2026-10-26 binder-types sweep (master sets, the
  * living dex and species binders lead every list).
  */
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
@@ -187,23 +187,9 @@ export default function CollectScreen() {
   }, [game, secondary]);
   const catalog = secondary ? otherGameCatalog(game) : pokemonCatalog;
 
-  // `/collect?set=<id>` (optionally `&kind=master`) opens with that set already picked: the "Start
-  // this binder" link on each /sets/<slug> planner page (MIC-037). Applied once, when the catalog
-  // has the set; anything unknown is ignored and the screen opens as usual.
-  const params = useLocalSearchParams<{ set?: string; kind?: string }>();
-  const [kind, setKind] = useState<CollectorKind>(params.kind === 'master' ? 'master' : 'complete');
+  const [kind, setKind] = useState<CollectorKind>('complete');
   const [query, setQuery] = useState('');
   const [set, setSet] = useState<CatalogSet | null>(null);
-  const [linkApplied, setLinkApplied] = useState(false);
-  if (!linkApplied && params.set && !secondary && catalog) {
-    // Adjusting state while rendering (React's pattern for state derived from a prop): runs once.
-    setLinkApplied(true);
-    const s = catalog.getSet(String(params.set));
-    if (s) {
-      setSet(s);
-      setQuery(s.name);
-    }
-  }
   const [species, setSpecies] = useState<string | null>(null);
   const [dexPick, setDexPick] = useState<'newest' | 'oldest'>('newest');
   const [pageChoice, setPageChoice] = useState<PageChoice>('plain');

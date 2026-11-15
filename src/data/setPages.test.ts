@@ -1,7 +1,7 @@
 /**
  * MIC-037 phase B: the /sets pilot (SEO plan action 9). Every set page is built from the committed
  * snapshot (scripts/seo/set-pages.json), carries its own canonical, is in the sitemap, says
- * set-specific things, and links into the app with the set picked. Static HTML with no script:
+ * set-specific things, and links into the binder wizard with the set picked (guests can use it). Static HTML with no script:
  * a person and a crawler read the same page.
  */
 import assert from 'node:assert/strict';
@@ -43,8 +43,9 @@ test('each set page has its own canonical, title, h1, start link and checklist, 
     assert.match(html, new RegExp(`<link rel="canonical" href="https://michi-maker\\.com/sets/${s.slug}">`));
     assert.equal((html.match(/<title>/g) ?? []).length, 1);
     assert.ok(html.includes(`<h1>${esc(s.name)} binder planner</h1>`), `${s.slug} h1`);
-    assert.ok(html.includes(`href="https://michi-maker.com/collect?set=${s.id}"`), `${s.slug} start link`);
-    assert.ok(html.includes(`href="https://michi-maker.com/collect?set=${s.id}&amp;kind=master"`), `${s.slug} master link`);
+    assert.ok(html.includes(`href="https://michi-maker.com/new-binder?kind=set&amp;set=${s.id}"`), `${s.slug} start link opens the wizard on the set`);
+    assert.ok(!html.includes('/collect'), 'no link a guest cannot use');
+    assert.doesNotMatch(html, /with an account/);
     assert.doesNotMatch(html, /<script/i, 'static: no script, so no difference between a reader and a crawler');
     assert.doesNotMatch(html, /noindex/);
     const text = html.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ');

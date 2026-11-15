@@ -10,7 +10,7 @@
  * rares), how many pockets, pages and sheets that takes in every common binder size, which page
  * every card lands on in a 9-pocket binder, the cards worth the most, and the full checklist with
  * TCGplayer market prices and the date they were read. Then one link into the app that opens the
- * set's binder already picked (/collect?set=<id>).
+ * set already picked in the binder wizard (/new-binder?kind=set&set=<id>), which guests can use.
  *
  * Copy rules: no em dashes, no plan names, nothing about how any binder was made.
  */
@@ -149,7 +149,7 @@ function foot(taken, pricesAsOf) {
 }
 
 export const setUrl = (set) => `${SITE}/sets/${set.slug}`;
-export const startUrl = (set, master = false) => `${SITE}/collect?set=${set.id}${master ? '&kind=master' : ''}`;
+export const startUrl = (set) => `${SITE}/new-binder?kind=set&set=${set.id}`;
 
 export function renderSetPage(set, { taken }) {
   const f = setFacts(set);
@@ -199,8 +199,8 @@ export function renderSetPage(set, { taken }) {
 <p class="eyebrow">Set binder planner · ${esc(set.series || 'Pokémon TCG')}${set.code ? ` · ${esc(set.code)}` : ''}${set.released ? ` · released ${esc(longDate(set.released))}` : ''}</p>
 <h1>${esc(set.name)} binder planner</h1>
 <p class="lede">${esc(set.name)}${year ? ` (${year})` : ''} has <strong>${plural(f.complete, 'card')}</strong>${f.secrets.length ? `: ${set.printed} in the main set and <strong>${plural(f.secrets.length, 'secret rare')}</strong> numbered past ${set.printed}` : ''}. One of each fills <strong>${nine.pages} pages</strong> of a 9-pocket binder (${nine.sheets} sheets, front and back) or ${twelve.pages} pages of a 12-pocket binder.${top ? ` The most valuable card is ${esc(top.name)} (${esc(top.number)}) at ${usd(top.price)}.` : ''}</p>
-<div class="cta"><a href="${esc(startUrl(set))}">Start a ${esc(set.name)} binder</a><a class="alt" href="${esc(startUrl(set, true))}">Start a master set binder</a></div>
-<p class="note">${BRAND} lays the set out in number order, one pocket per card, and prints true-size placeholders for the cards you have not pulled yet. Free with an account, in the browser.</p>
+<div class="cta"><a href="${esc(startUrl(set))}">Start a ${esc(set.name)} binder</a></div>
+<p class="note">Opens ${BRAND} with ${esc(set.name)} already picked: every card in number order, one pocket each, ready to make into a binder. Free in the browser, no account needed to start.</p>
 <div class="facts">
 <div class="fact"><b>${f.complete}</b><span>cards, one of each</span></div>
 <div class="fact"><b>${f.secrets.length}</b><span>secret rares</span></div>
@@ -281,7 +281,7 @@ export function renderHub(sets, { taken }) {
 <p class="eyebrow">Set binder planners</p>
 <h1>Pokémon set binder planners</h1>
 <p class="lede">Planning a binder for a whole set? Each planner counts the pages and sheets the set needs in 9-pocket, 12-pocket, 4-pocket and 16-pocket binders, shows which page every card lands on, and lists the secret rares and the most valuable cards with current market prices.</p>
-<div class="cta"><a href="${SITE}/collect">Start a set binder</a></div>
+<div class="cta"><a href="${SITE}/new-binder">Start a binder</a></div>
 ${sections}
 <h2>More than a checklist</h2>
 <p>Once the set is in, the pages can be more than rows of numbers. <a href="${SITE}/michi-method">See what a michi binder is</a>.</p>`;

@@ -1,0 +1,135 @@
+{
+  "taken": "2026-11-15",
+  "sets": [
+    {
+      "slug": "chaos-rising",
+      "name": "Chaos Rising",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "perfect-order",
+      "name": "Perfect Order",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "ascended-heroes",
+      "name": "Ascended Heroes",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "phantasmal-flames",
+      "name": "Phantasmal Flames",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "mega-evolution",
+      "name": "Mega Evolution",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "black-bolt",
+      "name": "Black Bolt",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "white-flare",
+      "name": "White Flare",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "destined-rivals",
+      "name": "Destined Rivals",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "journey-together",
+      "name": "Journey Together",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "prismatic-evolutions",
+      "name": "Prismatic Evolutions",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "surging-sparks",
+      "name": "Surging Sparks",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "stellar-crown",
+      "name": "Stellar Crown",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "shrouded-fable",
+      "name": "Shrouded Fable",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "twilight-masquerade",
+      "name": "Twilight Masquerade",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "temporal-forces",
+      "name": "Temporal Forces",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "paldean-fates",
+      "name": "Paldean Fates",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "paradox-rift",
+      "name": "Paradox Rift",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "scarlet-violet-151",
+      "name": "Scarlet & Violet 151",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "obsidian-flames",
+      "name": "Obsidian Flames",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "paldea-evolved",
+      "name": "Paldea Evolved",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "scarlet-violet-base-set",
+      "name": "Scarlet & Violet Base Set",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "crown-zenith",
+      "name": "Crown Zenith",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "evolving-skies",
+      "name": "Evolving Skies",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "base-set",
+      "name": "Base Set",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "jungle",
+      "name": "Jungle",
+      "pricesAsOf": "2026-11-14"
+    },
+    {
+      "slug": "fossil",
+      "name": "Fossil",
+      "pricesAsOf": "2026-11-14"
+    }
+  ]
+}

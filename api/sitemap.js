@@ -21,6 +21,9 @@
 const { SITE } = require('./_lib');
 const { indexableBinders } = require('./_index');
 const seo = require('./_seo.json');
+// The /sets pilot (MIC-037 phase B): static pages built from scripts/seo/set-pages.json; this is
+// their slug list, written by the same snapshot, and lastmod is the day that snapshot was taken.
+const setPages = require('./_sets.json');
 
 const STATIC = [
   { path: '/', priority: '1.0', changefreq: 'weekly' },
@@ -28,6 +31,8 @@ const STATIC = [
   { path: '/learn', priority: '0.8', changefreq: 'monthly' },
   ...seo.guides.map((g) => ({ path: `/learn/${g.slug}`, priority: '0.8', changefreq: 'monthly' })),
   { path: '/auto-fill-methods', priority: '0.5', changefreq: 'yearly' },
+  { path: '/sets', priority: '0.8', changefreq: 'monthly', lastmod: setPages.taken },
+  ...setPages.sets.map((s) => ({ path: `/sets/${s.slug}`, priority: '0.7', changefreq: 'monthly', lastmod: setPages.taken })),
 ];
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -46,7 +51,7 @@ function urlTag({ loc, lastmod, changefreq, priority }) {
 module.exports = async (req, res) => {
   const binders = await indexableBinders(5000);
   const entries = [
-    ...STATIC.map((s) => ({ loc: `${SITE}${s.path}`, lastmod: seo.generatedOn, changefreq: s.changefreq, priority: s.priority })),
+    ...STATIC.map((s) => ({ loc: `${SITE}${s.path}`, lastmod: s.lastmod || seo.generatedOn, changefreq: s.changefreq, priority: s.priority })),
     ...binders.map((b) => ({
       loc: `${SITE}/binder/${b.id}`,
       lastmod: day(b.updated_at),
@@ -62,3 +67,5 @@ module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');
   res.end(xml);
 };
+// For the tests (src/data/setPages.test.ts): the fixed part of the list.
+module.exports.STATIC = STATIC;

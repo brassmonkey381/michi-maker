@@ -57,7 +57,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "expo export -p web && node scripts/inject-meta.mjs && node scripts/build-seo-data.mjs && node scripts/build-home.mjs",
+    "build:web": "expo export -p web && node scripts/inject-meta.mjs && node scripts/build-seo-data.mjs && node scripts/build-home.mjs && node scripts/build-set-pages.mjs",
     "deploy": "npx vercel --prod",
     "lint": "expo lint",
     "test": "node --test \"src/**/*.test.ts\"",

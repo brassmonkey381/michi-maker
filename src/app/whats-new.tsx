@@ -472,12 +472,10 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     gap: Spacing.three,
   },
+  // The date always sits under the title (MIC-039 p28): a wrapping row put it beside a short
+  // title and under a long one, so one entry in a column looked out of place.
   cardHead: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-    flexWrap: 'wrap',
+    gap: 2,
     marginBottom: Spacing.one,
   },
   cardTitle: { fontSize: FontSize.md },

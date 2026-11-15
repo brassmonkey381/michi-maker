@@ -99,6 +99,10 @@ const ASK: Record<Kind, string> = {
 const NEWBINDER_CHAT = flag('newbinder-chat');
 /** MIC-017 B1-A ('dev'): note not stop, the page-one reveal, one tip in the editor. */
 const FIRSTRUN_A = flag('firstrun-a');
+/** The wizard's column on a desktop window (MIC-039 p06). */
+const WIZARD_MAX_W = 1040;
+/** The reveal's floating button columns beside the page on a wide window (MIC-039 p15). */
+const REVEAL_SIDE_W = 200;
 
 export default function NewBinderScreen() {
   return NEWBINDER_CHAT ? <NewBinderChat /> : <NewBinderWizard />;
@@ -255,10 +259,37 @@ function NewBinderWizard() {
   };
 
   const gridW = Math.min(width - Spacing.three * 2, 420);
+  // Room for the page (520) and a 200px button column on each side of it.
+  const revealSide = width >= 520 + 2 * (REVEAL_SIDE_W + Spacing.four) + Spacing.three * 2;
+
+  const revealTurn =
+    revealed && revealed.pages.length > 1 ? (
+      <Pressable
+        onPress={() => setRevealPage((i) => (i + 1) % revealed.pages.length)}
+        accessibilityRole="button"
+        testID="wizard-reveal-turn"
+        style={({ pressed }) => [styles.revealGhost, revealSide && styles.revealSideBtn, pressed && styles.pressed]}>
+        <Text style={styles.revealGhostText}>{revealPage + 1 < revealed.pages.length ? 'Turn the page' : 'Back to page one'}</Text>
+      </Pressable>
+    ) : null;
+  const revealKeep = revealed ? (
+    <Pressable
+      onPress={() => {
+        track('wizard.reveal_continue', { wizard: 'new-binder', pages_seen: revealPage + 1 });
+        router.replace(`/binder/${revealed.id}?edit=1&tip=1` as Href);
+      }}
+      accessibilityRole="button"
+      testID="wizard-reveal-continue"
+      style={({ pressed }) => [styles.primary, revealSide && styles.revealSideBtn, pressed && styles.pressed]}>
+      <Text style={styles.primaryText}>Keep building</Text>
+    </Pressable>
+  ) : null;
 
   return (
     <ThemedView style={styles.flex}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
+      {/* MIC-039 p06: on a desktop window the wizard is a centred column, not the phone layout
+          stretched to the window's full width. */}
+      <SafeAreaView style={[styles.flex, styles.column]} edges={['top']}>
       <View style={styles.top}>
         <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel={step === 1 ? 'Cancel' : 'Back'} testID="wizard-back">
           <Text style={styles.topLink}>{step === 1 ? 'Cancel' : '‹ Back'}</Text>
@@ -469,36 +500,37 @@ function NewBinderWizard() {
             <Text style={styles.revealTitle}>
               {revealed.title}, page {revealPage === 0 ? 'one' : revealPage + 1}
             </Text>
-            <View style={styles.revealPage}>
-              {revealed.pages[revealPage] ? (
-                <BinderGrid page={revealed.pages[revealPage]} width={Math.min(width - Spacing.three * 2, 520)} pageStyle={revealed.pageStyle} outerEdge="right" />
+            {/* MIC-039 p15 (owner: "dont shrink the page. move the turn the page button to the left
+                side floating somewhere"). On a wide window the two buttons float beside the page,
+                Turn the page on its left and Keep building on its right, so no bar is drawn over
+                the third row. A phone keeps the bar under the page. */}
+            <View style={revealSide ? styles.revealRow : null}>
+              {revealSide ? (
+                <View style={styles.revealSide}>
+                  {revealTurn}
+                </View>
+              ) : null}
+              <View style={styles.revealPage}>
+                {revealed.pages[revealPage] ? (
+                  <BinderGrid page={revealed.pages[revealPage]} width={Math.min(width - Spacing.three * 2, 520)} pageStyle={revealed.pageStyle} outerEdge="right" />
+                ) : null}
+              </View>
+              {revealSide ? (
+                <View style={styles.revealSide}>
+                  {revealKeep}
+                </View>
               ) : null}
             </View>
             <Text style={styles.pageLine}>
               Page {revealPage + 1} of {revealed.pages.length}
             </Text>
           </ScrollView>
+          {revealSide ? null : (
           <View style={styles.foot}>
-            {revealed.pages.length > 1 ? (
-              <Pressable
-                onPress={() => setRevealPage((i) => (i + 1) % revealed.pages.length)}
-                accessibilityRole="button"
-                testID="wizard-reveal-turn"
-                style={({ pressed }) => [styles.revealGhost, pressed && styles.pressed]}>
-                <Text style={styles.revealGhostText}>{revealPage + 1 < revealed.pages.length ? 'Turn the page' : 'Back to page one'}</Text>
-              </Pressable>
-            ) : null}
-            <Pressable
-              onPress={() => {
-                track('wizard.reveal_continue', { wizard: 'new-binder', pages_seen: revealPage + 1 });
-                router.replace(`/binder/${revealed.id}?edit=1&tip=1` as Href);
-              }}
-              accessibilityRole="button"
-              testID="wizard-reveal-continue"
-              style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
-              <Text style={styles.primaryText}>Keep building</Text>
-            </Pressable>
+            {revealTurn}
+            {revealKeep}
           </View>
+          )}
         </View>
       ) : null}
       <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
@@ -510,6 +542,7 @@ function NewBinderWizard() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  column: { width: '100%', maxWidth: WIZARD_MAX_W, alignSelf: 'center' },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.three, paddingTop: Spacing.three, paddingBottom: Spacing.two },
   topLink: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.accent },
   stepText: { fontSize: FontSize.xs, fontWeight: Weight.bold, letterSpacing: 1, color: Palette.muted },
@@ -582,6 +615,9 @@ const styles = StyleSheet.create({
   revealEyebrow: { alignSelf: 'stretch', fontSize: FontSize.xs, fontWeight: Weight.bold, letterSpacing: 1.2, color: Palette.muted },
   revealTitle: { alignSelf: 'stretch', fontSize: 28, lineHeight: 32, fontWeight: Weight.bold, color: Palette.ink },
   revealPage: { marginTop: Spacing.two, borderRadius: Radius.panel, overflow: 'hidden' },
+  revealRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
+  revealSide: { width: REVEAL_SIDE_W },
+  revealSideBtn: { paddingHorizontal: Spacing.three },
   revealGhost: { height: 50, borderRadius: Radius.control, borderWidth: 1.5, borderColor: Palette.accent, alignItems: 'center', justifyContent: 'center' },
   revealGhostText: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.accent },
   capLine: { fontSize: FontSize.sm, color: Palette.muted, textAlign: 'center' },

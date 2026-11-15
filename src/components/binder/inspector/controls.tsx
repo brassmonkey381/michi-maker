@@ -58,8 +58,12 @@ export function Group({
         accessibilityLabel={`${title}: ${open ? 'fold' : 'open'}`}
         testID={testID ? `${testID}-head` : undefined}
         style={styles.groupHead}>
-        <Text style={styles.groupTitle}>{title}</Text>
-        {open ? (note ? <Text style={styles.groupNote}>{note}</Text> : null) : summary ? <View style={styles.groupSummary}>{summary}</View> : null}
+        {/* The words wrap inside their own column, so the chevron keeps the row's end and never
+            drops to a line of its own under a long note (MIC-039 p33). */}
+        <View style={styles.groupWords}>
+          <Text style={styles.groupTitle}>{title}</Text>
+          {open ? (note ? <Text style={styles.groupNote}>{note}</Text> : null) : summary ? <View style={styles.groupSummary}>{summary}</View> : null}
+        </View>
         <Text style={styles.groupChevron}>{open ? '▾' : '▸'}</Text>
       </Pressable>
       {open ? <View style={styles.section}>{children}</View> : null}
@@ -316,11 +320,16 @@ export function WearRow({
     <View style={styles.wearRows}>
       <Row label={label}>
         <ColorBox fieldKey={`${fieldKey}-${isNone ? 'none' : pictured ? 'picture' : 'colour'}`} value={pictured ? undefined : (inEffect ?? '#ffffff')} onChange={onChange} />
+      </Row>
+      {/* THE OPTIONS ON ONE LEFT EDGE (MIC-039 p34): wrapped after the colour field, Picture landed
+          at the far right and the next option on a line of its own, indented. They now take a row
+          of their own, starting under the colour field, evenly spaced. */}
+      <View style={styles.wearOptions}>
         <PillButton label="Picture" active={pictured} onPress={() => setLinkOpen((v) => !v)} testID={testID ? `${testID}-picture` : undefined} />
         {none ? <PillButton label="None" active={isNone} onPress={() => onChange(inherit ? WEAR_NONE : null)} testID={testID ? `${testID}-none` : undefined} /> : null}
         {inherit && own ? <PillButton label={inherit} onPress={() => onChange(null)} testID={testID ? `${testID}-inherit` : undefined} /> : null}
         {extra}
-      </Row>
+      </View>
       {/* PRESETS FIRST (owner, 2026-10-13): a row of textures to tap, then the link field for a
           picture of your own. Both store an address; the row only makes the common case one tap. */}
       {showLink ? <PresetPictureGrid kind="texture" value={pictured ? inEffect : undefined} onPick={onChange} testID={testID ? `${testID}-presets` : undefined} /> : null}
@@ -391,9 +400,10 @@ export const styles = StyleSheet.create({
   groups: { alignSelf: 'stretch' },
   /** A group: a rule, its name, then its rows. Groups stack with no extra gap; the rule is the gap. */
   group: { alignSelf: 'stretch', gap: 8, paddingTop: 10, paddingBottom: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Palette.hairline },
-  groupHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8 },
+  groupHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  groupWords: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8, rowGap: 2 },
   groupTitle: { fontSize: FontSize.xs, fontWeight: Weight.semibold, textTransform: 'uppercase', letterSpacing: 0.6, color: Palette.muted },
-  groupChevron: { marginLeft: 'auto', fontSize: 14, color: Palette.muted },
+  groupChevron: { fontSize: 14, color: Palette.muted },
   groupSummary: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, minWidth: 0 },
   summaryText: { fontSize: FontSize.sm, color: Palette.ink2 },
   swatch: { width: 16, height: 16, borderRadius: 4, borderWidth: 1, borderColor: Palette.hairlineStrong },
@@ -401,6 +411,8 @@ export const styles = StyleSheet.create({
   inlineRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   /** A fixed column, so every row's first control starts at the same x whatever its name's length. */
   inlineLabel: { minWidth: 76, marginRight: 2 },
+  /** Starts where a Row's first control does: the label column plus the row's gap. */
+  wearOptions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginLeft: 86 },
   colorFieldBox: { width: 170 },
   segGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.panel, borderRadius: Radius.pill, padding: 2 },
   segGroupWrap: { flexWrap: 'wrap', alignSelf: 'flex-start', borderRadius: Radius.control },

@@ -4066,7 +4066,9 @@ export function BinderScreen({
         />
 
         {/* The Arrange bar floats over the page it previews; the sheet renders nothing when closed. */}
-        <View style={styles.arrangeFloat}>
+        {/* Clear of what is pinned at the bottom (MIC-039 p17): the phone tool bar, and on a
+            desktop the hand, whose hint line the bar used to sit on. */}
+        <View style={[styles.arrangeFloat, { bottom: 8 + (phone ? (editing && canEdit ? phoneBarH : 0) : HAND && editing && canEdit ? Math.min(handH, HAND_RESERVE_DESKTOP) : 12) }]}>
           <ArrangeSheet
             visible={arrangeOpen}
             page={page}
@@ -4565,7 +4567,7 @@ export function BinderScreen({
             </View>
           </View>
         ) : null}
-        <Toast spec={toast} onDismiss={() => setToast(null)} bottomInset={phone && editing && canEdit ? phoneBarH + (phoneSheetShown ? pocketSheetH : 0) : 0} />
+        <Toast spec={toast} onDismiss={() => setToast(null)} bottomInset={phone && editing && canEdit ? phoneBarH + (phoneSheetShown ? pocketSheetH : 0) : !editing ? VIEW_DOCK_CLEAR : 0} />
         <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} guestAuth={capGate.guestAuth} onCloseGuestAuth={capGate.closeGuestAuth} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
         {multiActionsOpen ? (
@@ -4973,6 +4975,9 @@ function IconBtn({
     </View>
   );
 }
+
+/** Viewing, a toast stands above the page count and arrows at the bottom (MIC-039 p32: it hid "1 / 8"). */
+const VIEW_DOCK_CLEAR = 64;
 
 const styles = StyleSheet.create({
   // MIC-029: the held-page note (owner only).

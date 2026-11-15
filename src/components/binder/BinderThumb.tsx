@@ -81,13 +81,17 @@ export function BinderThumb({ binder, width, onPress, accessory, matchPages }: B
           <ThemedText type="smallBold" numberOfLines={1} style={styles.title}>
             {binder.title}
           </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-            {binder.authorName ? `by ${binder.authorName} · ` : ''}
-            {binderMetaLine(binder.pages, binder.pageCount)}
-          </ThemedText>
+          {/* MIC-039 p12/p14 (owner): the size and page count left this line for a chip on the
+              preview's bottom-right corner, where a narrow tile no longer cuts them off. */}
+          {binder.authorName ? (
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+              by {binder.authorName}
+            </ThemedText>
+          ) : null}
         </View>
         {accessory}
       </View>
+      <View>
       {cover ? (
         // A cover brings its own shadow and its own proportions, so it is not wrapped in the page
         // shadow: a binder is a different object from a page and should not be pretending to be one.
@@ -118,6 +122,12 @@ export function BinderThumb({ binder, width, onPress, accessory, matchPages }: B
       ) : (
         <View style={[styles.placeholder, { width, height: boxH }]} />
       )}
+      <View style={[styles.sizeChip, matchPages?.length ? styles.sizeChipOverTag : null]} pointerEvents="none" testID="binder-size-chip">
+        <ThemedText style={styles.sizeChipText} numberOfLines={1}>
+          {binderMetaLine(binder.pages, binder.pageCount)}
+        </ThemedText>
+      </View>
+      </View>
       {matchPages?.length ? <PagesTag pages={matchPages} width={width} /> : null}
     </Pressable>
   );
@@ -165,6 +175,20 @@ const styles = StyleSheet.create({
   },
   tagText: { fontSize: 11, lineHeight: 15, fontWeight: '700', color: '#3b3420' },
   pageShadow: { borderRadius: Radii.page, ...Shadows.page },
+  /** The binder's size and page count, a chip over the preview's bottom-right corner. */
+  sizeChip: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
+    maxWidth: '90%',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(28,26,22,0.78)',
+  },
+  /** Clear of the matching-pages post-it, which hangs over the page's bottom edge. */
+  sizeChipOverTag: { bottom: 16 },
+  sizeChipText: { fontSize: 11, lineHeight: 15, fontWeight: '700', color: '#fff' },
   /** The shelf's box: a cover shorter than it sits in the middle. */
   box: { justifyContent: 'center', alignItems: 'center' },
   ground: { borderRadius: Radii.page, overflow: 'hidden' },

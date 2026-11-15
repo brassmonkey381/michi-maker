@@ -33,6 +33,10 @@ export function SignInPerk({
   // account to sign in to, and the word sent people looking for a password they never set.
   const auth = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
+  // STACKED WHEN NARROW (MIC-039 p23): beside the button on a phone the message became a
+  // five-line column. Below this width it takes the full width with the button under it.
+  const [boxW, setBoxW] = useState(0);
+  const stacked = boxW > 0 && boxW < STACK_BELOW;
   // Seen once per mount: a guest wall used to leave no trace, so "hit a wall" was invisible.
   useEffect(() => {
     track('signin.perk_shown', { surface, guest: auth.isGuest });
@@ -49,8 +53,8 @@ export function SignInPerk({
   };
   return (
     <>
-      <View style={styles.note}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.text}>
+      <View style={[styles.note, stacked && styles.noteStacked]} onLayout={(e) => setBoxW(Math.round(e.nativeEvent.layout.width))}>
+        <ThemedText type="small" themeColor="textSecondary" style={[styles.text, stacked && styles.textStacked]}>
           {message}
         </ThemedText>
         <Pressable
@@ -67,6 +71,8 @@ export function SignInPerk({
   );
 }
 
+const STACK_BELOW = 400;
+
 const styles = StyleSheet.create({
   note: {
     flexDirection: 'row',
@@ -80,7 +86,9 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.panel,
     maxWidth: 460,
   },
+  noteStacked: { flexDirection: 'column', alignItems: 'flex-start', gap: Spacing.two },
   text: { flex: 1, lineHeight: 18 },
+  textStacked: { flex: 0 },
   btn: {
     backgroundColor: Palette.accent,
     paddingVertical: Spacing.one,

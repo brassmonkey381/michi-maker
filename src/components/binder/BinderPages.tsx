@@ -2270,7 +2270,10 @@ export function BinderPages({
             // Opaque, because the page now scrolls UNDER it: a transparent dock would let card art
             // slide through the page numbers.
             { backgroundColor: theme.background },
-            Platform.OS === 'web' ? (WEB_STICKY as object) : null,
+            // Sticks ABOVE whatever the caller pins below the binder (MIC-039 p01: the public page's
+            // "Made with michi-maker" banner sat under the page-turn controls at bottom 0). The viewer
+            // only: the editor keeps its own dock rules around the hand.
+            Platform.OS === 'web' ? ({ ...WEB_STICKY, bottom: editable ? 0 : viewportBottom } as object) : null,
           ]}>
         <View style={styles.dockRow}>
         {/* On a phone the autoplay controls live in Settings (owner, 2026-11-05: the viewer's

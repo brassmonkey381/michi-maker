@@ -141,6 +141,8 @@ export default function ProfileRoute() {
         ) : (
           <View style={styles.body}>
             {PROFILE_CARD ? (
+              // On the left edge the "Public binders" section below starts from (MIC-039 p31).
+              <View style={styles.cardLeft}>
               <CollectorCard
                 name={name}
                 bio={state.profile.bio}
@@ -155,6 +157,7 @@ export default function ProfileRoute() {
                   return ok;
                 }}
               />
+              </View>
             ) : (
             <>
             {/* CONTEST WINNERS wear a small trophy on the avatar's corner and one quiet line under
@@ -283,5 +286,6 @@ const styles = StyleSheet.create({
   reportLink: { marginTop: Spacing.five, alignSelf: 'center', opacity: 0.8 },
   hint: { marginTop: Spacing.two, textAlign: 'center' },
   section: { width: '100%', marginTop: Spacing.five, gap: Spacing.three },
+  cardLeft: { alignSelf: 'stretch', alignItems: 'flex-start' },
   sectionTitle: { fontSize: FontSize.md },
 });

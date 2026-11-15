@@ -4,7 +4,6 @@
  * can adopt just the links inside its own footer without restructuring.
  */
 import { Link, type Href } from 'expo-router';
-import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -44,23 +43,17 @@ const LINKS: { label: string; href: Href }[] = [
   { label: 'Copyright', href: '/legal/dmca' as Href },
 ];
 
-/** A wrap row of quiet page links, middot-separated. */
+/** A wrap row of quiet page links. */
 export function FooterLinks() {
   return (
     <View style={styles.links}>
-      {LINKS.map((l, i) => (
-        <Fragment key={l.label}>
-          {i > 0 ? (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.dot}>
-              ·
-            </ThemedText>
-          ) : null}
-          <Link href={l.href} style={styles.anchor}>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.link}>
-              {l.label}
-            </ThemedText>
-          </Link>
-        </Fragment>
+      {/* Plain spacing, no dots (MIC-039 p37): a wrapped row left a dot hanging at its end. */}
+      {LINKS.map((l) => (
+        <Link key={l.label} href={l.href} style={styles.anchor}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.link}>
+            {l.label}
+          </ThemedText>
+        </Link>
       ))}
     </View>
   );
@@ -94,8 +87,7 @@ const styles = StyleSheet.create({
     borderTopColor: Palette.hairline,
     gap: Spacing.two,
   },
-  links: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
-  dot: { fontSize: FontSize.sm },
+  links: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: Spacing.three, rowGap: Spacing.one },
   link: { fontSize: FontSize.sm },
   anchor: { textDecorationLine: 'none' },
   line: { fontSize: FontSize.sm, lineHeight: 18 },

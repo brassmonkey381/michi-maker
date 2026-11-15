@@ -36,14 +36,16 @@ xBindr. [BRIAN: one sentence on how you know xBindr, or delete.]
 - Fill a page around one card by Pokémon, evolution line, artist or colour, or search cards by
   what the artwork shows.
 - Set binders in number order, and set planners that count pages and sheets per binder size.
+- English and Japanese cards (an EN / JP switch on Browse and the home feed). Chinese, French and
+  Pokémon TCG Pocket are planned, no date yet.
 - Prints true-size fill sheets (63 by 88 mm).
 - Free account: 2 binders of up to 20 pages. Paid plan: $2.99 a month or $24.99 a year, no page or
   binder limits, plus binder covers and unlimited artwork search.
 
 ## Pick xBindr if
 
-- You collect **French or Japanese** cards, or price in **euros**: xBindr covers both, and
-  Michi-Maker's set binders and prices are English and TCGplayer first.
+- You collect **French** cards, or price in **euros** from Cardmarket: xBindr covers both today.
+  Michi-Maker has English and Japanese cards and TCGplayer prices; French is planned, no date yet.
 - You want **more free room**: 5 binders of up to 1,100 cards beats our free 2 binders of 20 pages.
 - You want **grid sizes beyond 4×4**, or binder materials like leather and canvas.
 - You want to slice and print **your own images** and are happy on their Premium plan.

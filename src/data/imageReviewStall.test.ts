@@ -3,7 +3,10 @@
  * every 6 hours, and Studio's Health row turns red on the 'Stalled:' detail admin_health() writes.
  */
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { STALL_EVERY_MIN, stallDue, stallText } from '../../supabase/functions/image-review/classify.ts';
 import { toneOf } from './healthTone.ts';
@@ -32,6 +35,20 @@ test("Studio's Image check row is red only when stalled, however long it has bee
   assert.equal(toneOf({ signal: 'Image check', at: quietForDays, detail: '0 waiting, 0 failed calls in the last hour' }, NOW), 'ok');
   assert.equal(toneOf({ signal: 'Image check', at: quietForDays, detail: 'Stalled: schedule paused' }, NOW), 'bad');
   assert.equal(toneOf({ signal: 'Image check', at: null, detail: 'Stalled: schedule missing' }, NOW), 'bad');
+});
+
+test('the live image_review_stall() appends reasons as elements, never as array literals', () => {
+  // 20261114130000 wrote `r := r || 'schedule silent ...'`: Postgres reads the untyped literal as
+  // text[], so every reason branch raised 22P02 on prod (2026-11-15 00:27Z). Check the newest
+  // definition across all migrations.
+  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'supabase', 'migrations');
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+  const latest = files.filter((f) => /function public\.image_review_stall\(/.test(fs.readFileSync(path.join(dir, f), 'utf8'))).pop();
+  assert.ok(latest, 'image_review_stall is defined somewhere');
+  const sql = fs.readFileSync(path.join(dir, latest!), 'utf8');
+  assert.doesNotMatch(sql, /\br\s*:=\s*r\s*\|\|/);
+  const appends = sql.match(/array_append\(r,[^;]*::text\);/g) ?? [];
+  assert.equal(appends.length, 6, 'all six reason branches use array_append(r, ...::text)');
 });
 
 test('the other Health rows keep their old thresholds', () => {

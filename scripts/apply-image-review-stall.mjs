@@ -28,11 +28,21 @@ async function rolledBack(tag, query) {
   return m[1].trim();
 }
 
-step(1, 'apply the migration');
-const migration = fs.readFileSync(`${ROOT}/supabase/migrations/20261114130000_image_review_stall.sql`, 'utf8');
+// Default: the fix-forward (20261114140000). 20261114130000 went live 2026-11-15 00:27Z with a bug
+// (every reason branch raised 22P02); re-running it would put the bug back.
+const file = process.argv[2] ?? '20261114140000_image_review_stall_fix.sql';
+step(1, `apply ${file}`);
+const migration = fs.readFileSync(`${ROOT}/supabase/migrations/${file}`, 'utf8');
 const applied = await run(migration);
 if (!applied.ok) fail(`migration refused: ${applied.error.slice(0, 600)}`);
 console.log('  applied');
+
+step('1b', 'proof: a reason branch runs (3 hours from now the schedule reads silent), no rows touched');
+const later = await run(`select stalled, reasons from public.image_review_stall(now() + interval '3 hours');`);
+if (!later.ok) fail(`proof 1b FAILED, a reason branch errors: ${later.error.slice(0, 400)}`);
+const lr = later.rows[0];
+if (!lr.stalled || !lr.reasons.some((x) => x.startsWith('schedule silent'))) fail(`proof 1b FAILED: ${JSON.stringify(lr)}`);
+console.log(`  PASS: ${lr.reasons.join('; ')}`);
 
 step(2, 'proof: today the check is healthy, so nothing says stalled');
 const now = await run(`select stalled, reasons, waiting, last_finished, bad_calls_1h, cron_last_run from public.image_review_stall();`);

@@ -1,12 +1,12 @@
 {
-  "generatedOn": "2026-09-08",
+  "generatedOn": "2026-11-15",
   "guidesPublished": "2026-08-12",
   "guides": [
     {
       "slug": "auto-page-fill",
       "title": "How to fill a Pokémon binder page around one card",
       "lede": "Seed one pocket and let michi-maker finish the page around it.",
-      "tip": "Turn on From my collection and every method draws only from cards you own. VIP adds Pages around this card: every method at once, and you keep the ones you like.",
+      "tip": "Turn on From my collection and every method draws only from cards you own.",
       "steps": [
         {
           "title": "Place the seed",
@@ -30,15 +30,15 @@
       "slug": "slice-studio",
       "title": "How to cut artwork into binder pockets (Slice Studio)",
       "lede": "One picture becomes pocket-sized pieces you arrange like cards.",
-      "tip": "Slices follow print physics: single pockets or folded sideways pairs, never vertical spans.",
+      "tip": "Any shape goes on the page. Printing cuts a piece to what a real pocket takes, a single or a folded sideways pair, and tells you where.",
       "steps": [
         {
           "title": "Open the studio",
-          "body": "In the Artwork dock on the left, press Slice new art. Or tap any pocket and choose Artwork."
+          "body": "In the Artwork dock on the left, press Add art and pick a picture. For zoom, rotate and cutting, press Advanced editing there."
         },
         {
           "title": "Bring in a picture",
-          "body": "Card art from the catalog, an upload, a pasted URL, or an image dragged in from another tab."
+          "body": "An upload, a pasted URL, or an image dragged in from another tab. The art is yours to bring."
         },
         {
           "title": "Frame it",
@@ -46,7 +46,7 @@
         },
         {
           "title": "Fold a pair if you like",
-          "body": "Two sideways pockets that open on the same inside edge can take one folded piece."
+          "body": "Merge any pieces that make a rectangle. Two sideways pockets that open on the same inside edge take one folded piece; printing cuts anything bigger to fit, and tells you where."
         },
         {
           "title": "Save slices",
@@ -58,7 +58,7 @@
       "slug": "print-binder",
       "title": "How to print a Pokémon binder fill sheet at true card size",
       "lede": "Cut-ready sheets, real card size, so the binder fills in as the cards arrive.",
-      "tip": "Full-binder PDF export is a paid unlock; the free preview prints a premade example sheet.",
+      "tip": "Preview your own binder as print sheets for free, watermarked. The print-ready PDF is a one-time unlock per binder.",
       "steps": [
         {
           "title": "Open the print sheet",
@@ -130,7 +130,7 @@
         },
         {
           "title": "Every match, and the pages built from them",
-          "body": "Free and guest accounts see the top few matches of any theme and how many more there are. PRO and VIP see every match, and the same pictures power Same scene in the fill sheet, the scene pages Build a binder proposes, and the Story binder."
+          "body": "Free and guest accounts see the top few matches of any theme and how many more there are. PRO sees every match, and the same pictures power Same scene in the fill sheet, the scene pages Build a binder proposes, and the Story binder."
         }
       ]
     }
@@ -150,7 +150,7 @@
     },
     {
       "q": "Is Michi-Maker free?",
-      "a": "Yes. Building and sharing binders, the auto-fill methods, and the print preview are free. Paid PRO and VIP plans add full-binder PDF export, binder covers, advanced and artwork-theme search, and more."
+      "a": "Yes. Building and sharing binders, the auto-fill methods, and the print preview are free. Paid plans add full-binder PDF export, binder covers, advanced and artwork-theme search, and more."
     },
     {
       "q": "What size are the printed pieces?",

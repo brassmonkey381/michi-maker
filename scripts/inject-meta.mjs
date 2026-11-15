@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shell = path.join(root, 'dist/index.html');
 
-const TITLE = 'michi-maker: build beautiful Pokémon card binders';
+const TITLE = 'Michi-Maker: build beautiful Pokémon card binders';
 const DESCRIPTION =
   'Compose curated Pokémon card binder pages and print true-size fill sheets to build the real thing.';
 const ORIGIN = 'https://michi-maker.com';
@@ -51,7 +51,7 @@ const ORG_LD = {
 const META = `
     <meta name="description" content="${DESCRIPTION}" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="michi-maker" />
+    <meta property="og:site_name" content="Michi-Maker" />
     <meta property="og:title" content="${TITLE}" />
     <meta property="og:description" content="${DESCRIPTION}" />
     <meta property="og:url" content="${ORIGIN}/" />
@@ -69,10 +69,11 @@ if (html.includes('property="og:title"')) {
   console.log('inject-meta: og tags already present, skipping');
   process.exit(0);
 }
-// A human-readable default title too — the app retitles itself once the JS boots.
-if (!/<title>/.test(html)) {
-  html = html.replace('</head>', `    <title>${TITLE}</title>\n  </head>`);
-}
+// A human-readable default title too; the app retitles itself once the JS boots. It REPLACES
+// Expo's: the export always writes one (app.json's name, "poke-michi"), so the old "only when
+// missing" test never fired and every shell route, home included, was titled "poke-michi" (MIC-037).
+if (/<title>[^<]*<\/title>/.test(html)) html = html.replace(/<title>[^<]*<\/title>/, `<title>${TITLE}</title>`);
+else html = html.replace('</head>', `    <title>${TITLE}</title>\n  </head>`);
 // NO SAFARI ZOOM ON A TAPPED INPUT (owner, 2026-10-29). The web build is `output: single`, so
 // Expo's own template writes the viewport and app/+html.tsx is never consulted; this is the one
 // place the shell can be changed. maximum-scale=1 stops mobile Safari zooming the page into a

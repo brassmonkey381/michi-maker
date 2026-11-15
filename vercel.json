@@ -1,5 +1,5 @@
 {
-  "buildCommand": "EXPO_PUBLIC_CHECKOUT_OPEN=1 EXPO_PUBLIC_TRIALS_OPEN=0 EXPO_PUBLIC_LIMITS_ENFORCED=1 expo export -p web && node scripts/inject-meta.mjs && node scripts/build-seo-data.mjs",
+  "buildCommand": "EXPO_PUBLIC_CHECKOUT_OPEN=1 EXPO_PUBLIC_TRIALS_OPEN=0 EXPO_PUBLIC_LIMITS_ENFORCED=1 expo export -p web && node scripts/inject-meta.mjs && node scripts/build-seo-data.mjs && node scripts/build-home.mjs",
   "outputDirectory": "dist",
   "devCommand": "expo",
   "cleanUrls": true,
@@ -20,17 +20,28 @@
     },
     "api/page-binder.js": {
       "maxDuration": 15,
-      "includeFiles": "dist/index.html"
+      "includeFiles": "dist/*.html"
     },
     "api/page-static.js": {
       "maxDuration": 15,
-      "includeFiles": "dist/index.html"
+      "includeFiles": "dist/*.html"
     },
     "api/sitemap.js": {
       "maxDuration": 30
     }
   },
   "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.michi-maker.com"
+        }
+      ],
+      "destination": "https://michi-maker.com/",
+      "permanent": true
+    },
     {
       "source": "/:path*",
       "has": [
@@ -65,6 +76,15 @@
         {
           "key": "X-Robots-Tag",
           "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/(u/.*|my-binders|purchases|account|studio|subscriptions|wishlist|auth-callback|kit|welcome_v2|app)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
         }
       ]
     }
@@ -104,6 +124,10 @@
       "destination": "/api/og-michi"
     },
     {
+      "source": "/welcome",
+      "destination": "/index.html"
+    },
+    {
       "source": "/binder/:id",
       "destination": "/api/page-binder?id=:id"
     },
@@ -140,8 +164,20 @@
       "destination": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/:path*"
     },
     {
+      "source": "/(browse|collect|contest|contest-binders|coverage|daily|discover|feedback|kit|my-binders|new-binder|plans|pricing|purchases|search-guide|studio|subscriptions|whats-new|wishlist|auth-callback)",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/legal/(privacy|terms|dmca)",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/u/:id",
+      "destination": "/app.html"
+    },
+    {
       "source": "/:path*",
-      "destination": "/"
+      "destination": "/api/page-static?route=404"
     }
   ],
   "git": {

@@ -22,6 +22,7 @@
  */
 const { SITE, SITE_NAME, esc, oneLine, ogImageUrl, OG_PAGES_SELECT, sbSelect, ogHtml, sendHtml } = require('./_lib');
 const { getShell, compose, seoBodyStyle } = require('./_shell');
+const { indexDecision } = require('./_index');
 
 const BROWSE_URL = process.env.EXPO_PUBLIC_CATALOG_BROWSE_URL || '';
 const API_KEY = process.env.EXPO_PUBLIC_CATALOG_API_KEY || '';
@@ -75,7 +76,7 @@ module.exports = async (req, res) => {
   const rows = id
     ? await sbSelect(
         `binders?id=eq.${encodeURIComponent(id)}&is_public=eq.true&removed_at=is.null` +
-          `&select=id,title,description,updated_at,created_at,share_page_ids,share_key,` +
+          `&select=id,title,description,updated_at,created_at,share_page_ids,share_key,hidden_from_feeds,` +
           OG_PAGES_SELECT.replace('binder_pages(', 'binder_pages(title,'),
       )
     : null;
@@ -92,7 +93,10 @@ module.exports = async (req, res) => {
         { status: 404, maxAge: 60 },
       );
     }
-    return sendHtml(res, compose(shell, { head, body: '' }), { maxAge: 60 });
+    // 404 (MIC-037): a private, trashed or unknown binder is not a page to a crawler. The body is
+    // still the app shell, so the owner of a private binder (signed in) and the app's own demo
+    // binders (ex-*, drawn from bundled data) open exactly as before.
+    return sendHtml(res, compose(shell, { head, body: '' }), { status: 404, maxAge: 60 });
   }
 
   const pages = (binder.binder_pages || []).slice().sort((a, b) => a.position - b.position);
@@ -101,11 +105,17 @@ module.exports = async (req, res) => {
   const names = await cardNames(cardIds);
   const cardCount = cardIds.length;
   const shape = shapeLabel(pages);
+  // MIC-037: hidden (daily puzzle) binders, thin ones and unnamed ones are kept out of the index
+  // (api/_index.js). A HIDDEN binder's page titles are future puzzle answers, so its page prints
+  // no page names, no card list and no description: title and picture only.
+  const decision = indexDecision(binder);
+  const hidden = decision.reason === 'hidden';
 
   const title = `${binder.title} · ${shape} Pokémon binder · ${SITE_NAME}`;
   const firstNames = [...new Set(cardIds.map((c) => names.get(c) && names.get(c).name).filter(Boolean))].slice(0, 4);
-  const description =
-    binder.description ||
+  const description = hidden
+    ? 'A michi-method Pokémon card binder. Build your own for free.'
+    : binder.description ||
     `A michi-method Pokémon card binder: ${plural(pages.length, 'page')}, ${plural(cardCount, 'card')}` +
       (firstNames.length ? `, with ${firstNames.join(', ')}.` : '.') +
       ' Open it to turn the pages, then build your own for free.';
@@ -128,7 +138,7 @@ module.exports = async (req, res) => {
     datePublished: binder.created_at,
     isPartOf: { '@type': 'WebSite', name: SITE_NAME, url: SITE },
     about: { '@type': 'Thing', name: 'Pokémon trading card binder' },
-    mainEntity: {
+    mainEntity: hidden ? undefined : {
       '@type': 'ItemList',
       numberOfItems: pages.length,
       itemListElement: pages.map((p, i) => ({
@@ -144,6 +154,7 @@ module.exports = async (req, res) => {
     `<title>${esc(title)}</title>`,
     `<meta name="description" content="${esc(description)}" />`,
     `<link rel="canonical" href="${esc(canonical)}" />`,
+    ...(decision.index ? [] : ['<meta name="robots" content="noindex" />']),
     `<meta property="og:type" content="website" />`,
     `<meta property="og:title" content="${esc(title)}" />`,
     `<meta property="og:description" content="${esc(oneLine(description))}" />`,
@@ -161,7 +172,9 @@ module.exports = async (req, res) => {
     .map((l) => `    ${l}`)
     .join('\n');
 
-  const pageHtml = pages
+  // rel=nofollow on the card links: /browse?q=... is the app shell for every query, thousands of
+  // URLs that read as copies of one page to a crawler until cards have pages of their own.
+  const pageHtml = hidden ? '' : pages
     .map((p, i) => {
       const cards = slotsOf(p)
         .map((s) => {
@@ -169,7 +182,7 @@ module.exports = async (req, res) => {
           const c = names.get(s.card_id);
           if (!c) return null;
           const set = c.set ? ` <span class="muted">· ${esc(c.set)}</span>` : '';
-          return `<li><a href="${esc(cardSearchHref(c.name, c.set))}">${esc(c.name)}</a>${set}</li>`;
+          return `<li><a rel="nofollow" href="${esc(cardSearchHref(c.name, c.set))}">${esc(c.name)}</a>${set}</li>`;
         })
         .filter(Boolean)
         .join('');
@@ -179,9 +192,9 @@ module.exports = async (req, res) => {
     .join('');
 
   const body = `${seoBodyStyle}<main id="seo">
-<p class="k">A michi binder · ${esc(shape)} · ${plural(pages.length, 'page')} · ${plural(cardCount, 'card')}</p>
+<p class="k">A michi binder · ${esc(shape)} · ${plural(pages.length, 'page')}${hidden ? '' : ` · ${plural(cardCount, 'card')}`}</p>
 <h1>${esc(binder.title)}</h1>
-<p>${esc(description)}</p>
+${hidden ? '' : `<p>${esc(description)}</p>`}
 <nav><a href="${SITE}/">Build your own Pokémon binder</a><a href="${SITE}/michi-method">What is a michi binder?</a><a href="${SITE}/learn/print-binder">Print a binder at true size</a></nav>
 ${pageHtml}
 <p class="muted">Made with ${esc(SITE_NAME)}, the free Pokémon binder builder. Card images belong to their respective owners.</p>

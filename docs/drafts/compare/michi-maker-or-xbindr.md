@@ -44,11 +44,11 @@ xBindr. [BRIAN: one sentence on how you know xBindr, or delete.]
 
 ## Pick xBindr if
 
-- You collect **French** cards, or price in **euros** from Cardmarket: xBindr covers both today.
-  Michi-Maker has English and Japanese cards and TCGplayer prices; French is planned, no date yet.
-- You want **more free room**: 5 binders of up to 1,100 cards beats our free 2 binders of 20 pages.
-- You want **grid sizes beyond 4×4**, or binder materials like leather and canvas.
-- You want to slice and print **your own images** and are happy on their Premium plan.
+- You want the **most free binders**: 5 binders of up to 1,100 cards, against our free 2 binders of
+  20 pages. That is the one place xBindr is the better deal.
+
+xBindr also covers French cards and Cardmarket prices in euros today, and offers grids beyond 4×4
+and binder materials like leather and canvas (see the list above).
 
 ## Pick Michi-Maker if
 
@@ -56,6 +56,10 @@ xBindr. [BRIAN: one sentence on how you know xBindr, or delete.]
   come together around it.
 - You want to search cards by **what the artwork shows** (a beach, a night sky, food).
 - You want to try it **without signing up**.
+- You want to go further for little: the paid plan is **$2.99 a month** (or $24.99 a year) for
+  **unlimited binders** and unlimited card recommendations (Find similar, and Complete a page
+  from the cards already on it), which turn building a binder into exploring. A free account gets
+  three tries of each.
 - [BRIAN: the reason you would give a friend, in one line, or delete.]
 
 ## What I will not claim

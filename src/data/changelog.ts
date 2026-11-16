@@ -948,7 +948,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'browse',
         big: true,
-        pinned: true,
         body:
           'Type theme: and a word, or press Theme, and the Lorcana and One Piece cards whose art '
           + 'shows it come up. The toolbar narrows by ink or colour, and by Full art or Windowed.',
@@ -1534,7 +1533,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Free and PRO, and PRO has no limits',
-        pinned: true,
         kind: 'better',
         area: 'account',
         big: true,

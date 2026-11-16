@@ -60,7 +60,7 @@ function pageParam(page: string | string[] | undefined): number {
 }
 
 export default function BinderRoute() {
-  const { id, print, edit, slice, fill, page, back, resume, seeded, tip } = useLocalSearchParams<{
+  const { id, print, edit, slice, fill, page, back, resume, seeded, tip, pocket } = useLocalSearchParams<{
     id: string;
     print?: string;
     edit?: string;
@@ -68,6 +68,8 @@ export default function BinderRoute() {
     seeded?: string;
     /** `1` when the new-binder wizard's reveal opened this binder (MIC-017 B1-A): one tip. */
     tip?: string;
+    /** `<row>.<col>` (zero-based): open the card picker aimed at this pocket of the opening page (MIC-044, the wizard's first run). */
+    pocket?: string;
     slice?: string;
     /** `<page>.<pocket>` (zero-based): reopen the Fill page sheet there - the way back from a sign-in (lib/authReturn). */
     fill?: string;
@@ -94,7 +96,7 @@ export default function BinderRoute() {
   useEffect(() => {
     if (migrated) {
       const q = new URLSearchParams();
-      for (const [k, v] of Object.entries({ print, edit, slice, fill, page, back, seeded })) if (v) q.set(k, v);
+      for (const [k, v] of Object.entries({ print, edit, slice, fill, page, back, seeded, tip, pocket })) if (v) q.set(k, v);
       const qs = q.toString();
       router.replace(`/binder/${migrated}${qs ? `?${qs}` : ''}` as Href);
     } else if (strandedResume) {
@@ -113,6 +115,7 @@ export default function BinderRoute() {
         firstRunTip={tip === '1'}
         initialStudioOpen={slice === '1'}
         initialFillAt={fill || null}
+        initialPocketAt={edit === '1' ? pocket || null : null}
         initialPageIndex={openAt}
         onClose={goHome}
         onOpenBinder={(bid) => router.replace(`/binder/${bid}`)}

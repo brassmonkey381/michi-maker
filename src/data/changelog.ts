@@ -192,10 +192,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
-        head: 'Your first page, shown before the editor',
+        head: 'Start building at your first empty pocket',
         kind: 'better',
         area: 'binders',
-        body: 'After the new-binder wizard you see page one first, with Turn the page or Keep building, then the editor opens with one tip.',
+        body: 'After the new-binder wizard the editor opens on the first page with an empty pocket, ready for a card, with one tip.',
       },
       {
         products: ['michi'],

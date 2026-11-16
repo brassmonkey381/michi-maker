@@ -132,6 +132,7 @@ import { dealToHand, HAND_QUICK_DEALS } from '@/data/handDeal';
 /** The selection panel's buttons in the editor: 0 = the hand, 1 = this page. */
 const HAND_PICK_ACTIONS = ['Add to hand', 'Add to page'] as const;
 import { TrashCan, type TrashRect } from '@/components/binder/TrashCan';
+import { parsePocketParam } from '@/data/firstOpenPocket';
 import { HandSpread } from '@/components/binder/HandSpread';
 import { DialogCard } from '@/components/ui/DialogCard';
 import type { GridLift } from '@/components/binder/BinderGrid';
@@ -209,6 +210,11 @@ interface BinderScreenProps {
    */
   initialFillAt?: string | null;
   /**
+   * `?pocket=<row>.<col>` (zero-based) with `?edit=1`: open on the editing page with the card
+   * picker aimed at that pocket, so a new binder starts at its first open pocket (MIC-044).
+   */
+  initialPocketAt?: string | null;
+  /**
    * Which page the binder opens on, zero-based (`?page=N` in the link is one-based; the route
    * converts). Only the starting value, and it is clamped by the render, so past the end is the
    * last page rather than an error.
@@ -238,6 +244,7 @@ export function BinderScreen({
   initialStudioOpen = false,
   firstRunTip = false,
   initialFillAt = null,
+  initialPocketAt = null,
   initialPageIndex = 0,
 }: BinderScreenProps) {
   const store = useBinders();
@@ -388,7 +395,15 @@ export function BinderScreen({
     return slotId ? { at, slotId } : null;
   });
   const [pageIndex, setPageIndex] = useState(fillResume?.at ?? 0);
-  const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
+  // MIC-044: a new binder opens aimed at its first open pocket. On page one that is the first state;
+  // further in, the book riffles to the page (each turn un-aims, see changePage), so the aim waits
+  // here and lands when the riffle reaches its page.
+  const pocketAim = useRef(
+    parsePocketParam(initialPocketAt) && initialPageIndex > 0 ? { page: initialPageIndex, cell: parsePocketParam(initialPocketAt)! } : null,
+  );
+  const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(() =>
+    initialPageIndex > 0 ? null : parsePocketParam(initialPocketAt),
+  );
   // MIC-017 hand: the picker is open to fill the hand (each pick lands in the tray, the sheet stays).
   const [pickToHand, setPickToHand] = useState(false);
   const [handFillOpen, setHandFillOpen] = useState(false);
@@ -579,7 +594,7 @@ export function BinderScreen({
    * editor things you had to summon, and it made the layout jump as they came and went. A rail is
    * 34px, always in the same place, and says what is behind it — the slice tray's old trick.
    */
-  const [cardsCollapsed, setCardsCollapsed] = useState(true);
+  const [cardsCollapsed, setCardsCollapsed] = useState(!parsePocketParam(initialPocketAt));
   /**
    * THE SHORTCUTS CARD (owner, 2026-09-14). Opened by the ⌨ button, and once by itself: the first
    * time this device edits a binder with a keyboard in front of it. Web only, wide only: on a phone
@@ -1738,9 +1753,12 @@ export function BinderScreen({
   // pocket. Turning the page now un-aims, which is also what the ring on screen implies.
   const changePage = (i: number) => {
     setSelectedSlotId(null);
-    setPickerCell(null);
+    const next = Math.max(0, Math.min(i, binder.pages.length - 1));
+    const aim = pocketAim.current;
+    if (aim && aim.page === next) pocketAim.current = null;
+    setPickerCell(aim && aim.page === next ? aim.cell : null);
     clearMulti();
-    setPageIndex(Math.max(0, Math.min(i, binder.pages.length - 1)));
+    setPageIndex(next);
   };
 
   /**

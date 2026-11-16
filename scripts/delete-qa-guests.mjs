@@ -20,7 +20,10 @@ import fs from 'node:fs';
 import { ROOT, appSql } from './lib/michi.mjs';
 
 const APPLY = process.argv.includes('--apply');
-const CUTOFF = '2026-11-16T00:00:00Z';
+// --cutoff=<ISO> for a later pass (the second pass, 2026-11-16, took the headless guests made after
+// the first run's cutoff: TCGScan's BiBo previews until 00:02 UTC and one Vercel build check).
+const CUTOFF = (process.argv.find((a) => a.startsWith('--cutoff=')) ?? '--cutoff=2026-11-16T00:00:00Z').slice(9);
+if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(CUTOFF)) { console.error(`bad --cutoff ${CUTOFF}`); process.exit(2); }
 const MAX = 2500;
 
 const lines = [];

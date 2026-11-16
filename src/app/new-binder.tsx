@@ -33,6 +33,7 @@ import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { fetchCardsWhere } from '@/data/guestFill';
 import { where } from '@/data/guestFillQuery';
+import { wizardSetLanguage, withoutEmptySet } from '@/data/wizardSets';
 import { track } from '@/lib/analytics';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -182,11 +183,23 @@ function NewBinderWizard() {
     };
   }, [kind, query]);
 
+  // A set's cards in its own language (MIC-043: Japanese sets asked for English and loaded 0 cards).
+  // A set that still has none leaves the list instead of being offered with 0 cards.
   const chooseSet = (s: SetMeta) => {
     setSet(s);
     setLoading(true);
-    fetchSetCards(s.id, ['en'])
-      .then((found) => setCards(released(found)))
+    fetchSetCards(s.id, [wizardSetLanguage(s.series)])
+      .then((found) => {
+        const cards = released(found);
+        if (cards.length) {
+          setCards(cards);
+          return;
+        }
+        setCards([]);
+        setSet(null);
+        setSets((list) => withoutEmptySet(list, s.id));
+        showToast(`${s.name} has no cards to build with yet.`);
+      })
       .finally(() => setLoading(false));
   };
 

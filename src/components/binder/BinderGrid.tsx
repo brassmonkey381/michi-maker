@@ -652,7 +652,9 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       clearTimeout(t);
     };
   }, []);
-  const motionOn = SLEEVES && settled && !reduceMotion;
+  // EDIT MODE ONLY (MIC-042, owner 2026-11-16: "when viewing a binder, we don't need the slide in /
+  // out animation in the pockets ... only in edit mode"). Viewing and paging draw pockets still.
+  const motionOn = SLEEVES && editable && settled && !reduceMotion;
   const slideDx = (col: number) => (pocketOpening(page.cols, outerEdge ?? 'right', col) === 'right' ? 1 : -1) * Math.round(cellW * 0.6);
   const slideTiming = (n: number) => ({ duration: n > 6 ? 170 : 260, step: n > 6 ? 25 : 40 });
   const sigKey = SLEEVES ? page.slots.map(slotSig).join(';') : '';

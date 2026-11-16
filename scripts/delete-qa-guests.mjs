@@ -73,6 +73,15 @@ table(await appSql(`
 out('\n3. guests per day that would drop out of the counts (UTC)');
 table(await appSql(`select created_at::date as day, count(*) as removed from (${SET}) q group by 1 order by 1;`));
 
+out('\n3b. where they come from: newest 10 sign-ups, and the browser strings (version digits only, no IPs)');
+table(await appSql(`select created_at from (${SET}) q order by created_at desc limit 10;`));
+table(await appSql(`
+  select regexp_replace(s.user_agent, '[0-9]+(\\.[0-9]+)+', 'N', 'g') as user_agent_shape,
+         string_agg(distinct substring(s.user_agent from 'HeadlessChrome/([0-9]+)'), ',') as chrome_major,
+         count(distinct s.user_id) as accounts, max(s.created_at) as newest_session
+    from auth.sessions s where s.user_id in (select id from (${SET}) q)
+   group by 1 order by accounts desc limit 15;`));
+
 const n = Number(c.accounts);
 if (!APPLY) {
   out(`\nDry run: nothing was changed. --apply would remove ${n} accounts.`);

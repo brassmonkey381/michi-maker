@@ -17,6 +17,7 @@
 //
 // Requires the web dev server running (npm run web) and Microsoft Edge installed.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { readFileSync } from 'node:fs';
 
 const OUT = process.argv[2] ?? 'two-docks';
@@ -52,6 +53,7 @@ if (!Array.isArray(mine) || !mine.length) {
 }
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 // 1920 is the case that prompted elastic panels: a height-fitted page leaves over a thousand
 // pixels doing nothing.
 const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });

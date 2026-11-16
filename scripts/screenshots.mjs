@@ -2,6 +2,7 @@
 // screenshot each. Usage: node scripts/screenshots.mjs <outSubdir>
 // Requires the web dev server running (npm run web) and Microsoft Edge installed.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { mkdirSync } from 'node:fs';
 
 const SCRATCH = 'C:/Users/Brian/AppData/Local/Temp/claude/C--Users-Brian-source-repos-poke-michi/dced3129-7ca3-4c03-a98f-9e372f418d5b/scratchpad';
@@ -11,6 +12,7 @@ const variant = process.argv[3];
 const URL = `http://localhost:8081${variant ? `/?variant=${variant}` : ''}`;
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 });
 const log = (...a) => console.log(...a);
 const shot = async (n) => { try { await page.screenshot({ path: `${OUT}/${n}.png`, timeout: 90000, animations: 'disabled' }); log('  shot:', n); } catch (e) { log('  !! shot failed', n, e.message.slice(0, 50)); } };

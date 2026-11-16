@@ -19,6 +19,7 @@
 //
 // Requires the web dev server running (npm run web) and Microsoft Edge installed.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { readFileSync } from 'node:fs';
 
 const OUT = process.argv[2] ?? 'page-fits';
@@ -63,6 +64,7 @@ if (!Array.isArray(mine) || !mine.length) {
 const BINDER = mine[0].id;
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 let ok = true;
 
 // The page's own box against the window. `binder-page-current` is the grid itself, so its bottom is

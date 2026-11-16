@@ -23,6 +23,7 @@
 //
 // Requires the web dev server running (npm run web) and Microsoft Edge installed.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { readFileSync } from 'node:fs';
 
 const OUT = process.argv[2] ?? 'quick-place';
@@ -90,6 +91,7 @@ const slotIds = async () =>
 const slotsBefore = await slotIds();
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1.25 });
 // Boot already authenticated: the app reads its session straight out of localStorage, so there is
 // no login form to drive and no email step to flake on.

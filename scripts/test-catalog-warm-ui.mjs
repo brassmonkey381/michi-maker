@@ -4,6 +4,7 @@
 // catalog fetch. Then reloads to prove the second visit is served from the encrypted local cache
 // rather than the network, which is the fact that makes warming every page cheap.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { readFileSync } from 'node:fs';
 
 const BASE = process.env.MICHI_BASE ?? 'http://localhost:8088';
@@ -23,6 +24,7 @@ const session = await (
 ).json();
 
 const b = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(b); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await b.newContext({ viewport: { width: 1400, height: 950 } });
 await ctx.addInitScript(({ key, value }) => window.localStorage.setItem(key, value), {
   key: `sb-${PROJECT}-auth-token`,

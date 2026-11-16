@@ -2,6 +2,7 @@
 // blockage (longtasks + event-loop probes), CPU-profile the load, then reload (the
 // tab-discard refocus path) and measure again. Run from the repo root: node <this file>
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const SUPA = 'https://piikwvntldytjejxmcla.supabase.co';
@@ -22,6 +23,7 @@ const stored = { ...tok, expires_at: Math.floor(Date.now() / 1000) + (tok.expire
 const STORAGE_KEY = 'sb-piikwvntldytjejxmcla-auth-token';
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 await ctx.addInitScript(
   ([k, v]) => {

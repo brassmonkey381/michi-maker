@@ -4,6 +4,7 @@
 // artwork slot on a real page, point at it, and look for the role guide. Self-cleaning: the slot
 // is deleted again whatever happens.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { readFileSync } from 'node:fs';
 
 const BASE = process.env.MICHI_BASE ?? 'http://localhost:8085';
@@ -81,6 +82,7 @@ process.on('uncaughtException', async (e) => {
 });
 
 const b = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(b); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await b.newContext({ viewport: { width: 1500, height: 1000 } });
 await ctx.addInitScript(({ key, value }) => window.localStorage.setItem(key, value), {
   key: `sb-${PROJECT}-auth-token`,

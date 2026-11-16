@@ -4,6 +4,7 @@
 //   node scripts/lab/page-title-search-run.mjs     (dev server on :8090)
 import { readFileSync, mkdirSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { guardBrowser } from '../lib/prodGuard.mjs';
 
 import { sessionSeed } from '../../qa/lib/personas.mjs';
 
@@ -50,6 +51,7 @@ const binder = binders.find((b) => b.id === probe.binder_id);
 log(`  probe: "${probe.title}" (page ${probe.position + 1} of "${binder.title}")`);
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 await ctx.addInitScript(({ key, value }) => { try { localStorage.setItem(key, value); } catch {} }, sessionSeed(session));
 const page = await ctx.newPage();

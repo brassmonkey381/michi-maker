@@ -3,6 +3,7 @@
 // the signed-out landing. Also shoots the Home pill a guest sees.
 //   node scripts/lab/delete-account-run.mjs        (dev server on :8090; creates and deletes one qa-rig account)
 import { chromium } from 'playwright-core';
+import { guardBrowser } from '../lib/prodGuard.mjs';
 import { mkdirSync } from 'node:fs';
 
 import { resolve, sessionSeed } from '../../qa/lib/personas.mjs';
@@ -13,6 +14,7 @@ const log = (...a) => console.log(...a);
 let failures = 0;
 const check = (label, ok, extra = '') => { log(`  ${ok ? 'ok  ' : 'FAIL'} ${label}${extra ? ' ' + extra : ''}`); if (!ok) failures += 1; };
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 
 // 1. The guest's Home pill.
 {

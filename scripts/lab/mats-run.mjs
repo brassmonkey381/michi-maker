@@ -6,6 +6,7 @@
 //   node scripts/lab/mats-run.mjs
 import { mkdirSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { guardBrowser } from '../lib/prodGuard.mjs';
 
 import { sessionSeed } from '../../qa/lib/personas.mjs';
 
@@ -42,6 +43,7 @@ const set = await fetch(`${URL_}/rest/v1/binders?id=eq.${BINDER}`, { method: 'PA
 check('the binder carries a mat style', set[0]?.page_style?.mat?.font === 'sans');
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
 await ctx.addInitScript(({ key, value }) => { try { localStorage.setItem(key, value); } catch {} }, sessionSeed(session));
 const page = await ctx.newPage();

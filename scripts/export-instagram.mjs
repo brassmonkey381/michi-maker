@@ -33,6 +33,7 @@
  * PATH the script converts; if not it says how to install it and leaves the WebM.
  */
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { Buffer } from 'node:buffer';
 import { mkdirSync, existsSync, renameSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -89,6 +90,7 @@ async function binderTrack(id) {
   return t && typeof t.url === 'string' && /^https?:/.test(t.url) ? t.url : null;
 }
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 let ok = true;
 try {
   // ---- stills

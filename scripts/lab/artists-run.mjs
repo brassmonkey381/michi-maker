@@ -9,6 +9,7 @@
 import { Buffer } from 'node:buffer';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { guardBrowser } from '../lib/prodGuard.mjs';
 import sharp from 'sharp';
 
 import { sessionSeed } from '../../qa/lib/personas.mjs';
@@ -34,6 +35,7 @@ log(`  test account @${prof[0]?.username}: artist ${prof[0]?.is_artist}`);
 if (!prof[0]?.is_artist) { log('the test account is not an artist yet: run state/apply-artists.ps1 first'); process.exit(2); }
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 // The offer half runs on the phone size, where the Account pill opens the sheet the way the
 // delete-account lab proved; the place half needs the desktop editor's artwork dock.
 const ctx = MODE === 'offer'

@@ -2,6 +2,7 @@
 // Loads the app, freezes the page (CDP lifecycle), edits a source file N times so Metro
 // queues N hot updates, unfreezes, and measures how long the main thread blocks.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 
 const APP = 'http://localhost:8081';
@@ -11,6 +12,7 @@ const EDITS = 12;
 const original = readFileSync(TARGET, 'utf8');
 try {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
   const page = await browser.newContext().then((c) => c.newPage());
   await page.goto(APP, { waitUntil: 'domcontentloaded', timeout: 300000 });
   await page.waitForTimeout(8000); // let the app settle + HMR socket connect

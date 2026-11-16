@@ -17,6 +17,7 @@
 //
 // Requires the web dev server running (npm run web) and Microsoft Edge installed.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { readFileSync } from 'node:fs';
 
 const OUT = process.argv[2] ?? 'artwork-tab';
@@ -54,6 +55,7 @@ if (!Array.isArray(mine) || !mine.length) {
 }
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1 });
 await ctx.addInitScript(({ key, value }) => window.localStorage.setItem(key, value), {
   key: `sb-${PROJECT}-auth-token`,

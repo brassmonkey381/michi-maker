@@ -24,6 +24,7 @@
  * Requires playwright-core + Microsoft Edge. Run through test-avatar-consent-ui.ps1.
  */
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -181,6 +182,7 @@ try {
   });
 
   browser = await chromium.launch({ channel: 'msedge', headless: true });
+  guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
   const errors = [];
 
   /** A fresh browser context signed in as one account. */

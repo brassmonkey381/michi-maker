@@ -12,6 +12,7 @@
 //
 // Requires the web dev server running and Microsoft Edge installed.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { readFileSync } from 'node:fs';
 
 const OUT = process.argv[2] ?? 'chrome-tuck';
@@ -48,6 +49,7 @@ if (!Array.isArray(mine) || !mine.length) {
 const BINDER = mine[0].id;
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } });
 await ctx.addInitScript({
   content: `window.localStorage.setItem('sb-${PROJECT}-auth-token', ${JSON.stringify(

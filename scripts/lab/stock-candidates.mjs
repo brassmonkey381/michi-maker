@@ -2,6 +2,7 @@
 // test account (verify_jwt is on). Secrets come from tcgscan.secrets and are never printed.
 //   node scripts/lab/stock-candidates.mjs "volcano" "floral" "electricity:illustration"
 import { chromium } from 'playwright-core';
+import { guardBrowser } from '../lib/prodGuard.mjs';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const OUT = 'C:/Users/Brian/AppData/Local/Temp/claude/C--Users-Brian-source-repos-tcgscan-michi-maker/2dc325a1-a236-47eb-9ab0-6fac1583581e/scratchpad';
@@ -34,6 +35,7 @@ figure{margin:0} img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:
 figcaption{padding:4px 2px;line-height:1.3} .dim{color:#777;font-size:12px}
 </style>${sections.map((s) => `<h2>"${s.q}" (${s.hits.length}, cropped the way one pocket shows it)</h2><div class="grid">${s.hits.map(tile).join('')}</div>`).join('')}`;
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const page = await browser.newPage({ viewport: { width: 1212, height: 900 } });
 await page.setContent(html, { waitUntil: 'load' });
 await page.waitForTimeout(6000);

@@ -14,6 +14,7 @@
  * Run through test-new-user-ui.ps1.
  */
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { mkdirSync } from 'node:fs';
 import { readFileSync } from 'node:fs';
 
@@ -120,6 +121,7 @@ try {
   const b2 = await mk('uitest two');
 
   browser = await chromium.launch({ channel: 'msedge', headless: true });
+  guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   const shot = async (n) => { try { await page.screenshot({ path: `${OUT}/${n}.png`, animations: 'disabled', timeout: 60000 }); } catch { /* */ } };
 

@@ -8,6 +8,7 @@
 // Usage: node scripts/test-two-tabs-ui.mjs [outPrefix]
 // Requires the web dev server running (npm run web) and Microsoft Edge installed.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 
 const OUT = process.argv[2] ?? 'two-tabs';
 const URL = 'http://localhost:8081/my-binders';
@@ -19,6 +20,7 @@ const KEY_PREFIX = 'michi.binder-edit-lease.';
 // What CAN be produced is the case that actually opens the second writer — a link opened in a new
 // foreground tab — and the Edit here button, which is the same code path a focus rise takes.
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 
 const settle = (p, ms = 2500) => p.waitForTimeout(ms);

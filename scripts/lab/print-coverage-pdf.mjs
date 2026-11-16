@@ -2,9 +2,11 @@
 // server, so the PDF says what src/data/gameCoverage.ts says. Headless Chromium print, desktop width.
 //   node scripts/lab/print-coverage-pdf.mjs
 import { chromium } from 'playwright-core';
+import { guardBrowser } from '../lib/prodGuard.mjs';
 
 const OUT = 'C:/Users/Brian/source/repos/tcgscan/michi-maker/public/downloads/game-feature-coverage.pdf';
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const page = await browser.newPage({ viewport: { width: 1200, height: 1400 } });
 await page.goto('http://localhost:8090/coverage', { waitUntil: 'domcontentloaded', timeout: 240000 });
 await page.waitForSelector('text=Download as PDF', { timeout: 240000 });

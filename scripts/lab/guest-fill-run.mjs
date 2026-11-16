@@ -3,12 +3,14 @@
 // reload (a new visit) -> Fill page and Complete are both the free-account wall.
 //   node scripts/lab/zz-guest-fill-run.mjs [phone]     (dev server on :8090)
 import { chromium } from 'playwright-core';
+import { guardBrowser } from '../lib/prodGuard.mjs';
 import { mkdirSync } from 'node:fs';
 
 const OUT = 'C:/Users/Brian/AppData/Local/Temp/claude/C--Users-Brian-source-repos-tcgscan-michi-maker/2dc325a1-a236-47eb-9ab0-6fac1583581e/scratchpad/guest-fill';
 mkdirSync(OUT, { recursive: true });
 const phone = process.argv[2] === 'phone';
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await browser.newContext({ viewport: phone ? { width: 390, height: 844 } : { width: 1280, height: 900 }, deviceScaleFactor: 1, isMobile: phone, hasTouch: phone });
 const page = await ctx.newPage();
 const log = (...a) => console.log(...a);

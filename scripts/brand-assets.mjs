@@ -10,6 +10,7 @@
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fontUrl = pathToFileURL(path.join(root, 'public/fonts/fraunces-latin-var.woff2')).href;
@@ -55,6 +56,7 @@ const ogPage = `<!doctype html><head><style>
 </body>`;
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const page = await (await browser.newContext({ deviceScaleFactor: 2 })).newPage();
 
 await page.setViewportSize({ width: 200, height: 200 });

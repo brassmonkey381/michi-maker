@@ -4,6 +4,7 @@
 // The fixture binder has no cover, so the run dresses it and undresses it again in a finally.
 // Requires the web dev server running and Microsoft Edge installed.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { readFileSync } from 'node:fs';
 
 const OUT = process.argv[2] ?? 'cover-deco';
@@ -50,6 +51,7 @@ await setCover({
 console.log(`fixture        : cover dressed${CARD ? ' with one card picture' : ' (no card found; click-to-select step will be skipped)'}`);
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 let ok = true;
 const fail = (m) => {
   console.log(`FAIL — ${m}`);

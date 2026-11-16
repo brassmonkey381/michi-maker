@@ -11,6 +11,7 @@
 //
 // Requires the web dev server running and Microsoft Edge installed.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 import { readFileSync } from 'node:fs';
 
 const OUT = process.argv[2] ?? 'no-scroll';
@@ -63,6 +64,7 @@ const setCover = (cover) =>
 await setCover({ modelId: 'vaultx-exotec-zip-12-xl', colourway: 'signature-black' });
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 let ok = true;
 try {
 

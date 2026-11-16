@@ -16,6 +16,7 @@
 // Usage: node scripts/test-variant-chips-ui.mjs [outPrefix]
 // Requires the web dev server running (npm run web) and Microsoft Edge installed.
 import { chromium } from 'playwright-core';
+import { guardBrowser } from './lib/prodGuard.mjs';
 
 const OUT = process.argv[2] ?? 'variant-chips';
 // Overridable so a run can point at a second dev server — two agents sharing this repo
@@ -23,6 +24,7 @@ const OUT = process.argv[2] ?? 'variant-chips';
 const BASE = process.env.MICHI_BASE ?? 'http://localhost:8081';
 
 const browser = await chromium.launch({ channel: 'msedge', headless: !process.env.SIGNED_IN });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 
 let failed = 0;

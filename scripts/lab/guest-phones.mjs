@@ -3,6 +3,7 @@
 // (one use, then the wall) -> add pages to the 3-page cap -> reload -> Fill wall.
 //   node scripts/lab/guest-phones.mjs ios|android
 import { chromium } from 'playwright-core';
+import { guardBrowser } from '../lib/prodGuard.mjs';
 import { mkdirSync } from 'node:fs';
 
 const which = process.argv[2] ?? 'ios';
@@ -12,6 +13,7 @@ const DEV = which === 'android'
 const OUT = `C:/Users/Brian/AppData/Local/Temp/claude/C--Users-Brian-source-repos-tcgscan-michi-maker/2dc325a1-a236-47eb-9ab0-6fac1583581e/scratchpad/guest-${which}`;
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
+guardBrowser(browser); // TRI-005: no guest sign-ups or analytics on production
 const ctx = await browser.newContext({ viewport: DEV.viewport, userAgent: DEV.ua, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 const page = await ctx.newPage();
 const log = (...a) => console.log(...a);

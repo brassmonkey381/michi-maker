@@ -68,6 +68,7 @@ import { landingCampaignParams, track } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
+import { BinderThumb } from '@/components/binder/BinderThumb';
 
 /** Which binders the list shows. Module-level so it survives leaving and coming back. */
 type Visibility = 'all' | 'public' | 'private' | 'puzzles';
@@ -294,9 +295,19 @@ export default function MyBindersScreen() {
     // Skip the type-the-name gate for a throwaway: an example/demo binder, or a duplicate the user
     // just made and hasn't edited. Anything they've put work into still requires typing the name.
     const easy = !!isExample || !!isDemo || store.isPristineDuplicate(id);
+    const pageCount = menuBinder.pages.length;
+    const cardCount = menuBinder.pages.reduce((n, p) => n + p.slots.filter((sl) => !!sl.cardId).length, 0);
+    const thumbOf = menuBinder;
     setMenuId(null);
     setConfirm({
-      title: 'Delete this binder?',
+      // MIC-045 M6: the kit dialog names the binder and says what goes (the classic one ignores these).
+      consequence: {
+        title: `${pageCount} page${pageCount === 1 ? '' : 's'} and ${cardCount} card${cardCount === 1 ? '' : 's'} will be gone`,
+        detail: 'Prints and share links stop working. This can’t be undone.',
+        thumb: <BinderThumb binder={thumbOf} width={44} onPress={() => {}} />,
+      },
+      cancelLabel: 'Keep it',
+      title: flag('ui-overlays') ? `Delete “${title}”?` : 'Delete this binder?',
       message: 'This binder and all its pages will be permanently deleted.',
       confirmLabel: 'Delete binder',
       destructive: true,

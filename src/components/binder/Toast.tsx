@@ -20,12 +20,18 @@
 import { useEffect, useState, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
+import { Image } from 'expo-image';
+import { Toast as KitToast } from 'tcgscan-ui';
 
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { TopLayer } from '@/components/binder/TopLayer';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import type { LimitCta } from '@/data/limitMessages';
+import { flag } from '@/lib/flags';
+
+/** MIC-045 M6: every toast in the binder screens on the kit toast (one shell, four tones). */
+const KIT_TOASTS = flag('ui-overlays');
 
 export interface ToastSpec {
   /** Bumped on every show so repeated identical messages still re-trigger. */
@@ -45,6 +51,22 @@ export interface ToastSpec {
    * nothing is lost.
    */
   link?: { text: string; onPress: () => void };
+  /**
+   * The kit toast's mark (MIC-045, `ui-overlays`): what kind of news this is. Without one the
+   * message reads as information, or as an error when it says something failed.
+   */
+  kind?: 'info' | 'success' | 'error';
+  /** A small picture before the message: the card that was just added (MIC-045 M5). */
+  thumbUri?: string;
+}
+
+/** Messages that report a failure get the error mark without each caller saying so. */
+const FAILED = /(could ?n[’']?t|can[’']?t|cannot|could not|failed|does not fit|doesn[’']?t fit|won[’']?t fit|no room)/i;
+
+export function toastKind(spec: Pick<ToastSpec, 'kind' | 'message' | 'tone'>): 'info' | 'success' | 'limit' | 'error' {
+  if (spec.tone === 'limit') return 'limit';
+  if (spec.kind) return spec.kind;
+  return FAILED.test(spec.message) ? 'error' : 'info';
 }
 
 // 3.5s was not long enough to notice a confirmation, read the binder's name in it, and decide
@@ -76,6 +98,46 @@ export function Toast({ spec, onDismiss, bottomInset = 0 }: { spec: ToastSpec | 
     if (cta.kind === 'plans') router.push(PLANS);
     else setAuthOpen(true);
   };
+
+  if (KIT_TOASTS) {
+    const kind = spec ? toastKind(spec) : 'info';
+    const actions: { label: string; onPress: () => void }[] = [];
+    if (spec?.link) {
+      const link = spec.link;
+      actions.push({ label: 'Open', onPress: () => { link.onPress(); onDismiss(); } });
+    }
+    if (spec?.actionLabel && spec.onAction) {
+      const run = spec.onAction;
+      actions.push({ label: spec.actionLabel, onPress: () => { run(); onDismiss(); } });
+    }
+    if (spec?.cta) {
+      const cta = spec.cta;
+      actions.push({ label: cta.label, onPress: () => runCta(cta) });
+    }
+    return (
+      <>
+        {spec ? (
+          <TopLayer>
+            <View pointerEvents="box-none" style={[styles.wrap, bottomInset ? { bottom: 28 + bottomInset } : null]}>
+              <View style={styles.kitSlot}>
+                <KitToast
+                  key={spec.id}
+                  message={spec.message}
+                  tone={kind}
+                  lines={3}
+                  actions={actions.slice(-2)}
+                  thumb={spec.thumbUri ? <Image source={{ uri: spec.thumbUri }} style={styles.kitThumb} contentFit="cover" /> : undefined}
+                  onClose={onDismiss}
+                  duration={DISMISS_MS[tone]}
+                />
+              </View>
+            </View>
+          </TopLayer>
+        ) : null}
+        {authOpen ? <AuthSheet visible onClose={() => setAuthOpen(false)} /> : null}
+      </>
+    );
+  }
 
   return (
     <>
@@ -174,6 +236,8 @@ export function Toast({ spec, onDismiss, bottomInset = 0 }: { spec: ToastSpec | 
 }
 
 const styles = StyleSheet.create({
+  kitSlot: { width: '92%', maxWidth: 520 },
+  kitThumb: { width: 26, height: 36, borderRadius: 3 },
   link: { color: Palette.accent, textDecorationLine: 'underline' },
   wrap: {
     position: 'absolute',

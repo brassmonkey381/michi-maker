@@ -66,6 +66,22 @@ export const FLAGS = {
   'auth-compact': 'dev',
   // MIC-017 B5-A: the editor's Settings split into "This binder" | "My view" tabs.
   'settings-tabs': 'dev',
+  // MIC-045 UI revamp (owner approved all six mock-ups, 2026-11-16; TRI-006 board). Each needs
+  // tcgscan-ui v0.14.
+  // M6: one overlay system. Confirm dialogs on the kit Dialog (X, consequence block, equal
+  // buttons, danger tint), DialogCard with an X and a bottom sheet on a phone, toasts in four tones.
+  'ui-overlays': 'dev',
+  // M1: the account sheet keeps the guest's binder in view (thumbnail + three perks), Google first,
+  // labelled fields, an X instead of "Close".
+  'auth-keep': 'dev',
+  // M2: the desktop pocket menu as one anchored pop-over of 3x3 tiles, no "More" step.
+  'pocket-popover': 'dev',
+  // M3: not found / private / signed out / failed as one StatePanel inside the shell.
+  'state-panel': 'dev',
+  // M4: Set Binders builder in numbered steps with a live checklist preview beside it.
+  'setbinders-preview': 'dev',
+  // M5: a card added to the hand says so with its picture, the hand count and Undo.
+  'toast-v2': 'dev',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

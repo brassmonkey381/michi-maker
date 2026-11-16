@@ -27,6 +27,9 @@ import { HAND_RESERVE_DESKTOP, HandCorner, HandTray, useHandTools } from '@/comp
 import { HandOrPageSheet, type HandOrPage } from '@/components/binder/HandOrPageSheet';
 import { flag } from '@/lib/flags';
 
+/** MIC-045 M5: the add-to-hand toast with the card's picture and the hand count. */
+const TOAST_V2 = flag('toast-v2');
+
 /** MIC-017 editor-hand ('dev' flag): the tray becomes a hand of cards under the page. */
 const HAND = flag('editor-hand');
 /** MIC-017 phone-nav: also quiet edit toasts and Undo in the bottom bar on phones. */
@@ -2105,6 +2108,20 @@ export function BinderScreen({
     if (!pickerCell) return;
     if (pickToHand) {
       const n = store.addCardsToTray(binder.id, [cardId]);
+      if (TOAST_V2 && n && !(PHONE_NAV && phone)) {
+        // MIC-045 M5: the card's picture, its name, the hand's new count and Undo, in the success tone.
+        const count = (binder.tray?.length ?? 0) + n;
+        toastId.current += 1;
+        setToast({
+          id: toastId.current,
+          message: `${card?.name ?? 'That card'} is in your hand · ${count} card${count === 1 ? '' : 's'}`,
+          kind: 'success',
+          thumbUri: cardThumbUrl(cardId, 245),
+          actionLabel: 'Undo',
+          onAction: store.undo,
+        });
+        return;
+      }
       quietToast(n ? `In your hand${card?.name ? `: ${card.name}` : ''}` : 'Already in your hand', !!n);
       return;
     }

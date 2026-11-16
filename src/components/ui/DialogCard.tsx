@@ -12,12 +12,21 @@
  * the rare dialog that manages its own scrolling inside `children`.
  */
 import type { ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CloseButton } from 'tcgscan-ui';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Spacing } from '@/constants/theme';
+import { Breakpoints, FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import { flag } from '@/lib/flags';
+
+/**
+ * MIC-045 M6: one scrim (scrim45), an X instead of "Close", and on a phone a bottom sheet with a
+ * grab handle instead of a centred card.
+ */
+const KIT_OVERLAYS = flag('ui-overlays');
 
 export function DialogCard({
   title,
@@ -42,6 +51,9 @@ export function DialogCard({
   /** Body scrolls by default; set false when `children` scrolls itself. */
   scroll?: boolean;
 }) {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const asSheet = KIT_OVERLAYS && width < Breakpoints.phone;
   const body = scroll ? (
     <ScrollView
       style={styles.body}
@@ -52,6 +64,32 @@ export function DialogCard({
   ) : (
     children
   );
+  if (KIT_OVERLAYS) {
+    const close = headerRight ?? <CloseButton onPress={onClose} />;
+    return (
+      <Modal visible={visible} transparent animationType={asSheet ? 'slide' : 'fade'} onRequestClose={onClose}>
+        <Pressable style={asSheet ? styles.sheetBackdrop : sheet.dialogBackdrop} onPress={onClose}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={[styles.wrap, asSheet ? styles.sheetWrap : { maxWidth }]}>
+            <ThemedView
+              type="backgroundElement"
+              style={[sheet.dialogCard, styles.card, asSheet && [styles.sheetCard, { paddingBottom: 24 + insets.bottom }]]}>
+              {asSheet ? <View style={styles.handle} /> : null}
+              <View style={styles.header}>
+                <ThemedText type="subtitle" style={[styles.title, styles.kitTitle]}>
+                  {title}
+                </ThemedText>
+                {close}
+              </View>
+              {body}
+            </ThemedView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    );
+  }
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
@@ -87,4 +125,9 @@ const styles = StyleSheet.create({
   bodyContent: { gap: Spacing.three, paddingBottom: Spacing.one },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
+  kitTitle: { flex: 1 },
+  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: Palette.scrim45 },
+  sheetWrap: { maxWidth: '100%', maxHeight: '92%' },
+  sheetCard: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderTopLeftRadius: Radius.sheet, borderTopRightRadius: Radius.sheet, paddingTop: 8 },
+  handle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: Palette.scrim30 },
 });

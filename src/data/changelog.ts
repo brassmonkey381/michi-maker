@@ -130,6 +130,87 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    // THE REDESIGN LAUNCH (MIC-017). Written for the deploy that turns these flags to 'live' in
+    // lib/flags: home-first, side-nav, discover-v2, browse-dock, editor-hand, settings-tabs,
+    // auth-compact, firstrun-a. Re-date it to the day that flip is committed, and do not ship this
+    // entry without the flip: until then every item here is ?dev only.
+    date: '2026-11-15',
+    title: "A new look for michi-maker",
+    items: [
+      {
+        products: ['michi'],
+        head: "A new look for michi-maker",
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body: "Home opens on your last binder with Keep going, and on a computer it sits beside today’s puzzle and the latest from this page. The side menu is plainer, with bigger words and no icons.",
+      },
+      {
+        products: ['michi'],
+        head: "Browse results as binder pages",
+        kind: 'new',
+        area: 'browse',
+        big: true,
+        body: "Search results lay out as binder pages at S, M or L; on a computer, turn them with the mouse wheel or the Left and Right arrow keys. Select several cards and add them to a binder in one go.",
+      },
+      {
+        products: ['michi'],
+        head: "Discover finds binders and makers",
+        kind: 'better',
+        area: 'sharing',
+        body: "One search box finds public binders by Pokémon, theme, art style or set, and the colour dots find pages in that colour. Makers lists Top makers and Recently active, each with their best three binders.",
+      },
+      {
+        products: ['michi'],
+        head: "The tray is now your hand",
+        kind: 'better',
+        area: 'binders',
+        body: "Suggest or Deal fills your hand, Ctrl or Shift picks several cards to add to the page at once, and on a phone you can spread the hand across the screen. Drag a card to the trash can at the bottom to clear it.",
+      },
+      {
+        products: ['michi'],
+        head: "Your first page, shown before the editor",
+        kind: 'better',
+        area: 'binders',
+        body: "After the new-binder wizard you see page one first, with Turn the page or Keep building, then the editor opens with one tip.",
+      },
+      {
+        products: ['michi'],
+        head: "Settings in two tabs",
+        kind: 'better',
+        area: 'binders',
+        body: "The editor’s Settings are split into This binder and My view.",
+      },
+      {
+        products: ['michi'],
+        head: "A smaller account sheet",
+        kind: 'better',
+        area: 'account',
+        body: "Create account and Sign in are tabs at the top, and the whole sheet fits on screen.",
+      },
+    ],
+  },
+  {
+    date: '2026-11-11',
+    title: "A pocket menu that fits, a Sign in link you can see",
+    items: [
+      {
+        products: ['michi'],
+        head: "The pocket menu on bottom-row cards",
+        kind: 'better',
+        area: 'binders',
+        body: "On a card in the bottom row the pocket menu opens upward, sits above the tool bars, and closes from its top-right corner.",
+      },
+      {
+        products: ['michi'],
+        head: "Sign in no longer cut off",
+        kind: 'fix',
+        area: 'account',
+        body: "On short screens the account sheet fits the window, so “Already have an account? Sign in” shows without scrolling.",
+      },
+    ],
+  },
+  {
     date: '2026-11-10',
     title: "Shorter tips, a share picture for any card, safer public binders",
     items: [

@@ -1,0 +1,664 @@
+import { Redirect, useRouter, type Href } from 'expo-router';
+import Head from 'expo-router/head';
+import { useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated, {
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { AnimatedLogoMark } from '@/components/brand/AnimatedLogoMark';
+import { CurateCallout } from '@/components/CurateCallout';
+import { TcgscanPairing } from '@/components/TcgscanPairing';
+import { AutoFlipBinder } from '@/components/landing/AutoFlipBinder';
+import { HoverLift } from '@/components/landing/HoverLift';
+import { Reveal } from '@/components/landing/Reveal';
+import { AFFILIATE_DISCLOSURE, FooterLinks } from '@/components/layout/SiteFooter';
+import { Wordmark } from '@/components/brand/Wordmark';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import {
+  FontSize,
+  MaxContentWidth,
+  MaxContentWidthWide,
+  Palette,
+  Radius,
+  Shadows,
+  Spacing,
+  Weight,
+} from '@/constants/theme';
+import { useCommunityStats } from '@/data/communityStats';
+import { SAMPLE_BINDERS } from '@/data/sampleData';
+import { useTheme } from '@/hooks/use-theme';
+import { trackLandingCta, trackLandingSkip } from '@/lib/analytics';
+import { SHOW_CROSS_APP } from '@/lib/crossApp';
+import { landingSkipTarget, markLandingSeen } from '@/lib/landing';
+import { PHONE_MAX_WIDTH } from '@/data/binderLayout';
+
+/**
+ * The marketing landing page. First-time web visitors land here from `/` (see lib/landing);
+ * it stays reachable at /welcome forever as the linkable "what is this?" page.
+ *
+ * Everything visual on this page is REAL: the hero and the gallery render bundled example
+ * binders through the same BinderGrid the app uses. Nothing here forces the catalog load —
+ * non-editable grids with no captions paint covers straight from card ids.
+ */
+
+const BINDERS_BY_ID = new Map(SAMPLE_BINDERS.map((b) => [b.id, b]));
+
+/**
+ * The brand display face (Fraunces, loaded via global.css on web). Headings only —
+ * body copy stays on the system sans like the rest of the app.
+ */
+const BrandFont = Platform.select({ web: 'var(--font-brand)', default: 'serif' });
+
+/**
+ * The landing page's own surface language — "gallery studio": warm paper walls, mat-board
+ * cards, bronze craft accents, and one dark beat for the print payoff. Scoped here on
+ * purpose (the app keeps its variant tokens); the binder pages and the blue CTAs are the
+ * only saturated things on the page, so the card art stays the loudest voice.
+ */
+const Paper = { light: '#FAF6EF', dark: '#151310' };
+const Mat = { light: '#F0EADF', dark: '#211E18' };
+const Bronze = { light: '#8A6B45', dark: '#C99F6E' };
+/** The print band is the page's one dark moment, in both schemes. */
+const InkBand = { bg: '#1D1A15', title: '#F5EFE4', body: '#B3AA9A' };
+
+/**
+ * Whether the RESOLVED theme is dark. The paper/mat/bronze surfaces must agree with the
+ * text colors ThemedText resolves, and those follow the active theme VARIANT, which may
+ * pin a scheme (Dark Vault is dark in both OS schemes). Reading the raw OS scheme here
+ * put espresso vintage-light text on dark paper for anyone with a variant set — so judge
+ * darkness from the actual theme background instead.
+ */
+function isDarkBackground(hex: string): boolean {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return false;
+  let h = m[1];
+  if (h.length === 3) h = h.replace(/./g, (c) => c + c);
+  const n = parseInt(h, 16);
+  const luminance = 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
+  return luminance < 128;
+}
+
+/**
+ * The HERO binder: the owner's real "My First Binder", auto-flipping its pages (an open spread on
+ * wide screens, a single page on phones). Deliberately their FIRST binder — the promise the page
+ * makes is "this is what your first one can look like", which a curated showcase binder undercuts.
+ * Both ids point at it so the phone fallback shows the same binder as the desktop spread.
+ */
+const HERO_ID = 'ex-my-first-binder';
+const SPREAD_ID = 'ex-my-first-binder';
+/** The gallery: the owner's real binders (bundled by scripts/build-featured-binders.mjs), not
+ *  mockups. Kept distinct from the hero so the page shows four different binders, not three. */
+const GALLERY_IDS = ['ex-pitch-black-chase', 'ex-ideas-in-flight', 'ex-color-play'];
+
+const VALUE_PROPS = [
+  {
+    title: 'Composition, not cataloging',
+    body: 'Most binder apps sort your cards. michi-maker composes them: anchor pages, color spreads, rarity ladders, artist galleries. Every pocket placed on purpose.',
+  },
+  {
+    title: 'Real binder physics',
+    body: 'Pages come in real side-load sizes (3×3, 3×4, 4×4). Jumbo cards span four pockets, V-UNIONs assemble from their pieces, and folded art crosses the fold, exactly like the binder on your shelf.',
+  },
+  {
+    title: 'From screen to shelf',
+    body: 'Print cut-ready fill sheets at true card size, 2.5″ × 3.5″ edge to edge, so every cut is shared and the page you composed drops straight into real pockets.',
+  },
+] as const;
+
+const FEATURES = [
+  {
+    title: 'Composer',
+    body: 'Seed a pocket with one card and auto-curate the page around it. Seven michi methods, from evolution lines and species pages to color runs.',
+  },
+  {
+    title: 'Slice Studio',
+    body: 'Slice any artwork across pockets with aspect-true windows, rotation and flips. Merge pieces into folded pairs that span the fold of a real page.',
+  },
+  {
+    title: 'Build-a-binder',
+    body: 'Turn a pile of cards into story-first pages in one pass: chase boards, evolution lines, artist pages, set completions, type clusters.',
+  },
+  {
+    title: 'My Collection',
+    body: SHOW_CROSS_APP
+      ? 'Scans from the TCGScan app and CSV imports land here live. Fill binders from what you own: green for owned, gray for still hunting.'
+      : 'CSV imports land here live. Fill binders from what you own: green for owned, gray for still hunting.',
+  },
+  {
+    title: 'True-size printing',
+    body: 'Fill sheets ship with placeholders, your real sliced art, and inserts. Gap compensation keeps mounted pictures reading continuous across pockets.',
+  },
+  {
+    title: 'Share your pages',
+    body: 'Publish binders at a permanent @username, collect likes, and make it to the featured homepage section. Anyone can flip through, no account needed.',
+  },
+] as const;
+
+export default function WelcomeScreen() {
+  const router = useRouter();
+  // A tagged paid/social arrival that deep-linked /welcome goes where `/` would have sent it
+  // (lib/landing). Same once-only initializer as the home screen; the Redirect is below the hooks.
+  const [skipTo] = useState(() => {
+    const to = landingSkipTarget();
+    if (to) {
+      markLandingSeen();
+      trackLandingSkip(to);
+    }
+    return to;
+  });
+  const { width: windowW } = useWindowDimensions();
+  const wide = windowW >= 920;
+  const phoneNav = windowW < 480;
+  const dark = isDarkBackground(useTheme().background);
+  const paper = dark ? Paper.dark : Paper.light;
+  const mat = dark ? Mat.dark : Mat.light;
+  const bronze = dark ? Bronze.dark : Bronze.light;
+  // Cached community totals; starts at the bundled seed so the band never paints empty.
+  const stats = useCommunityStats();
+
+  const scrollRef = useRef<ScrollView>(null);
+  const galleryY = useRef(0);
+
+  // Scroll position drives a subtle parallax on the hero art — it drifts as the page moves.
+  // (No idle oscillation; the only hero motion is this scroll-linked drift.)
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  const heroArtStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: scrollY.value * 0.06 }],
+  }));
+
+  // Every CTA records landing.cta BEFORE navigating, so "what did the landing page get them to
+  // press" is answerable per creative (the campaign params ride on the event).
+  const enterApp = (where: 'hero' | 'closing') => {
+    trackLandingCta(where === 'hero' ? 'enter_hero' : 'enter_closing');
+    markLandingSeen();
+    // A PHONE GOES TO THE WIZARD (owner, 2026-11-05): three taps to a full binder, not an empty
+    // editor. A wide screen keeps the plain path. Reddit arrivals never see this page (above).
+    router.replace(windowW < PHONE_MAX_WIDTH ? ('/new-binder' as Href) : '/');
+  };
+  const browseBinders = () => {
+    trackLandingCta('discover');
+    markLandingSeen();
+    router.push('/discover');
+  };
+  const openBinder = (id: string) => {
+    trackLandingCta('sample_binder', id);
+    markLandingSeen();
+    router.push(`/binder/${id}`);
+  };
+  const scrollToGallery = () =>
+    scrollRef.current?.scrollTo({ y: galleryY.current, animated: true });
+
+  const heroBinder = BINDERS_BY_ID.get(HERO_ID) ?? SAMPLE_BINDERS[0];
+  const galleryBinders = GALLERY_IDS.map((id) => BINDERS_BY_ID.get(id)).filter(
+    (b): b is NonNullable<typeof b> => !!b,
+  );
+
+  // The hero: an open two-page spread when there's room for it (facing pages are the thing
+  // neither a card list nor a competitor wireframe can show), a single page otherwise.
+  const spreadBinder = BINDERS_BY_ID.get(SPREAD_ID);
+  // The hero flips through a real binder: a facing-page spread on wide screens, a single
+  // (larger) page on phones.
+  const heroFlipBinder = spreadBinder ?? heroBinder;
+  // ~50% larger than before, still responsive so it never crowds the copy. The big spread
+  // needs real room, so it only opens at ≥1180; 920–1180 shows a single (large) page.
+  const heroSpread = windowW >= 1180 && !!heroFlipBinder && heroFlipBinder.pages.length >= 2;
+  const spreadPageW = Math.min(450, Math.max(330, Math.floor((windowW - 600) / 2)));
+  const heroW = wide ? Math.min(680, Math.floor(windowW * 0.47)) : Math.min(windowW - Spacing.four * 2, 560);
+  // Gallery: three large, auto-flipping binders — three across on wide, one per row on phones.
+  const galleryPageW = wide
+    ? Math.min(
+        400,
+        Math.floor((Math.min(windowW, MaxContentWidthWide) - Spacing.four * 2 - Spacing.four * 2) / 3),
+      )
+    : Math.min(windowW - Spacing.four * 2, 380);
+
+  if (skipTo) return <Redirect href={skipTo as Href} />;
+
+  return (
+    <ThemedView style={[styles.root, { backgroundColor: paper }]}>
+      {Platform.OS === 'web' ? (
+        <Head>
+          <title>michi-maker: build beautiful Pokémon card binders</title>
+          <meta
+            name="description"
+            content="Compose curated Pokémon card binder pages: rarity ladders, color spreads, artist galleries. Print true-size fill sheets and build the real thing. Free to start."
+          />
+          <meta property="og:title" content="michi-maker: build beautiful Pokémon card binders" />
+          <meta
+            property="og:description"
+            content="Compose curated Pokémon card binder pages: rarity ladders, color spreads, artist galleries. Print true-size fill sheets and build the real thing. Free to start."
+          />
+          <meta property="og:image" content="https://michi-maker.com/og.png" />
+          <meta name="twitter:card" content="summary_large_image" />
+        </Head>
+      ) : null}
+      <SafeAreaView style={styles.root} edges={['top']}>
+        <Animated.ScrollView
+          ref={scrollRef}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={styles.scroll}>
+          {/* ── Nav ─────────────────────────────────────────────────────── */}
+          <View style={styles.shell}>
+            <View style={[styles.nav, wide && styles.navWide]}>
+              <View style={styles.brandRow}>
+                <AnimatedLogoMark size={wide ? 126 : 44} />
+                <ThemedText style={[styles.wordmark, wide && styles.wordmarkBig]}>
+                  <Wordmark />
+                </ThemedText>
+              </View>
+              <Pressable
+                onPress={browseBinders}
+                accessibilityRole="link"
+                accessibilityLabel="See some binders"
+                style={({ pressed }) => [styles.navBtn, phoneNav && styles.navBtnPhone, pressed && styles.pressed]}>
+                {/* MIC-039 p09 (owner: shrink and style the button, leave the wordmark alone): on a
+                    phone a smaller, shorter pill that keeps a clear gap from the wordmark. */}
+                <ThemedText style={[styles.navBtnText, phoneNav && styles.navBtnTextPhone]} numberOfLines={1}>
+                  {phoneNav ? 'See binders →' : 'See some binders →'}
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            {/* ── Hero ────────────────────────────────────────────────── */}
+            <View style={[styles.hero, wide && styles.heroWide]}>
+              <Reveal style={[styles.heroCopy, wide && styles.heroCopyWide]}>
+                <ThemedText style={[styles.kicker, { color: bronze }]}>
+                  THE MICHI METHOD, DIGITIZED
+                </ThemedText>
+                <ThemedText
+                  style={[styles.h1, !wide && styles.h1Narrow]}
+                  accessibilityRole="header">
+                  Binder pages worth staring at.
+                </ThemedText>
+                <ThemedText themeColor="textSecondary" style={styles.heroSub}>
+                  <Wordmark /> is a studio for curated Pokémon card binders. Compose anchor
+                  pages, rarity ladders, color spreads and artist galleries, then print
+                  true-size fill sheets and build the real thing.
+                </ThemedText>
+                <View style={styles.ctaRow}>
+                  <Pressable
+                    onPress={() => enterApp('hero')}
+                    style={({ pressed }) => [styles.ctaPrimary, pressed && styles.pressed]}>
+                    <ThemedText style={styles.ctaPrimaryText}>Start building for free</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    onPress={scrollToGallery}
+                    style={({ pressed }) => [styles.ctaSecondary, pressed && styles.pressed]}>
+                    <ThemedText style={styles.ctaSecondaryText}>See example binders ↓</ThemedText>
+                  </Pressable>
+                </View>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.betaNote}>
+                  Free to start on the web · iOS and Android coming soon{'\n'}
+                  michi-maker is best on a big screen
+                </ThemedText>
+              </Reveal>
+
+              {heroFlipBinder ? (
+                <Reveal style={styles.heroArt} delay={140}>
+                  <Animated.View style={heroArtStyle}>
+                    {/* Named so the marketing capture can find the binder and frame on it
+                        exactly, rather than on hand-tuned pixel offsets that drift. */}
+                    <View testID="welcome-hero-binder" style={[styles.heroTilt, Shadows.page]}>
+                      <AutoFlipBinder
+                        binder={heroFlipBinder}
+                        pageWidth={heroSpread ? spreadPageW : heroW}
+                        spread={heroSpread}
+                      />
+                    </View>
+                  </Animated.View>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.heroCaption}>
+                    “{heroFlipBinder.title}”, a live binder flipping through real pages, not a screenshot.
+                  </ThemedText>
+                </Reveal>
+              ) : null}
+            </View>
+
+            {/* ── Why michi — plain text columns on the paper, a bronze rule above each ── */}
+            <View style={styles.cardRow}>
+              {VALUE_PROPS.map((prop, i) => (
+                <Reveal
+                  key={prop.title}
+                  delay={i * 90}
+                  style={[styles.valueCol, wide && styles.cardThird]}>
+                  <View style={[styles.rule, { backgroundColor: bronze }]} />
+                  <ThemedText style={styles.valueTitle}>{prop.title}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.cardBody}>
+                    {prop.body}
+                  </ThemedText>
+                </Reveal>
+              ))}
+            </View>
+
+            {/* ── The tools ───────────────────────────────────────────── */}
+            <View style={styles.section}>
+              <ThemedText style={[styles.kicker, { color: bronze }]}>THE TOOLS</ThemedText>
+              <ThemedText style={styles.h2}>
+                Everything between “pile of cards” and “page you’re proud of.”
+              </ThemedText>
+              <View style={styles.cardRow}>
+                {FEATURES.map((f, i) => (
+                  <Reveal
+                    key={f.title}
+                    delay={(i % 3) * 90}
+                    style={[styles.featureCard, { backgroundColor: mat }, wide && styles.cardThird]}>
+                    <ThemedText style={styles.cardTitle}>{f.title}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.cardBody}>
+                      {f.body}
+                    </ThemedText>
+                  </Reveal>
+                ))}
+              </View>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.alsoLine}>
+                Also in the box: double-sided book view, card labels, jumbo &amp; V-UNION
+                support, dark mode.
+              </ThemedText>
+              {/* The tool most people never find on their own, shown doing its job. Leaving from
+                  here counts as entering the app, the same as the buttons above. */}
+              <Reveal style={styles.curate}>
+                <CurateCallout surface="welcome" onNavigate={markLandingSeen} />
+              </Reveal>
+              <Reveal style={styles.curate}>
+                <TcgscanPairing surface="welcome" />
+              </Reveal>
+            </View>
+
+            {/* ── Print band — the page's one dark moment ─────────────── */}
+            <Reveal style={[styles.printBand, wide && styles.printBandWide]}>
+              <View style={styles.printStat}>
+                <ThemedText style={[styles.printSize, { color: InkBand.title }]}>
+                  2.5″ × 3.5″
+                </ThemedText>
+                <ThemedText type="small" style={{ color: InkBand.body }}>
+                  true card size, cut-ready
+                </ThemedText>
+              </View>
+              <View style={styles.printCopy}>
+                <ThemedText style={[styles.cardTitle, { color: InkBand.title }]}>
+                  The physical payoff
+                </ThemedText>
+                <ThemedText type="small" style={[styles.cardBody, { color: InkBand.body }]}>
+                  Export any binder as cut-ready fill sheets: placeholders for the hunt, your
+                  real sliced art, inserts, and folded two-wide pieces whose art crosses the
+                  fold. Print, cut, slide into pockets. The page on your shelf matches the page
+                  on your screen.
+                </ThemedText>
+              </View>
+            </Reveal>
+
+            {/* ── Community totals ────────────────────────────────────── */}
+            {/*
+              Live numbers from the cached `community_stats` row (src/data/communityStats.ts).
+              The wording is load-bearing: these totals count every binder built, private ones
+              included, so the verbs must stay "built" and "placed". "Showcased" / "public" /
+              "on display" would be false — most of these binders aren't viewable, and the
+              Gallery section right below invites the reader to go check.
+            */}
+            <Reveal style={[styles.statsBand, { backgroundColor: mat }]}>
+              <ThemedText style={[styles.kicker, { color: bronze }]}>MADE HERE SO FAR</ThemedText>
+              <View style={styles.statsRow}>
+                {[
+                  { n: stats.collectors, label: 'collectors' },
+                  { n: stats.bindersBuilt, label: 'binders built' },
+                  { n: stats.pagesBuilt, label: 'pages built' },
+                  { n: stats.cardsPlaced, label: 'cards placed' },
+                  { n: stats.artworkPlaced, label: 'artworks placed' },
+                ].map((stat) => (
+                  <View key={stat.label} style={styles.stat}>
+                    <ThemedText style={[styles.statNum, { color: bronze }]}>
+                      {stat.n.toLocaleString()}
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel}>
+                      {stat.label}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            </Reveal>
+
+            {/* ── Gallery ─────────────────────────────────────────────── */}
+            <View style={styles.section} onLayout={(e) => (galleryY.current = e.nativeEvent.layout.y)}>
+              <ThemedText style={[styles.kicker, { color: bronze }]}>OPEN A REAL BINDER</ThemedText>
+              <ThemedText style={styles.h2}>These aren’t mockups.</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.sectionSub}>
+                Every example below is a live binder. Open one, flip its pages, then duplicate
+                it and make it yours.
+              </ThemedText>
+              <View style={styles.galleryGrid}>
+                {galleryBinders.map((binder, i) => (
+                  <Reveal key={binder.id} delay={i * 110} style={styles.galleryItem}>
+                    <HoverLift style={styles.galleryLift}>
+                      <Pressable
+                        onPress={() => openBinder(binder.id)}
+                        style={({ pressed }) => [styles.galleryPress, pressed && styles.pressed]}>
+                        <AutoFlipBinder binder={binder} pageWidth={galleryPageW} autoFlip={false} />
+                        <ThemedText style={styles.galleryTitle}>{binder.title}</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          Click to open!
+                        </ThemedText>
+                      </Pressable>
+                    </HoverLift>
+                  </Reveal>
+                ))}
+              </View>
+            </View>
+
+            {/* ── Closing CTA ─────────────────────────────────────────── */}
+            <Reveal style={styles.closing}>
+              <ThemedText style={styles.h2}>Your cards deserve better than a shoebox.</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.sectionSub}>
+                Start free and build real binders today. Sign in so your binders follow you
+                between devices, and upgrade only when you outgrow the free plan.
+              </ThemedText>
+              <Pressable
+                onPress={() => enterApp('closing')}
+                style={({ pressed }) => [styles.ctaPrimary, styles.ctaClosing, pressed && styles.pressed]}>
+                <ThemedText style={styles.ctaPrimaryText}>Start building for free</ThemedText>
+              </Pressable>
+            </Reveal>
+
+            {/* ── Footer ──────────────────────────────────────────────── */}
+            <View style={styles.footer}>
+              <FooterLinks />
+              <ThemedText type="small" themeColor="textSecondary" style={styles.footerText}>
+                <Wordmark />, made with a love for the craft.
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.footerText}>
+                Card images belong to their respective owners. michi-maker is a fan-made tool
+                and is not affiliated with Nintendo, Creatures, or The Pokémon Company.
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.footerText}>
+                {AFFILIATE_DISCLOSURE}
+              </ThemedText>
+            </View>
+          </View>
+        </Animated.ScrollView>
+      </SafeAreaView>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  scroll: { width: '100%' },
+  shell: {
+    width: '100%',
+    maxWidth: MaxContentWidthWide,
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.four,
+    paddingBottom: Spacing.six,
+  },
+  pressed: { opacity: 0.7 },
+
+  nav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    paddingVertical: Spacing.three,
+  },
+  // On wide screens the brand lockup is big — drop it down so it sits vertically centred in
+  // the whitespace between the top of the page and the hero eyebrow.
+  navWide: { paddingTop: Spacing.six + Spacing.three },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  wordmark: { fontFamily: BrandFont, fontSize: FontSize.h2, fontWeight: Weight.bold },
+  wordmarkBig: { fontSize: 51 },
+  navBtn: {
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+  },
+  navBtnText: { fontSize: FontSize.body, fontWeight: Weight.semibold },
+  navBtnPhone: { flexShrink: 0, paddingVertical: 6, paddingHorizontal: Spacing.two + 2, backgroundColor: Palette.surface },
+  navBtnTextPhone: { fontSize: FontSize.sm, lineHeight: 18 },
+
+  hero: {
+    paddingTop: Spacing.five,
+    paddingBottom: Spacing.five,
+    gap: Spacing.five,
+  },
+  heroWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Spacing.six,
+    paddingBottom: Spacing.six,
+  },
+  heroCopy: { gap: Spacing.three, maxWidth: MaxContentWidth },
+  heroCopyWide: { flex: 1, paddingRight: Spacing.five },
+  kicker: {
+    fontSize: FontSize.sm,
+    fontWeight: Weight.bold,
+    letterSpacing: 2,
+  },
+  h1: { fontFamily: BrandFont, fontSize: 56, lineHeight: 62, fontWeight: '900' },
+  h1Narrow: { fontSize: FontSize.display, lineHeight: 42 },
+  heroSub: { fontSize: FontSize.md, lineHeight: 26, maxWidth: 560 },
+  ctaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, marginTop: Spacing.two },
+  ctaPrimary: {
+    backgroundColor: Palette.accent,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Radius.pill,
+  },
+  ctaPrimaryText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.md },
+  ctaSecondary: {
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+  },
+  ctaSecondaryText: { fontWeight: Weight.semibold, fontSize: FontSize.md },
+  betaNote: { marginTop: Spacing.one },
+  heroArt: { alignItems: 'center', gap: Spacing.three },
+  heroTilt: { transform: [{ rotate: '-1.5deg' }] },
+  heroCaption: { maxWidth: 480, textAlign: 'center' },
+
+  cardRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.three,
+    marginTop: Spacing.four,
+  },
+  cardThird: { flexBasis: '31%', flexGrow: 1 },
+  valueCol: {
+    gap: Spacing.two,
+    width: '100%',
+    paddingVertical: Spacing.two,
+  },
+  rule: { width: 36, height: 3, borderRadius: 2, marginBottom: Spacing.one },
+  valueTitle: { fontFamily: BrandFont, fontSize: FontSize.h2, fontWeight: Weight.bold, lineHeight: 28 },
+  featureCard: {
+    borderRadius: 20,
+    padding: Spacing.four,
+    gap: Spacing.two,
+    width: '100%',
+  },
+  cardTitle: { fontSize: FontSize.lg, fontWeight: Weight.bold, lineHeight: 24 },
+  cardBody: { lineHeight: 21 },
+
+  section: { marginTop: Spacing.six },
+  h2: {
+    fontFamily: BrandFont,
+    fontSize: 26,
+    lineHeight: 34,
+    fontWeight: Weight.bold,
+    marginTop: Spacing.two,
+    maxWidth: MaxContentWidth,
+  },
+  sectionSub: { marginTop: Spacing.two, maxWidth: MaxContentWidth, lineHeight: 21 },
+  alsoLine: { marginTop: Spacing.three, lineHeight: 21 },
+  curate: { marginTop: Spacing.five },
+
+  printBand: {
+    marginTop: Spacing.six,
+    borderRadius: 24,
+    padding: Spacing.five,
+    gap: Spacing.four,
+    backgroundColor: InkBand.bg,
+  },
+  printBandWide: { flexDirection: 'row', alignItems: 'center' },
+  printStat: { alignItems: 'flex-start', gap: Spacing.one, minWidth: 220 },
+  printSize: { fontFamily: BrandFont, fontSize: FontSize.display, fontWeight: '900', lineHeight: 40 },
+  printCopy: { flex: 1, gap: Spacing.two, minWidth: 240 },
+
+  statsBand: {
+    marginTop: Spacing.six,
+    borderRadius: 24,
+    paddingVertical: Spacing.five,
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.four,
+    alignItems: 'center',
+  },
+  // Wraps to two rows on phones rather than shrinking the numerals.
+  statsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    rowGap: Spacing.four,
+    columnGap: Spacing.six,
+  },
+  stat: { alignItems: 'center', gap: Spacing.one, minWidth: 110 },
+  statNum: { fontFamily: BrandFont, fontSize: 34, lineHeight: 40, fontWeight: '900' },
+  statLabel: { textAlign: 'center' },
+
+  galleryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: Spacing.four,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.two,
+  },
+  galleryItem: { alignItems: 'center' },
+  galleryLift: { borderRadius: Radius.lg },
+  galleryPress: { alignItems: 'center', gap: Spacing.two },
+  galleryTitle: { fontFamily: BrandFont, fontSize: FontSize.lg, fontWeight: Weight.bold, marginTop: Spacing.two },
+
+  closing: {
+    marginTop: Spacing.six,
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+  },
+  ctaClosing: { marginTop: Spacing.three },
+
+  footer: {
+    marginTop: Spacing.six,
+    paddingTop: Spacing.four,
+    borderTopWidth: 1,
+    borderTopColor: Palette.hairline,
+    gap: Spacing.two,
+  },
+  footerText: { lineHeight: 20 },
+});

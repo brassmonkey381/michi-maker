@@ -1,0 +1,226 @@
+{
+ "red": [
+  {
+   "id": "509980",
+   "name": "Charizard ex",
+   "set": "SV03: Obsidian Flames",
+   "illustrator": "AKIRA EGAWA"
+  },
+  {
+   "id": "502556",
+   "name": "Charmander",
+   "set": "SV: Scarlet & Violet 151",
+   "illustrator": "miki kudo"
+  },
+  {
+   "id": "610501",
+   "name": "Flareon ex",
+   "set": "SV: Prismatic Evolutions",
+   "illustrator": "Nurikabe"
+  },
+  {
+   "id": "654477",
+   "name": "Vulpix",
+   "set": "ME01: Mega Evolution",
+   "illustrator": "saino misaki"
+  },
+  {
+   "id": "726559",
+   "name": "Growlithe",
+   "set": "ME06: Delta Reign",
+   "illustrator": "Yoshimoto Yoshimon"
+  },
+  {
+   "id": "716219",
+   "name": "Moltres",
+   "set": "ME: 30th Celebration",
+   "illustrator": ""
+  },
+  {
+   "id": "716229",
+   "name": "Fuecoco ex",
+   "set": "ME: 30th Celebration",
+   "illustrator": ""
+  },
+  {
+   "id": "676037",
+   "name": "Scorbunny",
+   "set": "ME: Ascended Heroes",
+   "illustrator": "Yuu Nishida"
+  },
+  {
+   "id": "542888",
+   "name": "Litten",
+   "set": "SV05: Temporal Forces",
+   "illustrator": "Makura Tami"
+  }
+ ],
+ "blue": [
+  {
+   "id": "567429",
+   "name": "Squirtle",
+   "set": "SV07: Stellar Crown",
+   "illustrator": "Saboteri"
+  },
+  {
+   "id": "610504",
+   "name": "Vaporeon ex",
+   "set": "SV: Prismatic Evolutions",
+   "illustrator": "Narano"
+  },
+  {
+   "id": "696683",
+   "name": "Lapras",
+   "set": "ME: 30th Celebration",
+   "illustrator": "Amelicart"
+  },
+  {
+   "id": "676038",
+   "name": "Psyduck",
+   "set": "ME: Ascended Heroes",
+   "illustrator": "REND"
+  },
+  {
+   "id": "662215",
+   "name": "Piplup",
+   "set": "ME02: Phantasmal Flames",
+   "illustrator": "Jiro Sasumo"
+  },
+  {
+   "id": "497609",
+   "name": "Quaxly",
+   "set": "SV02: Paldea Evolved",
+   "illustrator": "Souichirou Gunjima"
+  },
+  {
+   "id": "693489",
+   "name": "Froakie",
+   "set": "ME04: Chaos Rising",
+   "illustrator": "Susumu Maeya"
+  },
+  {
+   "id": "560378",
+   "name": "Horsea",
+   "set": "SV: Shrouded Fable",
+   "illustrator": "Shinya Komatsu"
+  },
+  {
+   "id": "676044",
+   "name": "Marill",
+   "set": "ME: Ascended Heroes",
+   "illustrator": "Rond"
+  }
+ ],
+ "green": [
+  {
+   "id": "654472",
+   "name": "Bulbasaur",
+   "set": "ME01: Mega Evolution",
+   "illustrator": "mashu"
+  },
+  {
+   "id": "610499",
+   "name": "Leafeon ex",
+   "set": "SV: Prismatic Evolutions",
+   "illustrator": "Jiro Sasumo"
+  },
+  {
+   "id": "684368",
+   "name": "Rowlet",
+   "set": "ME03: Perfect Order",
+   "illustrator": "ryoma uratsuka"
+  },
+  {
+   "id": "726558",
+   "name": "Sprigatito",
+   "set": "ME06: Delta Reign",
+   "illustrator": "Jiro Sasumo"
+  },
+  {
+   "id": "642536",
+   "name": "Snivy",
+   "set": "SV: Black Bolt",
+   "illustrator": "Yoshimi Miyoshi"
+  },
+  {
+   "id": "632985",
+   "name": "Shaymin",
+   "set": "SV10: Destined Rivals",
+   "illustrator": "Heisuke Kitazawa"
+  },
+  {
+   "id": "693462",
+   "name": "Chespin",
+   "set": "ME04: Chaos Rising",
+   "illustrator": "Atsushi Furusawa"
+  },
+  {
+   "id": "676033",
+   "name": "Budew",
+   "set": "ME: Ascended Heroes",
+   "illustrator": "Yoko Hishida"
+  },
+  {
+   "id": "497598",
+   "name": "Tropius",
+   "set": "SV02: Paldea Evolved",
+   "illustrator": "Jerky"
+  }
+ ],
+ "pink": [
+  {
+   "id": "684415",
+   "name": "Clefairy",
+   "set": "ME03: Perfect Order",
+   "illustrator": "Cona Nitanda"
+  },
+  {
+   "id": "716231",
+   "name": "Sylveon ex",
+   "set": "ME: 30th Celebration",
+   "illustrator": ""
+  },
+  {
+   "id": "490064",
+   "name": "Slowpoke",
+   "set": "SV01: Scarlet & Violet Base Set",
+   "illustrator": "Toshinao Aoki"
+  },
+  {
+   "id": "550231",
+   "name": "Chansey",
+   "set": "SV06: Twilight Masquerade",
+   "illustrator": "Toshinao Aoki"
+  },
+  {
+   "id": "662240",
+   "name": "Wigglytuff",
+   "set": "ME02: Phantasmal Flames",
+   "illustrator": "Naoyo Kimura"
+  },
+  {
+   "id": "497619",
+   "name": "Tinkatink",
+   "set": "SV02: Paldea Evolved",
+   "illustrator": "Tika Matsuno"
+  },
+  {
+   "id": "490071",
+   "name": "Ralts",
+   "set": "SV01: Scarlet & Violet Base Set",
+   "illustrator": "Jiro Sasumo"
+  },
+  {
+   "id": "642570",
+   "name": "Munna",
+   "set": "SV: Black Bolt",
+   "illustrator": "miki kudo"
+  },
+  {
+   "id": "726566",
+   "name": "Azurill",
+   "set": "ME06: Delta Reign",
+   "illustrator": "Narumi Sato"
+  }
+ ]
+}

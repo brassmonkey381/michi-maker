@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<!-- MKT-040 landing v2 draft. NOT the live home: noindex, unlinked, not in the sitemap. -->
+<meta name="robots" content="noindex, nofollow">
+<title>Michi-Maker: binder pages worth staring at</title>
+<meta name="description" content="Build Pokémon binder pages from English and Japanese cards. Pick a card, press &quot;Find Similar&quot;, and fill the page.">
+<link rel="preload" href="fonts/fraunces-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="clips/01-find-similar-what-matches-this-groudon.webp" as="image">
+<style>
+@font-face { font-family: 'Fraunces'; src: url('fonts/fraunces-latin-var.woff2') format('woff2'); font-weight: 100 1000; font-display: swap; }
+:root {
+  --bg: #ffffff; --panel: #f3f3f6; --panel2: #ebebf0; --ink: #111114; --ink2: #3c3c45; --muted: #73737f;
+  --line: #e2e2e8; --accent: #3b7cf4; --accent-ink: #ffffff; --accent-soft: #e8f0fe; --ok: #1f8a4c;
+  --radius: 18px; --gutter: max(16px, env(safe-area-inset-left, 0px));
+  --serif: Fraunces, Georgia, 'Times New Roman', serif;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+img, video { display: block; max-width: 100%; }
+a { color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: var(--gutter); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--serif); font-weight: 700; letter-spacing: -0.015em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(40px, 6.4vw, 76px); line-height: 1.02; }
+h2 { font-size: clamp(30px, 4.2vw, 50px); line-height: 1.06; }
+.eyebrow { font: 700 12px/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+.lede { font-size: clamp(17px, 1.6vw, 20px); color: var(--ink2); max-width: 34em; margin: 18px 0 0; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 50px; padding: 0 24px; border-radius: 999px; font: 700 16px/1 var(--sans); text-decoration: none; border: 1.5px solid transparent; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 6px 18px rgba(59,124,244,.28); }
+.btn-ghost { background: var(--bg); color: var(--ink); border-color: var(--line); }
+.btn:hover { transform: translateY(-1px); }
+.btn:focus-visible, .chip:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+q { quotes: '"' '"'; font-weight: 700; color: var(--ink); }
+
+/* Top bar */
+.top { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.86); backdrop-filter: saturate(1.6) blur(10px); -webkit-backdrop-filter: saturate(1.6) blur(10px); border-bottom: 1px solid transparent; transition: border-color .2s; padding-top: env(safe-area-inset-top, 0px); }
+.top.scrolled { border-bottom-color: var(--line); }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.mark { display: flex; align-items: center; gap: 10px; font: 800 21px/1 var(--serif); text-decoration: none; }
+.mark i { display: grid; grid-template-columns: repeat(3, 6px); gap: 2px; }
+.mark i b { width: 6px; height: 6px; border-radius: 1.5px; background: var(--accent); opacity: .35; }
+.mark i b:nth-child(odd) { opacity: 1; }
+.mark span em { font-style: normal; color: var(--accent); }
+.top .btn { height: 40px; padding: 0 18px; font-size: 15px; }
+
+/* Sections */
+section { padding: clamp(64px, 9vw, 120px) 0; }
+.panel { background: var(--panel); }
+.split { display: grid; grid-template-columns: 1fr; gap: 36px; align-items: center; }
+@media (min-width: 900px) { .split { grid-template-columns: 1.05fr .95fr; gap: 64px; } .split.flip > :first-child { order: 2; } }
+
+/* Video frames: the box has the clip's own ratio before anything loads (CLS 0). */
+.clip { position: relative; border-radius: var(--radius); overflow: hidden; background: var(--panel2); box-shadow: 0 24px 60px rgba(17,17,20,.14), 0 2px 6px rgba(17,17,20,.06); max-width: 520px; width: 100%; margin: 0 auto; }
+.clip video, .clip img.poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.clip .play { position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: 64px; height: 64px; border-radius: 50%; border: 0; background: rgba(17,17,20,.72); color: #fff; font-size: 22px; cursor: pointer; display: none; }
+.clip.still .play { display: block; }
+.clip figcaption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* Hero */
+.hero { padding-top: clamp(32px, 6vw, 72px); }
+.hero .proof { margin-top: 22px; color: var(--muted); font-size: 14px; }
+
+/* The mini binder */
+.mini { display: grid; grid-template-columns: 1fr; gap: 32px; align-items: center; }
+@media (min-width: 900px) { .mini { grid-template-columns: .9fr 1.1fr; gap: 64px; } }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 16px 0 10px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--bg); font: 700 15px/1 var(--sans); color: var(--ink); cursor: pointer; transition: border-color .15s, background .15s; }
+.chip i { width: 20px; height: 20px; border-radius: 50%; }
+.chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: #fff; }
+.page { position: relative; aspect-ratio: 3 / 3.75; max-width: 460px; width: 100%; margin: 0 auto; padding: 14px; border-radius: 14px; background: linear-gradient(#fbfbfd, #f1f1f5); border: 1px solid var(--line); box-shadow: 0 30px 70px rgba(17,17,20,.16); display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 10px; perspective: 900px; }
+.pocket { position: relative; border-radius: 6px; background: rgba(17,17,20,.04); box-shadow: inset 0 0 0 1px rgba(17,17,20,.07); transform-style: preserve-3d; }
+.pocket img { position: absolute; inset: 3px; width: calc(100% - 6px); height: calc(100% - 6px); object-fit: cover; border-radius: 4px; backface-visibility: hidden; transition: transform .5s cubic-bezier(.3,.7,.3,1), opacity .3s; }
+.pocket img.out { transform: rotateY(90deg); opacity: 0; }
+.pocket::after { content: ''; position: absolute; inset: 0; border-radius: 6px; background: linear-gradient(115deg, rgba(255,255,255,.35), rgba(255,255,255,0) 40%); pointer-events: none; }
+.mini .note { margin-top: 18px; color: var(--muted); font-size: 14px; }
+
+/* Book: pages turn as you scroll */
+.book-scroll { height: 260vh; position: relative; }
+.book-stage { position: sticky; top: 64px; height: calc(100vh - 64px); display: flex; flex-direction: column; justify-content: center; gap: 28px; }
+.book-stage > .wrap { width: 100%; }
+.book { position: relative; width: min(860px, 100%, calc((100vh - 330px) * 1.61)); aspect-ratio: 2 / 1.24; margin: 0 auto; perspective: 2200px; }
+.leaf-left, .leaf { position: absolute; top: 0; width: 50%; height: 100%; }
+.leaf-left { left: 0; }
+.leaf { left: 50%; transform-origin: left center; transform-style: preserve-3d; transition: transform .08s linear; }
+.side { position: absolute; inset: 0; backface-visibility: hidden; padding: 4%; border-radius: 6px 12px 12px 6px; background: linear-gradient(90deg, #ececf1, #fafafc 12%); border: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 4%; box-shadow: 0 18px 40px rgba(17,17,20,.12); }
+.side.back { transform: rotateY(180deg); border-radius: 12px 6px 6px 12px; background: linear-gradient(270deg, #ececf1, #fafafc 12%); }
+.leaf-left .side { border-radius: 12px 6px 6px 12px; background: linear-gradient(270deg, #ececf1, #fafafc 12%); }
+.side img { width: 100%; height: 100%; object-fit: cover; border-radius: 3px; }
+.book-progress { display: flex; justify-content: center; gap: 8px; }
+.book-progress b { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: background .2s, width .2s; }
+.book-progress b.on { background: var(--accent); width: 22px; border-radius: 4px; }
+.book-head { text-align: center; }
+.book-head .lede { margin-left: auto; margin-right: auto; }
+
+/* Reveals */
+.reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1); }
+.reveal.in { opacity: 1; transform: none; }
+.reveal.d1 { transition-delay: .08s; } .reveal.d2 { transition-delay: .16s; }
+
+/* Steps list */
+.steps { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 14px; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; color: var(--ink2); }
+.steps li::before { content: counter(s); width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 800 14px/30px var(--sans); text-align: center; }
+
+/* Closing */
+.close { text-align: center; }
+.close .ctas { justify-content: center; }
+.close .lede { margin-left: auto; margin-right: auto; }
+footer { border-top: 1px solid var(--line); padding: 28px 0 calc(28px + env(safe-area-inset-bottom, 0px)); color: var(--muted); font-size: 13px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 22px; justify-content: space-between; }
+footer nav { display: flex; gap: 18px; flex-wrap: wrap; }
+footer a { text-decoration: none; }
+footer a:hover { color: var(--ink); }
+
+@media (max-width: 520px) {
+  .top .btn { padding: 0 14px; }
+  .ctas .btn { flex: 1 1 100%; }
+  .book-scroll { height: 220vh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal, .reveal.in { opacity: 1; transform: none; transition: none; }
+  .pocket img { transition: opacity .2s; }
+  .pocket img.out { transform: none; }
+  .book-scroll { height: auto; }
+  .book-stage { position: static; height: auto; padding: 24px 0; }
+  .leaf { transition: none; }
+  .btn { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="top" id="top">
+  <div class="wrap">
+    <a class="mark" href="/" aria-label="Michi-Maker home"><i aria-hidden="true"><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></i><span>Michi<em>-</em>Maker</span></a>
+    <a class="btn btn-primary" href="/new-binder">Start a binder</a>
+  </div>
+</header>
+
+<main>
+<!-- 1. HERO: one card in, a page out. -->
+<section class="hero">
+  <div class="wrap split">
+    <div>
+      <p class="eyebrow">Pokémon binder pages</p>
+      <h1>Binder pages worth staring at.</h1>
+      <p class="lede">Put one card in a pocket and press <q>Find Similar</q>. Eight cards that belong with it land around it, from English and Japanese cards.</p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="/new-binder">Start a binder</a>
+        <a class="btn btn-ghost" href="/discover">See public binders</a>
+      </div>
+      <p class="proof">Free to start. No download.</p>
+    </div>
+    <figure class="clip" style="aspect-ratio: 640 / 694" data-clip>
+      <img class="poster" src="clips/01-find-similar-what-matches-this-groudon.webp" alt="" width="640" height="694" fetchpriority="high">
+      <video muted loop playsinline preload="none" poster="clips/01-find-similar-what-matches-this-groudon.webp" aria-label='A Groudon card on a binder page; "Find Similar" flips in eight matching cards one by one.'>
+        <source src="clips/01-find-similar-what-matches-this-groudon.mp4" type="video/mp4">
+      </video>
+      <button class="play" type="button" aria-label="Play the clip">▶</button>
+      <figcaption>A Groudon card on a binder page; "Find Similar" flips in eight matching cards one by one.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- 2. TRY IT: tap a colour, the page refills. -->
+<section class="panel" id="try">
+  <div class="wrap mini">
+    <div class="reveal">
+      <p class="eyebrow">Try it here</p>
+      <h2>Pick a colour. Watch the page refill.</h2>
+      <p class="lede">Every card has a colour, so a page can have one too. Tap a shade and nine cards that wear it slide into the pockets.</p>
+      <div class="chips" role="group" aria-label="Pick a colour">
+        <button class="chip" type="button" data-set="red" aria-pressed="true"><i style="background:#e5484d"></i>Fire red</button>
+        <button class="chip" type="button" data-set="blue" aria-pressed="false"><i style="background:#3b7cf4"></i>Water blue</button>
+        <button class="chip" type="button" data-set="green" aria-pressed="false"><i style="background:#30a46c"></i>Leaf green</button>
+        <button class="chip" type="button" data-set="pink" aria-pressed="false"><i style="background:#e93d82"></i>Fairy pink</button>
+      </div>
+      <p class="note" id="mini-note">Fire red: Charizard ex, Charmander, Flareon ex and six more.</p>
+    </div>
+    <div class="page reveal d1" id="mini" aria-live="polite" aria-label="A binder page of nine cards"></div>
+  </div>
+</section>
+
+<!-- 3. SUGGEST: the hand deals itself. -->
+<section>
+  <div class="wrap split flip">
+    <div class="reveal">
+      <p class="eyebrow">Suggest</p>
+      <h2>Your hand deals itself.</h2>
+      <p class="lede">Press <q>Suggest</q> and a hand of cards that suit the page fans out. Drag the ones you like into pockets; the rest go back.</p>
+      <ol class="steps">
+        <li>Start with any card you love.</li>
+        <li>Press <q>Suggest</q> for a fresh hand.</li>
+        <li>Drag cards in, or press <q>Complete</q> to fill the rest.</li>
+      </ol>
+    </div>
+    <figure class="clip reveal d1" style="aspect-ratio: 640 / 684" data-clip>
+      <img class="poster" src="clips/02-suggest-deals-the-cards.webp" alt="" width="640" height="684" loading="lazy">
+      <video muted loop playsinline preload="none" poster="clips/02-suggest-deals-the-cards.webp" aria-label='"Suggest" deals a hand of fitting cards around Groudon and eight land on the page.'>
+        <source src="clips/02-suggest-deals-the-cards.mp4" type="video/mp4">
+      </video>
+      <button class="play" type="button" aria-label="Play the clip">▶</button>
+      <figcaption>"Suggest" deals a hand of fitting cards around Groudon and eight land on the page.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- 4. ARRANGE: the same nine cards, a better page. -->
+<section class="panel">
+  <div class="wrap split">
+    <div class="reveal">
+      <p class="eyebrow">Arrange</p>
+      <h2>Nine cards. Where does each one go?</h2>
+      <p class="lede">Press <q>Arrange</q> and the page tries layouts with the cards you already have: colour runs, a centrepiece, mirrored corners. Press <q>Keep</q> on the one that clicks.</p>
+    </div>
+    <figure class="clip reveal d1" style="aspect-ratio: 640 / 738" data-clip>
+      <img class="poster" src="clips/03-arrange-nine-cards-where-does-each-go.webp" alt="" width="640" height="738" loading="lazy">
+      <video muted loop playsinline preload="none" poster="clips/03-arrange-nine-cards-where-does-each-go.webp" aria-label='Nine cards fill a page, then "Arrange" tries layouts and you keep one.'>
+        <source src="clips/03-arrange-nine-cards-where-does-each-go.mp4" type="video/mp4">
+      </video>
+      <button class="play" type="button" aria-label="Play the clip">▶</button>
+      <figcaption>Nine cards fill a page, then "Arrange" tries layouts and you keep one.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- 5. THE BOOK: scroll and the binder turns its pages. -->
+<section class="book-scroll" id="book" aria-label="A binder that turns its pages as you scroll">
+  <div class="book-stage">
+    <div class="wrap book-head reveal">
+      <p class="eyebrow">A binder, not a list</p>
+      <h2>Keep scrolling. It turns the page.</h2>
+      <p class="lede">Your pages sit open like a book on a desk, the way a binder does. Swipe to turn them on a phone.</p>
+    </div>
+    <div class="wrap"><div class="book" id="bookEl"></div></div>
+    <div class="book-progress" id="bookDots" aria-hidden="true"></div>
+  </div>
+</section>
+
+<!-- 6. COLOUR SEARCH: one shade, one page. -->
+<section class="panel">
+  <div class="wrap split flip">
+    <div class="reveal">
+      <p class="eyebrow">Colour search</p>
+      <h2>One shade, one page.</h2>
+      <p class="lede">Tap a colour dot and the search brings back cards in that shade. A whole page of pink, gold or midnight blue is a few taps away.</p>
+    </div>
+    <figure class="clip reveal d1" style="aspect-ratio: 540 / 714; max-width: 440px" data-clip>
+      <img class="poster" src="clips/04-colour-search-a-one-colour-page-notext.webp" alt="" width="540" height="714" loading="lazy">
+      <video muted loop playsinline preload="none" poster="clips/04-colour-search-a-one-colour-page-notext.webp" aria-label="Colour search builds a whole binder page in one shade of pink.">
+        <source src="clips/04-colour-search-a-one-colour-page-notext.mp4" type="video/mp4">
+      </video>
+      <button class="play" type="button" aria-label="Play the clip">▶</button>
+      <figcaption>Colour search builds a whole binder page in one shade of pink.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- 7. PRINT: from screen to sleeve. -->
+<section>
+  <div class="wrap split">
+    <div class="reveal">
+      <p class="eyebrow">Print</p>
+      <h2>From screen to sleeve.</h2>
+      <p class="lede">Print your page at true card size, cut along the lines and slide each one into a real binder sleeve. The gaps print as placeholders for the cards you are still hunting.</p>
+    </div>
+    <figure class="clip reveal d1" style="aspect-ratio: 640 / 800; max-width: 460px" data-clip>
+      <img class="poster" src="clips/05-screen-to-sleeve-make-it-real.webp" alt="" width="640" height="800" loading="lazy">
+      <video muted loop playsinline preload="none" poster="clips/05-screen-to-sleeve-make-it-real.webp" aria-label="A finished page is printed at true card size, cut and slid into a real binder sleeve.">
+        <source src="clips/05-screen-to-sleeve-make-it-real.mp4" type="video/mp4">
+      </video>
+      <button class="play" type="button" aria-label="Play the clip">▶</button>
+      <figcaption>A finished page is printed at true card size, cut and slid into a real binder sleeve.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- 8. SHARE: pages other collectors open. -->
+<section class="panel">
+  <div class="wrap split flip">
+    <div class="reveal">
+      <p class="eyebrow">Share</p>
+      <h2>Pages other collectors stop for.</h2>
+      <p class="lede">Make a binder public and it joins the gallery, where collectors browse, like and borrow ideas. Share a page to Instagram or with a QR code.</p>
+      <div class="ctas"><a class="btn btn-ghost" href="/discover">Browse public binders</a></div>
+    </div>
+    <figure class="clip reveal d1" style="aspect-ratio: 640 / 696" data-clip>
+      <img class="poster" src="clips/06-binder-pages-worth-staring-at.webp" alt="" width="640" height="696" loading="lazy">
+      <video muted loop playsinline preload="none" poster="clips/06-binder-pages-worth-staring-at.webp" aria-label="Finished binder pages flip past, then the public binders gallery scrolls.">
+        <source src="clips/06-binder-pages-worth-staring-at.mp4" type="video/mp4">
+      </video>
+      <button class="play" type="button" aria-label="Play the clip">▶</button>
+      <figcaption>Finished binder pages flip past, then the public binders gallery scrolls.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- 9. CLOSE: start. -->
+<section class="close">
+  <div class="wrap reveal">
+    <h2>Your first page takes a minute.</h2>
+    <p class="lede">Pick three cards you like, or one Pokémon, and the binder starts there.</p>
+    <div class="ctas"><a class="btn btn-primary" href="/new-binder">Start a binder</a></div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>michi-maker, made with a love for the craft. Not affiliated with Nintendo, Creatures or The Pokémon Company.</span>
+    <nav><a href="/learn">How-To</a><a href="/whats-new">What's New</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const CARDS = {
+    red: ['509980','502556','610501','654477','726559','716219','716229','676037','542888'],
+    blue: ['567429','610504','696683','676038','662215','497609','693489','560378','676044'],
+    green: ['654472','610499','684368','726558','642536','632985','693462','676033','497598'],
+    pink: ['684415','716231','490064','550231','662240','497619','490071','642570','726566'],
+  };
+  const NOTES = {
+    red: 'Fire red: Charizard ex, Charmander, Flareon ex and six more.',
+    blue: 'Water blue: Squirtle, Vaporeon ex, Lapras and six more.',
+    green: 'Leaf green: Bulbasaur, Leafeon ex, Rowlet and six more.',
+    pink: 'Fairy pink: Clefairy, Sylveon ex, Slowpoke and six more.',
+  };
+  const src = (id) => `cards/${id}.webp`;
+
+  // Top bar hairline once the page moves.
+  const top = document.getElementById('top');
+  addEventListener('scroll', () => top.classList.toggle('scrolled', scrollY > 8), { passive: true });
+
+  // Scroll-linked reveals.
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -10% 0px' });
+  document.querySelectorAll('.reveal').forEach((el) => (reduce ? el.classList.add('in') : io.observe(el)));
+
+  // Clips: load and play only while at least half in view; restart from the top on each return.
+  // Reduced motion: the poster stays, with a play button.
+  document.querySelectorAll('[data-clip]').forEach((fig) => {
+    const v = fig.querySelector('video');
+    const btn = fig.querySelector('.play');
+    if (reduce) { fig.classList.add('still'); btn.addEventListener('click', () => { fig.classList.remove('still'); v.play(); }); return; }
+    new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { if (v.preload !== 'auto') { v.preload = 'auto'; v.load(); } v.currentTime = 0; v.play().catch(() => fig.classList.add('still')); }
+      else v.pause();
+    }, { threshold: 0.5 }).observe(fig);
+    btn.addEventListener('click', () => { fig.classList.remove('still'); v.play(); });
+  });
+
+  // The mini binder: a colour chip refills the nine pockets, card by card.
+  const mini = document.getElementById('mini');
+  const note = document.getElementById('mini-note');
+  const pockets = Array.from({ length: 9 }, (_, i) => {
+    const p = document.createElement('div');
+    p.className = 'pocket';
+    const img = new Image(245, 342);
+    img.alt = ''; img.decoding = 'async'; img.src = src(CARDS.red[i]);
+    p.appendChild(img); mini.appendChild(p);
+    return img;
+  });
+  let current = 'red';
+  let touched = false;
+  const fill = (set) => {
+    if (set === current) return;
+    current = set;
+    note.textContent = NOTES[set];
+    document.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.set === set)));
+    CARDS[set].forEach((id) => { const i = new Image(); i.src = src(id); });
+    pockets.forEach((img, i) => {
+      const swap = () => { img.src = src(CARDS[set][i]); requestAnimationFrame(() => img.classList.remove('out')); };
+      if (reduce) { img.src = src(CARDS[set][i]); return; }
+      setTimeout(() => { img.classList.add('out'); setTimeout(swap, 260); }, i * 70);
+    });
+  };
+  document.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => { touched = true; fill(c.dataset.set); }));
+  // Until someone taps, the page cycles colours on its own while it is on screen.
+  if (!reduce) {
+    const order = ['red', 'blue', 'green', 'pink'];
+    let timer = null;
+    new IntersectionObserver(([e]) => {
+      clearInterval(timer);
+      if (e.isIntersecting && !touched) timer = setInterval(() => { if (touched) return clearInterval(timer); fill(order[(order.indexOf(current) + 1) % order.length]); }, 3200);
+    }, { threshold: 0.4 }).observe(mini);
+  }
+
+  // The book: one leaf per colour page; scrolling through the section turns them.
+  const book = document.getElementById('bookEl');
+  const dots = document.getElementById('bookDots');
+  // Six pages, three spreads: red | blue, then green | pink, then two mixed pages.
+  const pick = (i) => [CARDS.red, CARDS.blue, CARDS.green, CARDS.pink][i % 4][i % 9];
+  const PAGES = {
+    red: CARDS.red, blue: CARDS.blue, green: CARDS.green, pink: CARDS.pink,
+    mixA: Array.from({ length: 9 }, (_, i) => pick(i)),
+    mixB: Array.from({ length: 9 }, (_, i) => pick(i + 5)),
+  };
+  const side = (page, cls) => `<div class="side ${cls}">${PAGES[page].map((id) => `<img src="${src(id)}" alt="" loading="lazy" width="245" height="342">`).join('')}</div>`;
+  // Left page underneath; the right page underneath the last leaf; each leaf is a right page
+  // (front) whose back becomes the next spread's left page.
+  book.innerHTML = `<div class="leaf-left">${side('red', '')}</div>` +
+    `<div class="leaf" style="z-index:1">${side('mixB', 'front')}</div>` +
+    [['blue', 'green'], ['pink', 'mixA']].map(([f, b], i) => `<div class="leaf" style="z-index:${10 - i}">${side(f, 'front')}${side(b, 'back')}</div>`).join('');
+  const leaves = [...book.querySelectorAll('.leaf')].slice(1);
+  const sets = [0, 1, 2];
+  dots.innerHTML = sets.map(() => '<b></b>').join('');
+  const dotEls = [...dots.children];
+  const section = document.getElementById('book');
+  const turn = () => {
+    const r = section.getBoundingClientRect();
+    const span = Math.max(1, r.height - innerHeight);
+    const t = reduce ? 0 : Math.min(1, Math.max(0, -r.top / span));
+    const pos = t * leaves.length;
+    leaves.forEach((leaf, i) => {
+      const k = Math.min(1, Math.max(0, pos - i));
+      leaf.style.transform = `rotateY(${-180 * k}deg)`;
+      leaf.style.zIndex = k > 0.5 ? String(20 + i) : String(10 - i);
+    });
+    const page = Math.min(sets.length - 1, Math.round(pos));
+    dotEls.forEach((d, i) => d.classList.toggle('on', i === page));
+  };
+  if (!reduce) addEventListener('scroll', () => requestAnimationFrame(turn), { passive: true });
+  turn();
+})();
+</script>
+</body>
+</html>

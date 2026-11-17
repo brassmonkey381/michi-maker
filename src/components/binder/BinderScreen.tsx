@@ -3017,6 +3017,7 @@ export function BinderScreen({
         hintToolbar={!!pocketHint.copy}
         toolbarPlacement={view.pocketBar}
         slotToolbar={!(phone && editing && canEdit)}
+        pageNumber={binder.pages.findIndex((x) => x.id === p.id) + 1 || undefined}
         onSplitSlot={selectedSlot && canSplitSlice(selectedSlot) ? splitSelected : undefined}
         onSimilarSlot={similarAvailable() ? findSimilarToSelected : undefined}
         onColorsSlot={findColorsOfSelected}

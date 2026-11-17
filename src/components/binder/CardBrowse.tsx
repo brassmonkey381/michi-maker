@@ -14,7 +14,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, type View as ViewType } from 'react-native';
 
-import { browseState, CatalogBrowser, parseQuery, searchCards, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
+import { browseState, CatalogBrowser, parseQuery, searchCards, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage, type CardSize } from 'tcgscan-browse';
 
 import { Breakpoints } from '@/constants/theme';
 import { browseLayout } from '@/lib/browseLayout';
@@ -82,6 +82,7 @@ export function CardBrowse({
   onThemeLocked,
   touchControls = false,
   dense = false,
+  cardSize,
   compactHeader: compactAsked = false,
   dock = false,
   dockExtra,
@@ -89,6 +90,8 @@ export function CardBrowse({
 }: {
   /** Smaller card tiles, more per row (MIC-017: the editor hand's search, desktop). */
   dense?: boolean;
+  /** The S/M/L the browser opens at (the View toggle still changes it). Omit for the session size. */
+  cardSize?: CardSize;
   /** Null while the catalog is still loading — CatalogBrowser then runs cold (server search). */
   catalog: Catalog | null;
   onPickCard?: (cardId: string, card?: CatalogCard) => void;
@@ -654,6 +657,7 @@ export function CardBrowse({
         }}
         footer={null}
         cardTileWidth={dense ? CARD_BROWSE_TILE_WIDTH_DENSE : CARD_BROWSE_TILE_WIDTH}
+        cardSize={cardSize}
         taxTileHeight={CARD_BROWSE_TAX_TILE_HEIGHT}
       />
       )}

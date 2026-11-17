@@ -29,7 +29,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { Breakpoints, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { emptyPage, pagesForCards } from '@/data/binderTypes';
 import { fetchCardsWhere } from '@/data/guestFill';
 import { where } from '@/data/guestFillQuery';
@@ -94,7 +94,7 @@ const ASK: Record<Kind, string> = {
   pokemon: 'Which Pokémon?',
   set: 'Which set?',
   artist: 'Which artist?',
-  three: 'Pick three cards',
+  three: 'Pick 3 cards',
 };
 
 /** MIC-017 piece 7 ('dev'): the chat in place of the step wizard. */
@@ -242,6 +242,12 @@ function NewBinderWizard() {
     // that page is exactly full it gets one empty page after it (within the page cap) to start on.
     const landing = kind === 'pokemon' || kind === 'artist' ? walkthroughLanding('_', pages) : null;
     if (landing?.addPage && pages.length < pageCap) pages.push(emptyPage(pages[0]?.rows ?? 3, pages[0]?.cols ?? 3, `Page ${pages.length + 1}`));
+    // At the page cap (a guest's 9 pages, all full) there is no room for that page: the last page
+    // gives back its last 3 cards instead, so it is part-filled and the walkthrough can run there.
+    else if (landing?.addPage && pages.length) {
+      const lastPage = pages[pages.length - 1];
+      pages[pages.length - 1] = { ...lastPage, slots: lastPage.slots.slice(0, Math.max(0, lastPage.slots.length - 3)) };
+    }
     const made = store.createBinder({ title, pages }, kind === 'three' ? { seed: { theme: 'wizard-three' } } : undefined);
     track('wizard.create', { wizard: 'new-binder', kind, cards: capped.length, pages: pages.length, capped: chosen.length > capped.length, ok: !!made });
     if (!made) {
@@ -252,7 +258,8 @@ function NewBinderWizard() {
       // MIC-054: the last part-filled page with the seeded walkthrough (step one: Complete); a
       // binder whose cards fill their pages exactly opens on the empty page added above.
       const madePages = store.getBinder(made.id)?.pages ?? made.pages;
-      router.replace((landing?.addPage ? wizardEditorHref(made.id, madePages) : walkthroughLanding(made.id, madePages).href) as Href);
+      const added = !!landing?.addPage && madePages.length > pagesForCards(capped.map((c) => c.id)).length;
+      router.replace((added ? wizardEditorHref(made.id, madePages) : walkthroughLanding(made.id, madePages).href) as Href);
       return;
     }
     if (FIRSTRUN_A && kind !== 'three') {
@@ -325,28 +332,38 @@ function NewBinderWizard() {
       ) : null}
 
       {step === 2 && kind ? (
-        <View style={styles.body}>
-          <ThemedText type="title" style={styles.h1}>
-            {ASK[kind]}
-          </ThemedText>
+        <View style={[styles.body, kind === 'three' && styles.bodyThree]}>
+          {kind === 'three' ? null : (
+            <ThemedText type="title" style={styles.h1}>
+              {ASK[kind]}
+            </ThemedText>
+          )}
           {kind === 'three' ? (
             <>
-              {/* NOTHING SAID UNTIL A CARD IS PICKED (owner, 2026-11-05: "let them drill down and
-                  figure out how to add cards themselves"). The browser is the whole screen; the
-                  picks row appears with the first pick and carries the count. */}
-              {picked.length ? (
-                <View style={styles.picks}>
-                  <Text style={styles.pickCount}>{picked.length} of 3</Text>
-                  {picked.map((c) => (
-                    <Pressable key={c.id} onPress={() => setPicked((p) => p.filter((x) => x.id !== c.id))} accessibilityRole="button" accessibilityLabel={`Remove ${c.name}`}>
-                      <Image source={{ uri: manifestReady ? cardThumbUrl(c.id, 'full') : '' }} style={styles.pickThumb} contentFit="cover" />
-                    </Pressable>
-                  ))}
+              {/* MIC-053 (owner 2026-11-17: the header ate the grid on a phone): one line, the title
+                  with the picks beside it, so the card grid starts high. */}
+              <View style={styles.threeHead} testID="wizard-three-head">
+                <Text style={styles.threeTitle} numberOfLines={1}>{ASK.three}</Text>
+                <View style={styles.trayRow}>
+                  {[0, 1, 2].map((i) => {
+                    const c = picked[i];
+                    return c ? (
+                      <Pressable key={c.id} onPress={() => setPicked((p) => p.filter((x) => x.id !== c.id))} accessibilityRole="button" accessibilityLabel={`Remove ${c.name}`}>
+                        <Image source={{ uri: manifestReady ? cardThumbUrl(c.id, 'full') : '' }} style={styles.trayThumb} contentFit="cover" />
+                      </Pressable>
+                    ) : (
+                      <View key={i} style={styles.traySlot} />
+                    );
+                  })}
+                  <Text style={styles.trayCount}>{picked.length}/3</Text>
                 </View>
-              ) : null}
+              </View>
               <View style={styles.browse} testID="wizard-browse">
                 <CardBrowse
                   catalog={catalog}
+                  compactHeader
+                  // MIC-053: three cards to a row on a phone, so three full rows show on arrival.
+                  cardSize={width < Breakpoints.phone ? 'S' : undefined}
                   moreCardActions={() => [cardPictureAction('wizard', showToast)]}
                   onPickCard={(_id, card) => {
                     if (!card) return;
@@ -439,8 +456,8 @@ function NewBinderWizard() {
         </View>
       ) : null}
 
-      {step > 1 ? (
-        <View style={styles.foot}>
+      {step > 1 && !(kind === 'three' && !ready) ? (
+        <View style={[styles.foot, kind === 'three' && styles.footThree]}>
           {refused ? (
             <View style={styles.refused}>
               <Text style={styles.refusedText}>You already have a binder. Open it, or make room for another with a free account.</Text>
@@ -503,6 +520,14 @@ const styles = StyleSheet.create({
   stepText: { fontSize: FontSize.xs, fontWeight: Weight.bold, letterSpacing: 1, color: Palette.muted },
   body: { paddingHorizontal: Spacing.three, gap: Spacing.two, flex: 1 },
   h1: { marginBottom: 2 },
+  bodyThree: { gap: Spacing.one },
+  threeHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, minHeight: 48 },
+  threeTitle: { flexShrink: 1, fontSize: FontSize.lg, fontWeight: Weight.bold, color: Palette.ink },
+  trayRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  trayThumb: { width: 32, height: 45, borderRadius: 4, borderWidth: 2, borderColor: Palette.accent },
+  traySlot: { width: 32, height: 45, borderRadius: 4, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Palette.hairlineStrong },
+  trayCount: { fontSize: FontSize.sm, fontWeight: Weight.bold, color: Palette.ink2, minWidth: 28, textAlign: 'right' },
+  footThree: { paddingTop: Spacing.two, paddingBottom: Spacing.three },
   sub: { marginBottom: Spacing.two },
   option: {
     borderWidth: 1,

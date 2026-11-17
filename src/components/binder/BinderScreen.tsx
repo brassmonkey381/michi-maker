@@ -397,7 +397,10 @@ export function BinderScreen({
     const slotId = store.getBinder(binderId)?.pages[at]?.slots[Number(m[2])]?.id;
     return slotId ? { at, slotId } : null;
   });
-  const [pageIndex, setPageIndex] = useState(fillResume?.at ?? 0);
+  // Starts on the page the editor opens to (`?page=`), not page one: the seeded walkthrough latches
+  // "arrived on a full page" from its first render, and a binder opened on its last, part-filled
+  // page (MIC-054) was being judged by its full page one and retiring the walkthrough for good.
+  const [pageIndex, setPageIndex] = useState(fillResume?.at ?? initialPageIndex ?? 0);
   // MIC-044: a new binder opens aimed at its first open pocket. On page one that is the first state;
   // further in, the book riffles to the page (each turn un-aims, see changePage), so the aim waits
   // here and lands when the riffle reaches its page.

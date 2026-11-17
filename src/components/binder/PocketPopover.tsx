@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
   tile: {
     // The card's padding (12 each side) and its 1px border, less the two gaps: three to a row.
-    width: Math.floor((POPOVER_W - 24 - 2 - GAP * 2) / 3),
+    width: '31.5%',
     height: 62,
     borderRadius: 12,
     backgroundColor: Palette.panelAlt,

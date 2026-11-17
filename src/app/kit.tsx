@@ -9,6 +9,8 @@
  * Production builds redirect home: this is a review surface, not a page.
  */
 import { Redirect, useLocalSearchParams } from 'expo-router';
+
+import { DEV_MODE } from '@/lib/devMode';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button, Chip, ChipRow, Dialog, Footer, Input, Row, RowGroup, Seg, Sheet, Shell, Toast, TypeScale, useKit, type HeaderVariant, type RailGroup } from 'tcgscan-ui';
@@ -20,7 +22,8 @@ const noop = () => {};
 const SORTS = ['Number', 'Rarity', 'Value', 'Artist', 'Name'] as const;
 
 export default function KitGallery() {
-  if (!__DEV__) return <Redirect href="/" />;
+  // A dev build, or a browser in dev mode (?dev=1), so the owner can see the kit on a preview.
+  if (!__DEV__ && !DEV_MODE) return <Redirect href="/" />;
   return <Gallery />;
 }
 

@@ -632,7 +632,7 @@ export function CardBrowse({
           if (e.type !== 'searched') return;
           trackSimilarWordsSearched({ game: e.game, surface: onPickCard ? 'binder_editor' : 'home', expanded: e.expanded, hits: e.hits });
         }}
-        themeSearchLabel={compactHeader ? (diceBusy ? (dock && phone ? 'Rolling…' : '🎲 Rolling…') : dock && phone ? 'Theme' : 'Theme 🎲') : `Theme: ${demoTheme}`}
+        themeSearchLabel={compactHeader ? (diceBusy ? ((dock && phone) || width < CHIPS_ONE_ROW_W ? 'Rolling…' : '🎲 Rolling…') : (dock && phone) || width < CHIPS_ONE_ROW_W ? 'Theme' : 'Theme 🎲') : `Theme: ${demoTheme}`}
         themeSearchBusy={compactHeader && diceBusy}
         compactHeader={compactHeader}
         // MIC-017 piece 5 ('browse-dock'): thumb dock, results as binder pages, no-results that explain.
@@ -729,7 +729,7 @@ function GameMenu({
         testID="picker-game"
         // Filled with the accent (owner, 2026-10-25): the game is the one control on this bar that
         // changes what every other control means, and an outlined chip read as just another filter.
-        style={[styles.gameBtn, tall && styles.gameBtnTall, { borderColor: accent, backgroundColor: accent }]}>
+        style={[styles.gameBtn, tall && styles.gameBtnTall, !tall && winW < CHIPS_ONE_ROW_W && styles.gameBtnSnug, { borderColor: accent, backgroundColor: accent }]}>
         <Text style={[styles.gameBtnText, tall && styles.gameBtnTextTall, { color: accentText }]} numberOfLines={1}>
           {gameLabel(game)}
         </Text>
@@ -762,6 +762,9 @@ function GameMenu({
   );
 }
 
+/** Below this window width the card browser's chip row is tightened to fit one row (MIC-039 p36): the dice leaves the Theme label and the game menu takes the kit's snug size. */
+const CHIPS_ONE_ROW_W = 500;
+
 const styles = StyleSheet.create({
   // The notes about a game still loading, on a line of their own above the browser.
   gameRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, rowGap: 6, paddingHorizontal: 8, paddingBottom: 6 },
@@ -772,6 +775,8 @@ const styles = StyleSheet.create({
   gameBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 7, paddingLeft: 10, paddingRight: 8, borderRadius: 9, borderWidth: 1, maxWidth: 170 },
   gameBtnText: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
   gameBtnTall: { minHeight: 44, paddingVertical: 0 },
+  /** The kit's narrow chip metrics (0.9.102), so five chips share one row on a phone (MIC-039 p36). */
+  gameBtnSnug: { minHeight: 36, paddingVertical: 0, paddingLeft: 9, paddingRight: 7, gap: 3 },
   gameBtnTextTall: { fontSize: 15 },
   gameChevron: { fontSize: 12 },
   gameCard: { position: 'absolute', width: 220, borderRadius: 12, borderWidth: 1, paddingVertical: 6, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8 },

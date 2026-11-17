@@ -25,6 +25,7 @@ import { ART_VIEWS, PAGE_ART_VIEWS, resolveArtView } from '@/data/artView';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 import { withMatStyle } from '@/data/matStyle';
 import { isImageRef, resolveWear } from '@/data/pageStyle';
+import { SELECT_GLYPH, SELECT_ON, SELECT_ON_TEXT, SELECT_WORD } from '@/constants/selectButton';
 import { useBinders } from '@/store/binders';
 
 type Kind = 'background' | 'sleeve' | 'artBacking' | 'artView';
@@ -74,6 +75,13 @@ export function PageWearBar({
   // ON A PHONE THE BAR WRAPS instead of scrolling (owner, 2026-10-29): a sideways scroll hides
   // chips with no sign that there are more. Two rows show every one.
   const narrow = winW < 500;
+  // ICONS ONLY WHEN THE WORDS DO NOT FIT (MIC-039 p07): beside a dealt hand at 1280-1440 the row
+  // with labels was wider than the page it sits on and scrolled, cutting "Select" to "Sele". The
+  // labelled width is measured while the words show; if it overflows the bar, every chip drops
+  // its word, as on a phone, instead of one being cut mid-word.
+  const [barW, setBarW] = useState(0);
+  const [labelledW, setLabelledW] = useState(0);
+  const compact = narrow || (barW > 0 && labelledW > barW + 1);
   const [open, setOpen] = useState<{ kind: Kind; x: number; top: number; bottom: number } | null>(null);
   // The card's real height, once drawn: placed above the bar it has to clear the whole bar, and a
   // guess put it over the chips (the first draw sat 150px up and covered the row it came from).
@@ -110,7 +118,7 @@ export function PageWearBar({
         {isImageRef(colour) ? <Image source={{ uri: colour }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} /> : null}
         {colour ? null : <View style={styles.swatchSlash} />}
       </View>
-      {narrow ? null : <Text style={styles.chipText}>{label}</Text>}
+      {compact ? null : <Text style={styles.chipText}>{label}</Text>}
     </Pressable>
   );
 
@@ -132,7 +140,15 @@ export function PageWearBar({
         {/* ONE ROW OF SWATCHES ON A PHONE (QA, 2026-11-05): with their words the four chips wrapped
             to two rows and sat on the bottom row of pockets. The swatch and the glyph carry each
             chip; its name stays in the accessibility label and on the card it opens. */}
-        <ScrollView horizontal={!narrow} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.barContent, narrow && styles.barCompact]} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          horizontal={!narrow}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.barContent, narrow && styles.barCompact]}
+          keyboardShouldPersistTaps="handled"
+          onLayout={(e) => setBarW(e.nativeEvent.layout.width)}
+          onContentSizeChange={(w) => {
+            if (!compact) setLabelledW(w);
+          }}>
         {chip('background', 'Background', background)}
         {chip('sleeve', 'Sleeves', sleeve)}
         {chip('artBacking', 'Art backing', backing)}
@@ -146,7 +162,7 @@ export function PageWearBar({
             testID="page-bar-artView"
             style={({ pressed }) => [styles.chip, shownView !== 'card' && styles.chipOn, pressed && styles.pressed]}>
             <Text style={[styles.chipGlyph, shownView !== 'card' && styles.chipTextOn]}>{'◫'}</Text>
-            {narrow ? null : <Text style={[styles.chipText, shownView !== 'card' && styles.chipTextOn]}>Art view</Text>}
+            {compact ? null : <Text style={[styles.chipText, shownView !== 'card' && styles.chipTextOn]}>Art view</Text>}
           </Pressable>
         ) : null}
         {select ? (
@@ -166,10 +182,10 @@ export function PageWearBar({
                 : 'Select several pockets'
             }
             testID="binder-select-toggle"
-            style={({ pressed }) => [styles.chip, select.on && styles.chipOn, pressed && styles.pressed]}>
+            style={({ pressed }) => [styles.chip, select.on && styles.selectOn, pressed && styles.pressed]}>
             {/* Two overlapping squares: several pockets (owner, 2026-11-07: the ⊕ said nothing about 'multiple'). */}
-            <Text style={[styles.chipGlyph, select.on && styles.chipTextOn]}>{'⧉'}</Text>
-            {narrow && !select.on ? null : <Text style={[styles.chipText, select.on && styles.chipTextOn]}>Select</Text>}
+            <Text style={[styles.chipGlyph, select.on && styles.selectTextOn]}>{SELECT_GLYPH}</Text>
+            {compact && !select.on ? null : <Text style={[styles.chipText, select.on && styles.selectTextOn]}>{SELECT_WORD}</Text>}
             {select.on && select.count > 0 ? (
               <View style={styles.count} testID="binder-select-count">
                 <Text style={styles.countText}>{select.count}</Text>
@@ -327,9 +343,12 @@ const styles = StyleSheet.create({
   chipGlyph: { fontSize: FontSize.md, lineHeight: 16, color: Palette.ink2 },
   chipOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
   chipTextOn: { color: Palette.accentText },
+  /** The multi-select chip's own on state (constants/selectButton): 6.70:1, the kit's pill. */
+  selectOn: { backgroundColor: SELECT_ON, borderColor: SELECT_ON },
+  selectTextOn: { color: SELECT_ON_TEXT },
   /** The count, inside the chip: a small number, not a second control. */
   count: { minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, backgroundColor: Palette.surface, alignItems: 'center', justifyContent: 'center' },
-  countText: { fontSize: FontSize.xs, fontWeight: Weight.bold, color: Palette.accent, fontVariant: ['tabular-nums'] },
+  countText: { fontSize: FontSize.xs, fontWeight: Weight.bold, color: SELECT_ON, fontVariant: ['tabular-nums'] },
   swatch: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.25)', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   swatchNone: { backgroundColor: Palette.panel },
   /** A diagonal through an empty swatch: "none", the way a colour picker draws it. */

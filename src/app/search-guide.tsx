@@ -16,7 +16,10 @@ import { FREE_THEME_QUERY, runThemeDemo } from '@/data/themeDemo';
 
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+
+/** The article column, and the shell's too, so Back sits on the article's left edge (MIC-039 p39). */
+const GUIDE_COLUMN = 760;
 
 type Line = { q: string; finds: string; free?: boolean; browseOnly?: boolean };
 
@@ -113,7 +116,7 @@ export default function SearchGuideScreen() {
   const run = (l: Line) => (l.browseOnly ? router.push('/browse') : tryIt(l.q));
 
   return (
-    <PageShell title="Search Cheatsheet" description="The searches people use in the card browser, one line each, tap to run." maxWidth={MaxContentWidthWide} footer={false}>
+    <PageShell title="Search Cheatsheet" description="The searches people use in the card browser, one line each, tap to run." maxWidth={GUIDE_COLUMN} footer={false}>
       <View style={styles.shell}>
         <View style={styles.headerRow}>
           <ThemedText type="title" style={styles.h1}>
@@ -203,7 +206,7 @@ export default function SearchGuideScreen() {
 const mono = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
 
 const styles = StyleSheet.create({
-  shell: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: Spacing.three, paddingTop: Spacing.four, paddingBottom: Spacing.five },
+  shell: { width: '100%', maxWidth: GUIDE_COLUMN, alignSelf: 'center', paddingHorizontal: Spacing.three, paddingTop: Spacing.four, paddingBottom: Spacing.five },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three },
   h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40 },
   intro: { marginTop: Spacing.one },

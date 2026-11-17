@@ -153,6 +153,7 @@ export default function WelcomeScreen() {
   });
   const { width: windowW } = useWindowDimensions();
   const wide = windowW >= 920;
+  const phoneNav = windowW < 480;
   const dark = isDarkBackground(useTheme().background);
   const paper = dark ? Paper.dark : Paper.light;
   const mat = dark ? Mat.dark : Mat.light;
@@ -256,8 +257,14 @@ export default function WelcomeScreen() {
               </View>
               <Pressable
                 onPress={browseBinders}
-                style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}>
-                <ThemedText style={styles.navBtnText}>See some binders →</ThemedText>
+                accessibilityRole="link"
+                accessibilityLabel="See some binders"
+                style={({ pressed }) => [styles.navBtn, phoneNav && styles.navBtnPhone, pressed && styles.pressed]}>
+                {/* MIC-039 p09 (owner: shrink and style the button, leave the wordmark alone): on a
+                    phone a smaller, shorter pill that keeps a clear gap from the wordmark. */}
+                <ThemedText style={[styles.navBtnText, phoneNav && styles.navBtnTextPhone]} numberOfLines={1}>
+                  {phoneNav ? 'See binders →' : 'See some binders →'}
+                </ThemedText>
               </Pressable>
             </View>
 
@@ -495,6 +502,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.three,
     paddingVertical: Spacing.three,
   },
   // On wide screens the brand lockup is big — drop it down so it sits vertically centred in
@@ -511,6 +519,8 @@ const styles = StyleSheet.create({
     borderColor: Palette.hairlineStrong,
   },
   navBtnText: { fontSize: FontSize.body, fontWeight: Weight.semibold },
+  navBtnPhone: { flexShrink: 0, paddingVertical: 6, paddingHorizontal: Spacing.two + 2, backgroundColor: Palette.surface },
+  navBtnTextPhone: { fontSize: FontSize.sm, lineHeight: 18 },
 
   hero: {
     paddingTop: Spacing.five,

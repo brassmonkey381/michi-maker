@@ -189,9 +189,11 @@ export function PagedCarousel({
       </ScrollView>
 
       {pageCount > 1 ? (
-        <>
+        // THE ARROWS FLANK THE DOTS (MIC-039 p13): floated over the row's middle they sat on tile
+        // text (sealed product names and prices, Discover's rows). In the dots line they cover
+        // nothing and still sit right under the row they page.
+        <View style={styles.controls}>
           <Arrow dir="prev" label={`${prevLabel} (double-tap for start)`} onPress={onPrev} />
-          <Arrow dir="next" label={`${nextLabel} (double-tap for end)`} onPress={onNext} />
           <View style={styles.dots}>
             {pages.map((_, i) => (
               <Pressable
@@ -204,7 +206,8 @@ export function PagedCarousel({
               </Pressable>
             ))}
           </View>
-        </>
+          <Arrow dir="next" label={`${nextLabel} (double-tap for end)`} onPress={onNext} />
+        </View>
       ) : null}
     </View>
   );
@@ -216,28 +219,27 @@ function Arrow({ dir, label, onPress }: { dir: 'prev' | 'next'; label: string; o
       onPress={onPress}
       hitSlop={8}
       accessibilityLabel={label}
-      style={[styles.arrow, dir === 'prev' ? styles.arrowLeft : styles.arrowRight]}>
+      style={({ pressed }) => [styles.arrow, pressed && styles.arrowPressed]}>
       <Text style={styles.arrowText}>{dir === 'prev' ? '‹' : '›'}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.three, marginTop: Spacing.two },
   arrow: {
-    position: 'absolute',
-    top: '50%',
-    marginTop: -18,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Palette.scrim40,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    backgroundColor: Palette.surface,
   },
-  arrowLeft: { left: 4 },
-  arrowRight: { right: 4 },
-  arrowText: { color: Palette.white, fontSize: FontSize.nav, lineHeight: 30, fontWeight: Weight.semibold },
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.one, marginTop: Spacing.two },
+  arrowPressed: { backgroundColor: Palette.panel },
+  arrowText: { color: Palette.ink, fontSize: FontSize.nav, lineHeight: 26, fontWeight: Weight.semibold },
+  dots: { flexDirection: 'row', flexWrap: 'wrap', flexShrink: 1, justifyContent: 'center', gap: Spacing.one },
   dot: { width: 6, height: 6, borderRadius: Radius.xs, backgroundColor: Palette.hairlineStrong },
   dotActive: { backgroundColor: Palette.accent },
 });

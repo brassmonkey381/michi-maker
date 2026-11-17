@@ -3,11 +3,13 @@
  * adds it here automatically.
  */
 import { useRouter, type Href } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { CurateCallout } from '@/components/CurateCallout';
 import { ExternalLink } from '@/components/external-link';
 import { GuideHook } from '@/components/learn/GuideFigure';
+import type { GuideHook as GuideHookData } from '@/data/guides';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -26,6 +28,9 @@ export default function LearnHubScreen() {
   const { width } = useWindowDimensions();
   const twoUp = width >= 760;
   const hookW = LEARN_CLEAN ? (twoUp ? 200 : Math.max(120, Math.floor((width - 64) / 2) - 24)) : twoUp ? 120 : 84;
+  // ONE PICTURE HEIGHT FOR EVERY TILE (MIC-039 p20; owner: same height, never cropped or shrunk,
+  // bigger if anything). Each picture is drawn whole at this height, so the titles line up.
+  const picH = twoUp ? 340 : Math.round(hookW * 1.7);
   return (
     <PageShell
       maxWidth={MaxContentWidthDoc}
@@ -38,8 +43,8 @@ export default function LearnHubScreen() {
         {GUIDE_LIST.map((g) => {
           const card = LEARN_CLEAN ? (
             <ThemedView type="backgroundElement" style={[styles.card, styles.cleanCard]} testID="learn-tile">
-              <View style={styles.cleanPic}>
-                <GuideHook hook={g.hook} width={g.wide ? Math.min(hookW * 2, 420) : hookW} />
+              <View style={[styles.cleanPic, { height: picH }]}>
+                <EvenHook hook={g.hook} height={picH} maxWidth={g.wide ? 420 : twoUp ? 300 : hookW + 24} />
               </View>
               <ThemedText type="smallBold" style={styles.cleanTitle}>
                 {g.title}
@@ -91,12 +96,31 @@ export default function LearnHubScreen() {
   );
 }
 
+/**
+ * A guide's picture drawn whole at a set HEIGHT. The hooks size by width and each has its own
+ * shape (a card, a 3 x 2 pocket sheet, a fan), so it is drawn once at a probe width, measured, and
+ * redrawn at the width that gives the asked height, capped by the room the tile has.
+ */
+function EvenHook({ hook, height, maxWidth }: { hook: GuideHookData; height: number; maxWidth: number }) {
+  const PROBE = 100;
+  const [ratio, setRatio] = useState(0); // height / width of this hook
+  if (!ratio) {
+    return (
+      <View style={styles.probe} onLayout={(e) => e.nativeEvent.layout.height > 0 && setRatio(e.nativeEvent.layout.height / PROBE)}>
+        <GuideHook hook={hook} width={PROBE} />
+      </View>
+    );
+  }
+  return <GuideHook hook={hook} width={Math.max(40, Math.min(maxWidth, Math.floor(height / ratio)))} />;
+}
+
 const styles = StyleSheet.create({
+  probe: { opacity: 0, alignSelf: 'flex-start' },
   callout: { marginTop: 28 },
   // Piece 14: pictures first, titles only.
   third: { width: '31.5%', flexGrow: 1 },
   cleanCard: { flexDirection: 'column', alignItems: 'center', gap: 10, paddingVertical: 16 },
-  cleanPic: { alignItems: 'center', justifyContent: 'center', minHeight: 120 },
+  cleanPic: { alignItems: 'center', justifyContent: 'center' },
   cleanTitle: { textAlign: 'center', fontSize: FontSize.md },
   list: { gap: Spacing.three },
   listTwoUp: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch' },

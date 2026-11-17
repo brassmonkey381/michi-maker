@@ -112,7 +112,7 @@ function FieldsTab() {
 const TILE_HELP: { code: string; desc: string }[] = [
   { code: '$ tag', desc: 'Bottom-left: latest market value (USD)' },
   { code: 'JP', desc: 'Bottom-right: Japanese printing' },
-  { code: '✓', desc: 'Selected in multi-select (⊕ Select multiple, or Ctrl/Shift-click on web)' },
+  { code: '✓', desc: 'Selected in multi-select (⧉ Select, or Ctrl/Shift-click on web)' },
   { code: 'V-UNION', desc: 'An assembled 2×2 group tile, tap places all four pieces' },
   { code: 'ring', desc: 'Keyboard focus (web): arrow keys move it, Enter opens, Esc closes' },
   { code: 'Tap a card', desc: 'Opens its panel: value, evolves from/to, add, ≈ similar, view set/artist' },

@@ -146,7 +146,17 @@ function PuzzlePanel() {
       )}
       <Pressable onPress={() => router.push('/daily' as Href)} onLayout={(e) => setBox({ w: Math.floor(e.nativeEvent.layout.width), h: Math.floor(e.nativeEvent.layout.height) })} style={[styles.grow, styles.peek]} accessibilityLabel="Open today's puzzle" testID="home-puzzle-peek">
         {peek.length ? (
-          cardW > 0 ? peek.map((u, i) => <Image key={i} source={{ uri: u }} style={[styles.peekCard, { width: cardW, height: Math.round(cardW / 0.716) }]} contentFit="cover" />) : null
+          // ROWS OF THREE, ALWAYS (MIC-039 p26): a wrapping row filled 4 + 4 + 1 at 1440 and 5 + 4
+          // at 1920 whenever the height, not the width, set the card size.
+          cardW > 0
+            ? Array.from({ length: rows }, (_, r) => (
+                <View key={r} style={styles.peekRow}>
+                  {peek.slice(r * 3, r * 3 + 3).map((u, i) => (
+                    <Image key={i} source={{ uri: u }} style={[styles.peekCard, { width: cardW, height: Math.round(cardW / 0.716) }]} contentFit="cover" />
+                  ))}
+                </View>
+              ))
+            : null
         ) : puzzle?.backdropUrl ? (
           <Image source={{ uri: puzzle.backdropUrl }} style={styles.peekBackdrop} contentFit="cover" />
         ) : (
@@ -222,7 +232,8 @@ const styles = StyleSheet.create({
   streakNum: { fontSize: FontSize.display, lineHeight: 38, fontWeight: Weight.bold, color: Palette.accent },
   streakStart: { fontSize: FontSize.lg, lineHeight: 38, fontWeight: Weight.bold, color: Palette.ink },
   streakLabel: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.ink },
-  peek: { flexDirection: 'row', flexWrap: 'wrap', alignContent: 'center', justifyContent: 'center', gap: 6, minHeight: 120, flexBasis: 0 },
+  peek: { justifyContent: 'center', alignItems: 'center', gap: 6, minHeight: 120, flexBasis: 0 },
+  peekRow: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
   peekCard: { borderRadius: 6, backgroundColor: Palette.hairline },
   peekBackdrop: { width: '100%', flexGrow: 1, minHeight: 160, borderRadius: Radius.control },
   peekEmpty: { width: '100%', flexGrow: 1, minHeight: 160, borderRadius: Radius.control, backgroundColor: Palette.accentSoft },

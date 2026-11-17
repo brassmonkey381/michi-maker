@@ -5,7 +5,7 @@
 // to work under a thumb, the whole bulk-action path was unreachable, and on the web it was
 // unreachable unless you already knew.
 //
-// This drives the visible door only: tap "⊕ Select", tap two pockets, and check the count follows
+// This drives the visible door only: tap the ⧉ Select chip, tap two pockets, and check the count follows
 // and the actions open. It never presses a modifier key, because a test that quietly used the old
 // path would pass on a build where the new one does nothing.
 //

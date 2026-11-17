@@ -19,6 +19,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { PLAN_BLOCK_WIDTH } from '@/components/monetization/PlanComparison';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { startCheckout } from '@/data/checkout';
@@ -151,7 +152,9 @@ function BuyButton({
 }
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, paddingVertical: Spacing.three },
+  // The comparison table's cap and centring (MIC-039 p29), so the Founder card, the note and
+  // "Your plan" all share the plan cards' left edge.
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, paddingVertical: Spacing.three, width: '100%', maxWidth: PLAN_BLOCK_WIDTH, alignSelf: 'center' },
   card: {
     flexGrow: 1,
     flexBasis: 280,

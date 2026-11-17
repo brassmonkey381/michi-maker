@@ -571,7 +571,7 @@ export default function DiscoverScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder={DISCOVER_V2 ? 'Search binders by Pokémon, theme, scenery, art style, set…' : 'Search by title, page, description or creator'}
+            placeholder={DISCOVER_V2 ? 'Search by Pokémon, theme, art style, set…' : 'Search by title, page, description or creator'}
             placeholderTextColor={Palette.muted}
             autoCorrect={false}
             autoCapitalize="none"

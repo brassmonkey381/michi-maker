@@ -12,6 +12,7 @@
  * Catalog-free: tiles resolve images straight from the card id (cardThumbUrl), so this paints
  * without the big catalog. The header shows count + total value once the price summary resolves.
  */
+import { SELECT_GLYPH, SELECT_WORD } from '@/constants/selectButton';
 import { Image } from 'expo-image';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
@@ -950,7 +951,7 @@ function CollectionStrip({
           }}
           style={[pillChip.base, multiMode && pillChip.active]}>
           <Text style={[pillChip.text, multiMode && pillChip.textActive]}>
-            {multiMode ? '✓ Done selecting' : '⊕ Select multiple'}
+            {multiMode ? '✓ Done selecting' : `${SELECT_GLYPH} ${SELECT_WORD}`}
           </Text>
         </Pressable>
         {scanImages ? <ImageSourceToggle value={imageSource} onChange={setImageSource} /> : null}

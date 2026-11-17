@@ -101,6 +101,8 @@ const NEWBINDER_CHAT = flag('newbinder-chat');
 /** MIC-017 B1-A ('dev'): note not stop, then the editor at the first open pocket with one tip
  *  (MIC-044 dropped the page-one reveal: the owner wants people editing straight away). */
 const FIRSTRUN_A = flag('firstrun-a');
+/** The wizard's column on a desktop window (MIC-039 p06). */
+const WIZARD_MAX_W = 1040;
 
 export default function NewBinderScreen() {
   return NEWBINDER_CHAT ? <NewBinderChat /> : <NewBinderWizard />;
@@ -268,7 +270,9 @@ function NewBinderWizard() {
 
   return (
     <ThemedView style={styles.flex}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
+      {/* MIC-039 p06: on a desktop window the wizard is a centred column, not the phone layout
+          stretched to the window's full width. */}
+      <SafeAreaView style={[styles.flex, styles.column]} edges={['top']}>
       <View style={styles.top}>
         <Pressable onPress={back} hitSlop={10} accessibilityRole="button" accessibilityLabel={step === 1 ? 'Cancel' : 'Back'} testID="wizard-back">
           <Text style={styles.topLink}>{step === 1 ? 'Cancel' : '‹ Back'}</Text>
@@ -481,6 +485,7 @@ function NewBinderWizard() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  column: { width: '100%', maxWidth: WIZARD_MAX_W, alignSelf: 'center' },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.three, paddingTop: Spacing.three, paddingBottom: Spacing.two },
   topLink: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.accent },
   stepText: { fontSize: FontSize.xs, fontWeight: Weight.bold, letterSpacing: 1, color: Palette.muted },

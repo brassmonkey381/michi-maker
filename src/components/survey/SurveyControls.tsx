@@ -13,7 +13,7 @@
  *   - Scales are radiogroups with labelled children, so a screen reader hears "3 of 5, Ease of
  *     use" and not "button".
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -44,6 +44,10 @@ export function QuestionHead({ prompt, help }: { prompt: string; help?: string }
  * every option a tap target smaller than a fingertip, and mis-taps on a scale are invisible
  * errors: nobody checks what they scored.
  */
+const SCALE_MIN = 38;
+const SCALE_MAX = 72;
+const SCALE_GAP = 6;
+
 export function ScaleRow({
   min,
   max,
@@ -73,9 +77,17 @@ export function ScaleRow({
     () => Array.from({ length: max - min + 1 }, (_, i) => min + i),
     [min, max],
   );
+  // EVEN CELLS, EVEN ROWS (MIC-039 p19, p30). Every point gets the same width: one row when they
+  // all fit at the minimum, else rows of equal count (11 on a phone: 6 + 5), never 7 narrow plus 4
+  // wide. The end labels span the points, not the page, so "Strongly agree" sits under the 5.
+  const [rowW, setRowW] = useState(0);
+  const n = points.length;
+  const perRow = rowW <= 0 || n * SCALE_MIN + (n - 1) * SCALE_GAP <= rowW ? n : Math.ceil(n / Math.ceil((n * SCALE_MIN + (n - 1) * SCALE_GAP) / rowW));
+  const cellW = rowW > 0 ? Math.min(SCALE_MAX, Math.floor((rowW - (perRow - 1) * SCALE_GAP) / perRow)) : undefined;
+  const spanW = cellW ? perRow * cellW + (perRow - 1) * SCALE_GAP : undefined;
   return (
     <View style={styles.scaleWrap} accessibilityRole="radiogroup" accessibilityLabel={label} testID={testID}>
-      <View style={styles.scaleRow}>
+      <View style={styles.scaleRow} onLayout={(e) => setRowW(Math.floor(e.nativeEvent.layout.width))}>
         {points.map((n) => {
           const on = value === n;
           return (
@@ -86,7 +98,7 @@ export function ScaleRow({
               accessibilityState={{ checked: on }}
               accessibilityLabel={`${n}${n === min ? `, ${minLabel}` : ''}${n === max ? `, ${maxLabel}` : ''}`}
               testID={testID ? `${testID}-${n}` : undefined}
-              style={({ pressed }) => [styles.scaleDot, on && styles.scaleDotOn, pressed && styles.pressed]}>
+              style={({ pressed }) => [styles.scaleDot, cellW ? { width: cellW, flexGrow: 0, flexBasis: 'auto', minWidth: 0, maxWidth: undefined } : null, on && styles.scaleDotOn, pressed && styles.pressed]}>
               <ThemedText style={[styles.scaleDotText, on && styles.scaleDotTextOn]}>{n}</ThemedText>
             </Pressable>
           );
@@ -103,7 +115,7 @@ export function ScaleRow({
           </Pressable>
         ) : null}
       </View>
-      <View style={styles.ends}>
+      <View style={[styles.ends, spanW ? { width: spanW } : null]}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.endText}>
           {minLabel}
         </ThemedText>

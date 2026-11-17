@@ -16,6 +16,7 @@
  * No "+ Page" here: a turn past the last page grows the binder (BinderPages' step), as long as
  * that page holds something.
  */
+import { SELECT_GLYPH, SELECT_ON, SELECT_WORD } from '@/constants/selectButton';
 import { forwardRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -68,10 +69,11 @@ export function PhoneToolBar({
       ) : null}
       <Tab glyph="＋" word="Add" label="Add a card or a picture to this page" onPress={onAdd} testID="phone-tab-add" />
       <Tab
-        glyph="⧉"
-        word="Multi-select"
+        glyph={SELECT_GLYPH}
+        word={SELECT_WORD}
         label={selectOn ? (selectCount > 0 ? `Actions for ${selectCount} selected pockets` : 'Stop selecting') : 'Select several pockets'}
         on={selectOn}
+        onColor={SELECT_ON}
         count={selectOn ? selectCount : 0}
         onPress={selectOn && selectCount > 0 ? onSelectActions : onSelect}
         testID="phone-tab-select"
@@ -101,8 +103,8 @@ export function PhoneToolBar({
   );
 }
 
-const Tab = forwardRef<View, { glyph: string; word: string; label: string; on?: boolean; count?: number; onPress: () => void; onLongPress?: () => void; disabled?: boolean; testID: string }>(function Tab(
-  { glyph, word, label, on = false, count = 0, onPress, onLongPress, disabled = false, testID },
+const Tab = forwardRef<View, { glyph: string; word: string; label: string; on?: boolean; onColor?: string; count?: number; onPress: () => void; onLongPress?: () => void; disabled?: boolean; testID: string }>(function Tab(
+  { glyph, word, label, on = false, onColor, count = 0, onPress, onLongPress, disabled = false, testID },
   ref,
 ) {
   return (
@@ -116,7 +118,7 @@ const Tab = forwardRef<View, { glyph: string; word: string; label: string; on?: 
       accessibilityLabel={label}
       testID={testID}
       style={({ pressed }) => [styles.tab, pressed && styles.pressed, disabled && { opacity: 0.4 }]}>
-      <View style={[styles.icon, on && styles.iconOn]}>
+      <View style={[styles.icon, on && styles.iconOn, on && onColor ? { backgroundColor: onColor } : null]}>
         <Text style={[styles.glyph, on && styles.glyphOn]}>{glyph}</Text>
         {count > 0 ? (
           <View style={styles.count} testID={`${testID}-count`}>
@@ -124,7 +126,7 @@ const Tab = forwardRef<View, { glyph: string; word: string; label: string; on?: 
           </View>
         ) : null}
       </View>
-      <Text style={[styles.word, on && styles.wordHot]}>{word}</Text>
+      <Text style={[styles.word, on && styles.wordHot, on && onColor ? { color: onColor } : null]}>{word}</Text>
     </Pressable>
   );
 });

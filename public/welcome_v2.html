@@ -96,12 +96,13 @@
     object-fit: cover; display: block;
     background: #FAF6EF;
   }
-  .wordmark { font-family: var(--brand); font-weight: 700; font-size: 51px; letter-spacing: -0.5px; }
+  .wordmark { font-family: var(--brand); font-weight: 700; font-size: 51px; letter-spacing: -0.5px; white-space: nowrap; }
   .nav-btn {
     border: 1px solid var(--hairline); border-radius: 999px; padding: 10px 18px;
     font-weight: 600; color: var(--ink); text-decoration: none; font-size: 15px;
-    transition: background .15s ease;
+    transition: background .15s ease; white-space: nowrap; flex-shrink: 0;
   }
+  .nav-btn .short { display: none; }
   .nav-btn:hover { background: var(--mat); }
 
   /* ── Hero ────────────────────────────────────────────── */
@@ -217,11 +218,12 @@
   .wall-item.span2 { grid-column: 1 / -1; }
   .span2 .frame { padding: 18px; }
   .placard {
-    align-self: center; margin-top: -2px;
+    /* MIC-039 p11: as wide as the frame it captions, so it reads as that frame's label. */
+    align-self: stretch; margin-top: -2px;
     background: var(--paper);
     border: 1px solid var(--hairline); border-top: none;
     border-radius: 0 0 12px 12px;
-    padding: 16px 30px 18px; max-width: 72%;
+    padding: 16px 30px 18px;
     text-align: center;
   }
   .placard-title { font-family: var(--brand); font-weight: 700; font-size: 19px; }
@@ -277,6 +279,16 @@
     .print-band { grid-template-columns: 1fr; }
     .wordmark { font-size: 26px; }
   }
+  /* MIC-039 p10: a phone header on one line. The mark shrinks to the app's phone size, the
+     wordmark never wraps, and the button is a small pill that says "Open app". */
+  @media (max-width: 600px) {
+    .nav { gap: 12px; padding-top: 20px; }
+    .brand { gap: 12px; }
+    .logo { width: 44px; height: 44px; }
+    .nav-btn { padding: 6px 12px; font-size: 13px; }
+    .nav-btn .long { display: none; }
+    .nav-btn .short { display: inline; }
+  }
 </style>
 </head>
 <body>
@@ -288,7 +300,7 @@
       <video class="logo" src="./welcome_v2-assets/logo.mp4" autoplay muted loop playsinline poster="./welcome_v2-assets/logo.png"></video>
       <span class="wordmark">Michi-Maker</span>
     </div>
-    <a class="nav-btn" href="https://www.michi-maker.com/">Open the app &rarr;</a>
+    <a class="nav-btn" href="https://www.michi-maker.com/"><span class="long">Open the app</span><span class="short">Open app</span> &rarr;</a>
   </nav>
 
   <!-- ── Hero: real copy, panel art with its headline cropped away ── -->

@@ -15,7 +15,7 @@ import { parseQuery, searchCards, sendBrowseCommand, type CatalogCard } from 'tc
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { cardThumbUrl } from '@/lib/catalogConfig';
+import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 
 const THUMB_W = 84;
 const THUMB_H = Math.round((THUMB_W * 88) / 63);
@@ -43,6 +43,9 @@ export function ResultStrip({
   width?: number;
 }) {
   const router = useRouter();
+  // MIC-039 p02: cardThumbUrl answers from the image list, which hydrates after first paint. Without
+  // this subscription every thumb kept its first empty answer and the guide showed grey boxes.
+  useImageManifest();
   const [page, setPage] = useState<Page | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {

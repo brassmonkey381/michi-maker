@@ -11,77 +11,77 @@ import { DEV_MODE } from '@/lib/devMode';
 
 export const FLAGS = {
   // MIC-017 redesign pieces (owner's picks, 2026-11-10)
-  'side-nav': 'dev',
+  'side-nav': 'live',
   'pockets-sleeves': 'dev',
-  'binder-book': 'dev',
-  'editor-hand': 'dev',
+  'binder-book': 'live',
+  'editor-hand': 'live',
   // Phone: pages turn by swipe (editing too) with small arrows over the page's edges; the page
   // strip is a Settings toggle, off by default (owner 2026-11-10).
-  'phone-nav': 'dev',
+  'phone-nav': 'live',
   // MIC-034: page and binder names and descriptions fill themselves from the cards until the
   // owner edits or keeps one (owner 2026-11-10). Needs the name-lock migration (20261110120000).
-  'auto-names': 'dev',
+  'auto-names': 'live',
   // MIC-017 piece 5: Browse's compact header + theme dice + round-1 layout, the phone thumb dock,
   // results as binder pages, and no-results that explain (owner's picks, 2026-11-09/10).
-  'browse-dock': 'dev',
+  'browse-dock': 'live',
   // Every button whose action takes a moment shows it and takes no second press (owner 2026-11-10).
-  'busy-buttons': 'dev',
+  'busy-buttons': 'live',
   // MIC-017 piece 6: My Binders gets a Grid / Shelf switch (grid the default, each viewer's choice
   // remembered on the device) and a quiet empty shelf (owner 2026-11-10: "shelf toggle").
-  'mybinders-shelf': 'dev',
+  'mybinders-shelf': 'live',
   // MIC-017 piece 7: /new-binder as a conversation; page one builds beside it.
   // OFF (owner, 2026-11-11: "I don't think I chose a chat wizard for the ftue. I liked our simple
   // wizard"): the chat came from the build order, not a pick. ?dev shows the simple wizard again.
   'newbinder-chat': 'off',
   // MIC-017 piece 8: Discover ranks binders by how much of them a search's cards fill, searches by
   // colour and theme, and has a Binders | Makers switch.
-  'discover-v2': 'dev',
+  'discover-v2': 'live',
   // MIC-017 piece 9: the Share sheet leads with Instagram (story / square / page + caption), a QR
   // code (and a printable QR card) and the page picture.
-  'share-minimal': 'dev',
+  'share-minimal': 'live',
   // MIC-017 piece 10: the page-limit offer shows your own binder's next page; /plans as membership
   // cards. UI only: the same offers, checkout and prices.
-  'plans-context': 'dev',
+  'plans-context': 'live',
   // MIC-017 piece 11: a profile is a holo collector card with three featured cards (needs the
   // additive profiles.featured_card_ids column, migration 20261110160000; fails soft without it).
-  'profile-card': 'dev',
+  'profile-card': 'live',
   // MIC-017 piece 12: a complete or master set as a checklist binder (gaps labelled with number,
   // name and price) with the completion bar and the price to finish.
-  'setbinders-build': 'dev',
+  'setbinders-build': 'live',
   // MIC-017 piece 13: Vote becomes a roadmap board (up for votes / being built / shipped), and
   // the daily puzzle's heading gets its colour.
   'play-board': 'dev',
   // MIC-017 piece 14: the How-To index is pictures first, titles only (owner: less text, bigger
   // pictures).
-  'learn-clean': 'dev',
+  'learn-clean': 'live',
   // MIC-017 B2-A: Home opens on your last binder ("Keep going") with New binder / My binders /
   // Discover, and featured binders as a grid (owner pick 2026-11-11).
-  'home-first': 'dev',
+  'home-first': 'live',
   // MIC-017 B1-A (owner pick 2026-11-11, "Michi first run A"): the same two wizard steps; a guest
   // over the page limit gets a note instead of a stop; then a reveal of page one; then the editor
   // with one tip.
   'firstrun-a': 'dev',
   // MIC-017 B4-A: the account sheet as a compact card, Create account | Sign in tabs at the top,
   // sized to its content so everything shows without scrolling (owner pick 2026-11-11).
-  'auth-compact': 'dev',
+  'auth-compact': 'live',
   // MIC-017 B5-A: the editor's Settings split into "This binder" | "My view" tabs.
-  'settings-tabs': 'dev',
+  'settings-tabs': 'live',
   // MIC-045 UI revamp (owner approved all six mock-ups, 2026-11-16; TRI-006 board). Each needs
   // tcgscan-ui v0.14.
   // M6: one overlay system. Confirm dialogs on the kit Dialog (X, consequence block, equal
   // buttons, danger tint), DialogCard with an X and a bottom sheet on a phone, toasts in four tones.
-  'ui-overlays': 'dev',
+  'ui-overlays': 'live',
   // M1: the account sheet keeps the guest's binder in view (thumbnail + three perks), Google first,
   // labelled fields, an X instead of "Close".
-  'auth-keep': 'dev',
+  'auth-keep': 'live',
   // M2: the desktop pocket menu as one anchored pop-over of 3x3 tiles, no "More" step.
-  'pocket-popover': 'dev',
+  'pocket-popover': 'live',
   // M3: not found / private / signed out / failed as one StatePanel inside the shell.
-  'state-panel': 'dev',
+  'state-panel': 'live',
   // M4: Set Binders builder in numbered steps with a live checklist preview beside it.
-  'setbinders-preview': 'dev',
+  'setbinders-preview': 'live',
   // M5: a card added to the hand says so with its picture, the hand count and Undo.
-  'toast-v2': 'dev',
+  'toast-v2': 'live',
 } as const satisfies Record<string, FlagState>;
 
 export type FlagName = keyof typeof FLAGS;

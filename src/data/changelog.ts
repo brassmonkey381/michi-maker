@@ -129,9 +129,138 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
-  // THE REDESIGN LAUNCH batch (MIC-017, MIC-040, MIC-044) is held back until the deploy that flips
-  // the redesign flags to 'live' (MIC-045 shipped dark). It and its featured/pinned changes are in
-  // commit 07ce013: restore with `git show 07ce013:src/data/changelog.ts`, then re-date it.
+  {
+    // THE REDESIGN LAUNCH (MIC-017, MIC-040, MIC-045): shipped with the flip of every redesign flag to
+    // 'live' (newbinder-chat off; pockets-sleeves, firstrun-a and play-board still dev).
+    date: '2026-11-17',
+    title: "A new look for michi-maker",
+    items: [
+      {
+        products: ['michi'],
+        head: 'A new look for michi-maker',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        pinned: true,
+        featured: true,
+        body: 'Home opens on your last binder with Keep going, and on a computer it sits beside today’s puzzle and the latest from this page. The side menu is plainer, with bigger words and no icons.',
+      },
+      {
+        products: ['michi'],
+        head: 'Browse results as binder pages',
+        kind: 'new',
+        area: 'browse',
+        big: true,
+        pinned: true,
+        body: 'English and Japanese cards alike lay out as binder pages at S, M or L; on a computer, turn them with the mouse wheel or the Left and Right arrow keys. Select several cards and add them to a binder in one go.',
+      },
+      {
+        products: ['michi'],
+        head: 'Discover finds binders and makers',
+        kind: 'better',
+        area: 'sharing',
+        body: 'One search box finds public binders by Pokémon, theme, art style or set, and the colour dots find pages in that colour. Makers lists Top makers and Recently active, each with their best three binders.',
+      },
+      {
+        products: ['michi'],
+        head: 'The tray is now your hand',
+        kind: 'better',
+        area: 'binders',
+        body: 'Suggest or Deal fills your hand, Ctrl or Shift picks several cards to add to the page at once, and on a phone you can spread the hand across the screen. Drag a card to the trash can at the bottom to clear it.',
+      },
+      {
+        products: ['michi'],
+        head: 'Real sleeves, and a binder that reads like a book',
+        kind: 'better',
+        area: 'binders',
+        body: 'Cards slide in and out of their pockets through a sleeve with a lip and a little glare. Binders sit open like a book on a desk, with a slim page count and dots underneath.',
+      },
+      {
+        products: ['michi'],
+        head: 'Swipe to turn pages on a phone',
+        kind: 'better',
+        area: 'binders',
+        body: 'On a phone, swipe to turn pages while you view or edit, with small arrows on the page’s edges; the page strip is a switch in Settings.',
+      },
+      {
+        products: ['michi'],
+        head: 'Pages and binders name themselves',
+        kind: 'new',
+        area: 'binders',
+        body: 'A page or binder takes a name and a short description from its cards until you edit it or press Keep. ✨ Ideas beside each one offers three more.',
+      },
+      {
+        products: ['michi'],
+        head: 'Set Binders as a checklist',
+        kind: 'new',
+        area: 'collection',
+        body: 'Pick a complete or master set, English or Japanese, and see it as a binder in number order: your cards in place, each gap labelled with its number, name and price, and the price to finish.',
+      },
+      {
+        products: ['michi'],
+        head: 'Your profile as a collector card',
+        kind: 'new',
+        area: 'sharing',
+        body: 'Your profile page is a holo card with three featured cards you choose, your bio and stats, with your binders underneath.',
+      },
+      {
+        products: ['michi'],
+        head: 'Share to Instagram or with a QR code',
+        kind: 'better',
+        area: 'sharing',
+        body: 'The Share sheet leads with an Instagram story, a square post or the page itself, with a caption ready to copy, and a QR code you can save as a printable card.',
+      },
+      {
+        products: ['michi'],
+        head: 'My Binders as a grid or a shelf',
+        kind: 'better',
+        area: 'binders',
+        body: 'Switch My Binders between a grid of covers and a wooden shelf of spines; your device remembers which you picked.',
+      },
+      {
+        products: ['michi'],
+        head: 'Settings in two tabs',
+        kind: 'better',
+        area: 'binders',
+        body: 'The editor’s Settings are split into This binder and My view.',
+      },
+      {
+        products: ['michi'],
+        head: 'A smaller account sheet',
+        kind: 'better',
+        area: 'account',
+        body: 'Create account and Sign in are tabs at the top, and the whole sheet fits on screen.',
+      },
+      {
+        products: ['michi'],
+        head: 'Plans as membership cards',
+        kind: 'better',
+        area: 'account',
+        body: 'The Plans page shows PRO and Free as membership cards. Prices and plans are unchanged.',
+      },
+      {
+        products: ['michi'],
+        head: 'How-To pages lead with pictures',
+        kind: 'better',
+        area: 'account',
+        body: 'The How-To guides lead with big pictures and short titles.',
+      },
+      {
+        products: ['michi'],
+        head: 'Clearer menus, dialogs and messages',
+        kind: 'better',
+        area: 'binders',
+        body: 'On a computer a pocket’s menu opens beside it as one panel of tiles. Delete and other big steps say what will go and have an X to close. A card you add to your hand says so, with its picture and Undo. A binder or page that can’t open says why and where to go next.',
+      },
+      {
+        products: ['michi'],
+        head: 'Buttons show they are working',
+        kind: 'better',
+        area: 'binders',
+        body: 'The theme dice, Copy link, Share, Make public, Sign out and Manage billing show they are busy and ignore a second press.',
+      },
+    ],
+  },
   {
     date: '2026-11-11',
     title: "A pocket menu that fits, a Sign in link you can see",
@@ -707,7 +836,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         big: true,
-        featured: true,
         pinned: true,
         body:
           'In the page tools, Arrange reads a page’s cards and proposes seatings: rows by depth, '
@@ -808,7 +936,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'browse',
         big: true,
         pinned: true,
-        featured: true,
         body:
           'Searching by what is in the picture reaches more than 20,000 Pokémon cards and works in '
           + 'Lorcana and One Piece. A toolbar narrows to Full art or Windowed and a type, and Fill page '
@@ -820,7 +947,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'browse',
         big: true,
-        pinned: true,
         body:
           'Type theme: and a word, or press Theme, and the Lorcana and One Piece cards whose art '
           + 'shows it come up. The toolbar narrows by ink or colour, and by Full art or Windowed.',
@@ -830,7 +956,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         head: 'Full art or windowed, your pick',
         kind: 'new',
         area: 'browse',
-        pinned: true,
         body:
           'Every theme search has a toolbar: All art, Full art or Windowed, plus the energy, ink or '
           + 'colour you want.',
@@ -938,7 +1063,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'collection',
         big: true,
-        pinned: true,
         body:
           'Paste or pick a file and the rows draw as a grid, header pinned. A green tick over each '
           + 'column says how we read it, a red cross says it is not used, and skipped rows say why.',
@@ -1408,7 +1532,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Free and PRO, and PRO has no limits',
-        pinned: true,
         kind: 'better',
         area: 'account',
         big: true,

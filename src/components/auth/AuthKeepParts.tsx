@@ -27,6 +27,21 @@ function latestBinder(binders: readonly DemoBinder[]): DemoBinder | null {
   return best;
 }
 
+/** A binder's face page drawn small (no caption): the account sheet's strip and the delete dialog. */
+export function BinderFaceThumb({ binder, width }: { binder: { pages: Parameters<typeof facePage>[0]; pageStyle?: unknown }; width: number }) {
+  const page = facePage(binder.pages);
+  const h = page ? pageBoxHeight(width, page.rows, page.cols) : Math.round(width * 1.39);
+  return (
+    <View style={[styles.thumb, { width, minHeight: h }]} pointerEvents="none">
+      {page ? (
+        <BinderGrid page={page} width={width} pageStyle={binder.pageStyle as never} />
+      ) : (
+        <View style={[styles.thumbBlank, { width, height: h }]} />
+      )}
+    </View>
+  );
+}
+
 /**
  * "Keep “Snorlax” and its 9 pages": the guest's binder and what an account gives it. Renders
  * nothing when the guest has no binder of their own yet. `compact` (the phone sheet) draws a

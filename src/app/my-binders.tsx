@@ -68,7 +68,7 @@ import { landingCampaignParams, track } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
-import { BinderThumb } from '@/components/binder/BinderThumb';
+import { BinderFaceThumb } from '@/components/auth/AuthKeepParts';
 
 /** Which binders the list shows. Module-level so it survives leaving and coming back. */
 type Visibility = 'all' | 'public' | 'private' | 'puzzles';
@@ -304,7 +304,7 @@ export default function MyBindersScreen() {
       consequence: {
         title: `${pageCount} page${pageCount === 1 ? '' : 's'} and ${cardCount} card${cardCount === 1 ? '' : 's'} will be gone`,
         detail: 'Prints and share links stop working. This can’t be undone.',
-        thumb: <BinderThumb binder={thumbOf} width={44} onPress={() => {}} />,
+        thumb: <BinderFaceThumb binder={thumbOf} width={48} />,
       },
       cancelLabel: 'Keep it',
       title: flag('ui-overlays') ? `Delete “${title}”?` : 'Delete this binder?',

@@ -56,7 +56,7 @@ export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec | null; onC
         closeButton
         maxWidth={440}
         title={spec.title}
-        body={spec.message}
+        body={spec.consequence ? undefined : spec.message}
         consequence={spec.consequence}
         onClose={close}
         cancel={{ label: spec.cancelLabel ?? (spec.destructive ? 'Keep it' : 'Cancel'), onPress: close }}

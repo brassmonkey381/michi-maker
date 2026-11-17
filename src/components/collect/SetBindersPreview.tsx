@@ -101,6 +101,9 @@ export function KindTiles({ options, value, onChange, tileWidth }: {
 function pocketNumber(card: CatalogCard | undefined): string {
   const n = card?.number?.split('/')[0]?.trim() ?? '';
   if (!n) return '?';
+  // "OP01-001", "ST10-005": the set code is already in the panel's title, so the pocket shows 001.
+  const coded = /^[A-Z]{1,5}\d{1,3}-(\d{1,4}[A-Za-z]?)$/.exec(n);
+  if (coded) return coded[1];
   return /^\d{1,2}$/.test(n) ? n.padStart(3, '0') : n;
 }
 

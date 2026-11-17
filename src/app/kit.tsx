@@ -158,11 +158,17 @@ function Gallery() {
           <Button label="Open dialog" onPress={() => setDialog(true)} />
         </View>
         <Toast message="Pikachu added to page 2" action={{ label: 'Undo', onPress: noop }} />
+        {/* MIC-045 M6: one toast shell in four tones. */}
+        <Toast tone="info" message="Binder duplicated" action={{ label: 'Open', onPress: noop }} onClose={noop} />
+        <Toast tone="success" message="Downloaded: 3 sheets to print" action={{ label: 'Show', onPress: noop }} onClose={noop} />
+        <Toast tone="limit" message="9-page limit reached. Pages stay." action={{ label: 'See plans', onPress: noop }} onClose={noop} />
+        <Toast tone="error" message="Couldn’t save. Kept on this device." action={{ label: 'Retry', onPress: noop }} onClose={noop} />
       </Section>
 
       <Sheet
         visible={sheet}
         title="Add to binder"
+        grabHandle
         onClose={() => setSheet(false)}
         actions={[
           { label: 'Cancel', onPress: () => setSheet(false) },
@@ -185,8 +191,10 @@ function Gallery() {
 
       <Dialog
         visible={dialog}
-        title="Delete this binder?"
-        body="Its 4 pages leave your shelf. This cannot be undone."
+        title="Delete “Fire types”?"
+        closeButton
+        maxWidth={440}
+        consequence={{ title: '4 pages and 36 cards will be gone', detail: 'Prints and share links stop working. This can’t be undone.' }}
         onClose={() => setDialog(false)}
         cancel={{ label: 'Keep it', onPress: () => setDialog(false) }}
         confirm={{ label: 'Delete', tone: 'danger', onPress: () => setDialog(false) }}

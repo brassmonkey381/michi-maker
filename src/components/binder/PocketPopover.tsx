@@ -122,8 +122,12 @@ export function PocketPopover({
   top = Math.max(EDGE, Math.min(top, bounds.h - height - EDGE));
   const arrowTop = Math.max(16, Math.min(aimY - top - ARROW / 2, height - 16 - ARROW));
 
-  const sub = pageNumber ? `Pocket ${pocketNumber} · page ${pageNumber}` : `Pocket ${pocketNumber}`;
-  const title = name || (art ? 'Picture' : 'Pocket');
+  // A guest never loads the catalog, so the card's name is unknown: the pocket heads the card then.
+  const titled = !!name || art;
+  const title = name || (art ? 'Picture' : `Pocket ${pocketNumber}`);
+  const sub = titled
+    ? pageNumber ? `Pocket ${pocketNumber} · page ${pageNumber}` : `Pocket ${pocketNumber}`
+    : pageNumber ? `Page ${pageNumber}` : '';
 
   return (
     <View
@@ -244,7 +248,8 @@ const styles = StyleSheet.create({
   closeText: { fontSize: 14, fontWeight: Weight.bold, color: Palette.ink2 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
   tile: {
-    width: (POPOVER_W - 24 - GAP * 2) / 3,
+    // The card's padding (12 each side) and its 1px border, less the two gaps: three to a row.
+    width: Math.floor((POPOVER_W - 24 - 2 - GAP * 2) / 3),
     height: 62,
     borderRadius: 12,
     backgroundColor: Palette.panelAlt,

@@ -176,6 +176,21 @@ function tierProductFor(lookupKey: string): string | null {
   return null;
 }
 
+/**
+ * THE CARD STATEMENT SUFFIX (MIC-050, owner 2026-11-17). The shared Stripe account's shortened
+ * descriptor is MICHIMAKER, so a one-time card payment reads "MICHIMAKER* MICHI" or
+ * "MICHIMAKER* BIBO" (17 and 16 of the 22 characters). Stripe takes a dynamic suffix only on a
+ * PaymentIntent, so it is set for `mode: 'payment'` checkouts (Founder, binder PDF). Subscription
+ * charges cannot carry one from here: Stripe reads their descriptor from the Product or the
+ * invoice, which is a Stripe-side setting, not this function's. The bundle covers both apps and
+ * keeps the account's plain descriptor.
+ */
+function statementSuffixFor(lookupKey: string): 'MICHI' | 'BIBO' | null {
+  if (lookupKey.startsWith('michi_')) return 'MICHI';
+  if (lookupKey.startsWith('tcgscan_')) return 'BIBO';
+  return null;
+}
+
 /** Human app name for customer-facing copy. */
 const APP_LABEL: Record<AppFamily, string> = { michi: 'michi-maker', tcgscan: 'TCGScan' };
 
@@ -1000,7 +1015,9 @@ Deno.serve(async (req: Request) => {
           // stated so a future default cannot quietly turn this back into a no-card trial.)
           ...(trialDays ? { payment_method_collection: 'always' as const } : {}),
         }
-      : {}),
+      : statementSuffixFor(lookupKey)
+        ? { payment_intent_data: { statement_descriptor_suffix: statementSuffixFor(lookupKey)! } }
+        : {}),
     metadata: {
       supabase_user_id: user.id,
       michi_product: michiProduct,

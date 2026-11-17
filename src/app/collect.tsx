@@ -28,7 +28,7 @@ import { type CatalogCard, type CatalogSet, findSimilarToMany, getBrowseLanguage
 import { Seg } from '@/components/binder/inspector/controls';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { type DemoBinder, type DemoPage, type DemoSlot, uuidv4 } from '@/data/binderTypes';
 import {
   COLLECTOR_KINDS, type CollectorFilters, type CollectorKind, type CollectorLanguage, type CollectorPocket, type CollectorResult,
@@ -59,10 +59,13 @@ import { fetchStockArtForPanel } from '@/lib/stockArt';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 import { SetBuildView } from '@/components/collect/SetBuildView';
+import { GameChips, KindTiles, SetPreviewPanel, StepHead } from '@/components/collect/SetBindersPreview';
 import { flag } from '@/lib/flags';
 
 /** MIC-017 piece 12 ('dev'): the checklist build view for a set. */
 const SET_BUILD = flag('setbinders-build');
+/** MIC-045 M4 ('dev'): the builder as numbered steps beside a live checklist preview. */
+const SET_PREVIEW = flag('setbinders-preview');
 
 const kindOptionsFor = (game: string) => kindsFor(game).map((k) => ({ id: k.id, label: k.label, blurb: k.blurb }));
 /**
@@ -217,6 +220,9 @@ export default function CollectScreen() {
   const [building, setBuilding] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // The M4 layout's measured column widths (the shell's rail makes the window width a poor guess).
+  const [leftW, setLeftW] = useState(0);
+  const [previewW, setPreviewW] = useState(0);
   const shapeOptions = useMemo(() => SHAPE_OPTIONS.map((s) => ({ ...s, disabled: roomForArt && !hasMichiLayouts(s) })), [roomForArt]);
   const pickShape = (id: ShapeId) => {
     if (roomForArt && !hasMichiLayouts(shapeOf(id))) { setNote(`Michi layouts come on 3×3 and 3×4 pages for now, not ${id}.`); return; }
@@ -254,7 +260,9 @@ export default function CollectScreen() {
   // when first asked for, into state from the promise's callback; everything else is the
   // catalogue alone and is derived below.
   const [priced, setPriced] = useState<PriceSummary | null>(null);
-  const wantPrices = kind === 'master' || sort.key === 'value' || (SET_BUILD && kind === 'complete' && !!set);
+  const wantPrices = kind === 'master' || sort.key === 'value' || (SET_BUILD && kind === 'complete' && !!set)
+    // The M4 preview prices every pocket it draws, once something is picked (Pokémon prices only).
+    || (SET_PREVIEW && game === 'pokemon' && (kind === 'complete' ? !!set : kind === 'dex' || !!species));
   useEffect(() => {
     if (!wantPrices || priced) return;
     let live = true;
@@ -513,7 +521,311 @@ export default function CollectScreen() {
     router.push(`/binder/${created.id}?edit=1` as Href);
   };
 
+  const pickGame = (g: GameId) => {
+    setGame(g);
+    setKind('complete');
+    setQuery('');
+    setSet(null);
+    setSpecies(null);
+    setNote(null);
+    setFilters(NO_FILTERS);
+    setOpenFacet(null);
+    setSort({ key: naturalSortKey('complete'), dir: DEFAULT_DIR[naturalSortKey('complete')] });
+    if (g !== 'pokemon') {
+      setLang('en');
+      setPageChoice((p) => (p === 'curate' ? 'michi' : p));
+    }
+  };
+  const pickKind = (k: CollectorKind) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); setFilters(NO_FILTERS); setOpenFacet(null); setSort({ key: naturalSortKey(k), dir: DEFAULT_DIR[naturalSortKey(k)] }); };
+  // Blocks both layouts share (the M4 steps layout and today's).
+  const askInputEl = (
+    <TextInput
+      value={query}
+      onChangeText={(t) => { setQuery(t); if (needs === 'set') setSet(null); else setSpecies(null); }}
+      placeholder={
+        needs === 'pokemon'
+          ? 'A Pokémon, like Pikachu'
+          : needs === 'character'
+            ? (exampleCharacter ? `A name, like ${exampleCharacter}` : 'A name')
+            : !secondary || !exampleSet
+            ? 'Set name or code, like 151 or sv3pt5'
+            : `Set name or code, like ${exampleSet.name} or ${exampleSet.code}`
+      }
+      placeholderTextColor={Palette.muted}
+      style={styles.input}
+      autoCapitalize="none"
+      autoCorrect={false}
+      testID="collect-query"
+    />
+  );
+  const sortRowEl = (
+    <View style={styles.sortRow} testID="collect-sort">
+      <ThemedText type="small" themeColor="textSecondary">Sort</ThemedText>
+      {sortKeysFor(kind, game).map((k) => {
+        const on = sort.key === k.id;
+        return (
+          <Pressable key={k.id} onPress={() => pickSort(k.id)} style={[styles.sortChip, on && styles.sortChipOn]} accessibilityRole="button" accessibilityLabel={`${k.label}: ${k.blurb} Tap again to flip.`} testID={`collect-sort-${k.id}`}>
+            <ThemedText type="small" style={[styles.sortText, on && styles.sortTextOn]}>{on ? `${k.label} ${sort.dir === 'asc' ? '\u25B2' : '\u25BC'}` : k.label}</ThemedText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+  const filtersEl = (
+    <>
+      {unfiltered && facets ? (
+        <>
+          <View style={styles.sortRow} testID="collect-filters">
+            <ThemedText type="small" themeColor="textSecondary">Filter</ThemedText>
+            {facetsFor(game).filter((f) => (needs === 'set' ? f.id !== 'series' && f.id !== 'sets' : true)).map((f) => {
+              const n = filters[f.id].length;
+              const open = openFacet === f.id;
+              return (
+                <Pressable key={f.id} onPress={() => setOpenFacet(open ? null : f.id)} style={[styles.sortChip, (n > 0 || open) && styles.sortChipOn]} accessibilityRole="button" accessibilityState={{ expanded: open }} testID={`collect-facet-${f.id}`}>
+                  <ThemedText type="small" style={[styles.sortText, (n > 0 || open) && styles.sortTextOn]}>{n ? `${f.label} · ${n}` : f.label}</ThemedText>
+                </Pressable>
+              );
+            })}
+            {/* The other games' catalogues carry no full-art flag; the chip would empty the result. */}
+            {secondary ? null : (
+              <Pressable onPress={() => setFilters((v) => ({ ...v, fullArt: !v.fullArt }))} style={[styles.sortChip, filters.fullArt && styles.sortChipOn]} accessibilityRole="switch" accessibilityState={{ checked: filters.fullArt }} testID="collect-full-art">
+                <ThemedText type="small" style={[styles.sortText, filters.fullArt && styles.sortTextOn]}>Full art</ThemedText>
+              </Pressable>
+            )}
+            <Pressable onPress={() => setFilters((v) => ({ ...v, pokemonOnly: !v.pokemonOnly }))} style={[styles.sortChip, filters.pokemonOnly && styles.sortChipOn]} accessibilityRole="switch" accessibilityState={{ checked: filters.pokemonOnly }} testID="collect-pokemon-only">
+              <ThemedText type="small" style={[styles.sortText, filters.pokemonOnly && styles.sortTextOn]}>{heroOnlyLabel(game)}</ThemedText>
+            </Pressable>
+            {ownedIds ? (
+              <Pressable onPress={() => setFilters((v) => ({ ...v, owned: v.owned === 'all' ? 'owned' : v.owned === 'owned' ? 'missing' : 'all' }))} style={[styles.sortChip, filters.owned !== 'all' && styles.sortChipOn]} accessibilityRole="button" testID="collect-owned-filter">
+                <ThemedText type="small" style={[styles.sortText, filters.owned !== 'all' && styles.sortTextOn]}>{filters.owned === 'all' ? 'Owned: all' : filters.owned === 'owned' ? 'Owned only' : 'Missing only'}</ThemedText>
+              </Pressable>
+            ) : null}
+            {activeFilters ? (
+              <Pressable onPress={() => { setFilters(NO_FILTERS); setOpenFacet(null); }} style={styles.sortChip} accessibilityRole="button" testID="collect-clear-filters">
+                <ThemedText type="small" style={styles.sortText}>Clear</ThemedText>
+              </Pressable>
+            ) : null}
+          </View>
+          {openFacet ? (
+            <View style={styles.facetBox} testID={`collect-facet-options-${openFacet}`}>
+              {facets[openFacet].length === 0 ? <ThemedText type="small" themeColor="textSecondary">Nothing to pick here.</ThemedText> : null}
+              {facets[openFacet].slice(0, 60).map((o) => {
+                const on = filters[openFacet].includes(o.id);
+                return (
+                  <Pressable key={o.id} onPress={() => toggleFacet(openFacet, o.id)} style={[styles.sortChip, on && styles.sortChipOn]} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                    <ThemedText type="small" style={[styles.sortText, on && styles.sortTextOn]}>{`${o.label} ${o.count}`}</ThemedText>
+                  </Pressable>
+                );
+              })}
+              {facets[openFacet].length > 60 ? <ThemedText type="small" themeColor="textSecondary">{`${facets[openFacet].length - 60} more not shown.`}</ThemedText> : null}
+            </View>
+          ) : null}
+        </>
+      ) : null}
+    </>
+  );
+  const hitsEl = (
+    <>
+      {!set && !setHits.length && suggested.length ? (
+        <ThemedText type="small" themeColor="textSecondary">{`Newest ${gameLabel(game)} sets`}</ThemedText>
+      ) : null}
+      {(setHits.length || suggested.length) && !set ? (
+        <View style={styles.hits}>
+          {(setHits.length ? setHits : suggested).map((s) => (
+            <Pressable key={s.id} onPress={() => { setSet(s); setQuery(s.name); setNote(null); }} style={styles.hit} accessibilityRole="button" testID={`collect-set-${s.id}`}>
+              <ThemedText type="smallBold">{s.name}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">{`${s.code} · ${s.cardCount} cards · ${s.releaseDate.slice(0, 4)}`}</ThemedText>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+      {speciesHits.length && !species ? (
+        <View style={styles.hits}>
+          {speciesHits.map((name) => (
+            <Pressable key={name} onPress={() => { setSpecies(name); setQuery(name); setNote(null); }} style={styles.hit} accessibilityRole="button" testID={`collect-species-${name}`}>
+              <ThemedText type="smallBold">{name}</ThemedText>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </>
+  );
+  const pageOptsEl = (
+    <>
+      <Seg tall options={secondary ? PAGE_OPTIONS.filter((o) => o.id !== 'curate') : PAGE_OPTIONS} value={pageChoice} onChange={pickPages} />
+      <ThemedText type="small" themeColor="textSecondary" testID="collect-pages-blurb">{PAGE_OPTIONS.find((o) => o.id === pageChoice)?.blurb}</ThemedText>
+      <Seg tall options={shapeOptions} value={shapeId} wrap onChange={pickShape} />
+      {roomForArt ? (
+        <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">{fanArt ? 'Fill the art panels with fan art.' : 'Fill the art panels with stock photos.'}</Check>
+      ) : null}
+      {isAdmin && fillArt && roomForArt ? (
+        // ADMIN TEST ONLY: the two Pokémon art sites, searched by each page's species.
+        <View style={styles.adminBox} testID="collect-admin-fill-source">
+          <ThemedText type="small" themeColor="textSecondary">Admin test: where the art comes from.</ThemedText>
+          <Seg tall options={ART_FILL_SOURCES} value={fillSource} onChange={setFillSource} />
+        </View>
+      ) : null}
+      {/* The art window opens only on a card the catalogue flags full art, which the other games' do not. */}
+      {secondary || !artViewBeta ? null : <Seg tall options={ART_WINDOWS} value={artWindow} onChange={setArtWindow} />}
+    </>
+  );
+  const printBtnEl = artWindow === 'off' ? (
+      <Pressable onPress={() => void printFree()} disabled={printing} style={[styles.btn, styles.btnOutline, printing && styles.dim]} accessibilityRole="button" testID="collect-print">
+        {printing ? <ActivityIndicator size="small" color={Palette.accent} /> : null}
+        <ThemedText type="smallBold" style={styles.btnOutlineText}>{printing ? 'Building the PDF…' : 'Print placeholders, free'}</ThemedText>
+      </Pressable>
+    ) : null;
+
   const cell = wide ? 96 : Math.floor((Math.min(width, MaxContentWidthDoc) - Spacing.four * 2 - Spacing.one * 2) / 3) - 2;
+
+  if (SET_PREVIEW) {
+    // MIC-045 M4: the same choices as numbered steps, the pockets drawn live on the right
+    // (under the steps on a narrow screen). Every handler, gate and build is today's.
+    const twoCol = width >= 1000;
+    const kindOpts = kindOptionsFor(game);
+    const kindLabel = kindOpts.find((k) => k.id === kind)?.label ?? '';
+    const perRow = leftW >= 440 ? 5 : 3;
+    const tileWidth = leftW ? Math.max(80, Math.floor((leftW - Spacing.two * (perRow - 1)) / perRow)) : 88;
+    const catalogGated = guestGated && !catalog;
+    const busy = (loading && !catalog) || (secondary && !catalog) || (wantPrices && !priced) || (wantCameos && !cameoReady);
+    const langLabel = LANGS.find((l) => l.id === lang)?.label ?? '';
+    const previewTitle = (kind === 'complete' || kind === 'master') && set ? `${set.name} · ${kindLabel}` : title || kindLabel;
+    const previewMeta = result
+      ? `${result.pockets.length} pockets · ${pages} ${pages === 1 ? 'page' : 'pages'} of ${shape.rows}×${shape.cols}${secondary ? '' : ` · ${langLabel}`}`
+      : '';
+    const previewEmpty = catalogGated
+      ? 'Create a free account and the binder builds here as you pick.'
+      : result
+        ? 'Nothing matched. Try another name.'
+        : needs === 'set' ? 'Pick a set and its pockets fill in here.' : 'Pick a name and its pockets fill in here.';
+    const stepThree = needs === 'set' ? 'Set' : needs === 'pokemon' ? 'Pokémon' : needs === 'character' ? kindLabel.replace(/^One /, '') : 'Which print';
+    // THE GATE, ON THE BUTTON: a guest whose catalogue never loads gets today's note when they
+    // press it; everyone else goes through makeBinder's own gates unchanged.
+    const pressBuild = () => {
+      if (catalogGated && !result) {
+        setNote('Create a free account to build.');
+        return;
+      }
+      void makeBinder();
+    };
+    const buildDisabled = building || (!catalogGated && (!result || !result.pockets.length));
+    const step = (n: number) => (GAME_OPTIONS.length > 1 ? n : n - 1);
+
+    return (
+      <PageShell maxWidth={MaxContentWidthWide} back={false} footer={false} keyboardShouldPersistTaps="handled">
+        <View style={[styles.m4Wrap, twoCol && styles.m4WrapWide]}>
+          <View style={[styles.m4Left, twoCol && styles.m4LeftWide]} onLayout={(e) => setLeftW(Math.round(e.nativeEvent.layout.width))}>
+            <View style={styles.m4Hero}>
+              <ThemedText type="small" style={styles.eyebrow}>COLLECTOR BINDERS · BETA</ThemedText>
+              <ThemedText type="subtitle">Ask for a set, get the binder</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {twoCol ? 'Pick a set. The binder builds on the right as you go.' : 'Pick a set. The binder builds below as you go.'}
+              </ThemedText>
+            </View>
+
+            {GAME_OPTIONS.length > 1 ? (
+              <View>
+                <StepHead n={1}>Game</StepHead>
+                <GameChips options={GAME_OPTIONS} value={game} onChange={pickGame} />
+                {secondary && !catalog ? <ThemedText type="small" themeColor="textSecondary" style={styles.m4Hint}>Loading {gameLabel(game)}…</ThemedText> : null}
+              </View>
+            ) : null}
+
+            <View>
+              <StepHead n={step(2)}>What kind of binder</StepHead>
+              <KindTiles options={kindOpts} value={kind} onChange={pickKind} tileWidth={tileWidth} />
+              <ThemedText type="small" themeColor="textSecondary" style={styles.m4Hint}>{kindOpts.find((k) => k.id === kind)?.blurb}</ThemedText>
+            </View>
+
+            <View style={styles.m4Step}>
+              <StepHead n={step(3)}>{stepThree}</StepHead>
+              {needs === 'none' ? (
+                <Seg tall options={DEX_PICKS} value={dexPick} onChange={setDexPick} />
+              ) : needs === 'set' && set ? (
+                <Pressable onPress={() => { setSet(null); setQuery(''); setNote(null); }} style={styles.m4Field} accessibilityRole="button" accessibilityLabel={`${set.name}, ${set.cardCount} cards. Tap to pick another set.`} testID="collect-set-picked">
+                  <View style={styles.m4Pill}><ThemedText type="smallBold" style={styles.m4PillText} numberOfLines={1}>{`${set.name} · ${set.code}`}</ThemedText></View>
+                  <ThemedText type="small" themeColor="textSecondary">{`${set.cardCount} cards`}</ThemedText>
+                </Pressable>
+              ) : (
+                <View style={styles.askRow}>{askInputEl}</View>
+              )}
+              {noSetMatch && !set ? (
+                <ThemedText type="small" style={styles.note} testID="collect-set-none">
+                  {`No set matches. Try its code${exampleSet ? `, like ${exampleSet.code}` : ''}.`}
+                </ThemedText>
+              ) : null}
+              {hitsEl}
+              <View style={styles.m4Options}>
+                {!secondary ? <Seg tall options={LANGS} value={lang} onChange={(l) => { setLang(l); setSet(null); if (needs === 'set') setQuery(''); }} /> : null}
+                {needs === 'set' && !secondary ? (
+                  <View style={styles.m4Check}>
+                    <Check on={secrets} onPress={() => setSecrets((v) => !v)} testID="collect-secrets">Secret rares</Check>
+                  </View>
+                ) : null}
+              </View>
+              {kind === 'master' ? <Seg tall options={REVERSE} value={reverse} onChange={setReverse} /> : null}
+              {needs === 'pokemon' ? (
+                <Check on={cameos} onPress={() => setCameos((v) => !v)} testID="collect-cameos">Add cameo cards: this Pokémon inside other cards.</Check>
+              ) : null}
+              {sortRowEl}
+              {filtersEl}
+              {perSpecies.length > 1 ? (
+                <ThemedText type="small" themeColor="textSecondary">{perSpecies.map((s) => `${s.count} ${s.species}`).join(' · ')}</ThemedText>
+              ) : null}
+              {/* No plan wording to a guest. */}
+              {isSignedIn && wantCameos && cameoHits?.clamped ? (
+                <ThemedText type="small" themeColor="textSecondary">Free plans get the top cameos only. PRO gets all.</ThemedText>
+              ) : null}
+              {busy ? <ActivityIndicator style={styles.loading} /> : null}
+            </View>
+
+            {result && result.pockets.length ? (
+              <View style={styles.m4Step}>
+                <StepHead n={step(4)}>Pages</StepHead>
+                {pageOptsEl}
+              </View>
+            ) : null}
+
+            <View style={styles.m4Build}>
+              <Pressable onPress={pressBuild} disabled={buildDisabled} style={[styles.m4BuildBtn, buildDisabled && styles.dim]} accessibilityRole="button" accessibilityState={{ disabled: buildDisabled, busy: building }} testID="collect-make">
+                {building ? <ActivityIndicator size="small" color={Palette.accentText} /> : null}
+                <ThemedText type="smallBold" style={styles.m4BuildText}>{building ? (curate ? 'Curating the pages…' : 'Building…') : 'Build this binder'}</ThemedText>
+              </Pressable>
+              {!isSignedIn ? (
+                <ThemedText type="small" themeColor="textSecondary" style={styles.m4BuildSide}>Free account needed to keep it.</ThemedText>
+              ) : null}
+            </View>
+            {result && result.pockets.length ? (
+              <View style={styles.m4After}>
+                <View style={styles.actions}>{printBtnEl}</View>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {artWindow === 'off'
+                    ? 'Free print: placeholders only. Your binder prints like any other.'
+                    : `Mats print from the binder: Print, then ${artWindow} mats are on. One unlock covers the binder.`}
+                </ThemedText>
+              </View>
+            ) : null}
+            {note ? <ThemedText type="small" style={styles.note} testID="collect-note">{note}</ThemedText> : null}
+          </View>
+
+          <View style={[styles.m4Right, twoCol && styles.m4RightWide]} onLayout={(e) => setPreviewW(Math.round(e.nativeEvent.layout.width))}>
+            <SetPreviewPanel
+              title={previewTitle}
+              meta={previewMeta}
+              pockets={result && result.pockets.length ? result.pockets : null}
+              shape={shape}
+              cardOf={(id) => catalog?.getCard(id)}
+              owned={isSignedIn ? ownedIds ?? null : null}
+              priceOf={(id) => priced?.[id]?.cur}
+              width={previewW || Math.min(width, 640)}
+              empty={previewEmpty}
+              busy={busy}
+            />
+          </View>
+        </View>
+      </PageShell>
+    );
+  }
 
   return (
     // THE SHARED FRAME (MIC-017, layout only). It had no way back before, and still has none.
@@ -533,48 +845,17 @@ export default function CollectScreen() {
                 wrap
                 options={GAME_OPTIONS}
                 value={game}
-                onChange={(g) => {
-                  setGame(g);
-                  setKind('complete');
-                  setQuery('');
-                  setSet(null);
-                  setSpecies(null);
-                  setNote(null);
-                  setFilters(NO_FILTERS);
-                  setOpenFacet(null);
-                  setSort({ key: naturalSortKey('complete'), dir: DEFAULT_DIR[naturalSortKey('complete')] });
-                  if (g !== 'pokemon') {
-                    setLang('en');
-                    setPageChoice((p) => (p === 'curate' ? 'michi' : p));
-                  }
-                }}
+                onChange={pickGame}
               />
             ) : null}
             {secondary && !catalog ? <ThemedText type="small" themeColor="textSecondary">Loading {gameLabel(game)}…</ThemedText> : null}
-            <Seg tall options={kindOptionsFor(game)} value={kind} wrap onChange={(k) => { setKind(k); setQuery(''); setSet(null); setSpecies(null); setNote(null); setFilters(NO_FILTERS); setOpenFacet(null); setSort({ key: naturalSortKey(k), dir: DEFAULT_DIR[naturalSortKey(k)] }); }} />
+            <Seg tall options={kindOptionsFor(game)} value={kind} wrap onChange={pickKind} />
             <ThemedText type="small" themeColor="textSecondary">{kindOptionsFor(game).find((k) => k.id === kind)?.blurb}</ThemedText>
             {!secondary ? <Seg tall options={LANGS} value={lang} onChange={(l) => { setLang(l); setSet(null); if (needs === 'set') setQuery(''); }} /> : null}
 
             {needs !== 'none' ? (
               <View style={styles.askRow}>
-                <TextInput
-                  value={query}
-                  onChangeText={(t) => { setQuery(t); if (needs === 'set') setSet(null); else setSpecies(null); }}
-                  placeholder={
-                    needs === 'pokemon'
-                      ? 'A Pokémon, like Pikachu'
-                      : needs === 'character'
-                        ? (exampleCharacter ? `A name, like ${exampleCharacter}` : 'A name')
-                        : !secondary || !exampleSet
-                        ? 'Set name or code, like 151 or sv3pt5'
-                        : `Set name or code, like ${exampleSet.name} or ${exampleSet.code}`
-                  }
-                  placeholderTextColor={Palette.muted}
-                  style={styles.input}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  testID="collect-query"
-                />
+                {askInputEl}
               </View>
             ) : (
               <Seg tall options={DEX_PICKS} value={dexPick} onChange={setDexPick} />
@@ -583,69 +864,11 @@ export default function CollectScreen() {
               <Check on={secrets} onPress={() => setSecrets((v) => !v)} testID="collect-secrets">Include secret rares, numbered past the set total.</Check>
             ) : null}
             {kind === 'master' ? <Seg tall options={REVERSE} value={reverse} onChange={setReverse} /> : null}
-            <View style={styles.sortRow} testID="collect-sort">
-              <ThemedText type="small" themeColor="textSecondary">Sort</ThemedText>
-              {sortKeysFor(kind, game).map((k) => {
-                const on = sort.key === k.id;
-                return (
-                  <Pressable key={k.id} onPress={() => pickSort(k.id)} style={[styles.sortChip, on && styles.sortChipOn]} accessibilityRole="button" accessibilityLabel={`${k.label}: ${k.blurb} Tap again to flip.`} testID={`collect-sort-${k.id}`}>
-                    <ThemedText type="small" style={[styles.sortText, on && styles.sortTextOn]}>{on ? `${k.label} ${sort.dir === 'asc' ? '\u25B2' : '\u25BC'}` : k.label}</ThemedText>
-                  </Pressable>
-                );
-              })}
-            </View>
+            {sortRowEl}
             {needs === 'pokemon' ? (
               <Check on={cameos} onPress={() => setCameos((v) => !v)} testID="collect-cameos">Add cameo cards: this Pokémon inside other cards.</Check>
             ) : null}
-            {unfiltered && facets ? (
-              <>
-                <View style={styles.sortRow} testID="collect-filters">
-                  <ThemedText type="small" themeColor="textSecondary">Filter</ThemedText>
-                  {facetsFor(game).filter((f) => (needs === 'set' ? f.id !== 'series' && f.id !== 'sets' : true)).map((f) => {
-                    const n = filters[f.id].length;
-                    const open = openFacet === f.id;
-                    return (
-                      <Pressable key={f.id} onPress={() => setOpenFacet(open ? null : f.id)} style={[styles.sortChip, (n > 0 || open) && styles.sortChipOn]} accessibilityRole="button" accessibilityState={{ expanded: open }} testID={`collect-facet-${f.id}`}>
-                        <ThemedText type="small" style={[styles.sortText, (n > 0 || open) && styles.sortTextOn]}>{n ? `${f.label} · ${n}` : f.label}</ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                  {/* The other games' catalogues carry no full-art flag; the chip would empty the result. */}
-                  {secondary ? null : (
-                    <Pressable onPress={() => setFilters((v) => ({ ...v, fullArt: !v.fullArt }))} style={[styles.sortChip, filters.fullArt && styles.sortChipOn]} accessibilityRole="switch" accessibilityState={{ checked: filters.fullArt }} testID="collect-full-art">
-                      <ThemedText type="small" style={[styles.sortText, filters.fullArt && styles.sortTextOn]}>Full art</ThemedText>
-                    </Pressable>
-                  )}
-                  <Pressable onPress={() => setFilters((v) => ({ ...v, pokemonOnly: !v.pokemonOnly }))} style={[styles.sortChip, filters.pokemonOnly && styles.sortChipOn]} accessibilityRole="switch" accessibilityState={{ checked: filters.pokemonOnly }} testID="collect-pokemon-only">
-                    <ThemedText type="small" style={[styles.sortText, filters.pokemonOnly && styles.sortTextOn]}>{heroOnlyLabel(game)}</ThemedText>
-                  </Pressable>
-                  {ownedIds ? (
-                    <Pressable onPress={() => setFilters((v) => ({ ...v, owned: v.owned === 'all' ? 'owned' : v.owned === 'owned' ? 'missing' : 'all' }))} style={[styles.sortChip, filters.owned !== 'all' && styles.sortChipOn]} accessibilityRole="button" testID="collect-owned-filter">
-                      <ThemedText type="small" style={[styles.sortText, filters.owned !== 'all' && styles.sortTextOn]}>{filters.owned === 'all' ? 'Owned: all' : filters.owned === 'owned' ? 'Owned only' : 'Missing only'}</ThemedText>
-                    </Pressable>
-                  ) : null}
-                  {activeFilters ? (
-                    <Pressable onPress={() => { setFilters(NO_FILTERS); setOpenFacet(null); }} style={styles.sortChip} accessibilityRole="button" testID="collect-clear-filters">
-                      <ThemedText type="small" style={styles.sortText}>Clear</ThemedText>
-                    </Pressable>
-                  ) : null}
-                </View>
-                {openFacet ? (
-                  <View style={styles.facetBox} testID={`collect-facet-options-${openFacet}`}>
-                    {facets[openFacet].length === 0 ? <ThemedText type="small" themeColor="textSecondary">Nothing to pick here.</ThemedText> : null}
-                    {facets[openFacet].slice(0, 60).map((o) => {
-                      const on = filters[openFacet].includes(o.id);
-                      return (
-                        <Pressable key={o.id} onPress={() => toggleFacet(openFacet, o.id)} style={[styles.sortChip, on && styles.sortChipOn]} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
-                          <ThemedText type="small" style={[styles.sortText, on && styles.sortTextOn]}>{`${o.label} ${o.count}`}</ThemedText>
-                        </Pressable>
-                      );
-                    })}
-                    {facets[openFacet].length > 60 ? <ThemedText type="small" themeColor="textSecondary">{`${facets[openFacet].length - 60} more not shown.`}</ThemedText> : null}
-                  </View>
-                ) : null}
-              </>
-            ) : null}
+            {filtersEl}
             {guestGated ? (
               <ThemedText type="small" style={styles.note}>Create a free account to build. Guests see nothing here.</ThemedText>
             ) : null}
@@ -655,28 +878,7 @@ export default function CollectScreen() {
                 {`No set matches. Try its code${exampleSet ? `, like ${exampleSet.code}` : ''}.`}
               </ThemedText>
             ) : null}
-            {!set && !setHits.length && suggested.length ? (
-              <ThemedText type="small" themeColor="textSecondary">{`Newest ${gameLabel(game)} sets`}</ThemedText>
-            ) : null}
-            {(setHits.length || suggested.length) && !set ? (
-              <View style={styles.hits}>
-                {(setHits.length ? setHits : suggested).map((s) => (
-                  <Pressable key={s.id} onPress={() => { setSet(s); setQuery(s.name); setNote(null); }} style={styles.hit} accessibilityRole="button" testID={`collect-set-${s.id}`}>
-                    <ThemedText type="smallBold">{s.name}</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">{`${s.code} · ${s.cardCount} cards · ${s.releaseDate.slice(0, 4)}`}</ThemedText>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-            {speciesHits.length && !species ? (
-              <View style={styles.hits}>
-                {speciesHits.map((name) => (
-                  <Pressable key={name} onPress={() => { setSpecies(name); setQuery(name); setNote(null); }} style={styles.hit} accessibilityRole="button" testID={`collect-species-${name}`}>
-                    <ThemedText type="smallBold">{name}</ThemedText>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
+            {hitsEl}
           </View>
 
           {result ? (
@@ -727,28 +929,9 @@ export default function CollectScreen() {
 
               {result.pockets.length > 0 ? (
                 <>
-                  <Seg tall options={secondary ? PAGE_OPTIONS.filter((o) => o.id !== 'curate') : PAGE_OPTIONS} value={pageChoice} onChange={pickPages} />
-                  <ThemedText type="small" themeColor="textSecondary" testID="collect-pages-blurb">{PAGE_OPTIONS.find((o) => o.id === pageChoice)?.blurb}</ThemedText>
-                  <Seg tall options={shapeOptions} value={shapeId} wrap onChange={pickShape} />
-                  {roomForArt ? (
-                    <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">{fanArt ? 'Fill the art panels with fan art.' : 'Fill the art panels with stock photos.'}</Check>
-                  ) : null}
-                  {isAdmin && fillArt && roomForArt ? (
-                    // ADMIN TEST ONLY: the two Pokémon art sites, searched by each page's species.
-                    <View style={styles.adminBox} testID="collect-admin-fill-source">
-                      <ThemedText type="small" themeColor="textSecondary">Admin test: where the art comes from.</ThemedText>
-                      <Seg tall options={ART_FILL_SOURCES} value={fillSource} onChange={setFillSource} />
-                    </View>
-                  ) : null}
-                  {/* The art window opens only on a card the catalogue flags full art, which the other games' do not. */}
-                  {secondary || !artViewBeta ? null : <Seg tall options={ART_WINDOWS} value={artWindow} onChange={setArtWindow} />}
+                  {pageOptsEl}
                   <View style={styles.actions}>
-                    {artWindow === 'off' ? (
-                      <Pressable onPress={() => void printFree()} disabled={printing} style={[styles.btn, styles.btnOutline, printing && styles.dim]} accessibilityRole="button" testID="collect-print">
-                        {printing ? <ActivityIndicator size="small" color={Palette.accent} /> : null}
-                        <ThemedText type="smallBold" style={styles.btnOutlineText}>{printing ? 'Building the PDF…' : 'Print placeholders, free'}</ThemedText>
-                      </Pressable>
-                    ) : null}
+                    {printBtnEl}
                     <Pressable onPress={() => void makeBinder()} disabled={building} style={[styles.btn, styles.btnPrimary, building && styles.dim]} accessibilityRole="button" testID="collect-make">
                       {building ? <ActivityIndicator size="small" color={Palette.accentText} /> : null}
                       <ThemedText type="smallBold" style={styles.btnPrimaryText}>{building ? (curate ? 'Curating the pages…' : 'Building…') : 'Make it a binder'}</ThemedText>
@@ -820,4 +1003,24 @@ const styles = StyleSheet.create({
   btnOutlineText: { color: Palette.accent },
   dim: { opacity: 0.6 },
   note: { color: Palette.accent },
+  // MIC-045 M4 (setbinders-preview): steps on the left, the live preview on the right.
+  m4Wrap: { gap: Spacing.four, paddingBottom: BottomTabInset },
+  m4WrapWide: { flexDirection: 'row', alignItems: 'flex-start', gap: 28 },
+  m4Left: { gap: Spacing.three, width: '100%' },
+  m4LeftWide: { width: 500, flexShrink: 0 },
+  m4Right: { width: '100%' },
+  m4RightWide: { flex: 1, width: 'auto', minWidth: 0 },
+  m4Hero: { gap: Spacing.one },
+  m4Hint: { marginTop: Spacing.one },
+  m4Step: { gap: Spacing.two },
+  m4Field: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderWidth: 1, borderColor: Palette.accent, borderRadius: Radius.control, paddingHorizontal: Spacing.two },
+  m4Pill: { flexShrink: 1, backgroundColor: Palette.accentSoft, borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  m4PillText: { color: Palette.accent },
+  m4Options: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three },
+  m4Check: { justifyContent: 'center' },
+  m4Build: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, marginTop: Spacing.two },
+  m4BuildBtn: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: 28, borderRadius: Radius.pill, backgroundColor: Palette.accent },
+  m4BuildText: { color: Palette.accentText, fontSize: FontSize.md },
+  m4BuildSide: { flexShrink: 1, lineHeight: 17 },
+  m4After: { gap: Spacing.two },
 });

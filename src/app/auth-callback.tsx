@@ -22,6 +22,13 @@ import { track } from '@/lib/analytics';
 import { consumeAuthReturn } from '@/lib/authReturn';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
+import { flag } from '@/lib/flags';
+import { StatePanel } from 'tcgscan-ui';
+import { AuthSheet } from '@/components/auth/AuthSheet';
+import { PageShell } from '@/components/layout/PageShell';
+
+/** MIC-045 M3 ('dev'): a failed return is the kit's StatePanel inside the page shell. */
+const STATE_PANEL = flag('state-panel');
 
 /**
  * The provider's refusal, when there is one, from the query or the hash. A guest who taps "Continue
@@ -57,6 +64,7 @@ export default function AuthCallback() {
   const auth = useAuth();
   const { code } = useLocalSearchParams<{ code?: string }>();
   const [failed, setFailed] = useState<CallbackFailure | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
   const leave = useRef<() => void>(() => {});
   const failed0 = useRef(false);
 
@@ -139,6 +147,26 @@ export default function AuthCallback() {
     return () => clearTimeout(safety);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- auth is read once at mount
   }, [code, router]);
+
+  if (failed && STATE_PANEL) {
+    // The error line stays (smaller, as the hint): it is what the owner reads back from a screenshot.
+    return (
+      <PageShell title="Sign-in">
+        <StatePanel
+          title="That sign-in didn’t finish"
+          body="Nothing was lost. Try again, or use an email code."
+          primary={{ label: 'Try Google again', onPress: () => void auth.signInWithOAuth('google') }}
+          secondary={{ label: 'Email code', onPress: () => setAuthOpen(true) }}
+          hint={
+            <ThemedText type="small" themeColor="textSecondary" style={styles.note} testID="auth-callback-code">
+              {`Error: ${failed.stage} / ${failed.code}${failed.message ? ` / ${failed.message}` : ''}`}
+            </ThemedText>
+          }
+        />
+        <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
+      </PageShell>
+    );
+  }
 
   if (failed) {
     return (

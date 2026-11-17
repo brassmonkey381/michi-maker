@@ -316,7 +316,9 @@ export default function DiscoverScreen() {
   const [colour, setColour] = useState<(typeof SWATCHES)[number] | null>(null);
   const [colourHits, setColourHits] = useState<RankedBinderRow[] | 'unavailable' | null>(null);
   // Binders | Makers (owner, 2026-11-11: Makers is a feed of makers, not a people search).
-  const [mode, setMode] = useState<'binders' | 'makers'>('binders');
+  // `?view=makers` opens on Makers (MIC-045 M3: a profile that is not found sends "Find people" here).
+  const { view: viewParam } = useLocalSearchParams<{ view?: string }>();
+  const [mode, setMode] = useState<'binders' | 'makers'>(DISCOVER_V2 && viewParam === 'makers' ? 'makers' : 'binders');
   const reqId = useRef(0);
   // A PAGE AT A TIME (2026-09-20). Both lists used to stop at 40 with no way past: the 41st public
   // binder existed only for someone who searched for it. Each list now remembers where it left

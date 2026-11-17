@@ -3,13 +3,18 @@
  * binder editor before destructive actions — deleting a page or a binder.
  */
 
-import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Dialog } from 'tcgscan-ui';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { flag } from '@/lib/flags';
+
+/** MIC-045 M6: confirmations on the kit Dialog (X, consequence block, equal buttons, danger tint). */
+const KIT_DIALOG = flag('ui-overlays');
 
 export interface ConfirmSpec {
   title: string;
@@ -20,6 +25,10 @@ export interface ConfirmSpec {
   /** When set, the user must type this exact text (trimmed, case-insensitive) to enable the
    *  confirm button — the "type the name to delete" gate for the most destructive actions. */
   requireText?: string;
+  /** What goes, in the kit dialog's grey block ("9 pages and 81 cards will be gone"). */
+  consequence?: { title: string; detail?: string; thumb?: ReactNode };
+  /** The safe button's label (default "Cancel"; "Keep it" for a delete). */
+  cancelLabel?: string;
   onConfirm: () => void;
 }
 
@@ -39,6 +48,51 @@ export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec | null; onC
     setText('');
     onClose();
   };
+
+  if (KIT_DIALOG) {
+    return (
+      <Dialog
+        visible
+        closeButton
+        maxWidth={440}
+        title={spec.title}
+        body={spec.consequence ? undefined : spec.message}
+        consequence={spec.consequence}
+        onClose={close}
+        cancel={{ label: spec.cancelLabel ?? (spec.destructive ? 'Keep it' : 'Cancel'), onPress: close }}
+        confirm={{
+          label: spec.confirmLabel ?? 'Confirm',
+          tone: spec.destructive ? 'danger' : undefined,
+          disabled: !canConfirm,
+          onPress: () => {
+            spec.onConfirm();
+            close();
+          },
+        }}>
+        {spec.requireText ? (
+          <View style={styles.kitGate}>
+            <View style={styles.kitGateRow}>
+              <ThemedText type="small" themeColor="textSecondary">Type</ThemedText>
+              <View style={[styles.kitChip, { backgroundColor: theme.backgroundElement }]}>
+                <Text style={[styles.kitChipText, { color: theme.text }]}>{spec.requireText}</Text>
+              </View>
+              <ThemedText type="small" themeColor="textSecondary">to confirm</ThemedText>
+            </View>
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              accessibilityLabel={`Type ${spec.requireText} to confirm`}
+              placeholderTextColor={theme.textSecondary}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              style={[styles.input, styles.kitInput, { color: theme.text, borderColor: canConfirm && text ? Palette.accent : theme.backgroundSelected }]}
+            />
+          </View>
+        ) : null}
+      </Dialog>
+    );
+  }
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={close}>
@@ -130,6 +184,11 @@ const styles = StyleSheet.create({
   btnFilledText: { color: Palette.accentText },
   pressed: { opacity: 0.7 },
   gateLabel: { lineHeight: 20 },
+  kitGate: { gap: Spacing.two },
+  kitGateRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  kitChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  kitChipText: { fontSize: FontSize.sm, fontWeight: '700' },
+  kitInput: { borderWidth: 1.5, minHeight: 44 },
   input: {
     borderWidth: 1,
     borderRadius: Radius.control,

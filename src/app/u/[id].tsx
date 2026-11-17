@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Image } from 'expo-image';
+import { PocketsArt, StatePanel } from 'tcgscan-ui';
 
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { ReportSheet } from '@/components/binder/ReportSheet';
@@ -37,6 +38,10 @@ import { flag } from '@/lib/flags';
 
 /** MIC-017 piece 11 ('dev'): the profile as a collector card. */
 const PROFILE_CARD = flag('profile-card');
+/** MIC-045 M3 ('dev'): not found as the kit's StatePanel. */
+const STATE_PANEL = flag('state-panel');
+/** Discover's Makers view exists only under discover-v2; without it, Discover itself. */
+const FIND_PEOPLE_HREF = flag('discover-v2') ? '/discover?view=makers' : '/discover';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useAuth } from '@/store/auth';
 
@@ -129,6 +134,14 @@ export default function ProfileRoute() {
           <View style={styles.center}>
             <ActivityIndicator />
           </View>
+        ) : state.status === 'missing' && STATE_PANEL ? (
+          <StatePanel
+            art={<PocketsArt badge="?" />}
+            title="No one by that name"
+            body="The profile was renamed or removed."
+            primary={{ label: 'Find people', onPress: () => router.push(FIND_PEOPLE_HREF as never) }}
+            secondary={{ label: 'Discover', onPress: () => router.push('/discover' as never) }}
+          />
         ) : state.status === 'missing' ? (
           <View style={styles.center}>
             <ThemedText type="subtitle" style={styles.missTitle}>

@@ -129,6 +129,29 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  // THE REDESIGN LAUNCH batch (MIC-017, MIC-040, MIC-044) is held back until the deploy that flips
+  // the redesign flags to 'live' (MIC-045 shipped dark). It and its featured/pinned changes are in
+  // commit 07ce013: restore with `git show 07ce013:src/data/changelog.ts`, then re-date it.
+  {
+    date: '2026-11-11',
+    title: "A pocket menu that fits, a Sign in link you can see",
+    items: [
+      {
+        products: ['michi'],
+        head: "The pocket menu on bottom-row cards",
+        kind: 'better',
+        area: 'binders',
+        body: "On a card in the bottom row the pocket menu opens upward, sits above the tool bars, and closes from its top-right corner.",
+      },
+      {
+        products: ['michi'],
+        head: "Sign in no longer cut off",
+        kind: 'fix',
+        area: 'account',
+        body: "On short screens the account sheet fits the window, so “Already have an account? Sign in” shows without scrolling.",
+      },
+    ],
+  },
   {
     date: '2026-11-10',
     title: "Shorter tips, a share picture for any card, safer public binders",

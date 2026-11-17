@@ -1,11 +1,12 @@
 import { useHoverSuspended } from '@/components/binder/hoverGate';
 import { TopLayer } from '@/components/binder/TopLayer';
+import { PocketPopover } from '@/components/binder/PocketPopover';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { createContext, forwardRef, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode, type Ref, Fragment } from 'react';
 import type { PocketBarPlacement } from '@/data/viewPrefs';
 import { useRouter } from 'expo-router';
-import { AccessibilityInfo, Linking, PixelRatio, Pressable, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle, Platform } from 'react-native';
+import { AccessibilityInfo, Linking, PixelRatio, Pressable, StyleSheet, Text, View, useWindowDimensions, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle, Platform } from 'react-native';
 import { affiliateConfigured, productUrl, sendBrowseCommand } from 'tcgscan-browse';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -23,6 +24,8 @@ import Animated, {
  *  cards slide in and out through that edge. Constant for the page load. */
 const SLEEVES = flag('pockets-sleeves');
 const PHONE_NAV = flag('phone-nav');
+/** MIC-045 M2: the desktop pocket actions as one pop-over card (PocketPopover) instead of the bar. */
+const POCKET_POPOVER = flag('pocket-popover') && Platform.OS === 'web';
 /** MIC-017: with the hand on, the old tray is the hand; its button says so. */
 const TRAY_WORD = flag('editor-hand') ? 'Hand' : 'Tray';
 /** Where the last press on an empty pocket began, so a swipe across it is not taken for a tap. */
@@ -287,6 +290,8 @@ interface BinderGridProps {
   toolbarPlacement?: PocketBarPlacement;
   /** False when the host draws the pocket's actions itself (the phone's PhonePocketSheet). */
   slotToolbar?: boolean;
+  /** One-based number of this page in its binder, for the pocket pop-over's header (MIC-045). */
+  pageNumber?: number;
   /** "Move" — arm this pocket so the next pocket tapped, on any page, receives it. */
   onMoveSlot?: () => void;
   /** "Tray" — take this card off the page into the binder's tray (one-by-one card pockets only). */
@@ -414,6 +419,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     hintToolbar = false,
     toolbarPlacement = 'over',
     slotToolbar = true,
+    pageNumber,
     eagerImages = false,
     onMoveSlot,
     onTraySlot,
@@ -652,7 +658,9 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       clearTimeout(t);
     };
   }, []);
-  const motionOn = SLEEVES && settled && !reduceMotion;
+  // EDIT MODE ONLY (MIC-042, owner 2026-11-16: "when viewing a binder, we don't need the slide in /
+  // out animation in the pockets ... only in edit mode"). Viewing and paging draw pockets still.
+  const motionOn = SLEEVES && editable && settled && !reduceMotion;
   const slideDx = (col: number) => (pocketOpening(page.cols, outerEdge ?? 'right', col) === 'right' ? 1 : -1) * Math.round(cellW * 0.6);
   const slideTiming = (n: number) => ({ duration: n > 6 ? 170 : 260, step: n > 6 ? 25 : 40 });
   const sigKey = SLEEVES ? page.slots.map(slotSig).join(';') : '';
@@ -1315,6 +1323,9 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             onAutoFill={resizeSlot.cardId ? onAutoFillSlot : undefined}
             onPickCopy={resizeSlot.cardId ? onPickCopySlot : undefined}
             hasCopy={!!resizeSlot.sourceEntryId}
+            name={resizeSlot.cardId ? resolveCardWith(catalog, resizeSlot.cardId)?.name : null}
+            pocketNumber={resizeSlot.row * page.cols + resizeSlot.col + 1}
+            pageNumber={pageNumber}
           />
         ) : null}
       </View>
@@ -1355,6 +1366,9 @@ function SlotToolbar({
   hasCopy,
   placement = 'over',
   barRef,
+  name,
+  pocketNumber,
+  pageNumber,
 }: {
   slot: DemoSlot;
   cellW: number;
@@ -1392,8 +1406,13 @@ function SlotToolbar({
   onPickCopy?: () => void;
   /** Whether this pocket already names one of the owner's copies (ticked in the label). */
   hasCopy?: boolean;
+  /** The pop-over's header (MIC-045): the card's name, its pocket and page numbers. */
+  name?: string | null;
+  pocketNumber: number;
+  pageNumber?: number;
 }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
+  const viewport = useWindowDimensions();
   // TWO FACES, ONE SHORT BAR (owner, 2026-09-19). A card's bar had grown to eight buttons and was
   // about to gain more. The face you see holds what changes WHAT THE PAGE HOLDS (Replace, Fill
   // page, Similar); "More" turns the bar over to what you set once (Duplicate, My card, Sleeve).
@@ -1420,6 +1439,39 @@ function SlotToolbar({
   const centerX = slotLeft + slotW / 2;
 
   const slotH = slot.rowSpan * cellH + (slot.rowSpan - 1) * (gap + captionH);
+  // MIC-045 M2 (pocket-popover flag): one card beside the pocket with every action, no "More".
+  // It ignores the bar's placement pref; it always sits beside the pocket, flipped or shifted to
+  // stay inside the window.
+  if (POCKET_POPOVER) {
+    const pop = (
+      <PocketPopover
+        slot={slot}
+        name={name}
+        pocketNumber={pocketNumber}
+        pageNumber={pageNumber}
+        anchor={{ x: slotLeft + (origin ? origin.x : 0), y: slotTop + (origin ? origin.y : 0), w: slotW, h: slotH }}
+        bounds={origin ? { w: viewport.width, h: viewport.height } : { w: innerW, h: innerH ?? viewport.height }}
+        fixed={!!origin}
+        hint={hint}
+        popRef={barRef}
+        onReplace={onReplace}
+        onEditArt={onEditArt}
+        onAutoFill={onAutoFill}
+        onSimilar={onSimilar}
+        onColors={onColors}
+        onMove={onMove}
+        onToTray={onToTray}
+        onDuplicate={onDuplicate}
+        onPickCopy={onPickCopy}
+        hasCopy={hasCopy}
+        onStyle={onStyle}
+        onSplit={onSplit}
+        onRemove={onRemove}
+        onDeselect={onDeselect}
+      />
+    );
+    return origin ? <TopLayer>{pop}</TopLayer> : pop;
+  }
   // THREE PLACEMENTS (owner, 2026-11-05). Over: on the pocket's top edge, inside it when the row
   // above has no room. Below: under the pocket, so nothing of the card is covered. Beside: a
   // column down its right edge, or its left when the right edge is the page's.

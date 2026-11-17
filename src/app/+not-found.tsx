@@ -11,9 +11,27 @@ import { PageShell } from '@/components/layout/PageShell';
 import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { flag } from '@/lib/flags';
+import { PocketsArt, StatePanel } from 'tcgscan-ui';
+
+/** MIC-045 M3 ('dev'): the 404 as the kit's StatePanel. */
+const STATE_PANEL = flag('state-panel');
 
 export default function NotFound() {
   const router = useRouter();
+  if (STATE_PANEL) {
+    return (
+      <PageShell title="Page not found">
+        <StatePanel
+          art={<PocketsArt badge="?" />}
+          title="This page doesn’t exist"
+          body="The link may be mistyped or out of date. Head back home and pick up from there."
+          primary={{ label: 'Go home', onPress: () => router.replace('/' as Href) }}
+          secondary={{ label: 'Discover binders', onPress: () => router.push('/discover' as Href) }}
+        />
+      </PageShell>
+    );
+  }
   return (
     <PageShell
       title="Page not found"

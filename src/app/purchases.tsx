@@ -34,6 +34,12 @@ import { fetchPrintEvents } from '@/data/printRepo';
 import { CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
+import { flag } from '@/lib/flags';
+import { StatePanel } from 'tcgscan-ui';
+import { AuthSheet } from '@/components/auth/AuthSheet';
+
+/** MIC-045 M3 ('dev'): signed out, the page is one StatePanel inside the shell. */
+const STATE_PANEL = flag('state-panel');
 
 /** Product keys → human names for the grants section. */
 function grantName(product: string): string {
@@ -147,6 +153,7 @@ export default function PurchasesScreen() {
   const router = useRouter();
   const { isSignedIn } = useAuth();
   const { isPaid } = useTier();
+  const [authOpen, setAuthOpen] = useState(false);
 
   // One loading flag for the whole ledger: the four sections load together (one batched
   // Promise.allSettled below), so they reveal together behind a single animated loader
@@ -290,6 +297,20 @@ export default function PurchasesScreen() {
       live = false;
     };
   }, [isSignedIn]);
+
+  if (STATE_PANEL && !isSignedIn) {
+    return (
+      <PageShell title="My Purchases" description="Your michi-maker payments, grants, and print usage.">
+        <StatePanel
+          title="Your receipts live with your account"
+          body="Sign in to see what you’ve bought. Guest purchases need an account."
+          primary={{ label: 'Sign in', onPress: () => setAuthOpen(true) }}
+          secondary={{ label: 'See plans', onPress: () => router.push('/plans' as Href) }}
+        />
+        <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell

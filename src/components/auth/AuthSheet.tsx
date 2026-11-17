@@ -13,7 +13,7 @@
 
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { busyLook, useBusyAction } from '@/hooks/use-busy-action';
 import {
   ActivityIndicator,
@@ -29,7 +29,11 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
+import { CloseButton } from 'tcgscan-ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { ArtistPanel } from '@/components/auth/ArtistPanel';
+import { GoogleMark, KeepBinderStrip, useKeyboardInset } from '@/components/auth/AuthKeepParts';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -40,6 +44,7 @@ import { track } from '@/lib/analytics';
 import { pruneAvatars, uploadAvatarImage } from '@/lib/uploadAvatar';
 import { useAuth, type OAuthProvider } from '@/store/auth';
 import { flag } from '@/lib/flags';
+import { PHONE_MAX_WIDTH } from '@/data/binderLayout';
 
 /**
  * B4-A (owner pick 2026-11-11; 'auth-compact' dev flag): "make sure we fit everything when possible
@@ -49,6 +54,12 @@ import { flag } from '@/lib/flags';
  * this one component.
  */
 const COMPACT = flag('auth-compact');
+/**
+ * MIC-045 M1 ('auth-keep' dev flag): the B4-A tabs with an X, a strip naming the guest's binder and
+ * what an account keeps for it, labelled fields (Show on the password), one full-width button, and
+ * on a phone a bottom sheet that rides the keyboard. Off, everything below renders as before.
+ */
+const KEEP = flag('auth-keep');
 import type { Profile } from '@/types/domain';
 
 /**
@@ -64,7 +75,30 @@ export function AuthSheet({ visible, onClose, onAuthed }: { visible: boolean; on
   // held: the reason "Already have an account? Sign in" sat below the fold even with room to spare
   // (owner, 2026-11-11). Now it may use the window, less the backdrop's padding. Live for everyone
   // since the owner's yes 2026-11-11 ("With fix live"); the B4-A tabs stay behind 'auth-compact'.
-  const { height: windowH } = useWindowDimensions();
+  const { height: windowH, width: windowW } = useWindowDimensions();
+  // KEEP on a phone: a bottom sheet for the sign-in form (the signed-in profile keeps its card).
+  const bottomSheet = KEEP && windowW < PHONE_MAX_WIDTH && !auth.isSignedIn;
+  const kbInset = useKeyboardInset(visible && bottomSheet);
+  const safe = useSafeAreaInsets();
+
+  if (bottomSheet) {
+    return (
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+        <Pressable style={[styles.backdrop, styles.sheetBackdrop]} onPress={onClose}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={[styles.sheetWrap, { marginBottom: kbInset, maxHeight: windowH - kbInset - Spacing.five }]}>
+            <ThemedView
+              type="background"
+              style={[styles.sheet, { paddingBottom: kbInset ? 0 : safe.bottom }]}
+              accessibilityViewIsModal>
+              <AuthForm onClose={onClose} onAuthed={onAuthed} isGuest={auth.isGuest} phone />
+            </ThemedView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -73,8 +107,10 @@ export function AuthSheet({ visible, onClose, onAuthed }: { visible: boolean; on
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.center}>
           {/* Stop backdrop taps from closing when interacting with the card. */}
-          <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-            <ThemedView type="backgroundElement" style={[styles.card, { maxHeight: windowH - 2 * Spacing.four }]}>
+          <Pressable onPress={(e) => e.stopPropagation()} style={[styles.cardWrap, KEEP && !auth.isSignedIn && styles.cardWrapKeep]}>
+            <ThemedView
+              type={KEEP && !auth.isSignedIn ? 'background' : 'backgroundElement'}
+              style={[styles.card, KEEP && !auth.isSignedIn && styles.cardKeep, { maxHeight: windowH - 2 * Spacing.four }]}>
               {auth.isSignedIn ? (
                 <ProfileView onClose={onClose} />
               ) : (
@@ -94,7 +130,18 @@ export function AuthSheet({ visible, onClose, onAuthed }: { visible: boolean; on
 
 type Method = 'password' | 'code';
 
-function AuthForm({ onClose, onAuthed, isGuest }: { onClose: () => void; onAuthed?: () => void; isGuest: boolean }) {
+function AuthForm({
+  onClose,
+  onAuthed,
+  isGuest,
+  phone = false,
+}: {
+  onClose: () => void;
+  onAuthed?: () => void;
+  isGuest: boolean;
+  /** KEEP only: drawn as the phone's bottom sheet (grab handle, the strip's one-line perks). */
+  phone?: boolean;
+}) {
   const auth = useAuth();
   const theme = useTheme();
 
@@ -109,6 +156,9 @@ function AuthForm({ onClose, onAuthed, isGuest }: { onClose: () => void; onAuthe
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  // KEEP only: the password's Show toggle and which field has focus (its accent ring).
+  const [showPassword, setShowPassword] = useState(false);
+  const [focused, setFocused] = useState<'email' | 'password' | 'username' | 'code' | null>(null);
 
   // Creating an account *as a guest* links to the current id to keep binders, and email codes
   // switch users (losing them) — so hide the code method only in that one case. Signing in
@@ -226,6 +276,247 @@ function AuthForm({ onClose, onAuthed, isGuest }: { onClose: () => void; onAuthe
 
   const inputStyle = [styles.input, { color: theme.text, borderColor: theme.backgroundSelected }];
   const placeholder = theme.textSecondary;
+
+  if (KEEP) {
+    // Creating an account as a guest keeps their binders (the account links to the guest's id);
+    // signing in to another account does not, so the strip and the closing line are Create only.
+    const keeping = isCreate && isGuest;
+    const field = (key: NonNullable<typeof focused>) => [
+      styles.keepInput,
+      { color: theme.text, borderColor: focused === key ? Palette.accent : theme.backgroundSelected },
+      focused === key && styles.keepInputFocus,
+    ];
+    const focusProps = (key: NonNullable<typeof focused>) => ({
+      onFocus: () => setFocused(key),
+      onBlur: () => setFocused((cur) => (cur === key ? null : cur)),
+    });
+    const sub = keeping
+      ? null
+      : isCreate
+        ? 'Create an account to sync your binders across devices.'
+        : 'Sign in to sync your michi binders across devices.';
+
+    return (
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        style={styles.scrollFit}
+        contentContainerStyle={[styles.keepForm, phone && styles.keepFormPhone]}>
+        {phone ? <View style={[styles.grab, { backgroundColor: theme.backgroundSelected }]} /> : null}
+        <View style={styles.keepHead}>
+          <View style={[styles.keepTabs, { backgroundColor: theme.backgroundElement }]} accessibilityRole="tablist">
+            {([true, false] as const).map((create) => (
+              <Pressable
+                key={create ? 'create' : 'signin'}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isCreate === create }}
+                onPress={() => {
+                  setIsCreate(create);
+                  setError(null);
+                  setInfo(null);
+                }}
+                testID={create ? 'auth-tab-create' : 'auth-tab-signin'}
+                style={[styles.tab, isCreate === create && [styles.keepTabOn, { backgroundColor: theme.background }]]}>
+                <ThemedText type="smallBold" themeColor={isCreate === create ? 'text' : 'textSecondary'}>
+                  {create ? 'Create account' : 'Sign in'}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
+          <CloseButton onPress={onClose} />
+        </View>
+
+        {keeping ? <KeepBinderStrip compact={phone} /> : null}
+        {sub ? (
+          <ThemedText type="small" themeColor="textSecondary">
+            {sub}
+          </ThemedText>
+        ) : null}
+
+        <OAuthButton label="Continue with Google" onPress={() => oauth('google')} disabled={busy} icon={<GoogleMark />} tall />
+        <View style={styles.dividerRow}>
+          <View style={[styles.divider, { backgroundColor: theme.backgroundSelected }]} />
+          <ThemedText type="small" themeColor="textSecondary">
+            or with email
+          </ThemedText>
+          <View style={[styles.divider, { backgroundColor: theme.backgroundSelected }]} />
+        </View>
+
+        {allowCode && (
+          <View style={[styles.segment, { borderColor: theme.backgroundSelected }]}>
+            {(['password', 'code'] as const).map((m) => (
+              <Pressable
+                key={m}
+                onPress={() => {
+                  setMethod(m);
+                  setError(null);
+                  setInfo(null);
+                }}
+                style={[styles.segmentBtn, method === m && { backgroundColor: theme.backgroundSelected }]}>
+                <ThemedText type="smallBold" themeColor={method === m ? 'text' : 'textSecondary'}>
+                  {m === 'password' ? 'Password' : 'Email code'}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {method === 'password' || !allowCode ? (
+          <>
+            <View style={styles.keepField}>
+              <ThemedText type="smallBold" style={styles.keepLabel}>
+                Email
+              </ThemedText>
+              <TextInput
+                style={field('email')}
+                placeholder="you@example.com"
+                placeholderTextColor={placeholder}
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                accessibilityLabel="Email"
+                value={email}
+                onChangeText={setEmail}
+                {...focusProps('email')}
+              />
+            </View>
+            <View style={styles.keepField}>
+              <ThemedText type="smallBold" style={styles.keepLabel}>
+                Password
+              </ThemedText>
+              <View style={[field('password'), styles.keepPasswordRow]}>
+                <TextInput
+                  style={[styles.keepPasswordInput, { color: theme.text }]}
+                  placeholder={isCreate ? 'Pick a password' : 'Your password'}
+                  placeholderTextColor={placeholder}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete={isCreate ? 'new-password' : 'current-password'}
+                  accessibilityLabel="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  {...focusProps('password')}
+                />
+                <Pressable
+                  onPress={() => setShowPassword((v) => !v)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
+                  <ThemedText type="smallBold" style={styles.keepShow}>
+                    {showPassword ? 'Hide' : 'Show'}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </View>
+            {isCreate && (
+              <View style={styles.keepField}>
+                <ThemedText type="smallBold" style={styles.keepLabel}>
+                  Username
+                </ThemedText>
+                <TextInput
+                  style={field('username')}
+                  placeholder="snorlaxfan"
+                  placeholderTextColor={placeholder}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={20}
+                  accessibilityLabel="Username"
+                  value={username}
+                  onChangeText={setUsername}
+                  {...focusProps('username')}
+                />
+                {/* True: profiles.username is immutable once set (20260711010000_require_immutable_username). */}
+                <ThemedText type="small" themeColor="textSecondary" style={styles.keepHelp}>
+                  Shown on your public binders. It can’t be changed later.
+                </ThemedText>
+              </View>
+            )}
+            <View style={styles.keepCta}>
+              <PrimaryButton label={isCreate ? 'Create account' : 'Sign in'} busy={busy} onPress={submitPassword} />
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.keepField}>
+              <ThemedText type="smallBold" style={styles.keepLabel}>
+                Email
+              </ThemedText>
+              <TextInput
+                style={field('email')}
+                placeholder="you@example.com"
+                placeholderTextColor={placeholder}
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                accessibilityLabel="Email"
+                editable={!codeSent}
+                value={email}
+                onChangeText={setEmail}
+                {...focusProps('email')}
+              />
+            </View>
+            {codeSent && (
+              <View style={styles.keepField}>
+                <ThemedText type="smallBold" style={styles.keepLabel}>
+                  Code
+                </ThemedText>
+                <TextInput
+                  style={[field('code'), styles.codeInput]}
+                  placeholder="123456"
+                  placeholderTextColor={placeholder}
+                  keyboardType="number-pad"
+                  autoComplete="one-time-code"
+                  accessibilityLabel="6-digit code"
+                  maxLength={6}
+                  value={code}
+                  onChangeText={setCode}
+                  {...focusProps('code')}
+                />
+              </View>
+            )}
+            <View style={styles.keepCta}>
+              <PrimaryButton label={codeSent ? 'Verify code' : 'Email me a code'} busy={busy} onPress={submitCode} />
+            </View>
+            {codeSent && (
+              <Pressable onPress={() => setCodeSent(false)} style={styles.switchRow}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Use a different email
+                </ThemedText>
+              </Pressable>
+            )}
+          </>
+        )}
+
+        {keeping ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.keepFine}>
+            Your guest binders move into the account.
+          </ThemedText>
+        ) : null}
+
+        {!isGuest && (
+          <Pressable onPress={() => run(() => auth.continueAsGuest())} style={styles.switchRow}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Just exploring?{' '}
+              <ThemedText type="smallBold" style={{ color: Palette.accent }}>
+                Continue as a guest
+              </ThemedText>
+            </ThemedText>
+          </Pressable>
+        )}
+
+        {error && (
+          <ThemedText type="small" style={styles.error}>
+            {error}
+          </ThemedText>
+        )}
+        {info && (
+          <ThemedText type="small" style={styles.info}>
+            {info}
+          </ThemedText>
+        )}
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView keyboardShouldPersistTaps="handled" style={styles.scrollFit} contentContainerStyle={[styles.form, COMPACT && styles.formCompact]}>
@@ -830,10 +1121,16 @@ function OAuthButton({
   label,
   onPress,
   disabled,
+  icon,
+  tall,
 }: {
   label: string;
   onPress: () => void;
   disabled: boolean;
+  /** KEEP: the provider's mark before the label. */
+  icon?: ReactNode;
+  /** KEEP: 48 tall with 15px type, the primary button's size. */
+  tall?: boolean;
 }) {
   const theme = useTheme();
   return (
@@ -842,10 +1139,15 @@ function OAuthButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.oauthBtn,
+        icon ? styles.oauthBtnRow : null,
+        tall && styles.oauthBtnTall,
         { borderColor: theme.backgroundSelected },
         pressed && styles.pressed,
       ]}>
-      <ThemedText type="smallBold">{label}</ThemedText>
+      {icon}
+      <ThemedText type="smallBold" style={tall ? styles.oauthLabelTall : undefined}>
+        {label}
+      </ThemedText>
     </Pressable>
   );
 }
@@ -935,6 +1237,59 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     alignItems: 'center',
   },
+  oauthBtnRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.two + 2 },
+  oauthBtnTall: { paddingVertical: 0, minHeight: 48, justifyContent: 'center' },
+  oauthLabelTall: { fontSize: FontSize.control },
+  // --- KEEP (MIC-045 M1) ---------------------------------------------------------------------
+  sheetBackdrop: { justifyContent: 'flex-end' },
+  sheetWrap: { width: '100%' },
+  sheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: -10 },
+    elevation: 12,
+  },
+  grab: { width: 40, height: 5, borderRadius: 3, alignSelf: 'center', marginTop: Spacing.two, marginBottom: -Spacing.one },
+  cardWrapKeep: { maxWidth: 440 },
+  cardKeep: {
+    borderRadius: 16,
+    shadowColor: '#000000',
+    shadowOpacity: 0.28,
+    shadowRadius: 32,
+    shadowOffset: { width: 0, height: 24 },
+    elevation: 16,
+  },
+  keepForm: { paddingHorizontal: Spacing.four + 4, paddingTop: Spacing.three, paddingBottom: Spacing.four + 4, gap: Spacing.three },
+  keepFormPhone: { paddingHorizontal: Spacing.three, paddingTop: 0, paddingBottom: Spacing.four, gap: Spacing.two + 4 },
+  keepHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three, minHeight: 52 },
+  keepTabs: { flexDirection: 'row', flex: 1, maxWidth: 300, borderRadius: Radius.pill, padding: 3, gap: 2 },
+  keepTabOn: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  keepField: { gap: 6 },
+  keepLabel: { fontSize: FontSize.label },
+  keepInput: {
+    borderWidth: 1,
+    borderRadius: Radii.slot,
+    paddingHorizontal: Spacing.three + 2,
+    minHeight: 44,
+    fontSize: FontSize.control,
+  },
+  keepInputFocus: { boxShadow: '0 0 0 3px rgba(59,130,246,0.18)' },
+  keepPasswordRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  keepPasswordInput: { flex: 1, minHeight: 42, fontSize: FontSize.control, borderWidth: 0, outlineStyle: 'none' } as object,
+  keepShow: { color: Palette.link, fontSize: FontSize.label },
+  keepHelp: { fontSize: FontSize.base, lineHeight: 16 },
+  keepCta: { marginTop: Spacing.one },
+  keepFine: { textAlign: 'center', fontSize: FontSize.base, marginTop: -Spacing.one },
   pressed: { opacity: 0.7 },
   privacyRow: {
     flexDirection: 'row',

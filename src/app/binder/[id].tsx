@@ -38,7 +38,16 @@ import { CONTEST } from '@/data/contest';
 import { safeBackHref } from '@/data/backLink';
 import { fetchEntry } from '@/data/contestRepo';
 import { isSupabaseConfigured } from '@/lib/env';
+import { flag } from '@/lib/flags';
+import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
+import { PocketsArt, StatePanel } from 'tcgscan-ui';
+import { AuthSheet } from '@/components/auth/AuthSheet';
+import { PageShell } from '@/components/layout/PageShell';
+import { StateSignInHint } from '@/components/layout/StateSignInHint';
+
+/** MIC-045 M3 ('dev'): a binder that cannot open says so in the kit's StatePanel, inside the page shell. */
+const STATE_PANEL = flag('state-panel');
 
 /**
  * `?page=N` — which page a link opens on. ONE-BASED, because the number in the link is the number
@@ -238,6 +247,8 @@ function PublicViewer({ id, openAt, backHref }: { id?: string; openAt: number; b
     }
   }, [state]);
 
+  if (STATE_PANEL && state.status === 'missing') return <BinderUnavailable />;
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.flex} edges={['top']}>
@@ -291,6 +302,34 @@ function PublicViewer({ id, openAt, backHref }: { id?: string; openAt: number; b
         )}
       </SafeAreaView>
     </ThemedView>
+  );
+}
+
+/**
+ * MIC-045 M3: private or gone, one panel inside the page shell (the rail and Back stay). A private
+ * binder and a missing one are the same answer to a visitor (RLS returns neither), so the copy
+ * claims nothing it cannot know. The sign-in hint is for the owner who is signed out.
+ */
+function BinderUnavailable() {
+  const router = useRouter();
+  const { isSignedIn } = useAuth();
+  const [authOpen, setAuthOpen] = useState(false);
+  return (
+    <PageShell>
+      <StatePanel
+        art={<PocketsArt badge="lock" />}
+        title="We can’t open this binder"
+        body="It’s private, or it no longer exists. If someone sent you this link, ask them to switch the binder to public."
+        primary={{ label: 'Discover binders', onPress: () => router.push('/discover' as Href) }}
+        secondary={{ label: 'Make your own', onPress: () => router.push('/new-binder' as Href) }}
+        hint={
+          isSignedIn ? undefined : (
+            <StateSignInHint before="Is this your binder?" after="to open it." onSignIn={() => setAuthOpen(true)} />
+          )
+        }
+      />
+      <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
+    </PageShell>
   );
 }
 

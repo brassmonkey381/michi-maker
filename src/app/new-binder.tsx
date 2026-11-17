@@ -3,7 +3,7 @@
  * similar to pkmnbindr. Take them to the landing page first, but then next should be a new
  * binder wizard"). Three screens, one question each, one button at the foot:
  *
- *   1. What kind of binder?   One Pokémon · One set · One artist · Three cards I like
+ *   1. What kind of binder?   Three cards I like · One Pokémon · One set · One artist
  *   2. Which one?             a search box, or the set list; the count updates as they type,
  *                             and Create binder is the foot of the same screen (owner,
  *                             2026-11-05: no preview step)
@@ -77,10 +77,11 @@ async function fetchSets(): Promise<SetMeta[]> {
 }
 
 const KINDS: { key: Kind; title: string; body: string; note?: string }[] = [
+  // MIC-054 (owner 2026-11-17): the pick-three start first, One Pokémon under it, set and artist lower.
+  { key: 'three', title: 'Three cards I like', body: 'Pick three. Use tools to complete the page by color, similarity, and theme.' },
   { key: 'pokemon', title: 'One Pokémon', body: 'Every card of one Pokémon, across every set.', note: 'Most made' },
   { key: 'set', title: 'One set', body: 'Every card from one set, in order.' },
   { key: 'artist', title: 'One artist', body: 'Every card one illustrator drew.' },
-  { key: 'three', title: 'Three cards I like', body: 'Pick three. Use tools to complete the page by color, similarity, and theme.' },
 ];
 
 const PLACEHOLDER: Record<Exclude<Kind, 'set' | 'three'>, string> = {

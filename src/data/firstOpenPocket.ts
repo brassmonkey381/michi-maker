@@ -46,3 +46,18 @@ export function parsePocketParam(raw: string | null | undefined): { row: number;
   const m = raw ? /^(\d+)\.(\d+)$/.exec(raw) : null;
   return m ? { row: Number(m[1]), col: Number(m[2]) } : null;
 }
+
+/**
+ * WHERE A ONE-POKÉMON OR ONE-ARTIST BINDER OPENS (MIC-054, owner 2026-11-17: "the user always
+ * lands on the last available page having it be partially filled, so we can put them through the
+ * three step walkthrough"). The last page part-filled: open it with the seeded walkthrough, whose
+ * step one is Complete. The last page exactly full: `addPage` is true and the editor opens on the
+ * new empty page (one past the last), the card picker aimed at its first pocket, as MIC-044 does.
+ */
+export function walkthroughLanding(binderId: string, pages: PocketPage[]): { href: string; addPage: boolean } {
+  const last = pages.length - 1;
+  if (last < 0) return { href: `/binder/${binderId}?edit=1`, addPage: false };
+  const open = firstOpenPocket([pages[last]]);
+  if (open) return { href: `/binder/${binderId}?edit=1&seeded=wizard&page=${last + 1}`, addPage: false };
+  return { href: `/binder/${binderId}?edit=1&tip=1&page=${last + 2}&pocket=0.0`, addPage: true };
+}

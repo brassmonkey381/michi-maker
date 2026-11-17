@@ -30,11 +30,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { pagesForCards } from '@/data/binderTypes';
+import { emptyPage, pagesForCards } from '@/data/binderTypes';
 import { fetchCardsWhere } from '@/data/guestFill';
 import { where } from '@/data/guestFillQuery';
 import { wizardSetLanguage, withoutEmptySet } from '@/data/wizardSets';
-import { wizardEditorHref } from '@/data/firstOpenPocket';
+import { walkthroughLanding, wizardEditorHref } from '@/data/firstOpenPocket';
 import { track } from '@/lib/analytics';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -238,10 +238,21 @@ function NewBinderWizard() {
       return;
     }
     const pages = pagesForCards(capped.map((c) => c.id));
+    // MIC-054: a one-Pokémon or one-artist binder opens on its last page for the walkthrough; when
+    // that page is exactly full it gets one empty page after it (within the page cap) to start on.
+    const landing = kind === 'pokemon' || kind === 'artist' ? walkthroughLanding('_', pages) : null;
+    if (landing?.addPage && pages.length < pageCap) pages.push(emptyPage(pages[0]?.rows ?? 3, pages[0]?.cols ?? 3, `Page ${pages.length + 1}`));
     const made = store.createBinder({ title, pages }, kind === 'three' ? { seed: { theme: 'wizard-three' } } : undefined);
     track('wizard.create', { wizard: 'new-binder', kind, cards: capped.length, pages: pages.length, capped: chosen.length > capped.length, ok: !!made });
     if (!made) {
       setRefused(true);
+      return;
+    }
+    if (kind === 'pokemon' || kind === 'artist') {
+      // MIC-054: the last part-filled page with the seeded walkthrough (step one: Complete); a
+      // binder whose cards fill their pages exactly opens on the empty page added above.
+      const madePages = store.getBinder(made.id)?.pages ?? made.pages;
+      router.replace((landing?.addPage ? wizardEditorHref(made.id, madePages) : walkthroughLanding(made.id, madePages).href) as Href);
       return;
     }
     if (FIRSTRUN_A && kind !== 'three') {

@@ -524,7 +524,10 @@ export function BinderPages({
   const phoneToggles = phone && !!ownedCards && ownedCards.size > 0;
   const ownedStrip = !!ownedIds && binderCompletion(binder.pages, ownedIds).total > 0;
   const priceLabelOn = labelsOn && labelFields.includes('price');
-  const finishSummary = usePriceSummaryWhen(ownedStrip && priceLabelOn);
+  // The summary hook keeps what it loaded when switched off, so gate it here too: Prices off means
+  // no "to finish" at once, not after a reload (MIC-061).
+  const loadedSummary = usePriceSummaryWhen(ownedStrip && priceLabelOn);
+  const finishSummary = priceLabelOn ? loadedSummary : null;
   const finishOf = (pg: DemoPage) =>
     finishSummary && ownedIds ? toFinish(pageCardIds(pg), ownedIds, (id) => finishSummary[id]?.cur) : null;
   // MIC-017 book: a visitor's binder reads as a book; the filmstrip gives way to a slim count.

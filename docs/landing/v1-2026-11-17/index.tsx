@@ -1,0 +1,428 @@
+import { Redirect, useRouter, type Href } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { sendBrowseCommand, type CardLanguage } from 'tcgscan-browse';
+
+import { AccountButton } from '@/components/auth/AccountButton';
+import { GuestBanner } from '@/components/auth/GuestBanner';
+import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
+import { BinderCarousel } from '@/components/binder/BinderCarousel';
+import { BinderCoverGrid } from '@/components/binder/BinderCoverGrid';
+import { HomeKeepGoing } from '@/components/HomeKeepGoing';
+import { HomeDesktopRow } from '@/components/HomeDesktopRow';
+import { flag } from '@/lib/flags';
+import { TcgscanPairing } from '@/components/TcgscanPairing';
+import { Toast, type ToastSpec } from '@/components/binder/Toast';
+import { CapGateDialog } from '@/components/monetization/CapGateDialog';
+import { useCapGate } from '@/hooks/use-cap-gate';
+import { useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
+import { catalogArtNote } from '@/data/ownedCopies';
+import { HomeRecent } from '@/components/HomeRecent';
+import { HomeSealed } from '@/components/HomeSealed';
+import { HomeSection } from '@/components/HomeSection';
+import { ProTrialPrompt } from '@/components/monetization/ProTrialPrompt';
+import { PeopleButton } from '@/components/people/PeopleButton';
+import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
+import { SettingsButton } from '@/components/settings/SettingsSheet';
+import { Wordmark } from '@/components/brand/Wordmark';
+import { DailyPuzzleCard } from '@/components/DailyPuzzleCard';
+import { PageShell } from '@/components/layout/PageShell';
+import { ThemedText } from '@/components/themed-text';
+import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { pagesForCards } from '@/data/binderTypes';
+import { similarityWall } from '@/data/similarityGate';
+import { hasFindSimilar } from '@/data/tiers';
+import { binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
+import { useTrial } from '@/hooks/use-trial';
+import { fetchAvatarsByUsername } from '@/data/profileRepo';
+import { track, trackLandingSkip } from '@/lib/analytics';
+import { useImageManifest } from '@/lib/catalogConfig';
+import { isSupabaseConfigured } from '@/lib/env';
+import { landingSkipTarget, markLandingSeen, shouldShowLanding } from '@/lib/landing';
+import { useBinders } from '@/store/binders';
+
+/**
+ * Printing language(s) the home browse surfaces show. The single control point for the home
+ * screen — `undefined` shows all languages (EN + JP). Set to `['en']` or `['ja']` to constrain
+ * every home carousel at once; a future language selector would feed its state in here.
+ */
+const HOME_LANGUAGES: CardLanguage[] | undefined = undefined;
+
+/** MIC-017 B2-A ('dev'): your binder first. */
+const HOME_FIRST = flag('home-first');
+
+export default function HomeScreen() {
+  // First-time web visitors get the marketing page; any landing CTA sets the seen flag
+  // before navigating back here, so this evaluates once per mount and never loops.
+  const [showLanding] = useState(shouldShowLanding);
+  // A tagged paid/social arrival skips the marketing page for My Binders (lib/landing). Marked seen
+  // and recorded inside the initializer so it happens exactly once per visit, never per render.
+  // Ordered AFTER showLanding on purpose: markLandingSeen must not flip that answer.
+  const [skipTo] = useState(() => {
+    const to = landingSkipTarget();
+    if (to) {
+      markLandingSeen();
+      trackLandingSkip(to);
+    }
+    return to;
+  });
+  const store = useBinders();
+  // Which of the user's physical cards each placement claims (see use-owned-copies): every
+  // add path resolves it the same way, so what a pocket costs no longer depends on the screen
+  // it was added from.
+  const assignCopies = useCopyAssigner();
+  const ownedCopies = useOwnedCopies();
+  // Aspirational-by-choice (never owned: no warning) vs ran-out-of-free-copies (say so).
+  const ownsCard = (cardId: string) => !!ownedCopies?.some((c) => c.cardId === cardId);
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+  // Where the web rail isn't present (native, or narrow web) Home carries the quick-nav to the
+  // personal + browse pages, so nothing the rail links to becomes unreachable.
+  const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
+  // A PHONE'S HOME IS SHORTER (owner, 2026-11-05: "consolidate the top five rows down to two or
+  // three"): the guide links live in the menu, the quick chips fit one row, and the product feeds
+  // start folded. The menu button says Menu, so people know it is how the site is navigated.
+  const phone = width < Breakpoints.phone;
+  const openBinder = (id: string) => router.push(`/binder/${id}`);
+
+  const [toast, setToast] = useState<ToastSpec | null>(null);
+  // Avatars for the builders of the featured binders, so a face on the shelf leads to the person
+  // who made it. Keyed by username because `authorName` is the only thing a featured row knows
+  // about its owner, and it doubles as the profile's address. One query for the whole carousel,
+  // after the binders are already on screen: a slow or failed lookup must never delay or blank a
+  // tile, it just leaves the lettered circle.
+  const [featuredAvatars, setFeaturedAvatars] = useState<Map<string, string | null>>(new Map());
+  const featuredAuthorKey = [
+    ...new Set(store.featuredBinders.map((b) => b.authorName).filter(Boolean) as string[]),
+  ]
+    .sort()
+    .join(',');
+  useEffect(() => {
+    if (!isSupabaseConfigured || !featuredAuthorKey) return;
+    let alive = true;
+    fetchAvatarsByUsername(featuredAuthorKey.split(','))
+      .then((m) => alive && setFeaturedAvatars(m))
+      .catch(() => {
+        /* no pictures; the lettered circles still render */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [featuredAuthorKey]);
+  const toastId = useRef(0);
+
+  // The card browser lives on /browse now; the Recent & Upcoming feed drives it through the
+  // shared command bus (which holds one pending command) and navigates there.
+  const openBrowse = () => router.push('/browse' as Href);
+  // NOTE: only these michi-side search INITIATORS are captured. Free-typed queries the user runs
+  // inside CatalogBrowser (in the external tcgscan-browse package) are NOT captured yet — that
+  // needs a package-level onEvent callback (a later task). No PII: no query text here, only kind.
+  // Find similar is PRO (see TierLimits.findSimilar). Gated HERE rather than by withholding the
+  // action, so the tap is answered where it was made instead of navigating to /browse to be
+  // refused on arrival.
+  const driveSimilar = (cardId: string) => {
+    // One free taste (store.taste): a free account's first Find similar goes through.
+    if (!store.taste.pass('findSimilar', hasFindSimilar(store.tier), 'home')) {
+      capGate.hit(similarityWall(store.tier, 'home'));
+      return;
+    }
+    track('card.search', { kind: 'similar' });
+    sendBrowseCommand({ type: 'similar', cardId });
+    openBrowse();
+  };
+  const driveViewSet = (cardId: string) => {
+    track('card.search', { kind: 'viewSet' });
+    sendBrowseCommand({ type: 'viewSet', cardId });
+    openBrowse();
+  };
+  // Sets carousel → open that set in the browser (catalog-free command, works for guests).
+  const driveViewSetById = (setId: string, series: string) => {
+    track('card.search', { kind: 'viewSetById' });
+    sendBrowseCommand({ type: 'viewSetById', setId, seriesId: series || undefined });
+    openBrowse();
+  };
+
+  // Hitting a cap ends the action the user was mid-way through, so every cap toast gets the
+  // prominent tone and a button out. Which way out depends on the tier (see limitCta): the plans
+  // page for accounts that can pay, the auth sheet for guests, whose cap is lifted by the free
+  // tier rather than by a plan.
+  const trial = useTrial();
+  const showLimitToast = (message: string) => {
+    toastId.current += 1;
+    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier, trial.state === 'eligible') });
+  };
+  // One wall, one report: a dialog on its first hit today, the toast after that.
+  const capGate = useCapGate(showLimitToast);
+  const showAddedToast = (binderId: string, title: string, note = '') => {
+    toastId.current += 1;
+    setToast({
+      id: toastId.current,
+      message: `Added to ${title}${note}`,
+      link: { text: title, onPress: () => openBinder(binderId) },
+    });
+  };
+
+  // Tapping a card in the Recent & Upcoming feed offers "Add to a binder…" — this holds the
+  // chosen card until the chooser sheet resolves it into an existing or brand-new binder.
+  const [addCardId, setAddCardId] = useState<string | null>(null);
+  const addToExistingBinder = (binderId: string) => {
+    if (!addCardId) return;
+    const title = store.getBinder(binderId)?.title ?? 'binder';
+    const entryIds = assignCopies([addCardId]);
+    const { added, unplaced, droppedClaims } = store.addCardsToBinder(binderId, [addCardId], {
+      entryIds,
+    });
+    // An owned card whose free copies ran out lands as a catalogue-art pocket - say so.
+    const short =
+      droppedClaims > 0 || (entryIds[0] === undefined && ownsCard(addCardId)) ? 1 : 0;
+    setAddCardId(null);
+    if (added > 0) showAddedToast(binderId, title, catalogArtNote(short, 1));
+    else if (unplaced > 0) {
+      capGate.hit({
+        limit: 'pagesPerBinder',
+        surface: 'home',
+        isGuest: store.tier === 'guest',
+        title: 'This binder is full',
+        message: pageLimitMessage(store.tier, store.limits),
+        trialMessage: pageTrialMessage(store.limits),
+        tier: store.tier,
+        used: store.getBinder(binderId)?.pages.length ?? 0,
+        cap: store.limits.pagesPerBinder,
+      });
+    }
+  };
+  const addToNewBinder = () => {
+    if (!addCardId) return;
+    if (store.atBinderLimit) {
+      setAddCardId(null);
+      capGate.hit({
+        limit: 'binders',
+        surface: 'home',
+        isGuest: store.tier === 'guest',
+        title: 'You are at your binder limit',
+        message: binderLimitMessage(store.tier, store.limits),
+        trialMessage: binderTrialMessage(store.limits),
+        tier: store.tier,
+        used: store.binderCount,
+        cap: store.limits.binders,
+      });
+      return;
+    }
+    // Atomic create-with-card — creating then adding would race the store snapshot.
+    const entryIds = assignCopies([addCardId]);
+    const binder = store.createBinder({
+      title: 'New binder',
+      pages: pagesForCards([addCardId], entryIds),
+    });
+    const short = entryIds[0] === undefined && ownsCard(addCardId) ? 1 : 0;
+    setAddCardId(null);
+    if (binder) showAddedToast(binder.id, binder.title, catalogArtNote(short, 1));
+  };
+
+  // Binder covers resolve their image straight from the card id (cardThumbUrl) via the lite
+  // image manifest — hydrate it so covers repaint with their hashed URLs (no-op in static mode).
+  useImageManifest();
+
+  if (showLanding) return <Redirect href={(skipTo ?? '/welcome') as Href} />;
+
+  return (
+    <>
+    <PageShell maxWidth={MaxContentWidthWide} back={false} footer={false}>
+          {/* Today's puzzle, when this person has not seen it. Renders nothing otherwise, including
+              for guests and for anyone who said no once. */}
+          {/* Wide screens under home-first carry the puzzle in their own panel (HomeDesktopRow). */}
+          {HOME_FIRST && !phone ? null : <DailyPuzzleCard />}
+          <View style={[styles.headerRow, phone && styles.headerRowPhone]}>
+            <ThemedText type="title" style={[styles.h1, phone && styles.h1Phone]}>
+              <Wordmark />
+            </ThemedText>
+            <View style={[styles.headerActions, phone && styles.headerActionsPhone]}>
+              {phone ? null : (
+                <>
+                  <Pressable
+                    onPress={() => router.push('/michi-method')}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.headerLink, pressed && styles.pressed]}>
+                    <ThemedText style={styles.headerLinkText}>Michi Method</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push('/search-guide' as Href)}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.headerLink, pressed && styles.pressed]}>
+                    <ThemedText style={styles.headerLinkText}>Search Guide</ThemedText>
+                  </Pressable>
+                </>
+              )}
+              {/* ONE ROW ON A PHONE (owner, 2026-11-06): the gear and the door sit with the
+                  title, top right, where the avatar lives once signed in. People is under the
+                  avatar's own sheet and the menu on a phone. */}
+              {phone ? null : <PeopleButton />}
+              <SettingsButton icon={phone} />
+              <AccountButton compact={phone} />
+            </View>
+          </View>
+
+          {/* Quick-nav to the personal + browse pages, only where the rail isn't shown. */}
+          {HOME_FIRST ? (
+            phone ? (
+              <HomeKeepGoing binders={store.userBinders} width={Math.min(width, MaxContentWidthWide)} phone={phone} />
+            ) : (
+              // Owner 2026-11-12: three panels across on desktop, Keep going + puzzle + What's new.
+              <HomeDesktopRow binders={store.userBinders} />
+            )
+          ) : null}
+          {railHidden && !HOME_FIRST ? (
+            <View style={styles.quickNav} testID="home-quick-nav">
+              <Pressable
+                onPress={() => router.push('/my-binders' as Href)}
+                style={({ pressed }) => [styles.quickChip, phone && styles.quickChipPhone, pressed && styles.pressed]}>
+                <Text style={styles.quickChipText}>My Binders ›</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/discover' as Href)}
+                style={({ pressed }) => [styles.quickChip, phone && styles.quickChipPhone, pressed && styles.pressed]}>
+                <Text style={styles.quickChipText}>{phone ? 'Discover ›' : 'Discover Binders ›'}</Text>
+              </Pressable>
+              <Pressable
+                onPress={openBrowse}
+                style={({ pressed }) => [styles.quickChip, phone && styles.quickChipPhone, pressed && styles.pressed]}>
+                <Text style={styles.quickChipText}>{phone ? 'Browse Cards ›' : 'Browse All Cards ›'}</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          <GuestBanner />
+
+          {store.featuredBinders.length > 0 ? (
+            <HomeSection title="Featured Binders">
+              {HOME_FIRST ? (
+                // A grid, two across on a phone, no sideways carousel (B2-A).
+                <BinderCoverGrid
+                  binders={store.featuredBinders}
+                  onOpen={openBinder}
+                  minTile={150}
+                  minCols={2}
+                  maxCols={4}
+                  pageSize={phone ? undefined : 8}
+                  testID="home-featured-grid"
+                  accessory={(b) =>
+                    b.authorName ? (
+                      <ProfileAvatarButton
+                        username={b.authorName}
+                        avatarUrl={featuredAvatars.get(b.authorName.toLowerCase())}
+                        size={TILE_AVATAR}
+                        onPress={() => router.push(`/u/${b.authorName}` as Href)}
+                      />
+                    ) : null
+                  }
+                />
+              ) : (
+              <BinderCarousel
+                binders={store.featuredBinders}
+                onOpen={openBinder}
+                accessory={(b) =>
+                  b.authorName ? (
+                    <ProfileAvatarButton
+                      username={b.authorName}
+                      avatarUrl={featuredAvatars.get(b.authorName.toLowerCase())}
+                      size={TILE_AVATAR}
+                      onPress={() => router.push(`/u/${b.authorName}` as Href)}
+                    />
+                  ) : null
+                }
+              />
+              )}
+            </HomeSection>
+          ) : null}
+
+          {/* Recent & Upcoming, now BELOW Featured Binders (owner call, 2026-09-24). It led the
+              page from 2026-09-15, on the reasoning that what is out this week is the reason to
+              come back; the binders are what the site is FOR, so they lead and the feed follows.
+              ONE feed for every auth state: the kit's RecentProducts runs catalog-free for guests
+              and from the catalog once signed in. */}
+          <HomeRecent
+            onFindSimilar={driveSimilar}
+            onViewSet={driveViewSet}
+            onOpenSet={driveViewSetById}
+            onAddToBinder={setAddCardId}
+          />
+
+          {/* Where a collection comes from. The curator card that sat above this moved to My
+              binders (2026-09-06), where it greets an account with no collection yet. */}
+          <View style={phone ? styles.curatePhone : styles.curate}>
+            <TcgscanPairing surface="home" />
+          </View>
+
+          {/* Catalog-free sealed carousel: renders for everyone (guests included). */}
+          <HomeSealed languages={HOME_LANGUAGES} />
+
+          <HomeSection title="Example Binders">
+            <BinderCarousel binders={store.exampleBinders} onOpen={openBinder} />
+          </HomeSection>
+      <View style={styles.shellTail} />
+    </PageShell>
+
+      {addCardId ? (
+        <AddToBinderSheet
+          binders={store.userBinders}
+          onPick={addToExistingBinder}
+          onNew={addToNewBinder}
+          onClose={() => setAddCardId(null)}
+        />
+      ) : null}
+      <Toast spec={toast} onDismiss={() => setToast(null)} />
+      <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} guestAuth={capGate.guestAuth} onCloseGuestAuth={capGate.closeGuestAuth} />
+      {/* See ProTrialPrompt: a fixed cohort, asked once. Null for everyone else. */}
+      <ProTrialPrompt surface="home" />
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  // The old scroll view's bottom room, for the phone's menu button (PageShell has its own gutter).
+  shellTail: { height: BottomTabInset + Spacing.four },
+  curate: { marginTop: 8, marginBottom: 20 },
+  // No band of its own between two folded feeds (owner, 2026-11-06).
+  curatePhone: { marginTop: 0, marginBottom: 0 },
+  // WRAPS AT PHONE WIDTH. The 34pt title plus the actions measured past the right edge at 375px
+  // and the page does not scroll sideways, so People, Settings and Sign in were simply not on the
+  // screen: you could not sign in from the app's busiest page. The row now wraps, and the title
+  // shrinks before anything is pushed off.
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.four,
+    gap: Spacing.two,
+    flexWrap: 'wrap',
+  },
+  h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40, flexShrink: 1 },
+  // The phone header is one row with even spacing above and below (owner, 2026-11-06).
+  headerRowPhone: { flexWrap: 'nowrap', marginBottom: Spacing.three, paddingTop: Spacing.two },
+  h1Phone: { fontSize: 30, lineHeight: 36 },
+  headerActionsPhone: { flexWrap: 'nowrap', flexShrink: 0, gap: Spacing.three },
+  // `minWidth: 0` and a shrink because react-native-web defaults every flex child to
+  // `flexShrink: 0`: without them the row is wider than its parent, and a row that cannot shrink
+  // never reaches the point where its own flexWrap would fire.
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  headerLink: { padding: Spacing.one },
+  headerLinkText: { fontSize: FontSize.control, fontWeight: Weight.semibold, lineHeight: 28 },
+  quickNav: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginBottom: Spacing.three },
+  quickChip: {
+    backgroundColor: Palette.panel,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+  },
+  // Three on one row at 375 wide.
+  quickChipPhone: { paddingHorizontal: Spacing.two, paddingVertical: 10 },
+  quickChipText: { color: Palette.ink2, fontSize: FontSize.label, fontWeight: Weight.semibold },
+  pressed: { opacity: 0.7 },
+});

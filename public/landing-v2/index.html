@@ -1,0 +1,1837 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Michi-Maker: binder pages worth staring at</title>
+<meta name="description" content="Compose curated Pokémon card binder pages around one card, then print them at true card size and slide them into a real binder.">
+<!--
+  Michi-Maker landing v2 (MKT-040), ported from the approved Landing Lab prototype (triage-studio state/mkt040-final/michi,
+  2026-11-17). Served at /landing-v2 (asset paths are absolute so it works with or without the trailing slash). Since the
+  swap (MKT-040) it is where "/" sends a first web visit (src/lib/landing.ts LANDING_PAGE); the old /welcome route is kept.
+  Self-contained: fonts/ (Fraunces + Permanent Marker from the app's public/fonts; Inter, OFL 1.1, Rasmus Andersson,
+  from tcgscan-app public/fonts), img/c/ (card art from the marketing set-kit catalogue), img/art-*.webp (Pexels / Pixabay,
+  credited in the footer), img/studio*.webp (a crop of the redesign QA capture M5-hand-toast-after.png, DEV badge cropped off),
+  media/ (retimed notext cuts from marketing-studio, see triage-studio state/mkt040-final/michi/tools/retime2.sh).
+-->
+<link rel="preload" as="font" type="font/woff2" crossorigin href="/landing-v2/fonts/fraunces-latin-var.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="/landing-v2/fonts/Inter-400.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="/landing-v2/fonts/Inter-600.woff2">
+<style>
+/* font-display: optional + preload = the first paint already uses the real fonts, or never swaps (CLS 0 either way) */
+@font-face { font-family: 'Fraunces'; src: url('/landing-v2/fonts/fraunces-latin-var.woff2') format('woff2'); font-weight: 100 1000; font-display: optional; }
+@font-face { font-family: 'Inter'; src: url('/landing-v2/fonts/Inter-400.woff2') format('woff2'); font-weight: 400; font-display: optional; }
+@font-face { font-family: 'Inter'; src: url('/landing-v2/fonts/Inter-500.woff2') format('woff2'); font-weight: 500; font-display: optional; }
+@font-face { font-family: 'Inter'; src: url('/landing-v2/fonts/Inter-600.woff2') format('woff2'); font-weight: 600; font-display: optional; }
+@font-face { font-family: 'Inter'; src: url('/landing-v2/fonts/Inter-700.woff2') format('woff2'); font-weight: 700 800; font-display: optional; }
+@font-face { font-family: 'Permanent Marker'; src: url('/landing-v2/fonts/permanent-marker-latin.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+/* metric-matched fallbacks, in case a font is not ready in time */
+@font-face { font-family: 'Inter Fallback'; src: local('Arial'), local('Helvetica'); size-adjust: 107%; ascent-override: 90.5%; descent-override: 22.5%; line-gap-override: 0%; }
+@font-face { font-family: 'Fraunces Fallback'; src: local('Georgia'); size-adjust: 104%; ascent-override: 94%; descent-override: 24.5%; line-gap-override: 0%; }
+
+:root {
+  --paper: #FAF6EF;
+  --mat: #F2ECE1;
+  --mat-deep: #E7DFCF;
+  --surface: #FFFFFF;
+  --bronze: #8A6B45;
+  --bronze-ink: #6E5433;
+  --ink: #1D1A15;
+  --ink-2: #5C5548;
+  --hair: rgba(29, 26, 21, .12);
+  --accent: #2F6FED;
+  --accent-ink: #FFFFFF;
+  --desk: #1B1814;
+  --desk-ink: #F5EFE4;
+  --desk-ink-2: #C3BAA9;
+  --pocket: #191714;
+  --cardback: #F4ECDC;
+  --logo-brown: #8A6B45;
+  --tint: #F6DE9A;
+  --tint-2: #E7B93E;
+  --font-brand: 'Fraunces', 'Fraunces Fallback', Georgia, serif;
+  --font-body: 'Inter', 'Inter Fallback', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-marker: 'Permanent Marker', 'Segoe Print', 'Comic Sans MS', cursive;
+  --ease-out: cubic-bezier(.2, .7, .1, 1);
+  --ease-io: cubic-bezier(.7, 0, .2, 1);
+  --shadow-lg: 0 1px 2px rgb(0 0 0 / .06), 0 12px 32px -8px rgb(0 0 0 / .18), 0 40px 80px -24px rgb(0 0 0 / .22);
+  --shadow-md: 0 1px 2px rgb(0 0 0 / .06), 0 8px 24px -10px rgb(0 0 0 / .22);
+  --pad-section: clamp(96px, 14vh, 190px);
+  --gutter: clamp(16px, 4vw, 48px);
+  --max: 1280px;
+  --display: clamp(2.75rem, 4.2vw + 1rem, 5.75rem);
+  --h2: clamp(2.125rem, 3vw + 1rem, 4.25rem);
+  --h3: clamp(1.375rem, 1vw + 1rem, 1.75rem);
+  --body: clamp(1.0625rem, .2vw + 1rem, 1.1875rem);
+  color-scheme: light;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 80px; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 var(--body)/1.55 var(--font-body);
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+img, video { display: block; max-width: 100%; }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip { position: absolute; left: 16px; top: -60px; z-index: 100; background: var(--ink); color: var(--paper); padding: 12px 18px; border-radius: 999px; text-decoration: none; }
+.skip:focus { top: 12px; }
+.wrap { width: min(100% - 2 * var(--gutter), var(--max)); margin-inline: auto; }
+.kicker { font: 700 .8125rem/1 var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: var(--bronze-ink); margin: 0 0 20px; }
+h1, h2, h3 { font-family: var(--font-brand); font-weight: 800; letter-spacing: -.016em; word-spacing: .07em; margin: 0; font-variation-settings: 'opsz' 144; text-wrap: balance; }
+h2 { font-size: var(--h2); line-height: .98; }
+h3 { font-size: var(--h3); line-height: 1.15; letter-spacing: -.008em; font-weight: 700; font-variation-settings: 'opsz' 48; word-spacing: .03em; }
+.x { font-family: var(--font-body); font-weight: 400; letter-spacing: 0; padding: 0 .04em; }
+p { margin: 0; }
+.lede { color: var(--ink-2); max-width: 56ch; }
+.marker { font-family: var(--font-marker); font-weight: 400; letter-spacing: 0; }
+.pro { display: inline-grid; place-items: center; height: 1.6em; padding: 0 .55em; border-radius: 6px; background: var(--ink); color: #F6D27A; font: 800 .6875rem/1 var(--font-body); letter-spacing: .09em; vertical-align: .2em; }
+.pill .pro { background: rgb(0 0 0 / .28); color: #FFE7A6; margin-left: 2px; vertical-align: 0; }
+
+/* ── Buttons ─────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 0 26px;
+  border-radius: 999px; font-weight: 600; font-size: 1.0625rem; text-decoration: none; border: 0; cursor: pointer;
+  transition: transform .25s var(--ease-out), box-shadow .25s var(--ease-out), background-color .2s;
+}
+.btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 1px 2px rgb(47 111 237 / .3), 0 10px 24px -8px rgb(47 111 237 / .55); }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgb(47 111 237 / .3), 0 18px 34px -10px rgb(47 111 237 / .6); }
+.btn:active { transform: scale(.97); }
+.tlink { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 4px; font-weight: 600; text-decoration: none; }
+.tlink span { transition: transform .25s var(--ease-out); display: inline-block; }
+.tlink:hover { text-decoration: underline; text-underline-offset: 4px; }
+.tlink:hover span { transform: translateX(4px); }
+
+/* ── Nav ─────────────────────────────── */
+.nav {
+  position: fixed; inset: 0 0 auto; z-index: 50; height: 68px; display: flex; align-items: center;
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  border-bottom: 1px solid transparent; transition: transform .45s var(--ease-io), border-color .3s;
+}
+.nav.scrolled { border-bottom-color: var(--hair); }
+.nav.hide { transform: translateY(-100%); }
+.nav .wrap { display: flex; align-items: center; gap: 20px; width: min(100% - 2 * var(--gutter), var(--max)); }
+.brand { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; text-decoration: none; margin-right: auto; }
+.logo { width: 34px; height: 34px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 3px; padding: 2px; border-radius: 0; background: none; box-shadow: none; }
+.logo i { border-radius: 2.5px; background: rgba(128,128,128,.35); }
+.logo i.span { grid-column: 1 / span 2; background: var(--accent); }
+.wordmark { font: 700 1.375rem/1 var(--font-brand); letter-spacing: -.02em; }
+.wordmark b { color: var(--accent); font-weight: 700; }
+.nav-links { display: flex; gap: 2px; list-style: none; margin: 0; padding: 0; }
+.nav-links a { display: flex; align-items: center; min-height: 44px; padding: 0 13px; border-radius: 999px; text-decoration: none; font-weight: 500; font-size: .9375rem; color: var(--ink-2); transition: background .2s, color .2s; }
+.nav-links a:hover { background: var(--mat); color: var(--ink); }
+.nav .btn { min-height: 44px; padding: 0 18px; font-size: .9375rem; }
+.progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: 100%; background: var(--accent); transform-origin: 0 50%; transform: scaleX(var(--p, 0)); }
+@supports (animation-timeline: scroll()) {
+  .progress { animation: grow linear both; animation-timeline: scroll(root); }
+  @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+}
+@media (max-width: 960px) { .nav-links { display: none; } }
+@media (max-width: 400px) { .nav .btn { padding: 0 14px; } .wordmark { font-size: 1.2rem; } }
+
+/* ── Hero ─────────────────────────────── */
+@property --tint { syntax: '<color>'; inherits: true; initial-value: #F6DE9A; }
+@property --tint-2 { syntax: '<color>'; inherits: true; initial-value: #E7B93E; }
+@property --cover { syntax: '<color>'; inherits: true; initial-value: #3B2C0C; }
+.hero { position: relative; padding: calc(68px + clamp(20px, 5vh, 56px)) 0 clamp(64px, 9vh, 120px); overflow: clip; transition: --tint .9s var(--ease-io), --tint-2 .9s var(--ease-io); }
+.hero .wrap {
+  display: grid; width: min(100% - 2 * var(--gutter), var(--max));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); grid-template-rows: 1fr auto auto auto auto auto 1fr;
+  column-gap: clamp(32px, 5vw, 80px); min-height: min(calc(100svh - 68px - clamp(20px, 5vh, 56px) - 40px), 860px);
+}
+.hero .kicker { grid-area: 2 / 1; }
+.hero h1 { grid-area: 3 / 1; font-size: var(--display); line-height: .94; margin-bottom: 28px; }
+.hero h1 em { font-style: italic; font-weight: 600; color: var(--bronze-ink); }
+.hero h1 .ln { display: block; }
+.hero .lede { grid-area: 4 / 1; font-size: clamp(1.0625rem, .4vw + 1rem, 1.25rem); margin-bottom: 34px; }
+.hero .cta-row { grid-area: 5 / 1; }
+.hero .fine { grid-area: 6 / 1; }
+.cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+.fine { margin-top: 18px; font-size: .9375rem; color: var(--ink-2); }
+.fine b { color: var(--ink); font-weight: 600; }
+.stage { grid-column: 2; grid-row: 1 / -1; align-self: center; position: relative; isolation: isolate; display: grid; justify-items: center; gap: 18px; }
+.blob {
+  position: absolute; z-index: -1; inset: -16% -22% -6% -22%; pointer-events: none;
+  background:
+    radial-gradient(50% 44% at 50% 40%, color-mix(in srgb, var(--tint) 90%, transparent), transparent 72%),
+    radial-gradient(30% 30% at 80% 72%, color-mix(in srgb, var(--tint-2) 60%, transparent), transparent 72%),
+    radial-gradient(26% 26% at 18% 20%, color-mix(in srgb, var(--tint-2) 35%, transparent), transparent 72%);
+  filter: blur(8px);
+}
+.binder-wrap { perspective: 1400px; width: min(100%, 500px, calc((100svh - 330px) * .74)); min-width: min(100%, 300px); }
+.binder {
+  position: relative; display: grid; grid-template-columns: 11% 1fr; padding: 4.5% 4.5% 4.5% 0;
+  border-radius: 22px; background: linear-gradient(140deg, rgb(255 255 255 / .10), transparent 40%), color-mix(in srgb, var(--cover) 92%, #000);
+  box-shadow: var(--shadow-lg), inset 0 0 0 1px rgb(255 255 255 / .06), inset 0 -10px 30px rgb(0 0 0 / .25);
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) rotate(-1.2deg); transform-style: preserve-3d;
+  transition: transform .5s var(--ease-out), --cover .9s var(--ease-io);
+}
+.binder.tracking { transition: transform .12s linear, --cover .9s var(--ease-io); }
+.rings { display: grid; align-content: space-evenly; justify-items: center; padding: 18% 0; }
+.rings i { width: 62%; aspect-ratio: 2.3; border-radius: 999px; background: linear-gradient(180deg, #E9E3D7, #9F978A 60%, #CFC8BB); box-shadow: 0 2px 3px rgb(0 0 0 / .45), inset 0 -1px 0 rgb(0 0 0 / .25); }
+.hero .page { box-shadow: 0 2px 6px rgb(0 0 0 / .35); }
+.tag {
+  position: absolute; left: 50%; bottom: 6%; translate: -50% 0; white-space: nowrap; z-index: 3;
+  font: 700 clamp(9px, 2.6cqw, 13px)/1 var(--font-body); padding: .5em .9em; border-radius: 999px;
+  background: #F6D27A; color: #3A2A0A; box-shadow: 0 2px 6px rgb(0 0 0 / .35);
+}
+.hero-panel { display: grid; justify-items: center; gap: 12px; position: relative; width: 100%; }
+.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px 0 10px; flex: none;
+  border-radius: 999px; border: 1px solid var(--hair); background: var(--surface); cursor: pointer;
+  font-weight: 600; font-size: .9375rem; box-shadow: 0 1px 2px rgb(0 0 0 / .05); scroll-snap-align: center;
+  transition: transform .25s var(--ease-out), box-shadow .25s, border-color .2s, background .2s;
+}
+.chip:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.chip:active, .chip.tap { transform: scale(.94); }
+.chip .dot { width: 22px; height: 22px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 2px rgb(255 255 255 / .6), 0 0 0 1px rgb(0 0 0 / .08); }
+.chip[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.chip.arrange { background: var(--accent); color: #fff; border-color: transparent; padding: 0 8px 0 18px; gap: 8px; }
+.chip.arrange svg { width: 16px; height: 16px; }
+.take-badge { display: inline-grid; place-items: center; min-width: 4.4em; height: 28px; padding: 0 9px; border-radius: 999px; background: rgb(255 255 255 / .2); font-size: .8125rem; font-weight: 700; }
+.take-badge[hidden] { display: none; }
+.chip.arrange:has(.take-badge[hidden]) { padding-right: 18px; }
+.story { font: italic 600 clamp(1.0625rem, .4vw + 1rem, 1.25rem)/1.3 var(--font-brand); text-align: center; min-height: 2.6em; max-width: 40ch; text-wrap: balance; color: var(--ink); display: grid; place-items: center; }
+.modes-row { position: relative; display: flex; justify-content: center; }
+.seg.modes { background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / .06), inset 0 0 0 1px var(--hair); }
+.seg.modes button { padding: 0 16px; }
+.seg.modes button[aria-pressed="true"] { background: var(--ink); color: var(--paper); box-shadow: none; }
+/* all three option rows share one grid cell, so switching modes never changes the panel height */
+.opts-box { display: grid; width: 100%; justify-items: center; }
+.opts-box > .opts { grid-area: 1 / 1; align-self: start; }
+.opts[hidden] { display: flex; visibility: hidden; }
+.seg.modes .pro { margin-left: 5px; vertical-align: .12em; font-size: .625rem; }
+.seg.modes button[aria-pressed="true"] .pro { background: #F6D27A; color: var(--ink); }
+.chip.sim .pro { background: rgb(0 0 0 / .28); color: #FFE7A6; vertical-align: 0; font-size: .625rem; }
+.chip.tq { padding: 0 16px; gap: 0; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: .875rem; }
+.chip.tq .q { color: var(--ink-2); font-weight: 500; }
+.chip.sim { padding: 0 8px 0 16px; }
+.chip.sim .approx { font-size: 1.2em; line-height: 1; }
+.chip.sim.waiting { background: color-mix(in srgb, var(--accent) 55%, var(--paper)); }
+.chip.ghosty { padding: 0 16px; }
+.chip.ghosty[hidden] { display: none; }
+/* the note sits left of the three mode buttons; its arrow ends at the first one */
+.note { position: absolute; right: calc(100% + 6px); top: 50%; translate: 0 -62%; display: flex; align-items: center; gap: 4px; width: max-content; color: var(--bronze-ink); font-size: 1.1875rem; line-height: 1.05; rotate: -4deg; text-align: right; pointer-events: none; }
+.note svg { flex: none; width: 58px; translate: 0 10px; }
+@media (max-width: 1240px) { .note { display: none; } }
+/* hero pockets: empty (a dashed + pocket) and picked (for Find Similar) */
+.hero .pocket.empty .card3d { opacity: 0; }
+.hero .pocket.empty::before { content: '+'; position: absolute; inset: 0; display: grid; place-items: center; border-radius: inherit; border: 1.5px dashed rgb(255 255 255 / .28); color: rgb(255 255 255 / .45); font: 300 9cqw/1 var(--font-body); }
+.hero .pocket .pick { position: absolute; z-index: 8; right: -1.6cqw; top: -1.6cqw; width: 7.5cqw; height: 7.5cqw; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font: 800 4.2cqw/1 var(--font-body); box-shadow: 0 0 0 .7cqw #fff; scale: 0; transition: scale .3s cubic-bezier(.3, 1.6, .4, 1); }
+.hero .pocket.picked { box-shadow: 0 0 0 .8cqw #fff, 0 0 0 1.7cqw var(--accent); }
+.hero .pocket.picked .pick { scale: 1; }
+.hero .sheet.picking .pocket.pickable:not(.picked) { animation: nudge 1.6s ease-in-out infinite; }
+@keyframes nudge { 0%, 100% { box-shadow: 0 0 0 0 rgb(47 111 237 / 0); } 50% { box-shadow: 0 0 0 1.4cqw rgb(47 111 237 / .55); } }
+.hand { position: absolute; z-index: 20; left: 0; top: 0; width: 58px; pointer-events: none; opacity: 0; filter: drop-shadow(0 8px 10px rgb(0 0 0 / .25)); }
+@media (max-width: 899px) {
+  .hero { padding-top: calc(68px + 20px); }
+  .hero .wrap { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; min-height: 0; }
+  .hero .kicker, .hero h1, .hero .lede, .hero .cta-row, .hero .fine, .stage { grid-area: auto; grid-column: 1; grid-row: auto; }
+  .hero h1 { margin-bottom: 22px; }
+  .stage { margin-bottom: 28px; gap: 14px; }
+  .binder-wrap { width: min(100%, 330px); min-width: 0; }
+  .chips { gap: 8px 6px; }
+  .chip { padding: 0 12px 0 8px; gap: 6px; font-size: .875rem; }
+  .chip .dot { width: 20px; height: 20px; }
+  .seg.modes { gap: 2px; padding: 3px; }
+  .seg.modes button { min-width: 0; padding: 0 10px; font-size: .875rem; }
+  .seg.modes .pro { margin-left: 3px; padding: 0 .4em; }
+  .story { font-size: 1.0625rem; order: 2; }
+  .cta-row { gap: 10px 12px; }
+  .cta-row .tlink { font-size: 1rem; }
+  .hero .lede { margin-bottom: 26px; }
+}
+
+/* ── Binder pages (shared) ─────────────────── */
+.page { position: relative; container-type: inline-size; aspect-ratio: 100 / 135.04; border-radius: 14px; }
+.sheet { position: absolute; inset: 0; padding: 4cqw; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.2cqw; align-content: start; background: linear-gradient(160deg, #24211D, var(--pocket) 55%); border-radius: inherit; }
+.pocket { position: relative; aspect-ratio: 5 / 7; border-radius: 1.4cqw; overflow: hidden; background: #0E0D0B; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .05); }
+.pocket img { width: 100%; height: 100%; object-fit: cover; }
+.pocket .art { position: absolute; background-size: cover; background-position: center; }
+.pocket::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 5;
+  background: linear-gradient(118deg, transparent 38%, rgb(255 255 255 / .16) 47%, transparent 56%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .10), inset 0 6px 8px -6px rgb(255 255 255 / .25); }
+/* hero cards have two faces: the art, and the app's cream card back */
+.hero .pocket { cursor: pointer; perspective: 700px; overflow: visible; background: #0E0D0B; }
+.card3d { position: absolute; inset: 0; transform-style: preserve-3d; }
+.card3d > * { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 1.4cqw; overflow: hidden; }
+.card3d .cb { transform: rotateY(180deg); }
+.cb { container-type: inline-size; background: radial-gradient(120% 90% at 50% 40%, #FBF5E8, var(--cardback)); }
+.cb .in { position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 3cqw #E6D7B8, inset 0 0 0 3.8cqw #CDB78F; display: grid; place-content: center; justify-items: center; gap: 8cqw; }
+.cb .lg { width: 40cqw; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4cqw; }
+.cb .lg i { aspect-ratio: 1; border-radius: 2.5cqw; background: rgba(128,128,128,.35); }
+.cb .lg i.span { grid-column: 1 / span 2; aspect-ratio: auto; background: var(--accent); }
+.cb b { font: 700 11.5cqw/1 var(--font-brand); color: #5B4428; letter-spacing: -.01em; white-space: nowrap; }
+.sheet.arranging .pocket { perspective: none; }
+.sheet.arranging .pocket .card3d, .sheet.arranging .pocket .tag { z-index: 6; }
+.sheet.arranging .pocket .card3d { filter: drop-shadow(0 10px 14px rgb(0 0 0 / .5)); }
+
+/* ── Statement ─────────────────── */
+.statement { padding: var(--pad-section) 0; background: linear-gradient(var(--paper), var(--mat) 30%, var(--mat) 70%, var(--paper)); }
+.statement #statement { font: 700 clamp(1.75rem, 2.6vw + 1rem, 4rem)/1.14 var(--font-brand); letter-spacing: -.02em; max-width: 30ch; text-wrap: pretty; }
+.statement .kicker { margin-bottom: 28px; }
+.statement em { font-style: italic; color: var(--bronze-ink); }
+.im { display: inline-flex; align-items: center; gap: .08em; height: .82em; vertical-align: -.04em; margin: 0 .02em 0 .16em; transform-origin: 50% 70%; }
+.im img { height: 100%; width: auto; aspect-ratio: 5 / 7; object-fit: cover; border-radius: .08em; box-shadow: 0 .04em .12em rgb(0 0 0 / .3); }
+.im.anchor img { rotate: -6deg; }
+.im.dots i { width: .34em; height: .34em; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 .04em rgb(255 255 255 / .5); }
+.im.ladder { gap: .05em; }
+.statement .nw { white-space: nowrap; }
+.im.one img { rotate: 5deg; }
+.im.approx { justify-content: center; width: .9em; border-radius: .18em; background: var(--accent); color: #fff; font: 700 .62em/1 var(--font-body); height: 1.3em; vertical-align: .08em; box-shadow: 0 .04em .12em rgb(0 0 0 / .3); }
+.im.fanned { gap: 0; }
+.im.fanned img + img { margin-left: -.28em; }
+.im.fanned img:nth-child(1) { rotate: -10deg; } .im.fanned img:nth-child(3) { rotate: 10deg; }
+.im.fanned img:nth-child(2) { position: relative; z-index: 1; translate: 0 -.04em; }
+.im.slice { gap: .06em; }
+.im.slice i { height: 100%; aspect-ratio: 5 / 7; border-radius: .08em; background: url('/landing-v2/img/art-tide-bottom.webp') no-repeat; background-size: 220% 100%; background-position: calc(var(--x) * 100%) 50%; box-shadow: 0 .04em .12em rgb(0 0 0 / .3); }
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .statement .w { animation: lit linear both; animation-timeline: view(); animation-range: cover calc(18% + var(--i) * .85%) cover calc(30% + var(--i) * .85%); }
+    .statement .im { animation: pop linear both; animation-timeline: view(); animation-range: cover calc(22% + var(--i) * .85%) cover calc(30% + var(--i) * .85%); }
+    @keyframes lit { from { opacity: .16; } to { opacity: 1; } }
+    @keyframes pop { from { opacity: .16; transform: scale(.82) rotate(-6deg); } to { opacity: 1; transform: none; } }
+  }
+}
+
+/* ── Tools: sticky scrollytelling ─────────────────── */
+.tools { padding: var(--pad-section) 0 calc(var(--pad-section) * .5); }
+.sec-head { margin-bottom: clamp(48px, 8vh, 96px); max-width: 780px; }
+.sec-head .lede { margin-top: 24px; }
+.scrolly { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(40px, 6vw, 96px); }
+.scrolly-stage { position: sticky; top: 11svh; height: 80svh; display: grid; align-content: center; justify-items: center; gap: 18px; }
+.browser { position: relative; border-radius: 20px; background: #141210; overflow: hidden; box-shadow: var(--shadow-lg); border: 1px solid rgb(0 0 0 / .5); }
+.browser .bar { height: 38px; display: flex; align-items: center; gap: 7px; padding: 0 14px; background: #24211C; border-bottom: 1px solid rgb(255 255 255 / .06); }
+.browser .bar i { width: 10px; height: 10px; border-radius: 50%; background: #4A443A; }
+.browser .bar span { margin-left: 10px; flex: 1; max-width: 220px; height: 22px; border-radius: 999px; background: #34302A; color: #B9B0A0; font: 500 11px/22px var(--font-body); text-align: center; letter-spacing: .02em; }
+.screen { position: relative; aspect-ratio: 4 / 5; background: var(--sbg, #1A1714); transition: background-color .6s var(--ease-io); overflow: hidden; }
+.screen video, .screen .poster, .screen .ff { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.screen .ff { opacity: 0; pointer-events: none; z-index: 1; transition: opacity .5s var(--ease-io); }
+.screen .ff.on { opacity: 1; }
+.clip { position: absolute; inset: 0; opacity: 0; transition: opacity .6s var(--ease-io); }
+.clip.on { opacity: 1; z-index: 1; }
+.clip .endf { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .35s var(--ease-out); z-index: 1; }
+.clip.early .endf { opacity: 1; }
+.scrolly-stage .browser { width: min(100%, calc((80svh - 110px) * .8 + 2px)); }
+.stage-cap { display: flex; align-items: center; gap: 16px; font-weight: 600; font-size: .9375rem; color: var(--ink-2); min-height: 44px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 600; font-size: .875rem; line-height: 1.2; width: max-content; }
+.pill.ghost { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--hair); }
+.bars { display: flex; gap: 6px; }
+.bars i { position: relative; width: 26px; height: 4px; border-radius: 4px; background: var(--mat-deep); overflow: hidden; transition: width .4s var(--ease-io); }
+.bars i.on { width: 40px; }
+.bars i::after { content: ''; position: absolute; inset: 0; background: var(--ink); transform-origin: 0 50%; transform: scaleX(var(--f, 0)); }
+.steps { display: grid; }
+.step { min-height: 118svh; display: grid; align-content: center; gap: 18px; padding: 24px 0; opacity: .55; transition: opacity .5s var(--ease-io); }
+.step:first-child { min-height: 90svh; align-content: start; padding-top: 14svh; }
+.step.on { opacity: 1; }
+.step .num { font: 600 .875rem/1 var(--font-body); color: var(--bronze-ink); letter-spacing: .1em; }
+.step h3 { font-size: clamp(1.75rem, 1.6vw + 1rem, 2.625rem); line-height: 1.08; font-weight: 750; letter-spacing: -.015em; }
+.step p { color: var(--ink-2); max-width: 44ch; }
+.step .small { font-size: .9375rem; }
+.step code { font: 600 .92em/1 ui-monospace, 'Cascadia Mono', Consolas, monospace; background: var(--mat); padding: .2em .4em; border-radius: 6px; color: var(--ink); }
+.step figure { display: none; margin: 8px 0 0; }
+.replay {
+  position: absolute; right: 12px; bottom: 12px; z-index: 4; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 46px; padding: 0 16px; border-radius: 999px; border: 0; cursor: pointer;
+  background: rgb(20 18 15 / .8); color: #F5EFE4; font-size: .8125rem; font-weight: 600;
+  backdrop-filter: blur(8px); opacity: 0; translate: 0 6px; pointer-events: none;
+  transition: opacity .35s var(--ease-out), translate .35s var(--ease-out);
+}
+.replay svg { width: 12px; height: 12px; }
+.vid.done .replay, .vid.idle .replay { opacity: 1; translate: 0 0; pointer-events: auto; }
+@media (max-width: 899px) {
+  .scrolly { grid-template-columns: minmax(0, 1fr); }
+  .scrolly-stage { display: none; }
+  .step, .step:first-child { min-height: 0; opacity: 1; padding: 0 0 80px; align-content: start; }
+  .step figure { display: block; }
+  .step .browser { width: min(100%, 440px); }
+}
+
+/* ── Studio: the real redesign. The shot tilts toward you and grows, scroll-linked, until it spans the page. ── */
+.studio { padding: var(--pad-section) 0; background: linear-gradient(var(--paper), var(--mat) 18%); overflow: clip; }
+.studio-head { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px clamp(40px, 6vw, 96px); align-items: end; }
+.studio-head .lede { padding-bottom: .4em; text-wrap: pretty; }
+.shot-track { position: relative; margin-top: clamp(96px, 12vh, 140px); perspective: 1400px; perspective-origin: 50% 0; }
+.shot { --p: 1; position: relative; width: 100%; transform-origin: 50% 0;
+  transform: translateY(calc((1 - var(--p)) * 60px)) rotateX(calc((1 - var(--p)) * 34deg)) scale(calc(.5 + var(--p) * .5)); will-change: transform; }
+.shot .browser { background: #fff; border-color: rgb(0 0 0 / .18); border-radius: calc((1 - var(--p)) * 28px); box-shadow: 0 2px 4px rgb(0 0 0 / .05), 0 30px 80px -30px rgb(60 40 10 / .45); }
+.shot .browser .bar { background: #EDE7DC; border-bottom-color: var(--hair); height: 44px; padding-inline: max(14px, calc(50% - var(--max) / 2)); }
+.shot .browser .bar i { background: #CFC6B6; }
+.shot .browser .bar span { background: #fff; color: var(--ink-2); max-width: 300px; }
+.shot picture { display: block; background: #F6F1E8; }
+.shot picture img { display: block; width: min(100%, 1680px); margin-inline: auto; height: auto; aspect-ratio: 1280 / 756; }
+.ann { position: absolute; z-index: 2; margin: 0; color: var(--ink); font-size: clamp(1rem, .6vw + .8rem, 1.375rem); line-height: 1.05; white-space: nowrap; pointer-events: none; }
+.ann span { display: inline-block; background: #FFF4C9; padding: .3em .55em .25em; border-radius: 6px; box-shadow: 0 6px 14px -6px rgb(0 0 0 / .35); rotate: var(--r, -3deg); }
+.ann svg { position: absolute; width: 40px; height: 60px; color: var(--ink); overflow: visible; }
+.ann svg path { stroke-dasharray: 90; stroke-dashoffset: 0; }
+.ann.top { bottom: calc(100% + 4px); } .ann.top svg { top: calc(100% + 2px); }
+.ann.bot { top: calc(100% + 6px); } .ann.bot svg { bottom: calc(100% + 2px); transform: scaleY(-1); }
+/* labels sit over the image's own columns: the image is centred and at most 1680px wide */
+.a1 { left: max(var(--gutter), calc(50% - 840px + 20px)); --r: -3deg; } .a1 svg { left: 22%; }
+.a4 { left: calc(50% - min(50%, 840px) + min(100%, 1680px) * .26); --r: 2deg; } .a4 svg { left: 40%; }
+.a3 { right: calc(50% - min(50%, 840px) + min(100%, 1680px) * .14); --r: -2deg; } .a3 svg { left: 18%; transform: scaleX(-1); }
+.a2 { left: calc(50% - min(50%, 840px) + min(100%, 1680px) * .11); --r: 2deg; } .a2 svg { left: 62%; }
+.shot { margin-bottom: 72px; }
+@media (prefers-reduced-motion: no-preference) {
+  .js .ann span { opacity: 0; scale: .7; transition: opacity .4s var(--ease-out), scale .5s cubic-bezier(.3, 1.6, .4, 1); transition-delay: calc(var(--d) * 160ms); }
+  .js .ann svg path { stroke-dashoffset: 90; transition: stroke-dashoffset .7s var(--ease-out); transition-delay: calc(var(--d) * 160ms + 200ms); }
+  .js .shot.full .ann span { opacity: 1; scale: 1; }
+  .js .shot.full .ann svg path { stroke-dashoffset: 0; }
+}
+.studio-notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px clamp(40px, 6vw, 96px); margin-top: clamp(40px, 6vh, 72px); }
+.studio-notes b { display: block; font: 700 1.125rem/1.25 var(--font-brand); margin-bottom: 6px; }
+.studio-notes p { color: var(--ink-2); font-size: 1rem; }
+@media (max-width: 899px) {
+  .studio-head { grid-template-columns: minmax(0, 1fr); }
+  .ann { display: none; }
+  .shot-track { margin-top: 48px; }
+  .shot { margin-bottom: 0; }
+  .shot .browser .bar { height: 38px; }
+  .shot picture img { aspect-ratio: 600 / 680; width: min(100%, 600px); }
+  .studio-notes { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Physics bento ─────────────────── */
+.physics { padding: var(--pad-section) 0; background: var(--mat); }
+.bento { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; }
+.tile { background: var(--surface); border-radius: 28px; padding: clamp(24px, 3vw, 36px); box-shadow: 0 1px 2px rgb(0 0 0 / .04), 0 18px 40px -28px rgb(60 40 10 / .35); display: grid; gap: 16px; align-content: start; overflow: hidden; position: relative; }
+.tile h3 { font-size: clamp(1.375rem, .8vw + 1rem, 1.75rem); }
+.tile p { color: var(--ink-2); font-size: 1rem; }
+.tile .pro { position: absolute; top: 20px; right: 20px; }
+.t-sizes { grid-column: span 4; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; gap: 32px; }
+.t-sizes .txt { display: grid; gap: 16px; align-content: start; }
+.t-slice, .t-artist { grid-column: span 2; }
+.seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: 999px; background: var(--mat); width: max-content; }
+.seg button { min-height: 44px; min-width: 64px; padding: 0 14px; border: 0; border-radius: 999px; background: none; cursor: pointer; font-weight: 600; font-size: .9375rem; color: var(--ink-2); transition: background .25s, color .25s, box-shadow .25s; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(0 0 0 / .14); }
+.mini-page { justify-self: center; width: min(100%, 380px); padding: 12px; border-radius: 16px; background: linear-gradient(160deg, #24211D, var(--pocket)); display: grid; gap: 8px; grid-template-columns: repeat(var(--cols), 1fr); }
+.mini-page .pocket { border-radius: 6px; view-transition-name: var(--vt); }
+.slice-demo { width: min(100%, 250px); justify-self: center; }
+.swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+.swatch { width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer; background: var(--c); box-shadow: inset 0 0 0 3px rgb(255 255 255 / .55), 0 0 0 1px var(--hair); transition: transform .25s var(--ease-out), box-shadow .2s; }
+.swatch:hover { transform: translateY(-2px); }
+.swatch[aria-pressed="true"] { box-shadow: inset 0 0 0 3px rgb(255 255 255 / .9), 0 0 0 2px var(--ink); }
+/* Dress the binder */
+.t-dress { grid-column: span 4; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: clamp(24px, 3vw, 40px); align-items: center; }
+.dress-ui { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; }
+.dtabs { width: max-content; max-width: 100%; display: inline-flex; flex-wrap: wrap; border-radius: 24px; }
+.dtabs button { min-width: 0; padding: 0 10px; font-size: .875rem; }
+.dopts { display: flex; flex-wrap: wrap; gap: 8px; }
+.dopts[hidden] { display: none; }
+.dchip { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 12px 0 7px; border-radius: 999px; border: 1px solid var(--hair); background: var(--surface); cursor: pointer; font-weight: 600; font-size: .875rem; transition: box-shadow .2s, border-color .2s, transform .2s var(--ease-out); }
+.dchip:hover { transform: translateY(-1px); }
+.dchip i { width: 24px; height: 24px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 2px rgb(255 255 255 / .55), 0 0 0 1px rgb(0 0 0 / .1); display: grid; place-items: center; font-style: normal; font-size: .8rem; color: var(--ink-2); }
+.dchip[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.dnote { font-size: .9375rem; color: var(--ink-2); min-height: 3em; }
+.tile .dnote .pro { position: static; margin-right: 8px; vertical-align: .05em; }
+.tile .dtabs .pro { position: static; margin-left: 5px; font-size: .5625rem; vertical-align: .15em; }
+.dress-stage { min-width: 0; width: 100%; display: grid; justify-items: center; gap: 14px; }
+@media (max-width: 1180px) and (min-width: 961px) { .t-dress { grid-template-columns: minmax(0, 1fr) 210px; } }
+.trackpill { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 16px 0 6px; border-radius: 999px; border: 0; cursor: pointer; background: var(--ink); color: var(--paper); font-weight: 600; font-size: .875rem; box-shadow: var(--shadow-md); }
+.trackpill .tp-ic { width: 32px; height: 32px; border-radius: 50%; background: rgb(255 255 255 / .14); display: grid; place-items: center; }
+.trackpill svg { width: 12px; height: 12px; }
+.trackpill .i-pause, .trackpill[aria-pressed="true"] .i-play { display: none; }
+.trackpill[aria-pressed="true"] .i-pause { display: block; }
+.eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+.eq i { width: 3px; height: 30%; border-radius: 1px; background: #F6D27A; }
+.trackpill[aria-pressed="true"] .eq i { animation: eq .9s ease-in-out infinite alternate; }
+.trackpill .eq i:nth-child(2) { animation-delay: -.3s; } .trackpill .eq i:nth-child(3) { animation-delay: -.6s; }
+@keyframes eq { from { height: 25%; } to { height: 100%; } }
+.dbook { position: relative; width: min(100%, 280px); aspect-ratio: 100 / 135.04; perspective: 1200px; }
+.dpage, .dcover { position: absolute; inset: 0; border-radius: 14px; transition: opacity .55s var(--ease-io), transform .7s var(--ease-io); backface-visibility: hidden; }
+.dpage { background: var(--pbg, linear-gradient(160deg, #2A2622, #171513)); padding: 4.5%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 3%; align-content: start; box-shadow: var(--shadow-lg); }
+.dpage .pocket { border-radius: 5px; padding: var(--sp, 0); background: var(--slv, #0E0D0B); transition: padding .45s var(--ease-io); }
+.dpage .pocket img { border-radius: 3px; }
+.dcover { pointer-events: none; transform-origin: 0 50%; transform: rotateY(-100deg); opacity: 0; border-radius: 10px 18px 18px 10px;
+  background: linear-gradient(140deg, rgb(255 255 255 / .14), transparent 45%), var(--cover-c, #17171A);
+  box-shadow: var(--shadow-lg), inset 22px 0 0 rgb(0 0 0 / .25), inset 23px 0 0 rgb(255 255 255 / .07); }
+.dbook.cover .dcover { transform: none; opacity: 1; }
+.dbook.cover .dpage { opacity: 0; transform: translateX(6%) scale(.96); }
+.dcover .crings { position: absolute; left: 5px; top: 18%; bottom: 18%; display: grid; align-content: space-between; }
+.dcover .crings i { width: 13px; height: 7px; border-radius: 999px; background: linear-gradient(180deg, #ECE6DA, #A0988A 60%, #D3CCBF); box-shadow: 0 1px 2px rgb(0 0 0 / .5); }
+.dcover .zip { position: absolute; right: -3px; top: 4%; bottom: 4%; width: 9px; border-radius: 4px; background: repeating-linear-gradient(180deg, #3A3836 0 3px, #8D8A84 3px 5px); box-shadow: 0 1px 3px rgb(0 0 0 / .5); }
+.deco { position: absolute; transition: transform .6s cubic-bezier(.3, 1.5, .4, 1), opacity .4s; transform: scale(.3) rotate(-20deg); opacity: 0; }
+.dbook.cover .deco { transform: rotate(var(--r)); opacity: 1; }
+.d-art { --r: 5deg; left: 24%; top: 14%; width: 56%; aspect-ratio: 1; border-radius: 50%; background: url('/landing-v2/img/art-tide-top.webp') center / cover; box-shadow: 0 0 0 5px #FFF8EC, 0 10px 20px -6px rgb(0 0 0 / .6); transition-delay: .35s; }
+.d-txt { --r: -5deg; left: 12%; right: 10%; bottom: 20%; text-align: center; color: #FFF8EC; font-size: clamp(1.5rem, 2.4vw, 2rem); text-shadow: 0 2px 4px rgb(0 0 0 / .4); transition-delay: .5s; }
+.d-star { --r: 14deg; right: 16%; top: 58%; color: #F6D27A; font-size: 1.75rem; transition-delay: .65s; }
+.t-artist { background: linear-gradient(160deg, #FFFDF8, #F7EFE0); }
+.fan { position: relative; height: 210px; width: 100%; }
+.fan .fc { position: absolute; left: 50%; bottom: 8px; width: 96px; aspect-ratio: 5 / 7; margin-left: -48px; transform-origin: 50% 130%; perspective: 600px; transition: transform .8s cubic-bezier(.3, 1.3, .4, 1); transition-delay: calc(var(--k) * 70ms); }
+.fan .fc .card3d { border-radius: 7px; box-shadow: 0 8px 18px -8px rgb(60 40 10 / .55); transition: transform .7s var(--ease-io); transition-delay: calc(var(--k) * 90ms + .3s); transform: rotateY(180deg); }
+.fan .fc .card3d > * { border-radius: 7px; }
+.fan .fc img { width: 100%; height: 100%; object-fit: cover; }
+.fan.open .fc { transform: rotate(calc((var(--k) - 3) * 11deg)) translateX(calc((var(--k) - 3) * 9px)); }
+.fan.open .fc .card3d { transform: none; }
+.who-field { display: flex; flex-wrap: wrap; white-space: nowrap; align-items: center; gap: 10px; justify-self: center; padding: 6px 6px 6px 14px; border-radius: 12px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--hair); font-size: .875rem; color: var(--ink-2); }
+.who-field b { padding: 6px 10px; border-radius: 8px; background: var(--mat); color: var(--ink); font-weight: 600; }
+.tile .scribble { font-family: var(--font-marker); color: var(--bronze-ink); font-size: 1.375rem; rotate: -3deg; line-height: 1; }
+@media (max-width: 960px) {
+  .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .t-sizes, .t-dress { grid-column: 1 / -1; }
+  .t-dress { order: 1; }
+  .t-slice, .t-artist { grid-column: span 1; }
+}
+@media (max-width: 640px) {
+  .bento { grid-template-columns: minmax(0, 1fr); }
+  .t-sizes, .t-dress { grid-template-columns: minmax(0, 1fr); }
+  .t-slice, .t-artist { grid-column: 1 / -1; }
+  .t-dress .dress-stage { order: -1; }
+}
+
+/* ── Collection: owned marking + progress ─────────────────── */
+.collect { padding: var(--pad-section) 0; background: linear-gradient(var(--mat), var(--paper) 40%); }
+.collect-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(40px, 6vw, 96px); align-items: center; }
+.collect-copy .lede { margin-top: 24px; }
+.facts { list-style: none; padding: 0; margin: 32px 0 0; display: grid; gap: 16px; }
+.facts li { display: grid; grid-template-columns: 13rem 1fr; gap: 16px; padding-top: 16px; border-top: 1px solid var(--hair); }
+.facts b { font-weight: 600; }
+.facts span { color: var(--ink-2); font-size: 1rem; }
+.collect-demo { position: relative; justify-self: end; width: min(100%, 440px); padding: clamp(16px, 2.4vw, 24px); border-radius: 28px; background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / .04), 0 30px 60px -30px rgb(60 40 10 / .45); display: grid; gap: 16px; }
+.cbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cbar-t { font: 700 1.0625rem/1.2 var(--font-brand); }
+.vchip { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 999px; background: #E3F4EA; color: #1E7A49; font-weight: 700; font-size: .875rem; box-shadow: inset 0 0 0 1.5px #3BB273; }
+.ogrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px; border-radius: 16px; background: linear-gradient(160deg, #24211D, var(--pocket)); }
+.opocket { position: relative; aspect-ratio: 5 / 7; padding: 0; border: 0; border-radius: 7px; overflow: visible; background: #0E0D0B; cursor: pointer; transition: transform .2s var(--ease-out); }
+.opocket img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.opocket:hover, .opocket.tapping { transform: translateY(-2px) scale(1.02); }
+/* the app's marks: a hollow green ring when not owned, a green check badge when owned */
+.omark { position: absolute; right: -6px; top: -6px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 800 .8125rem/1 var(--font-body); color: transparent; background: rgb(14 13 11 / .55); box-shadow: inset 0 0 0 2.5px #3BB273, 0 2px 6px rgb(0 0 0 / .4); transition: background .25s, color .25s; }
+.opocket.owned .omark { background: #3BB273; color: #fff; box-shadow: 0 0 0 2px #fff, 0 2px 6px rgb(0 0 0 / .4); }
+.meters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.m-h { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: .875rem; margin-bottom: 8px; }
+.m-h span { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.bar { height: 10px; border-radius: 999px; background: var(--mat-deep); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 100%; border-radius: inherit; background: #3BB273; transform-origin: 0 50%; transform: scaleX(var(--f, 0)); transition: transform .8s var(--ease-out); }
+.otoast { position: absolute; left: 50%; bottom: calc(100% - 18px); translate: -50% 0; z-index: 3; padding: 10px 16px; border-radius: 999px; background: var(--ink); color: var(--paper); font-weight: 600; font-size: .875rem; white-space: nowrap; box-shadow: var(--shadow-md); opacity: 0; transform: translateY(8px); transition: opacity .3s, transform .35s var(--ease-out); pointer-events: none; }
+.otoast.on { opacity: 1; transform: none; }
+@media (max-width: 899px) {
+  .collect-grid { grid-template-columns: minmax(0, 1fr); }
+  .collect-demo { justify-self: center; }
+  .facts li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
+/* ── Book: a dark desk, pages turn as you scroll ─────────────────── */
+.book-sec { position: relative; height: 340svh; background: var(--desk); color: var(--desk-ink); }
+.book-sec::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(60% 40% at 50% 46%, rgb(255 226 170 / .13), transparent 70%), repeating-linear-gradient(90deg, rgb(255 255 255 / .012) 0 2px, transparent 2px 9px); }
+.book-pin { position: sticky; top: 0; height: 100svh; display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; gap: clamp(18px, 3.4vh, 36px); padding: 80px 0 28px; overflow: clip; }
+.book-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px 40px; }
+.book-head h2 { max-width: 14ch; color: var(--desk-ink); }
+.book-sec .kicker { color: #D6B888; }
+.book-cap { min-height: 4.6em; max-width: 34ch; }
+.book-cap b { display: block; font: 700 1.25rem/1.2 var(--font-brand); margin-bottom: 6px; color: var(--desk-ink); }
+.book-cap span { color: var(--desk-ink-2); font-size: 1rem; }
+.book-stage { width: min(100%, calc((100svh - 330px) * 1.42), 1080px); margin-inline: auto; }
+.book { position: relative; container-type: inline-size; aspect-ratio: 100 / 65.5; perspective: 3400px; }
+.book::before { content: ''; position: absolute; inset: -2.2% -1.8%; border-radius: 22px; background: linear-gradient(90deg, #4A3A28, #5A4732 49%, #2A2117 50%, #5A4732 51%, #4A3A28); box-shadow: 0 2px 0 rgb(255 255 255 / .06) inset, 0 50px 90px -30px rgb(0 0 0 / .9), 0 20px 30px -20px rgb(0 0 0 / .7); }
+.bpage { position: absolute; top: 0; width: 48.5cqw; }
+.bpage.l { left: 0; } .bpage.r { left: 51.5cqw; }
+.leaf { position: absolute; top: 0; left: 51.5cqw; width: 48.5cqw; aspect-ratio: 100 / 135.04; transform-style: preserve-3d; transform-origin: -1.5cqw 50%; will-change: transform; }
+.face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.face.back { transform: rotateY(180deg); }
+.face .page, .bpage .page { width: 100%; }
+.face .shade { position: absolute; inset: 0; border-radius: 14px; pointer-events: none; background: linear-gradient(90deg, rgb(0 0 0 / .55), rgb(0 0 0 / .1)); opacity: var(--shade, 0); z-index: 6; }
+.face.back .shade { background: linear-gradient(270deg, rgb(0 0 0 / .55), rgb(0 0 0 / .1)); }
+.spec { position: absolute; inset: 0; border-radius: 14px; pointer-events: none; z-index: 7; opacity: var(--so, 0); background: linear-gradient(var(--sa, 100deg), transparent 30%, rgb(255 255 255 / .5) 48%, transparent 64%); mix-blend-mode: soft-light; }
+.spine { position: absolute; left: 50cqw; top: 6%; bottom: 6%; width: 0; z-index: 30; display: grid; align-content: space-between; justify-items: center; pointer-events: none; }
+.spine i { width: 3.4cqw; height: 1.5cqw; border-radius: 999px; background: linear-gradient(180deg, #ECE6DA, #A0988A 60%, #D3CCBF); box-shadow: 0 2px 4px rgb(0 0 0 / .5); }
+.book-foot { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.book-foot button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgb(255 255 255 / .18); background: rgb(255 255 255 / .06); color: var(--desk-ink); cursor: pointer; display: grid; place-items: center; transition: transform .2s var(--ease-out), background .2s; }
+.book-foot button:hover { transform: translateY(-2px); background: rgb(255 255 255 / .12); }
+.book-foot button:disabled { opacity: .3; cursor: default; transform: none; }
+.book-foot svg { width: 16px; height: 16px; }
+.pg { font-size: .875rem; font-weight: 600; color: var(--desk-ink-2); min-width: 9em; text-align: center; }
+.tap-hint { display: none; color: #E9CF9E; font-size: 1.125rem; rotate: -3deg; text-align: center; }
+@media (max-width: 720px) {
+  .book-sec { height: 270svh; }
+  .book-pin { padding-top: 84px; gap: 18px; }
+  .book-head h2 { font-size: 2.25rem; }
+  .book-cap { min-height: 5.6em; }
+  .book-stage { width: calc(min(74vw, 330px) / .485); margin-left: 50%; transform: translateX(calc(var(--pan, .5) * 51.5% - 75.75%)); }
+  .book { cursor: pointer; }
+  .tap-hint { display: block; }
+}
+
+/* ── Print (light, like the page itself) ─────────────────── */
+.print { position: relative; background: linear-gradient(180deg, #F3EBDD, #EFE6D6); padding: var(--pad-section) 0; overflow: clip; }
+.holes { position: absolute; left: clamp(2px, 1.6vw, 26px); top: 0; bottom: 0; display: grid; align-content: space-evenly; pointer-events: none; }
+.holes i { width: clamp(8px, 1.4vw, 20px); aspect-ratio: 1 / 1.7; border-radius: 999px; background: var(--desk); box-shadow: inset 0 3px 5px rgb(0 0 0 / .8), 0 1px 0 rgb(255 255 255 / .7); }
+.print .wrap { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1fr); gap: clamp(40px, 6vw, 96px); align-items: center; }
+.print .lede { margin-top: 24px; }
+.size-row { display: flex; align-items: center; gap: clamp(16px, 2.4vw, 32px); margin: 26px 0 8px; }
+.size { font: 800 clamp(3.25rem, 5.4vw + 1rem, 7rem)/.9 var(--font-brand); letter-spacing: -.04em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.size small { font-size: .5em; color: var(--bronze); padding: 0 .1em; }
+.cutcard { width: clamp(54px, 5.5vw, 84px); flex: none; overflow: visible; color: var(--ink); }
+.cutcard .dash { stroke-dasharray: 5 5; }
+.size-sub { color: var(--ink-2); font-weight: 500; }
+.price-note { margin-top: 28px; padding: 16px 18px; border-radius: 16px; background: rgb(255 255 255 / .7); color: var(--ink-2); font-size: .9375rem; max-width: 46ch; box-shadow: inset 0 0 0 1px var(--hair); }
+.price-note b { color: var(--ink); }
+.masked { position: relative; border-radius: 26px; overflow: hidden; box-shadow: 0 30px 70px -30px rgb(60 40 10 / .6), 0 0 0 1px rgb(0 0 0 / .1); background: #1A1817; width: min(100%, 470px); justify-self: center; }
+.masked .screen { aspect-ratio: 470 / 678; }
+.cap { margin-top: 16px; font-size: .875rem; color: var(--ink-2); display: flex; gap: 10px; align-items: center; justify-content: center; }
+@media (max-width: 899px) { .print .wrap { grid-template-columns: minmax(0, 1fr); } .print .media-col { order: 2; } .masked { width: min(100%, 360px); } }
+
+/* ── Share ─────────────────── */
+.share { padding: var(--pad-section) 0; overflow: clip; }
+.share .wrap { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1fr); gap: clamp(40px, 6vw, 96px); align-items: center; }
+.share ul { list-style: none; padding: 0; margin: 32px 0 0; display: grid; gap: 20px; }
+.share li { display: grid; grid-template-columns: 44px 1fr; gap: 16px; align-items: start; }
+.share li .ic { width: 44px; height: 44px; border-radius: 14px; background: var(--mat); display: grid; place-items: center; }
+.share li .ic svg { width: 20px; height: 20px; stroke: var(--bronze-ink); }
+.share li b { display: block; font-weight: 600; }
+.share li span { color: var(--ink-2); font-size: 1rem; }
+.share-stage { position: relative; display: grid; justify-items: end; padding-bottom: 40px; }
+.share-stage .browser { width: min(88%, 470px); }
+.share-stage .screen { aspect-ratio: 576 / 620; }
+.holo-wrap { position: absolute; left: 0; bottom: 0; width: min(46%, 250px); perspective: 900px; z-index: 3; }
+.holo {
+  --mx: 50%; --my: 30%; position: relative; aspect-ratio: 5 / 7; border-radius: 16px; padding: 9%; overflow: hidden; color: #2A2217;
+  background: linear-gradient(160deg, #FFF8E8, #F2E3C2); box-shadow: 0 30px 50px -24px rgb(0 0 0 / .55), 0 0 0 1px rgb(0 0 0 / .08), inset 0 0 0 5px #E7D2A4, inset 0 0 0 6px #CDB27C;
+  transform: rotate(-7deg) rotateX(var(--hx, 0deg)) rotateY(var(--hy, 0deg)); transition: transform .5s var(--ease-out); display: grid; grid-template-rows: auto auto 1fr auto; gap: 6%;
+}
+.holo.track { transition: transform .1s linear; }
+.holo::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; mix-blend-mode: multiply; opacity: .4;
+  background: linear-gradient(115deg, transparent calc(var(--mx) - 34%), #ff8fcf calc(var(--mx) - 18%), #ffe08a calc(var(--mx) - 6%), #8ff5c8 calc(var(--mx) + 6%), #8fd2ff calc(var(--mx) + 18%), transparent calc(var(--mx) + 34%)); }
+.holo::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; mix-blend-mode: soft-light; opacity: .9;
+  background: radial-gradient(circle at var(--mx) var(--my), rgb(255 255 255 / .85), transparent 38%); }
+.holo > * { position: relative; z-index: 1; }
+.holo .top { display: flex; align-items: center; justify-content: space-between; font: 800 .625rem/1 var(--font-body); letter-spacing: .14em; color: var(--bronze-ink); }
+.holo .who { display: flex; align-items: center; gap: 8%; }
+.holo .av { flex: none; width: 30%; aspect-ratio: 1; border-radius: 50%; background: var(--cardback); display: grid; place-items: center; box-shadow: inset 0 0 0 2px #CDB27C; }
+.holo .av .logo { background: none; box-shadow: none; width: 58%; height: 58%; padding: 0; gap: 12%; }
+.holo .who b { font: 700 1.05rem/1.1 var(--font-brand); display: block; }
+.holo .who small { display: block; margin-top: 3px; font-size: .6875rem; line-height: 1.3; color: var(--ink-2); text-wrap: balance; }
+.holo .feat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5%; align-self: center; }
+.holo .feat img { width: 100%; aspect-ratio: 5 / 7; object-fit: cover; border-radius: 4px; box-shadow: 0 4px 8px -4px rgb(0 0 0 / .5); }
+.holo .foot { font-size: .6875rem; color: var(--ink-2); display: flex; justify-content: space-between; }
+@media (max-width: 720px) {
+  .holes { left: 0; }
+  .holes i { width: 6px; aspect-ratio: 1 / 3.4; border-radius: 0 999px 999px 0; }
+}
+@media (max-width: 899px) {
+  .share .wrap { grid-template-columns: minmax(0, 1fr); }
+  .share-stage { justify-items: center; padding-bottom: 0; }
+  .share-stage .browser { width: min(100%, 420px); }
+  .holo-wrap { position: relative; width: min(64%, 230px); margin-top: -70px; margin-right: 34%; }
+}
+
+/* ── Closing ─────────────────── */
+.close { position: relative; padding: clamp(56px, 9vh, 110px) 0; overflow: clip; background: linear-gradient(var(--paper), var(--mat)); text-align: center; display: grid; grid-template-columns: minmax(0, 1fr); gap: clamp(40px, 7vh, 80px); }
+.lanes { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+.lane { display: flex; gap: 14px; width: max-content; padding: 10px 0 18px; }
+.lane img { width: clamp(84px, 8vw, 116px); aspect-ratio: 5 / 7; object-fit: cover; border-radius: 8px; box-shadow: 0 10px 18px -10px rgb(0 0 0 / .45); }
+.lane img:nth-child(odd) { rotate: -2deg; } .lane img:nth-child(3n) { rotate: 2.5deg; translate: 0 6px; }
+@media (prefers-reduced-motion: no-preference) {
+  .lane { animation: slide 70s linear infinite; }
+  .lane.rev { animation-direction: reverse; }
+  .close:not(.live) .lane { animation-play-state: paused; }
+  @keyframes slide { to { transform: translateX(-50%); } }
+}
+.close .inner { display: grid; justify-items: center; gap: 22px; }
+.close h2 { font-size: clamp(2.5rem, 5vw + 1rem, 6rem); max-width: 13ch; line-height: .95; }
+.close .lede { text-align: center; }
+.close .cta-row { justify-content: center; }
+
+footer { padding: 40px 0 52px; background: var(--mat); border-top: 1px solid var(--hair); font-size: .875rem; color: var(--ink-2); }
+footer .wrap { display: grid; gap: 18px; }
+footer .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+footer nav ul { display: flex; flex-wrap: wrap; gap: 0 6px; list-style: none; margin: 0; padding: 0; }
+footer nav a { display: flex; align-items: center; min-height: 44px; padding: 0 10px; text-decoration: none; font-weight: 500; color: var(--ink); border-radius: 8px; }
+footer nav a:hover { text-decoration: underline; }
+footer p { max-width: 90ch; }
+
+/* ── Motion layer (only when motion is welcome) ─────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .js .rv { opacity: 0; translate: 0 28px; transition: opacity .8s var(--ease-out), translate .8s var(--ease-out); transition-delay: calc(var(--d, 0) * 70ms); }
+  .js .rv.in { opacity: 1; translate: 0 0; }
+  /* the clip sits on an inner span: a clip-path on the observed element itself hides it from IntersectionObserver */
+  .js .wipe .wi { display: block; clip-path: inset(0 0 100% 0); translate: 0 .3em; padding-bottom: .12em; margin-bottom: -.12em; transition: clip-path 1s var(--ease-out), translate 1s var(--ease-out); }
+  .js .wipe.in .wi { clip-path: inset(0 0 0 0); translate: 0 0; }
+  .js .pop { opacity: 0; scale: .93; transition: opacity .7s var(--ease-out), scale .9s cubic-bezier(.2, 1.1, .3, 1); transition-delay: calc(var(--d, 0) * 80ms); }
+  .js .pop.in { opacity: 1; scale: 1; }
+  .js .hero .ln, .js .hero .rise { opacity: 0; translate: 0 36px; animation: rise .9s var(--ease-out) forwards; animation-delay: calc(120ms + var(--d, 0) * 70ms); }
+  @keyframes rise { to { opacity: 1; translate: 0 0; } }
+  @supports (animation-timeline: view()) {
+    .js .settle { animation: settle linear both; animation-timeline: view(); animation-range: entry 0% cover 38%; }
+    @keyframes settle { from { transform: perspective(1200px) rotateX(14deg) scale(.92); opacity: .4; } to { transform: none; opacity: 1; } }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+  .book-sec { height: auto; }
+  .book-pin { position: relative; height: auto; padding: var(--pad-section) 0; }
+  .step { opacity: 1; }
+  .hero, .binder, .chip, .btn, .screen, .clip { transition: none; }
+  .fan .fc { transition: none; }
+  .book-stage { transform: none; margin-left: auto; }
+}
+@media (prefers-reduced-motion: reduce) and (max-width: 720px) {
+  .book-stage { width: 100%; }
+  .tap-hint { display: none; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Michi-Maker, back to top">
+      <span class="logo" aria-hidden="true"><i></i><i></i><i></i><i class="span"></i><i></i><i></i><i></i><i></i></span>
+      <span class="wordmark">Michi<b>-</b>Maker</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#tools">Tools</a></li>
+      <li><a href="#studio">Editor</a></li>
+      <li><a href="#physics">Pages</a></li>
+      <li><a href="#collect">Collection</a></li>
+      <li><a href="#book">Book</a></li>
+      <li><a href="#print">Print</a></li>
+      <li><a href="#share">Share</a></li>
+    </ul>
+    <a class="btn btn-primary" href="/" data-cta="enter_hero">Start a binder</a>
+  </div>
+  <div class="progress" id="progress" aria-hidden="true"></div>
+</header>
+
+<main id="main">
+
+<!-- 1. HERO: a binder page you can restyle -->
+<section class="hero" id="top" data-section="hero" aria-labelledby="h1">
+  <div class="wrap">
+    <p class="kicker rise" style="--d:0">The Michi method, digitized</p>
+    <h1 id="h1"><span class="ln" style="--d:1">Binder pages</span> <span class="ln" style="--d:2">worth <em>staring at.</em></span></h1>
+    <div class="stage">
+      <div class="blob" aria-hidden="true"></div>
+      <div class="binder-wrap">
+        <div class="binder" id="binder">
+          <div class="rings" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="page" id="heroPage" role="img" aria-label="A binder page of nine gold cards"></div>
+        </div>
+      </div>
+      <div class="hero-panel">
+        <div class="modes-row">
+          <p class="note marker" aria-hidden="true">three ways<br>to fill a page
+            <svg viewBox="0 0 70 30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8c16 10 34 12 58 8"/><path d="M50 8l12 8-11 7"/></svg>
+          </p>
+          <div class="seg modes" role="group" aria-label="How to fill the page">
+            <button type="button" data-mode="color" aria-pressed="true">Color Search</button>
+            <button type="button" data-mode="theme" aria-pressed="false">Theme</button>
+            <button type="button" data-mode="similar" aria-pressed="false">Find Similar</button>
+          </div>
+        </div>
+        <div class="opts-box">
+        <div class="chips opts" data-opts="color" role="group" aria-label="Pick a color">
+          <button class="chip" type="button" data-set="gold" aria-pressed="true" style="--c:#DDAA1E"><span class="dot"></span>Gold</button>
+          <button class="chip" type="button" data-set="red" aria-pressed="false" style="--c:#C8452F"><span class="dot"></span>Red</button>
+          <button class="chip" type="button" data-set="pink" aria-pressed="false" style="--c:#E472AA"><span class="dot"></span>Pink</button>
+          <button class="chip arrange" type="button" data-arrange>
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0l1.8 5.2L15 7l-5.2 1.8L8 14l-1.8-5.2L1 7l5.2-1.8z"/></svg>Arrange<span class="take-badge" hidden>take 1</span></button>
+        </div>
+        <div class="chips opts" data-opts="theme" role="group" aria-label="Pick a theme" hidden>
+          <button class="chip tq" type="button" data-set="night" aria-pressed="false"><span class="q">theme:</span>night</button>
+          <button class="chip tq" type="button" data-set="beach" aria-pressed="false"><span class="q">theme:</span>beach</button>
+          <button class="chip tq" type="button" data-set="volcano" aria-pressed="false"><span class="q">theme:</span>volcano</button>
+          <button class="chip arrange" type="button" data-arrange>
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0l1.8 5.2L15 7l-5.2 1.8L8 14l-1.8-5.2L1 7l5.2-1.8z"/></svg>Arrange<span class="take-badge" hidden>take 1</span></button>
+        </div>
+        <div class="chips opts" data-opts="similar" role="group" aria-label="Fill from three cards" hidden>
+          <button class="chip arrange sim" type="button" id="simBtn"><span class="approx" aria-hidden="true">≈</span>Like the whole page<span class="take-badge" id="simCount">0 of 3</span></button>
+          <button class="chip ghosty" type="button" id="simReset" hidden>Start over</button>
+        </div>
+        </div>
+        <p class="story" id="story">Nine cards that all came in gold.</p>
+        <p class="sr-only" id="heroStatus" aria-live="polite"></p>
+      </div>
+      <svg class="hand" id="hand" viewBox="0 0 64 74" aria-hidden="true"><path d="M21 5c4-2 8 1 8 5v21l3-1c3-1 6 1 6 4v1c3-1 6 1 6 4 3-1 7 1 7 5v12c0 10-7 17-17 17h-5c-6 0-11-3-14-8L7 47c-2-3 0-7 4-7 2 0 4 1 5 3l2 3V10c0-2 1-4 3-5z" fill="#FFF8EC" stroke="#1D1A15" stroke-width="3" stroke-linejoin="round"/><path d="M29 31v11M38 35v9M46 40v6" stroke="#1D1A15" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>
+    </div>
+    <p class="lede rise" style="--d:3">Michi-Maker builds curated Pokémon card binders. Build a page around one card you love, then print it at true card size and slide it into a real binder.</p>
+    <div class="cta-row rise" style="--d:4">
+      <a class="btn btn-primary" href="/" data-cta="enter_hero">Start a binder</a>
+      <a class="tlink" href="/discover" data-cta="discover">See some binders <span aria-hidden="true">→</span></a>
+    </div>
+    <p class="fine rise" style="--d:5"><b>Free to start on the web.</b></p>
+  </div>
+</section>
+
+<!-- 3. TOOLS: sticky scrollytelling -->
+<section class="tools" id="tools" data-section="tools" aria-labelledby="tools-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker rv">The tools</p>
+      <h2 id="tools-h" class="wipe">One card in.<br>A whole page out.</h2>
+      <p class="lede rv" style="--d:2">Five buttons do the heavy lifting. Scroll, and each one builds a page.</p>
+    </div>
+    <div class="scrolly" id="scrolly">
+      <div class="scrolly-stage" aria-hidden="true">
+        <div class="browser">
+          <div class="bar"><i></i><i></i><i></i><span>michi-maker.com</span></div>
+          <div class="screen vid" id="stageScreen">
+            <div class="clip on" data-clip="find-similar"><video muted playsinline preload="none" poster="/landing-v2/media/find-similar-z.webp" data-src="/landing-v2/media/find-similar.mp4" tabindex="-1"></video><img class="endf" src="/landing-v2/media/find-similar-z.webp" alt="" loading="lazy"></div>
+            <div class="clip" data-clip="suggest"><video muted playsinline preload="none" poster="/landing-v2/media/suggest-z.webp" data-src="/landing-v2/media/suggest.mp4" tabindex="-1"></video><img class="endf" src="/landing-v2/media/suggest-z.webp" alt="" loading="lazy"></div>
+            <div class="clip" data-clip="arrange"><video muted playsinline preload="none" poster="/landing-v2/media/arrange-z.webp" data-src="/landing-v2/media/arrange.mp4" tabindex="-1"></video><img class="endf" src="/landing-v2/media/arrange-z.webp" alt="" loading="lazy"></div>
+            <div class="clip" data-clip="color-search"><video muted playsinline preload="none" poster="/landing-v2/media/color-search-z.webp" data-src="/landing-v2/media/color-search.mp4" tabindex="-1"></video><img class="endf" src="/landing-v2/media/color-search-z.webp" alt="" loading="lazy"></div>
+            <div class="clip" data-clip="themes"><video muted playsinline preload="none" poster="/landing-v2/media/themes-z.webp" data-src="/landing-v2/media/themes.mp4" tabindex="-1"></video><img class="endf" src="/landing-v2/media/themes-z.webp" alt="" loading="lazy"></div>
+            <button class="replay" type="button" tabindex="-1"><svg viewBox="0 0 12 12" fill="currentColor"><path d="M2 1l9 5-9 5z"/></svg>Replay</button>
+          </div>
+        </div>
+        <div class="stage-cap"><span class="pill" id="stagePill">“Find Similar”</span><span class="bars" id="stageBars"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+      </div>
+
+      <div class="steps">
+        <article class="step on" data-step="0">
+          <span class="num">01 / 05</span>
+          <span class="pill">“Find Similar”</span>
+          <h3>Pick one card. Meet the eight that belong beside it.</h3>
+          <p>Start from a card you love. “Find Similar” flips in the cards that share its colors and mood, and marks the closest match.</p>
+          <figure>
+            <div class="browser"><div class="bar"><i></i><i></i><i></i><span>michi-maker.com</span></div>
+              <div class="screen vid" style="--sbg:#F3ECDE"><video muted playsinline preload="none" poster="/landing-v2/media/find-similar-z.webp" data-a="/landing-v2/media/find-similar-a.webp" data-src="/landing-v2/media/find-similar.mp4" aria-label="A Groudon card among card backs; Find Similar flips in eight matching cards one by one and marks the closest match."></video>
+              <button class="replay" type="button"><svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 1l9 5-9 5z"/></svg>Replay</button></div></div>
+          </figure>
+        </article>
+        <article class="step" data-step="1">
+          <span class="num">02 / 05</span>
+          <span class="pill">“Suggest”</span>
+          <h3>Ask the page what it needs.</h3>
+          <p>“Suggest” finds cards that fit what is already on the page: “Same theme”, “Same palette”, or “≈ Like the whole page”. They wait in your hand; drag the ones you like into the empty pockets.</p>
+          <figure>
+            <div class="browser"><div class="bar"><i></i><i></i><i></i><span>michi-maker.com</span></div>
+              <div class="screen vid" style="--sbg:#FAF5EE"><video muted playsinline preload="none" poster="/landing-v2/media/suggest-z.webp" data-a="/landing-v2/media/suggest-a.webp" data-src="/landing-v2/media/suggest.mp4" aria-label="The Suggest dialog offers Same theme, Like the whole page and Same palette; the chosen cards land on the page until all nine pockets are full."></video>
+              <button class="replay" type="button"><svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 1l9 5-9 5z"/></svg>Replay</button></div></div>
+          </figure>
+        </article>
+        <article class="step" data-step="2">
+          <span class="num">03 / 05</span>
+          <span class="pill">“Arrange”</span>
+          <h3>Nine cards. Where does each one go?</h3>
+          <p>“Arrange” tries new seatings of the cards on your page. Flip through the takes and “Keep” the one that reads best.</p>
+          <figure>
+            <div class="browser"><div class="bar"><i></i><i></i><i></i><span>michi-maker.com</span></div>
+              <div class="screen vid" style="--sbg:#141124"><video muted playsinline preload="none" poster="/landing-v2/media/arrange-z.webp" data-a="/landing-v2/media/arrange-a.webp" data-src="/landing-v2/media/arrange.mp4" aria-label="A full page of nine cards; Arrange shuffles them into take 2, then take 3, which is kept."></video>
+              <button class="replay" type="button"><svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 1l9 5-9 5z"/></svg>Replay</button></div></div>
+          </figure>
+        </article>
+        <article class="step" data-step="3">
+          <span class="num">04 / 05</span>
+          <span class="pill">“Color Search”</span>
+          <h3>One color. A whole page.</h3>
+          <p>Lift the colors off a card and “Color Search” finds the cards with a matching palette, until the page reads in one shade.</p>
+          <figure>
+            <div class="browser"><div class="bar"><i></i><i></i><i></i><span>michi-maker.com</span></div>
+              <div class="screen vid" style="--sbg:#2D1526"><video muted playsinline preload="none" poster="/landing-v2/media/color-search-z.webp" data-a="/landing-v2/media/color-search-a.webp" data-src="/landing-v2/media/color-search.mp4" aria-label="An eyedropper lifts pink off one card and Color Search fills the page in one shade of pink."></video>
+              <button class="replay" type="button"><svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 1l9 5-9 5z"/></svg>Replay</button></div></div>
+          </figure>
+        </article>
+        <article class="step" data-step="4">
+          <span class="num">05 / 05</span>
+          <span class="pill">“Theme”</span>
+          <h3>Search the art, not the name.</h3>
+          <p>Type <code>theme:forest</code> + <code>theme:moon</code> and “Theme” searches what is drawn on the card, as specific as you like. Every English Pokémon card can be found by theme, live today. A page with one scene, top to bottom.</p>
+          <figure>
+            <div class="browser"><div class="bar"><i></i><i></i><i></i><span>michi-maker.com</span></div>
+              <div class="screen vid" style="--sbg:#17150F"><video muted playsinline preload="none" poster="/landing-v2/media/themes-z.webp" data-a="/landing-v2/media/themes-a.webp" data-src="/landing-v2/media/themes.mp4" aria-label="A theme:forest + theme:moon search fills a page with moonlit forest art."></video>
+              <button class="replay" type="button"><svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 1l9 5-9 5z"/></svg>Replay</button></div></div>
+          </figure>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. STUDIO: the real redesign -->
+<section class="studio" id="studio" data-section="studio" aria-labelledby="studio-h">
+  <div class="wrap studio-head">
+    <div>
+      <p class="kicker rv">On a big screen</p>
+      <h2 id="studio-h" class="wipe">Your whole binder on one screen.</h2>
+    </div>
+    <p class="lede rv" style="--d:2">Every page down the side, the page you are building in the middle, your hand underneath, and the card browser beside it.</p>
+  </div>
+  <div class="shot-track" id="shotTrack">
+  <div class="shot" id="shot">
+    <div class="browser">
+      <div class="bar"><i></i><i></i><i></i><span>michi-maker.com</span></div>
+      <picture>
+        <source media="(max-width: 899px)" srcset="/landing-v2/img/studio-phone.webp">
+        <img src="/landing-v2/img/studio.webp" alt="The Michi-Maker editor: page thumbnails down the left, a nine-pocket page in the middle, a hand with one card and a Suggest button underneath, and the card browser with Color Search and Theme on the right." loading="lazy" decoding="async" width="1280" height="756">
+      </picture>
+    </div>
+    <p class="ann top a1 marker" style="--d:0" aria-hidden="true"><span>every page, at a glance</span><svg viewBox="0 0 40 60" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3C24 14 30 32 22 54M13 45l9 10 8-10"/></svg></p>
+    <p class="ann top a4 marker" style="--d:1" aria-hidden="true"><span>the page you are building</span><svg viewBox="0 0 40 60" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3C24 14 30 32 22 54M13 45l9 10 8-10"/></svg></p>
+    <p class="ann top a3 marker" style="--d:2" aria-hidden="true"><span>“Color Search” and “Theme”</span><svg viewBox="0 0 40 60" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3C24 14 30 32 22 54M13 45l9 10 8-10"/></svg></p>
+    <p class="ann bot a2 marker" style="--d:3" aria-hidden="true"><span>your hand: tap “Suggest” for more</span><svg viewBox="0 0 40 60" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3C24 14 30 32 22 54M13 45l9 10 8-10"/></svg></p>
+  </div>
+  </div>
+  <div class="wrap studio-notes">
+    <div class="rv" style="--d:0"><b>A page you can hold</b><p>Real pocket sizes and rings, so what you see is what goes in the binder.</p></div>
+    <div class="rv" style="--d:1"><b>A hand, like a card game</b><p>Cards wait in your hand until you drag them into a pocket. Undo is one tap away.</p></div>
+    <div class="rv" style="--d:2"><b>Search beside the page</b><p>Browse by name, “Color Search” or “Theme” without leaving the page you are on.</p></div>
+  </div>
+</section>
+
+<!-- 5. PHYSICS bento -->
+<section class="physics" id="physics" data-section="physics" aria-labelledby="phys-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker rv">Real binder physics</p>
+      <h2 id="phys-h" class="wipe">Built like the binder on your shelf.</h2>
+    </div>
+    <div class="bento">
+      <article class="tile t-sizes pop" style="--d:0">
+        <div class="txt">
+          <h3>3<span class="x">×</span>3, 3<span class="x">×</span>4 or 4<span class="x">×</span>4.</h3>
+          <div class="seg" role="group" aria-label="Page size">
+            <button type="button" data-size="3x3" aria-pressed="true">3×3</button>
+            <button type="button" data-size="3x4" aria-pressed="false">3×4</button>
+            <button type="button" data-size="4x4" aria-pressed="false">4×4</button>
+          </div>
+          <p>Pages come in real side-load sizes. Jumbo cards span four pockets, and art can cross the fold, exactly like the binder on your shelf.</p>
+          <p class="scribble" aria-hidden="true">tap a size, watch<br>the pockets reflow</p>
+        </div>
+        <div class="mini-page" id="sizePage" style="--cols:3" role="img" aria-label="A binder page with nine pockets"></div>
+      </article>
+      <article class="tile t-slice pop" style="--d:1">
+        <div class="slice-demo"><div class="page" id="slicePage" role="img" aria-label="A beach picture sliced across four pockets, with cards around it"></div></div>
+        <h3>Art across the pockets.</h3>
+        <p>Slice any picture across pockets in Slice Studio: aspect-true windows, rotate and flip. Card art, your own picture, or a free photo.</p>
+      </article>
+      <article class="tile t-dress pop" style="--d:2">
+        <div class="dress-ui">
+          <h3>Dress the binder.</h3>
+          <p>Sleeves and a background for every page, a cover with your own art and stickers, and a soundtrack. Keep it plain, or go all out.</p>
+          <div class="seg dtabs" role="group" aria-label="What to dress">
+            <button type="button" data-d="sleeves" aria-pressed="true">Sleeves</button>
+            <button type="button" data-d="bg" aria-pressed="false">Background</button>
+            <button type="button" data-d="cover" aria-pressed="false">Cover</button>
+            <button type="button" data-d="music" aria-pressed="false">Music</button>
+          </div>
+          <div class="dopts" data-d="sleeves" role="group" aria-label="Sleeves">
+            <button type="button" class="dchip" data-v="none" aria-pressed="false"><i style="--c:#0E0D0B"></i>None</button>
+            <button type="button" class="dchip" data-v="black" aria-pressed="false"><i style="--c:#2B2926"></i>Black</button>
+            <button type="button" class="dchip" data-v="gold" aria-pressed="false"><i style="--c:linear-gradient(135deg,#8A6A1F,#F4D77A 45%,#A8822B 70%,#F6E3A1)"></i>Gold</button>
+            <button type="button" class="dchip" data-v="rainbow" aria-pressed="true"><i style="--c:linear-gradient(135deg,#FF6B6B,#FFD166,#06D6A0,#4CC9F0,#7B61FF,#F72585)"></i>Rainbow</button>
+          </div>
+          <div class="dopts" data-d="bg" role="group" aria-label="Page background" hidden>
+            <button type="button" class="dchip" data-v="black" aria-pressed="true"><i style="--c:#1F1C19"></i>Black</button>
+            <button type="button" class="dchip" data-v="cream" aria-pressed="false"><i style="--c:#EFE4CC"></i>Cream</button>
+            <button type="button" class="dchip" data-v="navy" aria-pressed="false"><i style="--c:#1B2A4A"></i>Navy</button>
+            <button type="button" class="dchip" data-v="pic" aria-pressed="false"><i style="--c:url('/landing-v2/img/art-tide-top.webp') center / cover"></i>Picture</button>
+          </div>
+          <div class="dopts" data-d="cover" role="group" aria-label="Cover colourway" hidden>
+            <button type="button" class="dchip" data-v="#17171A" aria-pressed="true"><i style="--c:#17171A"></i>Signature Black</button>
+            <button type="button" class="dchip" data-v="#1F3A8A" aria-pressed="false"><i style="--c:#1F3A8A"></i>Royal Blue</button>
+            <button type="button" class="dchip" data-v="#234A33" aria-pressed="false"><i style="--c:#234A33"></i>Forest Green</button>
+            <button type="button" class="dchip" data-v="#A3201F" aria-pressed="false"><i style="--c:#A3201F"></i>Fire Red</button>
+          </div>
+          <div class="dopts" data-d="music" role="group" aria-label="Track" hidden>
+            <button type="button" class="dchip" data-v="Gymnopedie No 1" aria-pressed="true"><i class="nt" style="--c:#EFE6D4">♪</i>Gymnopedie No 1</button>
+            <button type="button" class="dchip" data-v="Carefree" aria-pressed="false"><i class="nt" style="--c:#EFE6D4">♪</i>Carefree</button>
+            <button type="button" class="dchip" data-v="Frost Waltz" aria-pressed="false"><i class="nt" style="--c:#EFE6D4">♪</i>Frost Waltz</button>
+          </div>
+          <p class="dnote" id="dnote" aria-live="polite">Every pocket at once, or one page, or one pocket.</p>
+        </div>
+        <div class="dress-stage">
+          <button type="button" class="trackpill" id="trackPill" aria-pressed="false"><span class="tp-ic" aria-hidden="true"><svg class="i-play" viewBox="0 0 12 12" fill="currentColor"><path d="M3 1.5l7 4.5-7 4.5z"/></svg><svg class="i-pause" viewBox="0 0 12 12" fill="currentColor"><path d="M2.5 1.5h2.6v9H2.5zM6.9 1.5h2.6v9H6.9z"/></svg></span><span class="tp-t" id="tpT">Tap to play</span><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span><span class="sr-only"> (demo, no sound)</span></button>
+          <div class="dbook" id="dbook">
+            <div class="dpage" id="dpage" role="img" aria-label="A binder page of nine cards in rainbow sleeves"></div>
+            <div class="dcover" id="dcover" role="img" aria-label="The binder cover with a text label and an art sticker">
+              <div class="crings" aria-hidden="true"><i></i><i></i><i></i></div>
+              <div class="zip" aria-hidden="true"></div>
+              <span class="deco d-art" aria-hidden="true"></span>
+              <span class="deco d-txt marker" aria-hidden="true">beach days</span>
+            </div>
+          </div>
+        </div>
+      </article>
+      <article class="tile t-artist pop" style="--d:3">
+        <div class="fan" id="fan" aria-hidden="true"></div>
+        <p class="who-field" aria-hidden="true"><span>Which artist?</span><b>Tomokazu Komiya</b></p>
+        <h3>Every card one illustrator drew.</h3>
+        <p>Start a “One artist” binder, type a name, and get a gallery of one illustrator’s cards, ready to arrange. These seven are all Tomokazu Komiya.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- 5b. COLLECTION: one tap to mark owned, set checklist progress -->
+<section class="collect" id="collect" data-section="collect" aria-labelledby="collect-h">
+  <div class="wrap collect-grid">
+    <div class="collect-copy">
+      <p class="kicker rv">Your collection</p>
+      <h2 id="collect-h" class="wipe">Know what you own. See what is left.</h2>
+      <p class="lede rv" style="--d:1">Turn on “✓ Owned” and every card you don’t have shows a ring. Tap the ring and the card is marked owned; the set checklist counts it.</p>
+      <ul class="facts rv" style="--d:2">
+        <li><b>One tap</b><span>“Heracross marked as owned.” Tap again to unmark. Sign in to track what you own.</span></li>
+        <li><b>Set checklists</b><span>Each set shows “You have X of Y” and what it costs to finish, with the missing cards listed by number and price.</span></li>
+        <li><b>Fill from what you own</b><span>“From my collection” builds pages out of cards you already have.</span></li>
+        <li><b>Bring your list</b><span>“Import a CSV” loads a spreadsheet straight into My Collection.</span></li>
+      </ul>
+    </div>
+    <div class="collect-demo pop" style="--d:1">
+      <div class="cbar">
+        <span class="cbar-t">Delta Reign · page 1</span>
+        <span class="vchip" aria-hidden="true">✓ Owned</span>
+      </div>
+      <div class="ogrid" id="ownGrid" role="group" aria-label="A binder page of nine cards; tap a card to mark it owned"></div>
+      <div class="meters">
+        <div class="m-set">
+          <div class="m-h"><b>Set · Delta Reign</b><span id="setTxt"></span></div>
+          <div class="bar" id="setBar" aria-hidden="true"><i></i></div>
+        </div>
+      </div>
+      <p class="otoast" id="ownToast" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<!-- 6. BOOK: pages turn as you scroll -->
+<section class="book-sec" id="book" data-section="book" aria-labelledby="book-h">
+  <div class="book-pin">
+    <div class="wrap book-head">
+      <div>
+        <p class="kicker">Reads like a book</p>
+        <h2 id="book-h">Turn the page.</h2>
+      </div>
+      <p class="book-cap" id="bookCap" aria-live="polite"><b>Lava across the fold</b><span>Art can run across both pages of a spread, just like folded art in a real binder.</span></p>
+    </div>
+    <div class="wrap">
+      <div class="book-stage" id="bookStage">
+        <div class="book" id="book3d">
+          <div class="bpage l" id="bpL"></div>
+          <div class="bpage r" id="bpR"></div>
+          <div class="leaf" id="leaf1"><div class="face front"></div><div class="face back"></div></div>
+          <div class="leaf" id="leaf2"><div class="face front"></div><div class="face back"></div></div>
+          <div class="spine" aria-hidden="true"><i></i><i></i><i></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="book-foot">
+      <button type="button" id="bookPrev" aria-label="Previous spread"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 3L5 8l5 5"/></svg></button>
+      <span class="pg" id="bookPg">Pages 1 and 2 of 6</span>
+      <button type="button" id="bookNext" aria-label="Next spread"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3l5 5-5 5"/></svg></button>
+    </div>
+    <p class="tap-hint marker" aria-hidden="true">scroll, or tap to turn</p>
+  </div>
+</section>
+
+<!-- 7. PRINT -->
+<section class="print" id="print" data-section="print" aria-labelledby="print-h">
+  <div class="holes" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="wrap">
+    <div class="media-col rv">
+      <div class="masked settle">
+        <div class="screen vid" style="--sbg:#2A2A2A"><video muted playsinline preload="none" poster="/landing-v2/media/screen-to-sleeve-z.webp" data-a="/landing-v2/media/screen-to-sleeve-a.webp" data-src="/landing-v2/media/screen-to-sleeve.mp4" data-loop="2" aria-label="A finished beach page is exported as an art sheet at true card size, cut along the guides and slid into a real binder sleeve."></video>
+        <img class="ff" src="/landing-v2/media/screen-to-sleeve-a.webp" alt="" loading="lazy">
+        <button class="replay" type="button"><svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 1l9 5-9 5z"/></svg>Replay</button></div>
+      </div>
+      <p class="cap"><span class="pill ghost">Print</span>Fill sheets, cut and sleeved.</p>
+    </div>
+    <div class="rv" style="--d:1">
+      <p class="kicker">From screen to sleeve</p>
+      <h2 id="print-h">Then make it real.</h2>
+      <div class="size-row">
+        <p class="size" aria-label="2.5 inches by 3.5 inches"><span data-count="2.5">2.5</span><small>″</small><span class="x">×</span><span data-count="3.5">3.5</span><small>″</small></p>
+        <svg class="cutcard" id="cutcard" viewBox="0 0 50 70" fill="none" aria-hidden="true">
+          <defs><mask id="cutmask"><rect id="cutreveal" x="2" y="2" width="46" height="66" rx="4" stroke="#fff" stroke-width="4" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0"/></mask></defs>
+          <rect class="dash" x="2" y="2" width="46" height="66" rx="4" stroke="currentColor" stroke-width="1.6" mask="url(#cutmask)"/>
+                  </svg>
+      </div>
+      <p class="size-sub">True card size, cut-ready.</p>
+      <p class="lede">Export any binder as fill sheets: your sliced art, placeholders for the cards you are still hunting, and inserts. Print, cut, slide into pockets. The page on your shelf matches the page on your screen.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 8. SHARE -->
+<section class="share" id="share" data-section="share" aria-labelledby="share-h">
+  <div class="wrap">
+    <div>
+      <p class="kicker rv">Show it off</p>
+      <h2 id="share-h" class="wipe">Pages people stop to look at.</h2>
+      <ul class="rv" style="--d:2">
+        <li><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>
+          <div><b>Public binders anyone can flip through</b><span>Publish a binder and it shows on your @username profile. Visitors need no account to look.</span></div></li>
+        <li><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg></span>
+          <div><b>Instagram story, square post or QR code</b><span>The Share sheet has the caption ready to copy and a QR card you can print.</span></div></li>
+        <li><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="9" r="3"/><path d="M8 17h8"/></svg></span>
+          <div><b>Your profile as a collector card</b><span>A holo card with three featured cards you choose, your bio, and your binders underneath.</span></div></li>
+      </ul>
+    </div>
+    <div class="share-stage rv" style="--d:1">
+      <div class="browser settle"><div class="bar"><i></i><i></i><i></i><span>michi-maker.com/discover</span></div>
+        <div class="screen vid" style="--sbg:#15161C"><video muted playsinline preload="none" poster="/landing-v2/media/pages-z.webp" data-a="/landing-v2/media/pages-a.webp" data-src="/landing-v2/media/pages.mp4" data-loop="2" aria-label="Finished binder pages from public binders dissolve one into the next: a night city, lava, a beach at sunset, a meadow."></video>
+        <img class="ff" src="/landing-v2/media/pages-a.webp" alt="" loading="lazy">
+        <button class="replay" type="button"><svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 1l9 5-9 5z"/></svg>Replay</button></div></div>
+      <div class="holo-wrap">
+        <div class="holo" id="holo" role="img" aria-label="Example collector card: your username, a short bio and three featured cards">
+          <div class="top"><span>COLLECTOR</span><span>✦</span></div>
+          <div class="who"><span class="av" aria-hidden="true"><span class="logo"><i></i><i></i><i></i><i class="span"></i><i></i><i></i><i></i><i></i></span></span><span><b>@you</b><small>Pages, one card at a time.</small></span></div>
+          <div class="feat"><img src="/landing-v2/img/c/gold-610531.webp" alt="" loading="lazy"><img src="/landing-v2/img/c/skyline-skyline-1-meowth.webp" alt="" loading="lazy"><img src="/landing-v2/img/c/tide-beach-5-lapras.webp" alt="" loading="lazy"></div>
+          <div class="foot"><span>Featured</span><span>binders below ↓</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9. CLOSE -->
+<section class="close" id="start" data-section="close" aria-labelledby="close-h">
+  <div class="lanes" aria-hidden="true"><div class="lane" id="lane1"></div></div>
+  <div class="wrap inner rv">
+    <h2 id="close-h">Your next page starts with one card.</h2>
+    <p class="lede">Pick it, build around it, print it. Sign in and your binders follow you between devices.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="/" data-cta="enter_closing">Start a binder</a>
+      <a class="tlink" href="/discover" data-cta="discover">See some binders <span aria-hidden="true">→</span></a>
+    </div>
+    <p class="fine"><b>Free to start on the web.</b></p>
+  </div>
+  <div class="lanes" aria-hidden="true"><div class="lane rev" id="lane2"></div></div>
+</section>
+</main>
+
+<footer data-section="footer">
+  <div class="wrap">
+    <div class="row">
+      <a class="brand" href="#top" aria-label="Michi-Maker, back to top">
+        <span class="logo" aria-hidden="true"><i></i><i></i><i></i><i class="span"></i><i></i><i></i><i></i><i></i></span>
+        <span class="wordmark">Michi<b>-</b>Maker</span>
+      </a>
+      <nav aria-label="Footer"><ul>
+        <li><a href="/discover" data-app>Discover</a></li>
+        <li><a href="/whats-new" data-app>What’s New</a></li>
+        <li><a href="/michi-method" data-app>The Michi Method</a></li>
+      </ul></nav>
+    </div>
+    <p>Card images belong to their respective owners. Michi-Maker is a fan-made tool and is not affiliated with Nintendo, Creatures, or The Pokémon Company. Lava photo by Brent Keane (Pexels); beach and tide art by aalmeidah (Pixabay).</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  document.documentElement.classList.add('js');
+  const RM = matchMedia('(prefers-reduced-motion: reduce)');
+  const reduced = () => RM.matches;
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const C = n => `/landing-v2/img/c/${n}.webp`;
+  const EO = 'cubic-bezier(.2,.7,.1,1)';
+
+  /* ── Page geometry (units: % of one page's width, via cqw) ── */
+  const PAD = 4, GAP = 2.2, W = (100 - 2 * PAD - 2 * GAP) / 3, H = W * 1.4;
+  const FOLD = 3 / 48.5 * 100;
+  const px = (c, page = 0) => page * (100 + FOLD) + PAD + c * (W + GAP);
+  const py = r => PAD + r * (H + GAP);
+  const cardBack = () => { const b = document.createElement('span'); b.className = 'cb'; b.innerHTML = '<span class="in"><span class="lg"><i></i><i></i><i></i><i class="span"></i><i></i><i></i><i></i><i></i></span><b>Michi-Maker</b></span>'; return b; };
+
+  function buildPage(el, items, opts = {}) {
+    el.classList.add('page');
+    const sheet = document.createElement('div');
+    sheet.className = 'sheet';
+    items.forEach((it, i) => {
+      const p = document.createElement('div');
+      p.className = 'pocket';
+      const col = i % 3, row = Math.floor(i / 3);
+      if (it.art) {
+        const [c0, r0, c1, r1, p0 = 0, p1 = 0] = it.span;
+        const x0 = px(c0, p0), y0 = py(r0), x1 = px(c1, p1) + W, y1 = py(r1) + H;
+        const me = px(col, opts.pageIndex || 0), my = py(row);
+        const a = document.createElement('i');
+        a.className = 'art';
+        a.style.cssText = `left:${(x0 - me).toFixed(3)}cqw;top:${(y0 - my).toFixed(3)}cqw;width:${(x1 - x0).toFixed(3)}cqw;height:${(y1 - y0).toFixed(3)}cqw;background-image:url('${it.art}')`;
+        p.appendChild(a);
+      } else if (it.c) {
+        const img = new Image();
+        img.src = C(it.c); img.alt = ''; img.decoding = 'async';
+        if (opts.lazy) img.loading = 'lazy';
+        if (opts.flip) { const k = document.createElement('div'); k.className = 'card3d'; k.append(img, cardBack()); p.appendChild(k); }
+        else p.appendChild(img);
+      }
+      if (it.tag) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = it.tag; p.appendChild(t); }
+      sheet.appendChild(p);
+    });
+    el.replaceChildren(sheet);
+    return sheet;
+  }
+
+  /* ── 1. Hero: three ways to fill a page. Color Search and Theme restyle all nine pockets (card by card, through
+        the card back); Find Similar starts from three picked cards and "≈ Like the whole page" fills the six empty
+        pockets (the app's Complete sheet fill). Arrange reseats. ── */
+  const SETS = {
+    gold: { cover: '#3B2C0C', tint: '#F6DE9A', tint2: '#E7B93E', story: 'Nine cards that all came in gold.', label: 'nine gold cards',
+      cards: ['gold-542935', 'gold-610531', 'gold-610533', 'gold-654527', 'gold-676106', 'gold-693518', 'gold-610535', 'gold-704877', 'gold-728062'] },
+    red: { cover: '#3A1712', tint: '#F4C2A6', tint2: '#E98C66', story: 'Red, from the first pocket to the last.', label: 'nine red cards',
+      cards: ['red-groudon-2-bloodmoon-ursaluna-ex', 'red-groudon-3-garganacl', 'red-groudon-4-volcanion-ex', 'red-groudon-5-team-magma-s-groudon-ex', 'red-groudon-0-hero-groudon', 'red-groudon-1-closest-magmortar', 'red-groudon-6-fezandipiti', 'red-groudon-7-tepig', 'red-groudon-8-mightyena'] },
+    pink: { cover: '#4A1E35', tint: '#F6C6DC', tint2: '#E98BB8', story: 'One shade of pink, top to bottom.', label: 'nine pink cards',
+      cards: ['pink-246689', 'pink-497619', 'pink-550224', 'pink-676100', 'pink-676094', 'pink-684385', 'pink-567435', 'pink-246704', 'pink-676102'] },
+    night: { cover: '#141B33', tint: '#C9D3F2', tint2: '#8EA0DC', story: 'theme:night. Every card drawn after dark.', label: 'nine cards with night-sky art',
+      cards: ['night-490730', 'night-642255', 'night-642550', 'night-642570', 'night-560379', 'night-676046', 'night-693471', 'night-717610', 'night-696686'] },
+    beach: { cover: '#123A46', tint: '#BFE6EC', tint2: '#F2D59A', story: 'theme:beach. Sand, surf and tide pools.', label: 'nine cards with beach art',
+      cards: ['tide-beach-1-wiglett', 'tide-beach-2-marill', 'tide-497630', 'tide-beach-3-squirtle', 'tide-beach-4-altaria-ex', 'tide-beach-5-lapras', 'tide-beach-6-oshawott', 'tide-beach-7-dwebble', 'tide-beach-8-psyduck'] },
+    volcano: { cover: '#2E120B', tint: '#F6BE9A', tint2: '#D9582E', story: 'theme:volcano. Nine cards with lava in the art.', label: 'nine cards with volcano art',
+      cards: ['lava-478065', 'lava-517018', 'lava-676035', 'lava-523867', 'lava-642552', 'lava-642553', 'lava-127139', 'lava-517045', 'lava-523880'] },
+  };
+  // Find Similar mode: the three starting cards and the six from Brian's rainbow page (the Reddit "rainbow" story, 2026-10-22)
+  const RAINBOW = { cover: '#1F1A33', tint: '#F7CFE6', tint2: '#9FD6F2', label: 'rainbow cards',
+    start: ['rainbow-542886', 'rainbow-497681', 'rainbow-542887'],
+    fill: ['rainbow-642245', 'rainbow-662180', 'rainbow-712953', 'rainbow-654516', 'rainbow-542904', 'rainbow-716229'] };
+  const hero = $('.hero'), heroPage = $('#heroPage'), binder = $('#binder'), story = $('#story'), status = $('#heroStatus');
+  const simBtn = $('#simBtn'), simCount = $('#simCount'), simReset = $('#simReset');
+  let mode = 'color', current = 'gold', take = 1, busy = false, pending = null, simState = 'idle';
+  const applyTheme = s => {
+    hero.style.setProperty('--tint', s.tint); hero.style.setProperty('--tint-2', s.tint2);
+    binder.style.setProperty('--cover', s.cover);
+  };
+  buildPage(heroPage, SETS.gold.cards.map(c => ({ c })), { flip: true });
+  applyTheme(SETS.gold);
+  const pockets = () => $$('.pocket', heroPage);
+  const cards = () => $$('.card3d', heroPage);
+  pockets().forEach(p => { const k = document.createElement('span'); k.className = 'pick'; k.textContent = '✓'; k.setAttribute('aria-hidden', 'true'); p.appendChild(k); });
+  const decode = list => Promise.all(list.map(n => { const i = new Image(); i.src = C(n); return i.decode().catch(() => {}); }));
+  const preload = k => decode(SETS[k].cards);
+  setTimeout(() => { Object.keys(SETS).forEach(k => k !== 'gold' && preload(k)); decode([...RAINBOW.start, ...RAINBOW.fill]); }, 1500);
+
+  // on load every pocket starts as a card back and turns over in reading order
+  if (!reduced()) {
+    cards().forEach((k, i) => k.animate([
+      { transform: 'translateY(-18px) rotateY(180deg) scale(.92)' },
+      { transform: 'translateY(-6px) rotateY(180deg) scale(.98)', offset: .35 },
+      { transform: 'none' }], { duration: 900, delay: 450 + i * 90, easing: EO, fill: 'backwards' }));
+  }
+
+  const setStory = (text, quiet) => {
+    story.getAnimations().forEach(a => a.cancel());
+    story.textContent = text; if (!quiet) status.textContent = text;
+    if (!reduced()) story.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: EO });
+  };
+  const resetTakes = () => { $$('.take-badge', hero).forEach(b => { if (b !== simCount) b.hidden = true; }); take = 1; };
+  const flipTo = async (list, idx) => {
+    const ps = pockets();
+    const swap = i => {
+      const p = ps[i]; p.querySelector('.card3d img').src = C(list[i]);
+      p.classList.remove('empty', 'picked', 'pickable');
+    };
+    if (reduced()) { idx.forEach(swap); return; }
+    await Promise.all(idx.map((i, n) => {
+      const card = ps[i].querySelector('.card3d'), wasEmpty = ps[i].classList.contains('empty');
+      if (wasEmpty) {
+        swap(i);
+        return card.animate([{ opacity: 0, transform: 'translateY(-22px) rotateY(180deg) scale(.9)' }, { opacity: 1, transform: 'translateY(-8px) rotateY(180deg) scale(.98)', offset: .3 }, { opacity: 1, transform: 'none' }],
+          { duration: 760, delay: n * 110, easing: EO, fill: 'backwards' }).finished;
+      }
+      return card.animate([{ transform: 'none' }, { transform: 'translateY(-4px) rotateY(180deg)' }], { duration: 220, delay: n * 80, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished
+        .then(() => { swap(i); return card.animate([{ transform: 'translateY(-4px) rotateY(180deg)' }, { transform: 'rotateY(360deg)' }], { duration: 380, easing: EO, fill: 'forwards' }).finished; })
+        .then(() => card.getAnimations().forEach(a => a.cancel()));
+    }));
+  };
+
+  async function restyle(k) {
+    if (busy) { pending = k; return; }
+    if (k === current) return;
+    busy = true; current = k;
+    $$('.chip[data-set]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.set === k)));
+    resetTakes(); heroPage.querySelector('.sheet').classList.remove('picking');
+    applyTheme(SETS[k]);
+    heroPage.setAttribute('aria-label', `A binder page of ${SETS[k].label}`);
+    await preload(k);
+    story.animate([{ opacity: 1 }, { opacity: 0 }], { duration: reduced() ? 0 : 160, fill: 'forwards' });
+    await flipTo(SETS[k].cards, [...Array(9).keys()]);
+    setStory(SETS[k].story);
+    busy = false;
+    if (pending) { const n = pending; pending = null; n === 'similar' ? enterSimilar() : restyle(n); }
+  }
+  $$('.chip[data-set]').forEach(b => b.addEventListener('click', () => restyle(b.dataset.set)));
+
+  /* Find Similar mode: three rainbow cards in the top row, six empty pockets. Pick the three, press "≈ Like the whole page". */
+  const picked = () => pockets().filter(p => p.classList.contains('picked'));
+  const syncSim = () => {
+    const n = picked().length;
+    simCount.textContent = simState === 'done' ? 'added 6' : `${n} of 3`;
+    simBtn.classList.toggle('waiting', simState !== 'done' && n < 3);
+    simBtn.setAttribute('aria-label', simState === 'done' ? 'Like the whole page: added 6 cards' : n < 3 ? `Like the whole page: ${n} of 3 picked, the rest are picked for you` : 'Like the whole page: fill the six empty pockets');
+  };
+  async function enterSimilar() {
+    if (busy) { pending = 'similar'; return; }
+    busy = true; current = 'similar'; simState = 'pick';
+    $$('.chip[data-set]').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    resetTakes(); applyTheme(RAINBOW); simReset.hidden = true;
+    heroPage.setAttribute('aria-label', 'A binder page with three rainbow cards in the top row and six empty pockets');
+    await decode(RAINBOW.start);
+    story.animate([{ opacity: 1 }, { opacity: 0 }], { duration: reduced() ? 0 : 160, fill: 'forwards' });
+    const ps = pockets();
+    // empty the six lower pockets (cards lift away), then turn the top three to the rainbow cards
+    if (!reduced()) await Promise.all(ps.slice(3).map((p, n) => p.querySelector('.card3d').animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-14px) scale(.94)' }], { duration: 260, delay: n * 40, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished));
+    ps.slice(3).forEach(p => { p.classList.add('empty'); p.classList.remove('picked', 'pickable'); p.querySelector('.card3d').getAnimations().forEach(a => a.cancel()); });
+    await flipTo([...RAINBOW.start], [0, 1, 2]);
+    ps.slice(0, 3).forEach(p => p.classList.add('pickable'));
+    heroPage.querySelector('.sheet').classList.add('picking');
+    syncSim();
+    setStory('Pick three cards you like. Tap each one.');
+    busy = false;
+    if (pending) { const n = pending; pending = null; restyle(n); }
+  }
+  const togglePick = p => {
+    if (simState !== 'pick' || !p.classList.contains('pickable')) return;
+    p.classList.toggle('picked');
+    const n = picked().length;
+    if (n === 3) { simState = 'ready'; heroPage.querySelector('.sheet').classList.remove('picking'); setStory('Three picked. Now press “≈ Like the whole page”.'); }
+    syncSim();
+  };
+  async function runSimilar() {
+    if (busy || current !== 'similar' || simState === 'done') return;
+    busy = true;
+    // pressed early: pick the remaining starting cards first, so the page never dead-ends
+    const rest = pockets().slice(0, 3).filter(p => !p.classList.contains('picked'));
+    for (const p of rest) { p.classList.add('picked'); syncSim(); if (!reduced()) await wait(160); }
+    simState = 'done'; heroPage.querySelector('.sheet').classList.remove('picking');
+    await decode(RAINBOW.fill);
+    story.animate([{ opacity: 1 }, { opacity: 0 }], { duration: reduced() ? 0 : 160, fill: 'forwards' });
+    const list = [...RAINBOW.start, ...RAINBOW.fill];
+    await flipTo(list, [3, 4, 5, 6, 7, 8]);
+    pockets().slice(0, 3).forEach(p => p.classList.remove('picked', 'pickable'));
+    heroPage.setAttribute('aria-label', 'A full binder page of nine rainbow-colored cards');
+    syncSim(); simReset.hidden = false;
+    setStory('“≈ Like the whole page” filled the other six.');
+    busy = false;
+  }
+  simBtn.addEventListener('click', runSimilar);
+  simReset.addEventListener('click', () => { current = ''; enterSimilar(); });
+
+  const setMode = m => {
+    if (m === mode) return;
+    mode = m;
+    $$('.modes button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+    $$('.opts', hero).forEach(o => { o.hidden = o.dataset.opts !== m; });
+    if (m === 'similar') enterSimilar();
+    else restyle(m === 'color' ? 'gold' : 'night');
+  };
+  $$('.modes button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+  function arrange(btn) {
+    if (busy) return;
+    busy = true;
+    const ps = pockets();
+    const contents = ps.map(p => [...p.children].filter(c => !c.classList.contains('pick')));
+    const first = contents.map(nodes => nodes[0].getBoundingClientRect());
+    let order;
+    do { order = [...ps.keys()].sort(() => Math.random() - .5); } while (order.every((v, i) => v === i));
+    order.forEach((from, to) => { const pk = ps[to].querySelector('.pick'); ps[to].replaceChildren(...contents[from], pk); });
+    take = take % 6 + 1;
+    const badge = $('.take-badge', btn); badge.textContent = `take ${take}`; badge.hidden = false;
+    status.textContent = `Arranged: take ${take}`;
+    if (reduced()) { busy = false; return; }
+    const sheetEl = heroPage.querySelector('.sheet'); sheetEl.classList.add('arranging');
+    const anims = order.flatMap((from, to) => contents[from].map(el => {
+      const last = ps[to].firstElementChild.getBoundingClientRect(), f = first[from];
+      return el.animate([{ transform: `translate(${f.left - last.left}px,${f.top - last.top}px) scale(1.05)` }, { transform: 'none' }],
+        { duration: 640, delay: to * 30, easing: 'cubic-bezier(.7,0,.2,1)' }).finished;
+    }));
+    Promise.all(anims).then(() => { sheetEl.classList.remove('arranging'); busy = false; if (pending) { const n = pending; pending = null; restyle(n); } });
+  }
+  $$('[data-arrange]').forEach(b => b.addEventListener('click', () => arrange(b)));
+
+  // 3D hit-testing inside the tilted binder can land on the sheet between layers; fall back to the pocket under the pointer
+  const pocketAt = e => e.target.closest('.pocket') || pockets().find(p => { const r = p.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; });
+  heroPage.addEventListener('click', e => {
+    const p = pocketAt(e);
+    if (!p) return;
+    if (current === 'similar' && simState === 'pick') { togglePick(p); return; }
+    if (reduced() || p.classList.contains('empty')) return;
+    p.animate([{ transform: 'none' }, { transform: 'translateY(-6px) scale(1.06)', offset: .4 }, { transform: 'none' }], { duration: 520, easing: EO });
+  });
+
+  const stageEl = $('.stage');
+  if (matchMedia('(pointer: fine)').matches) {
+    stageEl.addEventListener('pointermove', e => {
+      if (reduced()) return;
+      const r = binder.getBoundingClientRect();
+      const x = clamp((e.clientX - r.left) / r.width, -.2, 1.2) - .5, y = clamp((e.clientY - r.top) / r.height, -.2, 1.2) - .5;
+      binder.classList.add('tracking');
+      binder.style.setProperty('--ry', `${(x * 10).toFixed(2)}deg`);
+      binder.style.setProperty('--rx', `${(-y * 8).toFixed(2)}deg`);
+    });
+    stageEl.addEventListener('pointerleave', () => { binder.classList.remove('tracking'); binder.style.setProperty('--ry', '0deg'); binder.style.setProperty('--rx', '0deg'); });
+  }
+
+  // attract demo: after 4s with no input, the hand taps the "Find Similar" mode, picks the three cards, then presses "≈ Like the whole page". Any input stops it.
+  const hand = $('#hand');
+  let touched = false, demoTimer = 0, demoRunning = false;
+  const stopDemo = () => {
+    touched = true; clearTimeout(demoTimer);
+    if (demoRunning) { hand.getAnimations().forEach(a => a.cancel()); hand.style.opacity = 0; demoRunning = false; }
+  };
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(t => addEventListener(t, stopDemo, { passive: true, once: true }));
+  const stageRel = el => { const s = stageEl.getBoundingClientRect(), r = el.getBoundingClientRect(); return [r.left - s.left + r.width * .5 - 21, r.top - s.top + r.height * .55 - 4]; };
+  async function demo() {
+    if (touched || reduced() || busy) return;
+    demoRunning = true;
+    const tab = $('.modes button[data-mode="similar"]');
+    const move = (from, to, d) => hand.animate([{ transform: `translate(${from[0]}px,${from[1]}px)`, opacity: from[2] ?? 1 }, { transform: `translate(${to[0]}px,${to[1]}px)`, opacity: 1 }], { duration: d, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'forwards' }).finished;
+    const tap = async (at, el) => { await hand.animate([{ transform: `translate(${at[0]}px,${at[1]}px)` }, { transform: `translate(${at[0]}px,${at[1] + 5}px) scale(.9)` }, { transform: `translate(${at[0]}px,${at[1]}px)` }], { duration: 300, easing: EO, fill: 'forwards' }).finished; el.classList.add('tap'); setTimeout(() => el.classList.remove('tap'), 180); };
+    try {
+      hand.style.opacity = 1;
+      const br = stageRel(binder), t = stageRel(tab);
+      await move([br[0] + 160, br[1] + 120, 0], t, 1000); if (touched) return;
+      await tap(t, tab); if (touched) return;
+      setMode('similar');
+      await wait(1500); if (touched) return;
+      let at = t;
+      for (const p of pockets().slice(0, 3)) {
+        const to = stageRel(p);
+        await move(at, to, 520); if (touched) return;
+        await tap(to, p); if (touched) return;
+        togglePick(p); at = to;
+        await wait(160); if (touched) return;
+      }
+      const b = stageRel(simBtn);
+      await move(at, b, 800); if (touched) return;
+      await tap(b, simBtn); if (touched) return;
+      runSimilar();
+      await wait(700);
+      await hand.animate([{ opacity: 1 }, { opacity: 0, transform: `translate(${b[0] + 30}px,${b[1] + 40}px)` }], { duration: 500, fill: 'forwards' }).finished;
+    } catch (e) { /* cancelled */ }
+    demoRunning = false;
+  }
+  new IntersectionObserver(es => es.forEach(e => {
+    clearTimeout(demoTimer);
+    if (e.isIntersecting && !touched) demoTimer = setTimeout(demo, 4000);
+  }), { threshold: .6 }).observe(binder);
+
+  /* ── 2. Statement: split words; inline pictures light with the word before them ── */
+  const st = $('#statement');
+  let wi = 0;
+  const splitWords = node => {
+    [...node.childNodes].forEach(n => {
+      if (n.nodeType === 3) {
+        const frag = document.createDocumentFragment();
+        n.textContent.split(/(\s+)/).forEach(t => {
+          if (!t) return;
+          if (/^\s+$/.test(t)) { frag.appendChild(document.createTextNode(t)); return; }
+          const s = document.createElement('span'); s.className = 'w'; s.style.setProperty('--i', wi++); s.textContent = t; frag.appendChild(s);
+        });
+        n.replaceWith(frag);
+      } else if (n.nodeType === 1) {
+        if (n.classList.contains('im')) n.style.setProperty('--i', wi - 1);
+        else splitWords(n);
+      }
+    });
+  };
+  if (st) splitWords(st);
+
+  /* ── 3. Video lifecycle ── */
+  const load = v => { if (!v.src && v.dataset.src) v.src = v.dataset.src; };
+  const playFrom0 = v => { load(v); try { v.currentTime = 0; } catch (e) {} const p = v.play(); if (p) p.catch(() => {}); };
+  const wrapOf = v => v.closest('.vid');
+  // posters: the finished page under reduced motion (nothing plays), frame 0 when motion is welcome
+  if (!reduced()) $$('video[data-a]').forEach(v => { v.poster = v.dataset.a; });
+  $$('.vid').forEach(w => {
+    const btn = $('.replay', w);
+    if (reduced()) { w.classList.add('idle'); if (btn) btn.lastChild.textContent = 'Play'; }
+  });
+
+  // stand-alone videos: play from frame 0 when 60% visible, pause when out; data-loop clips dissolve back to frame 0 up to N times
+  const solo = $$('.vid:not(#stageScreen) video');
+  solo.forEach(v => {
+    const w = wrapOf(v), ff = $('.ff', w), max = +(v.dataset.loop || 0);
+    v._loops = 0;
+    v.addEventListener('ended', async () => {
+      if (v._loops < max && !reduced() && v._visible) {
+        v._loops++;
+        if (ff) { ff.classList.add('on'); await wait(520); }
+        playFrom0(v);
+        v.addEventListener('playing', () => setTimeout(() => ff?.classList.remove('on'), 60), { once: true });
+      } else w.classList.add('done');
+    });
+    $('.replay', w)?.addEventListener('click', () => { w.classList.remove('done', 'idle'); v._loops = 0; playFrom0(v); });
+  });
+  const vio = new IntersectionObserver(es => es.forEach(e => {
+    const v = e.target, w = wrapOf(v);
+    v._visible = e.isIntersecting;
+    if (e.isIntersecting) { if (!reduced()) { w.classList.remove('done'); v._loops = 0; $('.ff', w)?.classList.remove('on'); playFrom0(v); } }
+    else v.pause();
+  }), { threshold: .6 });
+  solo.forEach(v => vio.observe(v));
+
+  // sticky stage: the active step decides the clip. A clip left before its payoff shows its finished frame first.
+  const CLIPS = [
+    { payoff: 5.1, bg: '#F3ECDE', name: '“Find Similar”', pro: true },
+    { payoff: 6.9, bg: '#FAF5EE', name: '“Suggest”' },
+    { payoff: 3.6, bg: '#141124', name: '“Arrange”' },
+    { payoff: 5.8, bg: '#2D1526', name: '“Color Search”', pro: true },
+    { payoff: 4.0, bg: '#17150F', name: '“Theme”' },
+  ];
+  const stage = $('#stageScreen'), layers = $$('.clip', stage), stageVids = layers.map(l => $('video', l)), pill = $('#stagePill'), bars = $$('#stageBars i');
+  let step = 0, shown = 0, stageVisible = false, switchToken = 0;
+  const setCap = i => {
+    pill.innerHTML = CLIPS[i].name + (CLIPS[i].pro ? '' : '');
+    bars.forEach((b, j) => { b.classList.toggle('on', j === i); if (j !== i) b.style.setProperty('--f', j < i ? 1 : 0); });
+  };
+  const show = i => {
+    layers.forEach((l, j) => { l.classList.toggle('on', j === i); l.classList.remove('early'); if (j !== i) stageVids[j].pause(); });
+    stage.style.setProperty('--sbg', CLIPS[i].bg);
+    stage.classList.remove('done');
+    shown = i;
+    if (reduced()) { stage.classList.add('idle'); bars[i].style.setProperty('--f', 1); }
+    else if (stageVisible) playFrom0(stageVids[i]);
+  };
+  async function goStep(i) {
+    if (i === step) return;
+    const from = shown, v = stageVids[from], tok = ++switchToken;
+    step = i; setCap(i);
+    const early = !reduced() && stageVisible && v.src && !v.paused && v.currentTime < CLIPS[from].payoff;
+    if (early) { v.pause(); layers[from].classList.add('early'); await wait(650); if (tok !== switchToken) return; }
+    show(i);
+  }
+  stageVids.forEach((v, i) => v.addEventListener('ended', () => { if (i === shown) stage.classList.add('done'); }));
+  $('.replay', stage).addEventListener('click', () => { stage.classList.remove('done', 'idle'); layers[shown].classList.remove('early'); playFrom0(stageVids[shown]); });
+  const tickBars = () => {
+    if (stageVisible && !reduced()) { const v = stageVids[shown]; bars[shown].style.setProperty('--f', clamp(v.currentTime / CLIPS[shown].payoff).toFixed(3)); }
+    requestAnimationFrame(tickBars);
+  };
+  if (!reduced()) requestAnimationFrame(tickBars);
+  new IntersectionObserver(es => es.forEach(e => {
+    stageVisible = e.isIntersecting && getComputedStyle(stage.closest('.scrolly-stage')).display !== 'none';
+    if (stageVisible) show(shown); else stageVids.forEach(v => v.pause());
+  }), { threshold: .5 }).observe(stage);
+  const steps = $$('.step');
+  const stepIO = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    steps.forEach(s => s.classList.toggle('on', s === e.target));
+    goStep(+e.target.dataset.step);
+  }), { rootMargin: '-45% 0px -45% 0px' });
+  steps.forEach(s => stepIO.observe(s));
+
+  /* ── 3b. Studio shot: scroll-linked tilt toward the viewer, growing to the full page width ── */
+  const shotEl = $('#shot'), shotTrack = $('#shotTrack');
+  const smooth = t => t * t * (3 - 2 * t);
+  function renderShot() {
+    if (reduced()) { shotEl.style.setProperty('--p', 1); shotEl.classList.add('full'); return; }
+    const r = shotTrack.getBoundingClientRect();
+    if (r.top > innerHeight * 1.2 || r.bottom < -innerHeight * .2) return;
+    const p = smooth(clamp((innerHeight * 1.02 - r.top) / (innerHeight * .9)));
+    shotEl.style.setProperty('--p', p.toFixed(4));
+    shotEl.classList.toggle('full', p > .9);
+  }
+  renderShot();
+
+  /* ── 4. Bento demos ── */
+  const POOL = ['night-490730', 'skyline-skyline-4-zapdos', 'night-642255', 'skyline-skyline-6-articuno', 'night-642570', 'skyline-skyline-5-moltres', 'night-717610', 'skyline-skyline-7-lapras', 'night-693471', 'skyline-skyline-8-salamence-ex', 'night-560379', 'night-676046', 'skyline-skyline-9-alolan-exeggutor', 'night-642550', 'night-696686', 'skyline-skyline-1-meowth'];
+  const sizePage = $('#sizePage');
+  const SIZES = { '3x3': [3, 9], '3x4': [4, 12], '4x4': [4, 16] };
+  const LABEL = { '3x3': 'nine', '3x4': 'twelve', '4x4': 'sixteen' };
+  const fillSizes = key => {
+    const [cols, n] = SIZES[key];
+    sizePage.style.setProperty('--cols', cols);
+    sizePage.style.width = cols === 3 ? 'min(100%, 300px)' : 'min(100%, 380px)';
+    sizePage.setAttribute('aria-label', `A binder page with ${LABEL[key]} pockets`);
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('div'); p.className = 'pocket'; p.style.setProperty('--vt', `pk${i}`);
+      const img = new Image(); img.src = C(POOL[i]); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
+      p.appendChild(img); frag.appendChild(p);
+    }
+    sizePage.replaceChildren(frag);
+  };
+  fillSizes('3x3');
+  $$('.t-sizes .seg button').forEach(b => b.addEventListener('click', () => {
+    $$('.t-sizes .seg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    const go = () => fillSizes(b.dataset.size);
+    if (document.startViewTransition && !reduced()) document.startViewTransition(go); else go();
+  }));
+
+  buildPage($('#slicePage'), [
+    { c: 'tide-beach-2-marill' }, { art: '/landing-v2/img/art-tide-bottom.webp', span: [1, 0, 2, 1] }, { art: '/landing-v2/img/art-tide-bottom.webp', span: [1, 0, 2, 1] },
+    { c: 'tide-beach-3-squirtle' }, { art: '/landing-v2/img/art-tide-bottom.webp', span: [1, 0, 2, 1] }, { art: '/landing-v2/img/art-tide-bottom.webp', span: [1, 0, 2, 1] },
+    { c: 'tide-beach-6-oshawott' }, { c: 'tide-beach-8-psyduck' }, { c: 'tide-beach-7-dwebble' }], { lazy: true });
+
+  /* Dress the binder: sleeves, page background, cover (with decorations), music (a now-playing pill, no audio) */
+  const dbook = $('#dbook'), dpage = $('#dpage'), dnote = $('#dnote'), tpill = $('#trackPill'), tpT = $('#tpT');
+  ['meadow-meadow-1-sprigatito', 'meadow-meadow-4-eevee', 'meadow-meadow-2-azurill', 'meadow-meadow-5-growlithe', 'meadow-meadow-6-enamorus', 'meadow-meadow-3-altaria', 'meadow-meadow-7-masquerain', 'meadow-meadow-8-inkay', 'meadow-meadow-9-aarune']
+    .forEach(n => { const p = document.createElement('div'); p.className = 'pocket'; const img = new Image(); img.src = C(n); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async'; p.appendChild(img); dpage.appendChild(p); });
+  const SLEEVE = {
+    none: [null, '0'], black: ['#2B2926', '6%'],
+    gold: ['linear-gradient(135deg,#8A6A1F,#F4D77A 40%,#A8822B 62%,#F6E3A1 82%,#8A6A1F)', '6%'],
+    rainbow: ['linear-gradient(135deg,#FF6B6B,#FFD166 22%,#06D6A0 44%,#4CC9F0 64%,#7B61FF 82%,#F72585)', '6%'],
+  };
+  const PBG = { black: null, cream: '#EFE4CC', navy: 'linear-gradient(160deg,#22355C,#141F38)', pic: "url('/landing-v2/img/art-tide-top.webp') center / cover" };
+  const NOTE = {
+    sleeves: 'Every pocket at once, or one page, or one pocket.',
+    bg: 'A color or a picture behind the pockets, on every page or just one.',
+    cover: 'A real zip binder in its colourways. Add text, your art and set-logo stickers, front and back.',
+    music: 'One track per binder. It plays while anyone has the binder open, after a tap.',
+  };
+  const dress = { sleeves: 'rainbow', bg: 'black' };
+  const applyDress = () => {
+    const [slv, sp] = SLEEVE[dress.sleeves];
+    dpage.style.setProperty('--sp', sp); slv ? dpage.style.setProperty('--slv', slv) : dpage.style.removeProperty('--slv');
+    PBG[dress.bg] ? dpage.style.setProperty('--pbg', PBG[dress.bg]) : dpage.style.removeProperty('--pbg');
+    dpage.setAttribute('aria-label', `A binder page of nine cards, ${dress.sleeves === 'none' ? 'no sleeves' : dress.sleeves + ' sleeves'}, ${dress.bg === 'pic' ? 'a picture' : dress.bg} background`);
+  };
+  applyDress();
+  $$('.dtabs button').forEach(b => b.addEventListener('click', () => {
+    const d = b.dataset.d;
+    $$('.dtabs button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    $$('.dopts').forEach(o => { o.hidden = o.dataset.d !== d; });
+    dbook.classList.toggle('cover', d === 'cover');
+    dnote.innerHTML = NOTE[d];
+  }));
+  $$('.dopts').forEach(o => o.addEventListener('click', e => {
+    const b = e.target.closest('.dchip'); if (!b) return;
+    $$('.dchip', o).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    const d = o.dataset.d, v = b.dataset.v;
+    if (d === 'sleeves' || d === 'bg') { dress[d] = v; applyDress(); }
+    else if (d === 'cover') $('#dcover').style.setProperty('--cover-c', v);
+    else if (d === 'music') { tpT.textContent = tpill.getAttribute('aria-pressed') === 'true' ? v : 'Tap to play'; tpill.dataset.track = v; }
+  }));
+  tpill.dataset.track = 'Gymnopedie No 1';
+  tpill.addEventListener('click', () => {
+    const on = tpill.getAttribute('aria-pressed') !== 'true';
+    tpill.setAttribute('aria-pressed', String(on));
+    tpT.textContent = on ? tpill.dataset.track : 'Tap to play';
+  });
+
+  /* One artist: seven Tomokazu Komiya cards fan out and turn face up */
+  const fan = $('#fan');
+  ['komiya-146685', 'komiya-213208', 'komiya-490070', 'komiya-497613', 'komiya-523888', 'komiya-241772', 'komiya-194927'].forEach((n, k) => {
+    const c = document.createElement('div'); c.className = 'fc'; c.style.setProperty('--k', k);
+    const card = document.createElement('div'); card.className = 'card3d';
+    const img = new Image(); img.src = C(n); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
+    card.append(img, cardBack()); c.appendChild(card); fan.appendChild(c);
+  });
+  if (reduced()) fan.classList.add('open');
+  else new IntersectionObserver(es => es.forEach(e => fan.classList.toggle('open', e.isIntersecting)), { threshold: .6 }).observe(fan);
+
+  /* ── 4b. Collection: one tap marks a pocket owned; the set checklist meter fills ── */
+  const OWN = [
+    ['dlr-727563', 'Heracross', 1], ['dlr-727564', 'Surskit', 1], ['dlr-726510', 'Masquerain', 0],
+    ['dlr-727565', 'Cacnea', 1], ['dlr-727566', 'Cacturne', 0], ['dlr-727567', 'Combee', 1],
+    ['dlr-727568', 'Vespiquen', 1], ['dlr-727569', 'Shaymin', 0], ['dlr-726511', 'Virizion', 0]];
+  const ownGrid = $('#ownGrid'), toast = $('#ownToast');
+  const SET_TOTAL = 141, PER_CARD = 2.4; // demo pricing: about $2.40 a missing card
+  let setHave = 37, toastT = 0;
+  const ownPockets = OWN.map(([id, name, have]) => {
+    const p = document.createElement('button'); p.type = 'button'; p.className = 'opocket' + (have ? ' owned' : '');
+    const img = new Image(); img.src = C(id); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
+    const m = document.createElement('span'); m.className = 'omark'; m.setAttribute('aria-hidden', 'true'); m.textContent = '✓';
+    p.append(img, m); p.dataset.name = name;
+    p.setAttribute('aria-label', have ? `${name}. Owned, tap to unmark` : `${name}. Not owned, tap to mark as owned`);
+    ownGrid.appendChild(p); return p;
+  });
+  const meter = () => {
+    const sp = setHave / SET_TOTAL, pct = Math.round(sp * 100), toFinish = Math.round((SET_TOTAL - setHave) * PER_CARD);
+    $('#setTxt').textContent = `You have ${setHave} of ${SET_TOTAL} (${pct}%) · $${toFinish} to finish`;
+    $('#setBar').style.setProperty('--f', sp.toFixed(4));
+  };
+  meter();
+  const showToast = t => {
+    toast.textContent = t; toast.classList.add('on'); clearTimeout(toastT);
+    toastT = setTimeout(() => toast.classList.remove('on'), 1800);
+  };
+  const toggleOwn = p => {
+    const on = !p.classList.contains('owned'), name = p.dataset.name;
+    p.classList.toggle('owned', on);
+    p.setAttribute('aria-label', on ? `${name}. Owned, tap to unmark` : `${name}. Not owned, tap to mark as owned`);
+    setHave += on ? 1 : -1; meter();
+    showToast(on ? `${name} marked as owned` : `${name} unmarked`);
+    if (on && !reduced()) p.querySelector('.omark').animate([{ transform: 'scale(1.9)' }, { transform: 'scale(.9)', offset: .6 }, { transform: 'none' }], { duration: 520, easing: EO });
+  };
+  let ownTouched = false;
+  ownPockets.forEach(p => p.addEventListener('click', () => { ownTouched = true; toggleOwn(p); }));
+  // auto demo once in view: two pockets get marked, one after the other
+  new IntersectionObserver(async (es, o) => {
+    if (!es.some(e => e.isIntersecting)) return; o.disconnect();
+    for (const i of [2, 7]) {
+      await wait(reduced() ? 0 : 1300); if (ownTouched) return;
+      const p = ownPockets[i]; if (p.classList.contains('owned')) continue;
+      p.classList.add('tapping'); await wait(reduced() ? 0 : 260); p.classList.remove('tapping');
+      toggleOwn(p);
+    }
+  }, { threshold: .55 }).observe(ownGrid);
+
+  /* ── 5. Book: three spreads, two leaves ── */
+  const LAVA = '/landing-v2/img/art-lava.webp', TIDE = '/landing-v2/img/art-tide-top.webp';
+  const lv = n => ({ c: 'lava-' + n }), td = n => ({ c: 'tide-' + n });
+  const lavaArtL = { art: LAVA, span: [0, 1, 2, 1, 0, 1] }, tideArt = { art: TIDE, span: [0, 0, 2, 0, 0, 1] };
+  const FACES = {
+    lavaL: [lv('478065'), lv('517018'), lv('676035'), lavaArtL, lavaArtL, lavaArtL, lv('523867'), lv('642552'), lv('642553')],
+    lavaR: [lv('127139'), lv('517045'), lv('523880'), lavaArtL, lavaArtL, lavaArtL, lv('623609'), lv('709970'), lv('512035')],
+    tideL: [tideArt, tideArt, tideArt, td('beach-1-wiglett'), td('beach-2-marill'), td('497630'), td('beach-3-squirtle'), td('beach-4-altaria-ex'), td('beach-5-lapras')],
+    tideR: [tideArt, tideArt, tideArt, td('534731'), td('589904'), td('642230'), td('beach-6-oshawott'), td('beach-7-dwebble'), td('beach-8-psyduck')],
+    sky: ['1-meowth', '2-galarian-meowth', '3-alolan-meowth', '4-zapdos', '5-moltres', '6-articuno', '7-lapras', '8-salamence-ex', '9-alolan-exeggutor'].map(n => ({ c: 'skyline-skyline-' + n })),
+    night: ['490730', '642255', '642550', '642570', '560379', '676046', '693471', '717610', '696686'].map(n => ({ c: 'night-' + n })),
+  };
+  const LABELS = { lavaL: 'Left page: volcano cards with a lava photo across the middle row', lavaR: 'Right page: the lava photo continues across the middle row', tideL: 'Left page: a tide-pool picture across the top row, water cards below', tideR: 'Right page: the tide-pool picture continues, water cards below', sky: 'Left page: three Meowth whose art joins into one skyline, legendary birds above', night: 'Right page: night cards under a moon' };
+  const mk = (host, key, pageIndex) => { const d = document.createElement('div'); host.appendChild(d); buildPage(d, FACES[key], { pageIndex, lazy: true }); d.setAttribute('role', 'img'); d.setAttribute('aria-label', LABELS[key]); return d; };
+  mk($('#bpL'), 'lavaL', 0); mk($('#bpR'), 'night', 1);
+  const leaves = [$('#leaf1'), $('#leaf2')];
+  mk($('.front', leaves[0]), 'lavaR', 1); mk($('.back', leaves[0]), 'tideL', 0);
+  mk($('.front', leaves[1]), 'tideR', 1); mk($('.back', leaves[1]), 'sky', 0);
+  $$('.book .page').forEach(p => { const sh = document.createElement('i'); sh.className = 'shade'; p.appendChild(sh); });
+  $$('.leaf .page').forEach(p => { const sp = document.createElement('i'); sp.className = 'spec'; p.appendChild(sp); });
+
+  const SPREADS = [
+    { t: 'Lava across the fold', d: 'Art can run across both pages of a spread, just like folded art in a real binder.' },
+    { t: 'Tide pools', d: 'A free picture stretched across six pockets, water cards underneath.' },
+    { t: 'Three Meowth. One skyline.', d: 'Their art joins into one city, with the legendary birds flying over it. Night falls on the facing page.' },
+  ];
+  const cap = $('#bookCap'), pg = $('#bookPg'), prev = $('#bookPrev'), next = $('#bookNext'), bookStage = $('#bookStage');
+  const mobileBook = matchMedia('(max-width: 720px)');
+  const fitCap = () => {
+    const c = cap.cloneNode(); c.removeAttribute('id'); c.removeAttribute('aria-live'); c.setAttribute('aria-hidden', 'true');
+    const mw = parseFloat(getComputedStyle(cap).maxWidth) || 9e9, pw = cap.parentNode.clientWidth;
+    c.style.cssText = `position:absolute;visibility:hidden;pointer-events:none;min-height:0;width:${Math.min(mw, pw)}px`;
+    cap.parentNode.appendChild(c);
+    const m = Math.max(...SPREADS.map(s => { c.innerHTML = `<b>${s.t}</b><span>${s.d}</span>`; return c.offsetHeight; }));
+    c.remove(); cap.style.minHeight = m + 'px';
+  };
+  fitCap(); addEventListener('resize', fitCap); document.fonts && document.fonts.ready.then(fitCap);
+  let spread = -1;
+  const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const rad = a => a * Math.PI / 180;
+  const setAngles = (a1, a2, pan = .5) => {
+    [a1, a2].forEach((a, i) => {
+      const lf = leaves[i], s = Math.sin(rad(a));
+      const skew = (a < 90 ? 1 : -1) * 1.5 * s;
+      lf.style.transform = `rotateY(${-a}deg) scaleX(${(1 - .03 * s).toFixed(4)}) skewY(${skew.toFixed(2)}deg)`;
+      lf.style.zIndex = a > 90 ? 20 + i : 12 - i;
+      lf.style.visibility = a > 86 && a < 94 ? 'hidden' : 'visible';
+      lf.querySelectorAll('.shade').forEach(sh => sh.style.setProperty('--shade', (s * .9).toFixed(3)));
+      lf.querySelectorAll('.spec').forEach(sp => { sp.style.setProperty('--so', (s * .35).toFixed(3)); sp.style.setProperty('--sa', `${(70 + a * .5).toFixed(1)}deg`); });
+    });
+    const s = Math.max(Math.sin(rad(a1)), Math.sin(rad(a2))) * .35;
+    $$('#bpL .shade, #bpR .shade').forEach(sh => sh.style.setProperty('--shade', s.toFixed(3)));
+    bookStage.style.setProperty('--pan', pan.toFixed(4));
+    const sp = a2 > 90 ? 2 : a1 > 90 ? 1 : 0;
+    if (sp !== spread) {
+      spread = sp;
+      cap.innerHTML = `<b>${SPREADS[sp].t}</b><span>${SPREADS[sp].d}</span>`;
+      pg.textContent = `Pages ${sp * 2 + 1} and ${sp * 2 + 2} of 6`;
+      prev.disabled = sp === 0; next.disabled = sp === 2;
+      if (!reduced()) cap.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: EO });
+    }
+  };
+  const bookSec = $('#book');
+  const bookProgress = () => { const r = bookSec.getBoundingClientRect(); return clamp(-r.top / Math.max(1, bookSec.offsetHeight - innerHeight)); };
+  const SEG = [[.14, .42], [.56, .84]];
+  // phone camera: centred on the fold, follows each turning leaf to the left page, then glides back
+  const PAN = [[0, .5], [.16, .5], [.42, .88], [.5, .5], [.58, .5], [.84, .88], [.93, .5], [1, .5]];
+  const panAt = p => { for (let i = 1; i < PAN.length; i++) if (p <= PAN[i][0]) { const [x0, y0] = PAN[i - 1], [x1, y1] = PAN[i]; return y0 + (y1 - y0) * ease(clamp((p - x0) / (x1 - x0))); } return .5; };
+  const renderBook = () => {
+    if (reduced()) return;
+    const p = bookProgress();
+    const [a, b] = SEG.map(([s0, s1]) => ease(clamp((p - s0) / (s1 - s0))) * 180);
+    setAngles(a, b, mobileBook.matches ? panAt(p) : .5);
+  };
+  setAngles(0, 0);
+  const goSpread = sp => {
+    sp = ((sp % 3) + 3) % 3;
+    if (reduced()) { setAngles(sp >= 1 ? 180 : 0, sp >= 2 ? 180 : 0); return; }
+    const target = [0.05, 0.49, 0.93][sp];
+    const top = bookSec.getBoundingClientRect().top + scrollY;
+    scrollTo({ top: top + target * (bookSec.offsetHeight - innerHeight), behavior: 'smooth' });
+  };
+  prev.addEventListener('click', () => goSpread(spread - 1));
+  next.addEventListener('click', () => goSpread(spread + 1));
+  $('#book3d').addEventListener('click', () => { if (mobileBook.matches) goSpread(spread + 1); });
+
+  /* ── 6. Print: counters and the cut line that draws itself ── */
+  const cio = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    cio.unobserve(e.target);
+    if (reduced()) return;
+    const end = parseFloat(e.target.dataset.count), t0 = performance.now();
+    const tick = t => { const k = clamp((t - t0) / 900); e.target.textContent = (end * (1 - Math.pow(1 - k, 3))).toFixed(1); if (k < 1) requestAnimationFrame(tick); };
+    const w = e.target.getBoundingClientRect().width; e.target.style.cssText = `display:inline-block;width:${w}px;text-align:right`;
+    e.target.textContent = '0.0'; requestAnimationFrame(tick);
+  }), { threshold: .6 });
+  $$('[data-count]').forEach(el => cio.observe(el));
+  const reveal = $('#cutreveal');
+  if (!reduced()) {
+    reveal.setAttribute('stroke-dashoffset', '100');
+    new IntersectionObserver((es, o) => es.forEach(e => {
+      if (!e.isIntersecting) return; o.disconnect();
+      reveal.animate([{ strokeDashoffset: 100 }, { strokeDashoffset: 0 }], { duration: 1600, delay: 500, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'forwards' });
+    }), { threshold: 1 }).observe($('#cutcard'));
+  }
+
+  /* ── 7. Holo collector card ── */
+  const holo = $('#holo');
+  if (matchMedia('(pointer: fine)').matches) {
+    const zone = holo.closest('.share-stage');
+    zone.addEventListener('pointermove', e => {
+      if (reduced()) return;
+      const r = holo.getBoundingClientRect();
+      const x = clamp((e.clientX - r.left) / r.width, -.3, 1.3), y = clamp((e.clientY - r.top) / r.height, -.3, 1.3);
+      holo.classList.add('track');
+      holo.style.setProperty('--mx', `${(x * 100).toFixed(1)}%`); holo.style.setProperty('--my', `${(y * 100).toFixed(1)}%`);
+      holo.style.setProperty('--hy', `${((x - .5) * 22).toFixed(2)}deg`); holo.style.setProperty('--hx', `${((.5 - y) * 18).toFixed(2)}deg`);
+    });
+    zone.addEventListener('pointerleave', () => { holo.classList.remove('track'); ['--hx', '--hy'].forEach(p => holo.style.setProperty(p, '0deg')); });
+  } else if (!reduced()) {
+    // touch: the holo catches the light as the card scrolls past
+    holo._scroll = () => { const r = holo.getBoundingClientRect(), k = clamp(r.top / innerHeight); holo.style.setProperty('--mx', `${(20 + k * 60).toFixed(1)}%`); holo.style.setProperty('--hy', `${((k - .5) * 16).toFixed(2)}deg`); };
+  }
+
+  /* ── 8. Card lanes ── */
+  const L1 = ['lava-478065', 'pink-550224', 'skyline-skyline-1-meowth', 'tide-beach-5-lapras', 'gold-610533', 'meadow-meadow-9-aarune', 'night-642570', 'red-groudon-0-hero-groudon', 'tide-497630', 'pink-246704', 'lava-642553', 'meadow-meadow-4-eevee', 'gold-704877', 'night-696686'];
+  const L2 = ['tide-beach-8-psyduck', 'night-717610', 'gold-542935', 'skyline-skyline-6-articuno', 'pink-567435', 'lava-517045', 'meadow-meadow-2-azurill', 'tide-534731', 'night-642255', 'red-groudon-1-closest-magmortar', 'skyline-skyline-3-alolan-meowth', 'pink-676102', 'gold-654527', 'lava-623609'];
+  const fillLane = (el, names) => { [...names, ...names].forEach(n => { const i = new Image(); i.src = C(n); i.alt = ''; i.loading = 'lazy'; i.decoding = 'async'; el.appendChild(i); }); };
+  fillLane($('#lane1'), L1); fillLane($('#lane2'), L2);
+  const closeSec = $('.close');
+  new IntersectionObserver(es => es.forEach(e => closeSec.classList.toggle('live', e.isIntersecting))).observe(closeSec);
+
+  /* ── Reveals ── */
+  const rio = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); rio.unobserve(e.target); } }), { threshold: .15, rootMargin: '0px 0px -6% 0px' });
+  $$('.wipe').forEach(h => { const w = document.createElement('span'); w.className = 'wi'; w.append(...h.childNodes); h.appendChild(w); });
+  $$('.rv, .wipe, .pop, .shot').forEach(el => rio.observe(el));
+
+  /* ── Nav: hide on scroll down, show on up; progress fallback; one rAF loop ── */
+  const nav = $('#nav'), prog = $('#progress');
+  const nativeProgress = CSS.supports && CSS.supports('animation-timeline: scroll()');
+  let lastY = scrollY, ticking = false;
+  const onScroll = () => {
+    const y = scrollY;
+    nav.classList.toggle('scrolled', y > 8);
+    if (y > 160 && y > lastY + 4) nav.classList.add('hide');
+    else if (y < lastY - 4 || y < 160) nav.classList.remove('hide');
+    if (Math.abs(y - lastY) > 40 && y > 40) stopDemo();
+    lastY = y;
+    if (!nativeProgress) prog.style.setProperty('--p', (y / Math.max(1, document.documentElement.scrollHeight - innerHeight)).toFixed(4));
+    renderBook();
+    renderShot();
+    holo._scroll?.();
+    ticking = false;
+  };
+  addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
+  addEventListener('resize', () => requestAnimationFrame(onScroll));
+  nav.addEventListener('focusin', () => nav.classList.remove('hide'));
+  onScroll();
+})();
+</script>
+<script>
+  /* MKT-040: this page is where "/" sends a first web visit. Any way into the app marks the landing
+     seen (the same localStorage flag src/lib/landing.ts reads, so "/" never sends them back here) and
+     carries the visit's utm_* along; a CTA also adds from=landing&cta=..., which the app records as
+     landing.cta. */
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[data-cta], a[data-app]');
+    if (!a) return;
+    try { localStorage.setItem('michi.landing.seen', '1'); } catch (_) {}
+    var u = new URL(a.getAttribute('href'), location.origin);
+    new URLSearchParams(location.search).forEach(function (v, k) { if (/^utm_|^code$|^rdt_cid$/.test(k)) u.searchParams.set(k, v); });
+    if (a.dataset.cta) { u.searchParams.set('from', 'landing'); u.searchParams.set('cta', a.dataset.cta); }
+    a.setAttribute('href', u.pathname + u.search);
+  }, true);
+</script>
+</body>
+</html>

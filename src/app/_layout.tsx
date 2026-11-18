@@ -24,6 +24,8 @@ import '@/lib/games';
 import '@/lib/devMode';
 import { DevBadge } from '@/components/nav/DevBadge';
 import { redeemHandoffHashFromLocation } from '@/data/handoff';
+import { trackLandingCta, type LandingCta } from '@/lib/analytics';
+import { consumeLandingCtaArrival } from '@/lib/landing';
 import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';
 
@@ -51,6 +53,13 @@ export default function TabLayout() {
   // second caller finds nothing to redeem and the single-use token is never sent twice.
   useEffect(() => {
     void redeemHandoffHashFromLocation();
+  }, []);
+
+  // MKT-040: a press on the static landing (public/landing-v2/) arrives as ?from=landing&cta=...;
+  // record it as the same landing.cta /welcome sends, then drop the two params from the address.
+  useEffect(() => {
+    const cta = consumeLandingCtaArrival();
+    if (cta) trackLandingCta(cta as LandingCta);
   }, []);
 
   return (

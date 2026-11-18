@@ -38,7 +38,7 @@ import { fetchAvatarsByUsername } from '@/data/profileRepo';
 import { track, trackLandingSkip } from '@/lib/analytics';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { isSupabaseConfigured } from '@/lib/env';
-import { landingSkipTarget, markLandingSeen, shouldShowLanding } from '@/lib/landing';
+import { LANDING_PAGE, landingSkipTarget, markLandingSeen, shouldShowLanding } from '@/lib/landing';
 import { useBinders } from '@/store/binders';
 
 /**
@@ -223,6 +223,13 @@ export default function HomeScreen() {
   // image manifest — hydrate it so covers repaint with their hashed URLs (no-op in static mode).
   useImageManifest();
 
+  // MKT-040: the landing is a static page (public/landing-v2/), so a first web visit leaves the app
+  // for it with a full load; utm_* ride along in the query. The Expo /welcome route stays the
+  // fallback (native never gets here: shouldShowLanding is web only).
+  if (showLanding && !skipTo && LANDING_PAGE !== '/welcome' && Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.location.replace(LANDING_PAGE + window.location.search);
+    return null;
+  }
   if (showLanding) return <Redirect href={(skipTo ?? '/welcome') as Href} />;
 
   return (

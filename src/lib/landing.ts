@@ -13,8 +13,87 @@ import { landingCampaignParams } from '@/lib/analytics';
  */
 const LANDING_SEEN_KEY = 'michi.landing.seen';
 
+/**
+ * WHERE A FIRST VISIT GOES (MKT-040, owner 2026-11-17: "yes to every app swap of the landing page").
+ * The static landing v2 at public/landing-v2/ (a full page load, not a route). Its CTAs set the seen
+ * flag above themselves and come back with ?from=landing&cta=<LandingCta>, which the root layout
+ * records as landing.cta (consumeLandingCtaArrival). To go back to the old page, set this to
+ * '/welcome': the Expo route is untouched and still reachable there.
+ */
+export const LANDING_PAGE: string = '/landing-v2';
+
+const LANDING_CTAS = new Set(['enter_hero', 'enter_closing', 'discover', 'sample_binder']);
+
+/**
+ * An arrival from the static landing: returns its cta and strips from/cta from the address (utm_*
+ * stay, so attribution is unchanged). Null for every other load. Web only.
+ */
+export function consumeLandingCtaArrival(): string | null {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
+  try {
+    const first = new URL(window.location.href);
+    if (first.searchParams.get('from') !== 'landing') return null;
+    const cta = first.searchParams.get('cta');
+    // Expo Router writes its own idea of the location back to the URL as it settles on first load
+    // (the same thing data/handoff.ts works around), which would put from/cta straight back and
+    // count the press again on a refresh. So the scrub runs now and again after it has settled.
+    const scrub = () => {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('from') !== 'landing') return;
+      url.searchParams.delete('from');
+      url.searchParams.delete('cta');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    };
+    scrub();
+    for (const ms of [250, 1000, 3000]) setTimeout(scrub, ms);
+    return cta && LANDING_CTAS.has(cta) ? cta : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * AN AUTH RETURN IS NEVER A FIRST VISIT (MKT-040 pre-ship, after Doggle's swap broke Google sign-in on
+ * phones). Since the landing is a static page reached by a full load, sending one of these to it
+ * would drop the hash or leave ?code= on a page that cannot redeem it: an OAuth or email-link return
+ * that fell back to the Site URL (?code=, #access_token=, ?error=, token_hash, type=recovery), or the
+ * BiBo sign-in ticket (#th=). Those always stay in the app.
+ */
+export function isAuthReturn(): boolean {
+  if (typeof window === 'undefined') return false;
+  const { search, hash } = window.location;
+  // ?code= is also how a printed QR or an ad names its creative (lib/analytics CAMPAIGN_CODE: letters,
+  // digits, underscores). A PKCE code is a uuid, so only a code that is NOT a campaign code counts.
+  const code = new URLSearchParams(search).get('code');
+  if (code && !/^[a-z0-9_]{1,64}$/i.test(code)) return true;
+  return /[?&](error|error_description|error_code|token_hash|type)=/.test(search)
+    || /[#&](access_token|refresh_token|error|error_description|th|type)=/.test(hash);
+}
+
+/**
+ * A signed-in MEMBER is never a first visit (TRI-007): someone who signed in from the in-app sheet on a
+ * deep link never passed "/", so the seen flag alone would send them to the marketing page. Read from
+ * the stored Supabase session, synchronously; an anonymous guest session (the silent guest sign-in)
+ * does not count, which is why the gate is not plain auth state.
+ */
+function hasMemberSession(): boolean {
+  try {
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const k = window.localStorage.key(i);
+      if (!k || !/^sb-.+-auth-token$/.test(k)) continue;
+      const v = JSON.parse(window.localStorage.getItem(k) || 'null') as { user?: { is_anonymous?: boolean } } | null;
+      if (v?.user && v.user.is_anonymous === false) return true;
+    }
+  } catch {
+    // Unreadable storage: fall through to the seen flag.
+  }
+  return false;
+}
+
 export function shouldShowLanding(): boolean {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
+  if (isAuthReturn()) return false;
+  if (hasMemberSession()) return false;
   try {
     return !window.localStorage.getItem(LANDING_SEEN_KEY);
   } catch {

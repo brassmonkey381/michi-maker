@@ -19,6 +19,27 @@ export const pillChip = StyleSheet.create({
   textActive: { color: Palette.accentText, fontWeight: Weight.semibold },
 });
 
+/**
+ * MIC-061 (owner 2026-11-18: "some of those don't even look like clickable buttons"): an on/off chip
+ * that still reads as a button when OFF. An outline on the page's own ground, 44 px tall (MIC-017),
+ * filled with the accent when on. Used where a row of settings toggles sits on a panel, where the
+ * flat pillChip's panel fill disappeared into the panel.
+ */
+export const toggleChip = StyleSheet.create({
+  base: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: Radius.pill,
+    borderWidth: 1.5,
+    borderColor: Palette.hairlineStrong,
+    backgroundColor: Palette.surface,
+  },
+  active: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  text: { fontSize: 14, fontWeight: Weight.semibold, color: Palette.ink },
+  textActive: { color: Palette.accentText },
+});
+
 /** Flat (small-radius) chip — CardPicker span/shape chips. */
 export const flatChip = StyleSheet.create({
   base: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: Radius.control, backgroundColor: Palette.panel },

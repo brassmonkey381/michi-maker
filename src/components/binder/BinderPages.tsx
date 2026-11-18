@@ -41,7 +41,9 @@ import { patchDecoration, removeDecoration } from '@/data/coverDecorations';
 import { boxContains, decorationBox } from '@/data/coverGeometry';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
+import { Seg as KitSeg } from 'tcgscan-ui';
 import { CompletionMeter } from '@/components/collect/CompletionMeter';
+import { OwnedPriceToggles } from '@/components/binder/OwnedPriceToggles';
 import { binderCompletion, completionOf, pageCardIds, pageCompletion, toFinish } from '@/data/completion';
 import { usePriceSummaryWhen } from '@/lib/prices';
 import { ThemedView } from '@/components/themed-view';
@@ -61,7 +63,7 @@ function readPhoneStrip(): boolean {
   }
 }
 
-import { pillChip, sheet } from '@/constants/ui';
+import { pillChip, toggleChip, sheet } from '@/constants/ui';
 import { setHoverSuspended } from '@/components/binder/hoverGate';
 import { AboutHoverCard, PAGE_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
@@ -519,7 +521,10 @@ export function BinderPages({
    */
   const ownedStrip = !!ownedIds && binderCompletion(binder.pages, ownedIds).total > 0;
   const priceLabelOn = labelsOn && labelFields.includes('price');
-  const finishSummary = usePriceSummaryWhen(ownedStrip && priceLabelOn);
+  // The summary hook keeps what it loaded when switched off, so gate it here too: Prices off means
+  // no "to finish" at once, not after a reload (MIC-061).
+  const loadedSummary = usePriceSummaryWhen(ownedStrip && priceLabelOn);
+  const finishSummary = priceLabelOn ? loadedSummary : null;
   const finishOf = (pg: DemoPage) =>
     finishSummary && ownedIds ? toFinish(pageCardIds(pg), ownedIds, (id) => finishSummary[id]?.cur) : null;
   // MIC-017 book: a visitor's binder reads as a book; the filmstrip gives way to a slim count.
@@ -1537,27 +1542,26 @@ export function BinderPages({
               <View style={styles.settingsHead}>
                 {/* "Binder" when the binder's own look is in here (editing); "View" when only how
                     you look at it is. A sheet of zips and sleeves called View said the wrong thing. */}
-                {SETTINGS_TABS && settingsExtras ? (
-                  <View style={styles.settingsTabs} accessibilityRole="tablist">
-                    {(['binder', 'view'] as const).map((t) => (
-                      <Pressable
-                        key={t}
-                        accessibilityRole="tab"
-                        accessibilityState={{ selected: settingsTab === t }}
-                        onPress={() => setSettingsTab(t)}
-                        testID={`settings-tab-${t}`}
-                        style={[styles.settingsTab, settingsTab === t && styles.settingsTabOn]}>
-                        <Text style={[styles.settingsTabText, settingsTab === t && styles.settingsTabTextOn]}>{t === 'binder' ? 'This binder' : 'My view'}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                ) : (
-                  <ThemedText type="subtitle">{settingsExtras ? 'Settings' : 'View'}</ThemedText>
-                )}
+                <ThemedText type="subtitle">{settingsExtras ? 'Settings' : 'View'}</ThemedText>
                 <Pressable onPress={onCloseSettings} hitSlop={10}>
                   <Text style={styles.fieldsDone}>Done</Text>
                 </Pressable>
               </View>
+              {/* MIC-061 (owner 2026-11-18: "more indication that This binder and My view are a
+                  toggle group pair that control the tab that's shown"): the kit's own segment group
+                  (tcgscan-ui Seg, the standard two-to-four choice), stretched across the sheet under
+                  its title, so it reads as the switch for everything below it. */}
+              {SETTINGS_TABS && settingsExtras ? (
+                <View style={styles.settingsTabsRow} testID="settings-tabs">
+                  <KitSeg
+                    fill
+                    accessibilityLabel="Which settings to show"
+                    options={[{ value: 'binder', label: 'This binder' }, { value: 'view', label: 'My view' }]}
+                    value={settingsTab}
+                    onChange={setSettingsTab}
+                  />
+                </View>
+              ) : null}
               <ScrollView contentContainerStyle={styles.settingsBody} keyboardShouldPersistTaps="handled">
         {/* NAMED ROWS, NOT ONE WRAPPED HEAP.
 
@@ -1601,6 +1605,20 @@ export function BinderPages({
             </View>
           ) : null}
 
+          {/* MIC-061 (owner 2026-11-18): Owned and Prices FIRST in My view, together, for an account
+              that owns cards: the two switches the owned bars and "to finish" depend on. Kept in
+              Settings only ("we dont have space for that" outside it). */}
+          {ownedCards ? (
+            <View style={styles.settingsRow} testID="settings-collection-row">
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
+                Collection
+              </ThemedText>
+              <View style={styles.settingsRowControls}>
+                <OwnedPriceToggles owned={showOwned} onOwned={setShowOwned} labels={labelsProp ?? ownLabels} />
+              </View>
+            </View>
+          ) : null}
+
           {/* WHERE THE PAGE STRIP SITS. Along the bottom it costs the page about 115px of height;
               as a left rail it costs width, which a height-fitted page has to spare. Both controls
               here shape the spread itself, so they share a row. */}
@@ -1615,8 +1633,8 @@ export function BinderPages({
                 {canDoubleSide ? (
                   <Pressable
                     onPress={toggleDoubleSided}
-                    style={[pillChip.base, doubleSided && pillChip.active]}>
-                    <Text style={[pillChip.text, doubleSided && pillChip.textActive]}>
+                    style={[toggleChip.base, doubleSided && toggleChip.active]}>
+                    <Text style={[toggleChip.text, doubleSided && toggleChip.textActive]}>
                       {doubleSided ? '✓ Double-sided' : 'Double-sided'}
                     </Text>
                   </Pressable>
@@ -1626,8 +1644,8 @@ export function BinderPages({
                     onPress={() => view.setPref('navDock', railLeft ? 'bottom' : 'left')}
                     accessibilityRole="button"
                     accessibilityLabel={railLeft ? 'Move page navigation to the bottom' : 'Move page navigation to the left'}
-                    style={[pillChip.base, railLeft && pillChip.active]}>
-                    <Text style={[pillChip.text, railLeft && pillChip.textActive]}>
+                    style={[toggleChip.base, railLeft && toggleChip.active]}>
+                    <Text style={[toggleChip.text, railLeft && toggleChip.textActive]}>
                       {railLeft ? '⬒ Pages left' : '⬓ Pages below'}
                     </Text>
                   </Pressable>
@@ -1647,8 +1665,8 @@ export function BinderPages({
                   accessibilityRole="switch"
                   accessibilityState={{ checked: phoneStrip }}
                   testID="phone-strip-toggle"
-                  style={[pillChip.base, phoneStrip && pillChip.active]}>
-                  <Text style={[pillChip.text, phoneStrip && pillChip.textActive]}>{phoneStrip ? '✓ Page strip' : 'Page strip'}</Text>
+                  style={[toggleChip.base, phoneStrip && toggleChip.active]}>
+                  <Text style={[toggleChip.text, phoneStrip && toggleChip.textActive]}>{phoneStrip ? '✓ Page strip' : 'Page strip'}</Text>
                 </Pressable>
               </View>
             </View>
@@ -1670,8 +1688,8 @@ export function BinderPages({
                 disabled={!labelsOn}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: !labelsOn }}
-                style={[pillChip.base, !labelsOn && styles.settingsControlOff]}>
-                <Text style={pillChip.text}>Which labels…</Text>
+                style={[toggleChip.base, !labelsOn && styles.settingsControlOff]}>
+                <Text style={toggleChip.text}>Which labels…</Text>
               </Pressable>
             </View>
           </View>
@@ -1680,7 +1698,7 @@ export function BinderPages({
           {/* Owned: a green ✓ corner badge on the card slots the viewer owns — offered only when
               they have an inventory. Scans: pockets show the owner's own photos of the cards they
               scanned into their collection, likewise only when they have any. */}
-          {ownedCards || scanImages || viewerIsOwner ? (
+          {scanImages || viewerIsOwner ? (
             <View style={styles.settingsRow}>
               <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
                 Overlays
@@ -1694,26 +1712,17 @@ export function BinderPages({
                     accessibilityRole="button"
                     accessibilityLabel="Show where printed art would be cut to fit real pockets"
                     testID="view-cut-lines"
-                    style={[pillChip.base, view.cutLines && pillChip.active]}>
-                    <Text style={[pillChip.text, view.cutLines && pillChip.textActive]}>
+                    style={[toggleChip.base, view.cutLines && toggleChip.active]}>
+                    <Text style={[toggleChip.text, view.cutLines && toggleChip.textActive]}>
                       {view.cutLines ? '✓ Cut lines' : 'Cut lines'}
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {ownedCards ? (
-                  <Pressable
-                    onPress={() => setShowOwned(!showOwned)}
-                    style={[pillChip.base, showOwned && pillChip.active]}>
-                    <Text style={[pillChip.text, showOwned && pillChip.textActive]}>
-                      {showOwned ? '✓ Owned' : 'Owned'}
                     </Text>
                   </Pressable>
                 ) : null}
                 {scanImages ? (
                   <Pressable
                     onPress={() => setShowScans(!showScans)}
-                    style={[pillChip.base, showScans && pillChip.active]}>
-                    <Text style={[pillChip.text, showScans && pillChip.textActive]}>
+                    style={[toggleChip.base, showScans && toggleChip.active]}>
+                    <Text style={[toggleChip.text, showScans && toggleChip.textActive]}>
                       {showScans ? '✓ Scans' : 'Scans'}
                     </Text>
                   </Pressable>
@@ -2832,10 +2841,12 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   fieldsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10 },
-  settingsTabs: { flexDirection: 'row', borderRadius: 999, borderWidth: 1, borderColor: Palette.hairline, padding: 2, gap: 2 },
-  settingsTab: { minHeight: 34, paddingHorizontal: 14, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  settingsTabsRow: { marginBottom: 12, padding: 3, borderRadius: 16, borderWidth: 1.5, borderColor: Palette.hairlineStrong, backgroundColor: Palette.hairline },
+  // MIC-061: a segmented control that reads as tabs (44 px; the off tab outlined on its own ground).
+  settingsTabs: { flexDirection: 'row', borderRadius: 999, borderWidth: 1.5, borderColor: Palette.hairlineStrong, backgroundColor: Palette.panel, padding: 3, gap: 3 },
+  settingsTab: { minHeight: 44, paddingHorizontal: 18, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.surface },
   settingsTabOn: { backgroundColor: Palette.accent },
-  settingsTabText: { fontSize: 14, fontWeight: '700', color: Palette.ink },
+  settingsTabText: { fontSize: 15, fontWeight: '700', color: Palette.ink },
   settingsTabTextOn: { color: Palette.accentText },
   hidden: { display: 'none' },
   settingsCard: {

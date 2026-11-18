@@ -69,6 +69,9 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
 import { BinderFaceThumb } from '@/components/auth/AuthKeepParts';
+import { CompletionMeter } from '@/components/collect/CompletionMeter';
+import { binderCompletion } from '@/data/completion';
+import { useOwnedCards } from '@/hooks/use-owned-cards';
 
 /** Which binders the list shows. Module-level so it survives leaving and coming back. */
 type Visibility = 'all' | 'public' | 'private' | 'puzzles';
@@ -226,6 +229,10 @@ export default function MyBindersScreen() {
   // THE QUERY REACHES INTO THE BINDER (owner, 2026-11-02): title, description, then page titles
   // and page notes. A binder is remembered by the page in it ("the Pikachu page") as often as by
   // its name, and half of all pages already have one. Cheap: the binders are in memory.
+  // MIC-059: how much of each binder is owned, under its tile. Shown once the account owns a card;
+  // an empty collection gets the start card in My collection instead of a row of zeros.
+  const ownedCards = useOwnedCards();
+  const meters = !!ownedCards && ownedCards.size > 0;
   const visibleBinders = sortByRecentEdit(shelf).filter((b) => {
     if (showVisibilityFilter && visibility === 'public' && !b.isPublic) return false;
     if (showVisibilityFilter && visibility === 'private' && b.isPublic) return false;
@@ -506,6 +513,10 @@ export default function MyBindersScreen() {
                     maxCols={SHELF ? 5 : 6}
                     pageSize={SHELF ? 10 : undefined}
                     testID="my-binders-grid"
+                    footer={meters ? (binder) => {
+                      const c = binderCompletion(binder.pages, ownedCards);
+                      return c.total ? <CompletionMeter c={c} compact testID={`binder-meter-${binder.id}`} /> : <View style={styles.meterSpacer} />;
+                    } : undefined}
                     accessory={(binder) => {
                       const hit = q && showBinderSearch ? matchBinder(binder, q) : null;
                       return (
@@ -532,7 +543,7 @@ export default function MyBindersScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="New binder"
                         testID="my-binders-new-tile"
-                        style={({ pressed }) => [styles.newTile, { width: w, height: pageBoxHeight(w, 3, 3) + 44 }, pressed && styles.pressed]}>
+                        style={({ pressed }) => [styles.newTile, { width: w, height: pageBoxHeight(w, 3, 3) + 44 + (meters ? METER_H : 0) }, pressed && styles.pressed]}>
                         <Text style={styles.newTilePlus}>+</Text>
                         <Text style={styles.newTileText}>New binder</Text>
                       </Pressable>
@@ -680,9 +691,12 @@ function RenameDialog({
 
 /** The picture in the empty shelf: a 3x3 page with nothing in it yet. */
 const EMPTY_PAGE: DemoPage = { id: 'empty-shelf', rows: 3, cols: 3, slots: [] };
+/** MIC-059: the owned line under a tile (6 margin + a 13 px line + the bar), so New binder stays level. */
+const METER_H = 33;
 const EMPTY_PAGE_W = 132;
 
 const styles = StyleSheet.create({
+  meterSpacer: { height: METER_H - 6 },
   // MIC-017 piece 6: the Grid / Shelf switch, the shelf's New binder and the quiet empty shelf.
   viewSwitch: { flexDirection: 'row', alignSelf: 'flex-end', borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairline, padding: 2, marginBottom: 10 },
   viewOpt: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.pill },

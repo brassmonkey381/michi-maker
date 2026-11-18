@@ -17,6 +17,7 @@ import type { CatalogCard } from 'tcgscan-browse';
 
 import { FontSize, Fonts, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import type { CollectorKind, CollectorPocket } from '@/data/collectorBinders';
+import { completionOf } from '@/data/completion';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { formatUsd } from '@/lib/prices';
 
@@ -121,6 +122,7 @@ export function SetPreviewPanel({
   empty,
   busy,
   scope = 'binder',
+  fill = false,
 }: {
   title: string;
   meta: string;
@@ -140,6 +142,8 @@ export function SetPreviewPanel({
   /** MIC-051: what the main bar counts. 'set' for a complete or master set, 'binder' otherwise. The
    *  bar always counts EVERY pocket; each page of the spread carries its own count underneath. */
   scope?: 'set' | 'binder';
+  /** MIC-058: stretch to the column it stands in (the steps' height), the spread centred inside. */
+  fill?: boolean;
 }) {
   const manifestReady = useImageManifest();
   const perPage = shape.rows * shape.cols;
@@ -153,13 +157,15 @@ export function SetPreviewPanel({
   const setFirst = (f: (cur: number) => number) => setHeld({ of: pockets, first: f(first) });
   const shown = Array.from({ length: Math.min(spreadOf, Math.max(0, pageCount - first)) }, (_, k) => list.slice((first + k) * perPage, (first + k + 1) * perPage));
 
-  const have = owned ? list.filter((p) => owned.has(p.cardId)).length : 0;
+  // MIC-059: the same count My collection, binder tiles and binder pages use (data/completion).
+  const whole = completionOf(list.map((p) => p.cardId), owned);
+  const have = whole.have;
   const missing = list.filter((p) => !owned?.has(p.cardId));
   const toFinish = missing.reduce((sum, p) => {
     const v = priceOf(p.cardId);
     return typeof v === 'number' && v > 0 ? sum + v : sum;
   }, 0);
-  const pct = list.length ? Math.round((have / list.length) * 100) : 0;
+  const pct = whole.pct;
 
   const gap = 14;
   const pageW = Math.min(300, Math.floor((inner - gap * (spreadOf - 1)) / spreadOf));
@@ -169,7 +175,7 @@ export function SetPreviewPanel({
   const last = Math.min(pageCount, first + spreadOf);
 
   return (
-    <View style={styles.panel} testID="collect-preview">
+    <View style={[styles.panel, fill && styles.panelFill]} testID="collect-preview">
       <View style={styles.headRow}>
         <View style={styles.headText}>
           <Text style={styles.title} numberOfLines={2}>{title}</Text>
@@ -183,14 +189,14 @@ export function SetPreviewPanel({
           <View style={styles.bar} testID="collect-preview-bar">
             <Text style={styles.barText} testID="collect-preview-count">
               {scope === 'set' ? 'Whole set: ' : 'Whole binder: '}
-              <Text style={styles.barStrong}>{`${have} of ${list.length}`}</Text> owned
+              <Text style={styles.barStrong}>{`${have} of ${list.length}`}</Text>{` owned · ${pct}%`}
             </Text>
             <View style={styles.track}><View style={[styles.fill, { width: `${pct}%` }]} /></View>
             {missing.length && toFinish > 0 ? (
               <Text style={styles.barText}><Text style={styles.barStrong}>{formatUsd(toFinish)}</Text> to finish (market)</Text>
             ) : !missing.length ? <Text style={styles.barStrong}>Complete</Text> : null}
           </View>
-          <View style={styles.spread}>
+          <View style={[styles.spread, fill && styles.spreadFill]}>
             {shown.map((pg, k) => (
               <View key={first + k} style={styles.pageCol}>
               <View style={[styles.page, { width: pageW }]}>
@@ -233,7 +239,14 @@ export function SetPreviewPanel({
               {/* MIC-051: this page's own count, so "x of y" is never read as the spread's or the set's. */}
               <Text style={styles.pageCount} testID="collect-page-count">
                 {`Page ${first + k + 1}: `}
-                <Text style={styles.pageCountStrong}>{`${owned ? pg.filter((p) => owned.has(p.cardId)).length : 0} of ${pg.length}`}</Text> owned
+                {(() => {
+                  const pc = completionOf(pg.map((p) => p.cardId), owned);
+                  return (
+                    <>
+                      <Text style={styles.pageCountStrong}>{`${pc.have} of ${pc.total}`}</Text>{` owned · ${pc.pct}%`}
+                    </>
+                  );
+                })()}
               </Text>
               </View>
             ))}
@@ -292,9 +305,11 @@ const styles = StyleSheet.create({
   track: { flex: 1, minWidth: 80, height: 8, borderRadius: 99, backgroundColor: Palette.hairline, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: Palette.accent },
   pageCol: { alignItems: 'center', gap: 6 },
-  pageCount: { fontSize: FontSize.sm, color: Palette.muted },
+  pageCount: { fontSize: FontSize.label, color: Palette.muted },
   pageCountStrong: { fontWeight: Weight.bold, color: Palette.ink },
   spread: { flexDirection: 'row', justifyContent: 'center', gap: 14 },
+  panelFill: { flex: 1 },
+  spreadFill: { flex: 1, alignItems: 'center' },
   page: { flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-start', gap: 6, padding: 8, borderRadius: 14, backgroundColor: '#fbfaf7', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   pocket: { borderRadius: 7, backgroundColor: 'rgba(120,116,108,0.08)', justifyContent: 'space-between', overflow: 'hidden' },
   // Not collected yet: a grey fade over the art; the number and price sit on top of it.

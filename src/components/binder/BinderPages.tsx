@@ -41,6 +41,7 @@ import { patchDecoration, removeDecoration } from '@/data/coverDecorations';
 import { boxContains, decorationBox } from '@/data/coverGeometry';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
+import { pageCompletion } from '@/data/completion';
 import { ThemedView } from '@/components/themed-view';
 import { BinderSurface, FontSize, Palette, Radius, Weight } from '@/constants/theme';
 import { flag } from '@/lib/flags';
@@ -495,8 +496,15 @@ export function BinderPages({
    * already half-saying two lines below it. Putting it here costs nothing — the label was always
    * drawn — and puts a page's name on the page rather than on the chrome.
    */
+  // MIC-059: with "Owned" on, each column's label also says how much of that page is owned. It
+  // rides the label line that is already there, so the count costs the spread no height.
+  const ownedSuffix = (pg: DemoPage | null | undefined) => {
+    if (!ownedIds || !pg) return '';
+    const c = pageCompletion(pg, ownedIds);
+    return c.total ? ` · ${c.have} of ${c.total} owned` : '';
+  };
   const columnLabel = (pg: DemoPage | null | undefined, fallback: string) =>
-    (pg?.title || '').trim() || fallback;
+    ((pg?.title || '').trim() || fallback) + ownedSuffix(pg);
   // MIC-017 book: a visitor's binder reads as a book; the filmstrip gives way to a slim count.
   const book = BOOK_FLAG && !editable;
   const railLeft = view.navDock === 'left' && !phone && !book;
@@ -2218,7 +2226,7 @@ export function BinderPages({
           so a screenshot carries the binder's name, the page and where it was made. */}
       {phone && !editable && page ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.phoneCaption} numberOfLines={1} testID="page-caption">
-          {`${binder.title} · Page ${idx + 1} of ${count} · michi-maker.com`}
+          {`${binder.title} · Page ${idx + 1} of ${count}${ownedSuffix(page)} · michi-maker.com`}
         </ThemedText>
       ) : null}
       {/* One page at a time: nothing beside it to sweep over, so the outgoing page lifts on the

@@ -62,7 +62,11 @@ export function consumeLandingCtaArrival(): string | null {
 export function isAuthReturn(): boolean {
   if (typeof window === 'undefined') return false;
   const { search, hash } = window.location;
-  return /[?&](code|error|error_description|error_code|token_hash|type)=/.test(search)
+  // ?code= is also how a printed QR or an ad names its creative (lib/analytics CAMPAIGN_CODE: letters,
+  // digits, underscores). A PKCE code is a uuid, so only a code that is NOT a campaign code counts.
+  const code = new URLSearchParams(search).get('code');
+  if (code && !/^[a-z0-9_]{1,64}$/i.test(code)) return true;
+  return /[?&](error|error_description|error_code|token_hash|type)=/.test(search)
     || /[#&](access_token|refresh_token|error|error_description|th|type)=/.test(hash);
 }
 

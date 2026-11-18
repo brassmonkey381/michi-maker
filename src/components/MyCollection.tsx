@@ -38,6 +38,7 @@ import { CurateCallout, type CurateMode } from '@/components/CurateCallout';
 import { TcgscanPairing } from '@/components/TcgscanPairing';
 import { ImportCsvSheet } from '@/components/ImportCsvSheet';
 import { TcgscanLink } from '@/components/monetization/BundleOffer';
+import { CompletionMeter } from '@/components/collect/CompletionMeter';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
@@ -51,6 +52,7 @@ import {
   type PortfolioGroup,
   type UserCard,
 } from '@/data/collectionRepo';
+import { setCompletion } from '@/data/completion';
 import {
   rebuildTcgscanBinder,
   unplacedCount,
@@ -308,6 +310,14 @@ function EmptyCollection({
   }
   return (
     <View style={styles.curateCard}>
+      {/* MIC-059: an empty collection says how to start, so the page, set and binder counts have
+          something to count. */}
+      <View style={styles.startTracking} testID="collection-start-tracking">
+        <Text style={styles.startTitle}>See how much of each set you own</Text>
+        <Text style={styles.startBody}>
+          Scan cards in BiBoScan, or open a binder, turn on “Owned” in Settings under “My view” and tap the cards you have. Each set, binder and page then counts what you own.
+        </Text>
+      </View>
       {/* The same before-and-after card Learn shows, with its buttons wired to the sheet below
           rather than to a navigation: this IS the page they would have been sent to. */}
       <CurateCallout surface={surface} onPick={(mode) => (mode === 'example' ? openExample() : openImport())} />
@@ -390,6 +400,8 @@ function CollectionStrip({
   // The catalog powers name/set search, the Sets drill, and the action modal's metadata —
   // loaded only when one of those is actually in play.
   const { catalog } = useCatalog(mode === 'sets' || q.length > 0 || actionCard != null);
+  // MIC-059: everything owned, not just what the search shows, so a set's count never shrinks with the query.
+  const ownedAll = useMemo(() => new Set(cards.map((c) => c.cardId)), [cards]);
   // tcgscan portfolios, fetched the first time that view opens.
   const [portfolios, setPortfolios] = useState<PortfolioGroup[] | null>(null);
   // Collection multi-select that runs BEFORE the wizard: pick which tcgscan collection(s) to draft
@@ -627,7 +639,7 @@ function CollectionStrip({
     if (mode !== 'sets' || !catalog) return null;
     const bySeries = new Map<
       string,
-      { latest: string; sets: Map<string, { name: string; latest: string; cards: UserCard[] }> }
+      { latest: string; sets: Map<string, { setId: string; name: string; latest: string; cards: UserCard[] }> }
     >();
     for (const c of filtered) {
       const cc = catalog.getCard(c.cardId);
@@ -642,7 +654,7 @@ function CollectionStrip({
       if (rel > s.latest) s.latest = rel;
       let st = s.sets.get(setKey);
       if (!st) {
-        st = { name: cc?.setName || 'Unknown set', latest: '', cards: [] };
+        st = { setId: cc?.setId || '', name: cc?.setName || 'Unknown set', latest: '', cards: [] };
         s.sets.set(setKey, st);
       }
       if (rel > st.latest) st.latest = rel;
@@ -999,6 +1011,12 @@ function CollectionStrip({
                   <ThemedText type="small" themeColor="textSecondary" style={styles.groupSet}>
                     {st.name} · {st.cards.length}
                   </ThemedText>
+                  {/* MIC-059: how much of the set is owned, counted as Set Binders' "Complete set" counts it. */}
+                  {st.setId && catalog ? (
+                    <View style={styles.setMeter}>
+                      <CompletionMeter c={setCompletion(catalog.listCards(st.setId), ownedAll)} label="Whole set" testID={`collection-set-meter-${st.setId}`} />
+                    </View>
+                  ) : null}
                   <TileStrip
                     cards={st.cards}
                     placedCounts={placedCounts}
@@ -1957,6 +1975,10 @@ const styles = StyleSheet.create({
   },
   groupSeries: { marginTop: Spacing.three },
   groupSet: { marginTop: Spacing.one },
+  startTracking: { gap: 4, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, borderRadius: 10, backgroundColor: Palette.panelAlt, marginBottom: Spacing.two },
+  startTitle: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
+  startBody: { fontSize: FontSize.label, lineHeight: 19, color: Palette.muted },
+  setMeter: { maxWidth: 420, marginTop: 4, marginBottom: Spacing.one },
   cardModalWrap: { width: '100%', maxWidth: 320 },
   cardModal: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.two },
   cardModalImageWrap: { alignItems: 'center' },

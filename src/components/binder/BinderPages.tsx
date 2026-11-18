@@ -41,6 +41,8 @@ import { patchDecoration, removeDecoration } from '@/data/coverDecorations';
 import { boxContains, decorationBox } from '@/data/coverGeometry';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
+import { CompletionMeter } from '@/components/collect/CompletionMeter';
+import { binderCompletion, pageCompletion } from '@/data/completion';
 import { ThemedView } from '@/components/themed-view';
 import { BinderSurface, FontSize, Palette, Radius, Weight } from '@/constants/theme';
 import { flag } from '@/lib/flags';
@@ -1770,6 +1772,34 @@ export function BinderPages({
           </View>
         </View>
       ) : null}
+      {/* MIC-059: with "Owned" on, how much of the page(s) in view and of the whole binder is owned,
+          counted the way the Set Binders preview counts (data/completion). */}
+      {ownedIds && page && !shut ? (() => {
+        const whole = binderCompletion(binder.pages, ownedIds);
+        if (!whole.total) return null;
+        // Each page's count sits over its own column, so "Page 2" is never read as the left page.
+        const cols: [number, DemoPage | null][] = doubleSided
+          ? [[spreadLeftIdx, leftPage], [spreadRightIdx, rightPage]]
+          : [[idx, page]];
+        const colW = doubleSided ? bookW : pageWidth;
+        const gapW = doubleSided ? bookRowGap : 0;
+        const meterFor = (i: number, pg: DemoPage | null) => {
+          const c = pg ? pageCompletion(pg, ownedIds) : null;
+          return c && c.total ? <CompletionMeter c={c} label={`Page ${i + 1}`} testID={`binder-page-meter-${i + 1}`} /> : null;
+        };
+        return (
+          <View style={styles.ownedMeters} testID="binder-owned-meters">
+            <View style={{ width: colW * cols.length + gapW * (cols.length - 1), maxWidth: '100%' }}>
+              <CompletionMeter c={whole} label="Whole binder" testID="binder-whole-meter" />
+            </View>
+            <View style={[styles.ownedPageRow, { gap: gapW }]}>
+              {cols.map(([i, pg], k) => (
+                <View key={k} style={{ width: colW, maxWidth: '100%' }}>{meterFor(i, pg)}</View>
+              ))}
+            </View>
+          </View>
+        );
+      })() : null}
       {/* WEB: let the page scroll vertically under a finger; the swipe only wants the horizontal. */}
       <GestureDetector gesture={swipe} touchAction="pan-y">
       <View
@@ -2710,6 +2740,9 @@ function SpreadColumn({
 }
 
 const styles = StyleSheet.create({
+  // MIC-059: the Owned counts above the pages, side by side on a desk, stacked on a phone.
+  ownedMeters: { alignItems: 'center', gap: 8, marginBottom: 10 },
+  ownedPageRow: { flexDirection: 'row', justifyContent: 'center' },
   labelsRow: { alignItems: 'center', marginTop: 10 },
   // Wraps: it now carries the editor's chips as well as the view pills, and on a narrow window
   // that is more than one line's worth. Wrapping as one group beats two rows that each half-fill.

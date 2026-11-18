@@ -19,6 +19,8 @@ interface BinderThumbProps {
   onPress: () => void;
   /** Optional trailing control in the title row (e.g. the ⋯ actions button). */
   accessory?: ReactNode;
+  /** MIC-059: an optional line under the preview (My Binders shows how much of the binder is owned). */
+  footer?: ReactNode;
   /**
    * MIC-017 piece 8: a Discover search result's matching page numbers, shown as a post-it on the
    * page's bottom edge (owner, 2026-11-11). Every number, runs as ranges; "+N" only on overflow.
@@ -50,7 +52,7 @@ function PagesTag({ pages, width }: { pages: readonly number[]; width: number })
   );
 }
 
-export function BinderThumb({ binder, width, onPress, accessory, matchPages }: BinderThumbProps) {
+export function BinderThumb({ binder, width, onPress, accessory, footer, matchPages }: BinderThumbProps) {
   // The first page with something in it, so a binder that opens on a blank page still shows
   // what it holds (previewPages.facePage).
   const firstPage = facePage(binder.pages);
@@ -129,6 +131,7 @@ export function BinderThumb({ binder, width, onPress, accessory, matchPages }: B
       </View>
       </View>
       {matchPages?.length ? <PagesTag pages={matchPages} width={width} /> : null}
+      {footer ? <View style={{ marginTop: 6 }}>{footer}</View> : null}
     </Pressable>
   );
 }

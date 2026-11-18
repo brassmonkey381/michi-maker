@@ -20,6 +20,7 @@ export function BinderCoverGrid({
   binders,
   onOpen,
   accessory,
+  footer,
   trailing,
   minTile = 104,
   minCols = 2,
@@ -32,6 +33,8 @@ export function BinderCoverGrid({
   onOpen: (id: string) => void;
   /** A small control on each tile (the ⋯ menu for your own binders). */
   accessory?: (binder: DemoBinder) => ReactNode;
+  /** MIC-059: a line under each tile's preview (how much of the binder is owned). */
+  footer?: (binder: DemoBinder) => ReactNode;
   /** One more cell after the binders, given the tile width (a New binder tile). */
   trailing?: (tileWidth: number) => ReactNode;
   minTile?: number;
@@ -60,7 +63,7 @@ export function BinderCoverGrid({
         <View key={i} style={[styles.grid, { gap, width }]}>
           {cells.slice(i, i + perPage).map((binder) =>
             binder ? (
-              <BinderThumb key={binder.id} binder={binder} width={tileWidth} onPress={() => onOpen(binder.id)} accessory={accessory?.(binder)} />
+              <BinderThumb key={binder.id} binder={binder} width={tileWidth} onPress={() => onOpen(binder.id)} accessory={accessory?.(binder)} footer={footer?.(binder)} />
             ) : (
               <View key="trailing">{trailing?.(tileWidth)}</View>
             ),
@@ -78,7 +81,7 @@ export function BinderCoverGrid({
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={[styles.grid, { gap }]} testID={testID}>
       {tileWidth > 0
         ? binders.map((binder) => (
-            <BinderThumb key={binder.id} binder={binder} width={tileWidth} onPress={() => onOpen(binder.id)} accessory={accessory?.(binder)} />
+            <BinderThumb key={binder.id} binder={binder} width={tileWidth} onPress={() => onOpen(binder.id)} accessory={accessory?.(binder)} footer={footer?.(binder)} />
           ))
         : null}
       {tileWidth > 0 && trailing ? trailing(tileWidth) : null}

@@ -122,6 +122,7 @@ export function SetPreviewPanel({
   empty,
   busy,
   scope = 'binder',
+  fill = false,
 }: {
   title: string;
   meta: string;
@@ -141,6 +142,8 @@ export function SetPreviewPanel({
   /** MIC-051: what the main bar counts. 'set' for a complete or master set, 'binder' otherwise. The
    *  bar always counts EVERY pocket; each page of the spread carries its own count underneath. */
   scope?: 'set' | 'binder';
+  /** MIC-058: stretch to the column it stands in (the steps' height), the spread centred inside. */
+  fill?: boolean;
 }) {
   const manifestReady = useImageManifest();
   const perPage = shape.rows * shape.cols;
@@ -172,7 +175,7 @@ export function SetPreviewPanel({
   const last = Math.min(pageCount, first + spreadOf);
 
   return (
-    <View style={styles.panel} testID="collect-preview">
+    <View style={[styles.panel, fill && styles.panelFill]} testID="collect-preview">
       <View style={styles.headRow}>
         <View style={styles.headText}>
           <Text style={styles.title} numberOfLines={2}>{title}</Text>
@@ -193,7 +196,7 @@ export function SetPreviewPanel({
               <Text style={styles.barText}><Text style={styles.barStrong}>{formatUsd(toFinish)}</Text> to finish (market)</Text>
             ) : !missing.length ? <Text style={styles.barStrong}>Complete</Text> : null}
           </View>
-          <View style={styles.spread}>
+          <View style={[styles.spread, fill && styles.spreadFill]}>
             {shown.map((pg, k) => (
               <View key={first + k} style={styles.pageCol}>
               <View style={[styles.page, { width: pageW }]}>
@@ -305,6 +308,8 @@ const styles = StyleSheet.create({
   pageCount: { fontSize: FontSize.label, color: Palette.muted },
   pageCountStrong: { fontWeight: Weight.bold, color: Palette.ink },
   spread: { flexDirection: 'row', justifyContent: 'center', gap: 14 },
+  panelFill: { flex: 1 },
+  spreadFill: { flex: 1, alignItems: 'center' },
   page: { flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-start', gap: 6, padding: 8, borderRadius: 14, backgroundColor: '#fbfaf7', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   pocket: { borderRadius: 7, backgroundColor: 'rgba(120,116,108,0.08)', justifyContent: 'space-between', overflow: 'hidden' },
   // Not collected yet: a grey fade over the art; the number and price sit on top of it.

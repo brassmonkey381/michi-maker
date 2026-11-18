@@ -22,10 +22,12 @@
 import { useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { type CatalogCard, type CatalogSet, findSimilarToMany, getBrowseLanguages, loadColorIndex, parseQuery, searchCards } from 'tcgscan-browse';
 
 import { Seg } from '@/components/binder/inspector/controls';
+import { DialogCard } from '@/components/ui/DialogCard';
+import { DropdownSelect } from '@/components/ui/DropdownSelect';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -59,7 +61,7 @@ import { fetchStockArtForPanel } from '@/lib/stockArt';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 import { SetBuildView } from '@/components/collect/SetBuildView';
-import { GameChips, KindTiles, SetPreviewPanel, StepHead } from '@/components/collect/SetBindersPreview';
+import { KindTiles, SetPreviewPanel, StepHead } from '@/components/collect/SetBindersPreview';
 import { flag } from '@/lib/flags';
 
 /** MIC-017 piece 12 ('dev'): the checklist build view for a set. */
@@ -111,6 +113,12 @@ const ART_WINDOWS = [
 const ART_FILL_SOURCES = [{ id: 'stock', label: 'Stock photos', blurb: 'Photos in the mood of each page.' }, ...FAN_ART_SOURCES] as const;
 /** Stock-art panels filled on the way out, at most: each is a search and a re-host. */
 const ART_FILL_CAP = 60;
+/** MIC-058: the Owned filter as a segmented control in the Filters sheet (it was a three-way chip). */
+const OWNED_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'owned', label: 'Owned' },
+  { id: 'missing', label: 'Missing' },
+] as const;
 const LANGS = [
   { id: 'en', label: 'EN', blurb: 'English cards only.' },
   { id: 'ja', label: 'JP', blurb: 'Japanese cards only.' },
@@ -211,6 +219,8 @@ export default function CollectScreen() {
   const [sort, setSort] = useState<CollectorSort>({ key: naturalSortKey('complete'), dir: 'asc' });
   const [filters, setFilters] = useState<CollectorFilters>(NO_FILTERS);
   const [openFacet, setOpenFacet] = useState<FacetKey | null>(null);
+  // MIC-058: every filter in one "Filters" sheet (MIC-017 rules), not a row of chips.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const toggleFacet = (facet: FacetKey, id: string) =>
     setFilters((f) => ({ ...f, [facet]: f[facet].includes(id) ? f[facet].filter((x) => x !== id) : [...f[facet], id] }));
   const activeFilters = FACETS.filter((f) => filters[f.id].length).length + (filters.fullArt ? 1 : 0) + (filters.pokemonOnly ? 1 : 0) + (filters.owned !== 'all' ? 1 : 0);
@@ -669,6 +679,124 @@ export default function CollectScreen() {
       {secondary || !artViewBeta ? null : <Seg tall options={ART_WINDOWS} value={artWindow} onChange={setArtWindow} />}
     </>
   );
+  /* MIC-058 (owner 2026-11-18, the MIC-017 rules): one of many is a dropdown, two to four is a
+     segmented control, many filters are one "Filters" sheet; 44 px taps, 13 px floor. */
+  const sortKeys = sortKeysFor(kind, game);
+  const sortControlEl = (
+    <View style={styles.m5Row} testID="collect-sort">
+      <DropdownSelect
+        label="Sort"
+        value={sort.key}
+        options={sortKeys.map((k) => ({ id: k.id, label: k.label, hint: k.blurb }))}
+        onChange={(id: CollectorSortKey) => setSort({ key: id, dir: DEFAULT_DIR[id] })}
+        testID="collect-sort-select"
+        minWidth={150}
+      />
+      <View style={styles.m5FilterWrap}>
+        <Text style={styles.m5Caption}>Order</Text>
+        <Pressable
+          onPress={() => setSort((cur) => ({ ...cur, dir: cur.dir === 'asc' ? 'desc' : 'asc' }))}
+          accessibilityRole="button"
+          accessibilityLabel={sort.dir === 'asc' ? 'Ascending. Tap for descending.' : 'Descending. Tap for ascending.'}
+          testID="collect-sort-dir"
+          style={styles.m5DirBtn}>
+          <Text style={styles.m5DirText}>{sort.dir === 'asc' ? '\u25B2 Up' : '\u25BC Down'}</Text>
+        </Pressable>
+      </View>
+      {unfiltered && facets ? (
+        <View style={styles.m5FilterWrap}>
+          <Text style={styles.m5Caption}>Filter</Text>
+          <Pressable
+            onPress={() => setFiltersOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={activeFilters ? `Filters, ${activeFilters} on` : 'Filters'}
+            testID="collect-filters-btn"
+            style={[styles.m5FilterBtn, activeFilters ? styles.m5FilterBtnOn : null]}>
+            <Text style={[styles.m5FilterText, activeFilters ? styles.m5FilterTextOn : null]}>{activeFilters ? `Filters · ${activeFilters}` : 'Filters'}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+  const filtersSheetEl = unfiltered && facets ? (
+    <DialogCard visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters" maxWidth={560}>
+      <View style={styles.m5Sheet} testID="collect-filters">
+        {facetsFor(game).filter((f) => (needs === 'set' ? f.id !== 'series' && f.id !== 'sets' : true)).map((f) => (
+          <View key={f.id} style={styles.m5Facet} testID={`collect-facet-${f.id}`}>
+            <Text style={styles.m5FacetHead}>{filters[f.id].length ? `${f.label} · ${filters[f.id].length}` : f.label}</Text>
+            <View style={styles.facetBox}>
+              {facets[f.id].length === 0 ? <ThemedText type="small" themeColor="textSecondary">Nothing to pick here.</ThemedText> : null}
+              {facets[f.id].slice(0, 60).map((o) => {
+                const on = filters[f.id].includes(o.id);
+                return (
+                  <Pressable key={o.id} onPress={() => toggleFacet(f.id, o.id)} style={[styles.sortChip, styles.m5Chip, on && styles.sortChipOn]} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                    <ThemedText type="small" style={[styles.sortText, styles.m5ChipText, on && styles.sortTextOn]}>{`${o.label} ${o.count}`}</ThemedText>
+                  </Pressable>
+                );
+              })}
+              {facets[f.id].length > 60 ? <ThemedText type="small" themeColor="textSecondary">{`${facets[f.id].length - 60} more not shown.`}</ThemedText> : null}
+            </View>
+          </View>
+        ))}
+        <View style={styles.m5Facet}>
+          <Text style={styles.m5FacetHead}>Show</Text>
+          {/* The other games' catalogues carry no full-art flag; the switch would empty the result. */}
+          {secondary ? null : <Check on={filters.fullArt} onPress={() => setFilters((v) => ({ ...v, fullArt: !v.fullArt }))} testID="collect-full-art">Full art only</Check>}
+          <Check on={filters.pokemonOnly} onPress={() => setFilters((v) => ({ ...v, pokemonOnly: !v.pokemonOnly }))} testID="collect-pokemon-only">{heroOnlyLabel(game)}</Check>
+        </View>
+        {ownedIds ? (
+          <View style={styles.m5Facet} testID="collect-owned-filter">
+            <Text style={styles.m5FacetHead}>Owned</Text>
+            <Seg tall options={OWNED_FILTERS} value={filters.owned} onChange={(o) => setFilters((v) => ({ ...v, owned: o }))} />
+          </View>
+        ) : null}
+        <View style={styles.m5SheetActions}>
+          <Pressable onPress={() => { setFilters(NO_FILTERS); setOpenFacet(null); }} disabled={!activeFilters} accessibilityRole="button" testID="collect-clear-filters" style={[styles.m5DirBtn, !activeFilters && styles.dim]}>
+            <Text style={styles.m5DirText}>Clear all</Text>
+          </Pressable>
+          <Pressable onPress={() => setFiltersOpen(false)} accessibilityRole="button" testID="collect-filters-done" style={styles.m5DoneBtn}>
+            <Text style={styles.m5DoneText}>{result ? `Show ${result.pockets.length} cards` : 'Done'}</Text>
+          </Pressable>
+        </View>
+      </View>
+    </DialogCard>
+  ) : null;
+  const pagesControlEl = (
+    <>
+      <View style={styles.m5Row}>
+        {/* Pages and pocket size side by side: each a dropdown whose rows carry their blurb. */}
+        <DropdownSelect
+          label="Layout"
+          value={pageChoice}
+          options={(secondary ? PAGE_OPTIONS.filter((o) => o.id !== 'curate') : PAGE_OPTIONS).map((o) => ({ id: o.id, label: o.label, hint: o.blurb }))}
+          onChange={pickPages}
+          testID="collect-pages-select"
+          minWidth={190}
+        />
+        <DropdownSelect
+          label="Pocket size"
+          value={shapeId}
+          options={shapeOptions.map((o) => ({ id: o.id, label: o.label, hint: o.disabled ? 'Plain pages only' : undefined }))}
+          onChange={pickShape}
+          testID="collect-shape-select"
+          minWidth={190}
+        />
+        {secondary || !artViewBeta ? null : (
+          <DropdownSelect label="Cards show" value={artWindow} options={ART_WINDOWS.map((o) => ({ id: o.id, label: o.label, hint: o.blurb }))} onChange={setArtWindow} testID="collect-art-window" minWidth={170} />
+        )}
+      </View>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.m5Blurb} testID="collect-pages-blurb">{PAGE_OPTIONS.find((o) => o.id === pageChoice)?.blurb}</ThemedText>
+      {roomForArt ? (
+        <Check on={fillArt} onPress={() => setFillArt((v) => !v)} testID="collect-fill-art">{fanArt ? 'Fill the art panels with fan art.' : 'Fill the art panels with stock photos.'}</Check>
+      ) : null}
+      {isAdmin && fillArt && roomForArt ? (
+        <View style={styles.adminBox} testID="collect-admin-fill-source">
+          <ThemedText type="small" themeColor="textSecondary">Admin test: where the art comes from.</ThemedText>
+          <Seg tall options={ART_FILL_SOURCES} value={fillSource} onChange={setFillSource} />
+        </View>
+      ) : null}
+    </>
+  );
   const printBtnEl = artWindow === 'off' ? (
       <Pressable onPress={() => void printFree()} disabled={printing} style={[styles.btn, styles.btnOutline, printing && styles.dim]} accessibilityRole="button" testID="collect-print">
         {printing ? <ActivityIndicator size="small" color={Palette.accent} /> : null}
@@ -726,7 +854,8 @@ export default function CollectScreen() {
             {GAME_OPTIONS.length > 1 ? (
               <View>
                 <StepHead n={1}>Game</StepHead>
-                <GameChips options={GAME_OPTIONS} value={game} onChange={pickGame} />
+                {/* MIC-058: one of eight games, so a dropdown, not two rows of chips. */}
+                <DropdownSelect label="Game" caption={false} value={game} options={GAME_OPTIONS} onChange={pickGame} testID="collect-game" minWidth={220} />
                 {secondary && !catalog ? <ThemedText type="small" themeColor="textSecondary" style={styles.m4Hint}>Loading {gameLabel(game)}…</ThemedText> : null}
               </View>
             ) : null}
@@ -767,8 +896,8 @@ export default function CollectScreen() {
               {needs === 'pokemon' ? (
                 <Check on={cameos} onPress={() => setCameos((v) => !v)} testID="collect-cameos">Add cameo cards: this Pokémon inside other cards.</Check>
               ) : null}
-              {sortRowEl}
-              {filtersEl}
+              {sortControlEl}
+              {filtersSheetEl}
               {perSpecies.length > 1 ? (
                 <ThemedText type="small" themeColor="textSecondary">{perSpecies.map((s) => `${s.count} ${s.species}`).join(' · ')}</ThemedText>
               ) : null}
@@ -782,7 +911,7 @@ export default function CollectScreen() {
             {result && result.pockets.length ? (
               <View style={styles.m4Step}>
                 <StepHead n={step(4)}>Pages</StepHead>
-                {pageOptsEl}
+                {pagesControlEl}
               </View>
             ) : null}
 
@@ -791,13 +920,14 @@ export default function CollectScreen() {
                 {building ? <ActivityIndicator size="small" color={Palette.accentText} /> : null}
                 <ThemedText type="smallBold" style={styles.m4BuildText}>{building ? (curate ? 'Curating the pages…' : 'Building…') : 'Build this binder'}</ThemedText>
               </Pressable>
+              {/* MIC-058: Print sits beside Build, one row instead of two. */}
+              {result && result.pockets.length ? printBtnEl : null}
               {!isSignedIn ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.m4BuildSide}>Free account needed to keep it.</ThemedText>
               ) : null}
             </View>
             {result && result.pockets.length ? (
               <View style={styles.m4After}>
-                <View style={styles.actions}>{printBtnEl}</View>
                 <ThemedText type="small" themeColor="textSecondary">
                   {artWindow === 'off'
                     ? 'Free print: placeholders only. Your binder prints like any other.'
@@ -821,6 +951,7 @@ export default function CollectScreen() {
               empty={previewEmpty}
               busy={busy}
               scope={(kind === 'complete' || kind === 'master') && set ? 'set' : 'binder'}
+              fill={twoCol}
             />
           </View>
         </View>
@@ -1010,7 +1141,27 @@ const styles = StyleSheet.create({
   m4Left: { gap: Spacing.three, width: '100%' },
   m4LeftWide: { width: 500, flexShrink: 0 },
   m4Right: { width: '100%' },
-  m4RightWide: { flex: 1, width: 'auto', minWidth: 0 },
+  // MIC-058: the preview stands as tall as the steps beside it, so the two sides start and end together.
+  m4RightWide: { flex: 1, width: 'auto', minWidth: 0, alignSelf: 'stretch' },
+  // MIC-058 controls.
+  m5Row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: Spacing.three },
+  m5FilterWrap: { gap: 4 },
+  m5Caption: { fontSize: 13, fontWeight: '600', color: Palette.muted },
+  m5DirBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: Palette.hairlineStrong, backgroundColor: Palette.surface },
+  m5DirText: { fontSize: 15, fontWeight: '600', color: Palette.ink },
+  m5FilterBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: Palette.hairlineStrong, backgroundColor: Palette.surface },
+  m5FilterBtnOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  m5FilterText: { fontSize: 15, fontWeight: '600', color: Palette.ink },
+  m5FilterTextOn: { color: Palette.accentText },
+  m5Sheet: { gap: Spacing.three },
+  m5Facet: { gap: Spacing.one },
+  m5FacetHead: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5, color: Palette.ink, textTransform: 'uppercase' },
+  m5Chip: { minHeight: 44, borderWidth: 1, borderColor: Palette.hairlineStrong, backgroundColor: Palette.surface },
+  m5ChipText: { fontSize: 13 },
+  m5SheetActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.two },
+  m5DoneBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 18, borderRadius: Radius.pill, backgroundColor: Palette.accent },
+  m5DoneText: { fontSize: 15, fontWeight: '700', color: Palette.accentText },
+  m5Blurb: { fontSize: 13 },
   m4Hero: { gap: Spacing.one },
   m4Hint: { marginTop: Spacing.one },
   m4Step: { gap: Spacing.two },

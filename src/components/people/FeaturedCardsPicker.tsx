@@ -53,14 +53,14 @@ export function FeaturedCardsPicker({
   // The browser needs a real height to lay its grid out in; the dialog caps itself to the viewport.
   const bodyH = Math.max(360, Math.min(820, height - (width < Breakpoints.phone ? 150 : 170)));
 
-  // Desktop: the three picks stand big in a column on the left (the size they read at on the
-  // collector card), the browser fills the rest. Phone: the three picks in a row on top.
-  const side = width >= Breakpoints.rail;
-  const slotW = side ? 132 : Math.min(96, Math.floor((width - 2 * Spacing.four - 2 * Spacing.two) / 3));
+  // The three picks stand in a row ON TOP (owner 2026-11-17: not on the side), big enough to read
+  // as cards; the browser fills the rest. On a desktop the hint and "Save featured cards" flank them.
+  const wide = width >= Breakpoints.rail;
+  const slotW = wide ? 104 : Math.min(96, Math.floor((width - 2 * Spacing.four - 2 * Spacing.two) / 3));
   const slotH = Math.round(slotW * 1.396);
 
   const slots = (
-    <View style={[styles.slots, side && styles.slotsSide]}>
+    <View style={styles.slots}>
       {[0, 1, 2].map((i) => {
         const id = picks[i];
         return (
@@ -87,7 +87,7 @@ export function FeaturedCardsPicker({
       disabled={saving || picks.length === 0}
       accessibilityRole="button"
       testID="featured-save"
-      style={[styles.saveBtn, side && styles.saveBtnSide, (saving || picks.length === 0) && styles.dim]}>
+      style={[styles.saveBtn, (saving || picks.length === 0) && styles.dim]}>
       <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save featured cards'}</Text>
     </Pressable>
   );
@@ -117,22 +117,27 @@ export function FeaturedCardsPicker({
 
   return (
     <DialogCard visible onClose={onClose} maxWidth={1100} title="Featured cards" scroll={false}>
-      <View style={[styles.body, side && styles.bodySide, { height: bodyH }]} testID="featured-picker">
-        {side ? (
-          <>
-            <View style={styles.left}>
+      <View style={[styles.body, { height: bodyH }]} testID="featured-picker">
+        {wide ? (
+          <View style={styles.top}>
+            <View style={styles.topSide}>
               <Text style={styles.hint}>Pick any three cards. Search by name or browse, then tap “＋”. Tap a pick to remove it.</Text>
-              {slots}
-              {note ? <Text style={styles.note}>{note}</Text> : null}
-              {saveBtn}
             </View>
-            {browser}
-          </>
+            {slots}
+            <View style={[styles.topSide, styles.topRight]}>
+              {saveBtn}
+              {note ? <Text style={styles.note}>{note}</Text> : null}
+            </View>
+          </View>
         ) : (
           <>
             <Text style={styles.hint}>Pick any three cards. Search by name or browse, then tap “＋”.</Text>
             {slots}
-            {browser}
+          </>
+        )}
+        {browser}
+        {wide ? null : (
+          <>
             {note ? <Text style={styles.note}>{note}</Text> : null}
             {saveBtn}
           </>
@@ -144,11 +149,11 @@ export function FeaturedCardsPicker({
 
 const styles = StyleSheet.create({
   body: { gap: Spacing.two },
-  bodySide: { flexDirection: 'row', gap: Spacing.four },
-  left: { width: 132, gap: Spacing.three },
+  top: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
+  topSide: { flex: 1, minWidth: 0, gap: Spacing.two },
+  topRight: { alignItems: 'flex-end' },
   hint: { fontSize: FontSize.sm, lineHeight: 18, color: Palette.muted },
   slots: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.two },
-  slotsSide: { flexDirection: 'column', gap: Spacing.two },
   slotWrap: { alignItems: 'center' },
   card: { borderRadius: 8, borderWidth: 2, borderColor: Palette.accent },
   slot: { borderRadius: 8, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Palette.hairlineStrong, alignItems: 'center', justifyContent: 'center' },
@@ -160,7 +165,6 @@ const styles = StyleSheet.create({
   loadingText: { fontSize: FontSize.sm, color: Palette.muted },
   note: { fontSize: FontSize.sm, color: Palette.muted },
   saveBtn: { alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.pill, backgroundColor: Palette.accent },
-  saveBtnSide: { alignSelf: 'stretch', alignItems: 'center' },
   saveText: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.accentText },
   dim: { opacity: 0.55 },
 });

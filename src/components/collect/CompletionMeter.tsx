@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   text: { fontSize: FontSize.label, color: Palette.muted },
   textInline: { flexShrink: 1 },
   strong: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
-  track: { height: 6, borderRadius: 99, backgroundColor: Palette.hairline, overflow: 'hidden', marginRight: Spacing.one },
+  track: { height: 6, borderRadius: 99, backgroundColor: Palette.hairline, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: Palette.accent },
   fillDone: { backgroundColor: DONE },
 });

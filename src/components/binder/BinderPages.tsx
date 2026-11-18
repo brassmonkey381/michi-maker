@@ -42,7 +42,7 @@ import { boxContains, decorationBox } from '@/data/coverGeometry';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
 import { CompletionMeter } from '@/components/collect/CompletionMeter';
-import { binderCompletion, pageCardIds, pageCompletion, toFinish } from '@/data/completion';
+import { binderCompletion, completionOf, pageCardIds, pageCompletion, toFinish } from '@/data/completion';
 import { usePriceSummaryWhen } from '@/lib/prices';
 import { ThemedView } from '@/components/themed-view';
 import { BinderSurface, FontSize, Palette, Radius, Weight } from '@/constants/theme';
@@ -135,10 +135,10 @@ const NAV_RAIL_WIDTH = 78;
  * silently over-reaches by the difference if they drift.
  */
 const COLUMN_LABEL_H = 26;
-/** MIC-060: the owned strip above the pages, one line per page in view (text and bar). Budgeted. */
-const OWNED_STRIP_H = 30;
+/** MIC-060: the owned strip above the pages (a 13 px line and a 6 px bar, 12 px under). Budgeted. */
+const OWNED_STRIP_H = 42;
 /** On a phone the strip has two lines, the page and the whole binder (the header has no room). */
-const OWNED_STRIP_PHONE_H = 54;
+const OWNED_STRIP_PHONE_H = 76;
 const PAGE_WRAP_BOTTOM_MARGIN = 8;
 /**
  * ...and the same margin above it. Both are real height and both were spent by the same style;
@@ -1797,35 +1797,53 @@ export function BinderPages({
         </View>
       ) : null}
       {ownedStrip && page && ownedIds && !shut ? (() => {
-        // Each page's line sits over its own column, so "Page 2" is never read as the left page.
-        const cols: [number, DemoPage | null][] = doubleSided
-          ? [[spreadLeftIdx, leftPage], [spreadRightIdx, rightPage]]
-          : [[idx, page]];
-        const colW = doubleSided ? bookW : pageWidth;
-        const gapW = doubleSided ? bookRowGap : 0;
+        /*
+         * MIC-060 v2 (owner 2026-11-18, "fix the alignment"): ONE strip, exactly as wide as the
+         * spread and lined up with its edges. On a desk an open book gets two columns, each exactly
+         * over a page: the whole binder over the left, the pages in view ("Pages 2-3", or "Page 1"
+         * beside a cover) over the right; a single page splits its width between the page and the
+         * binder. Each is a line of text with its bar under it, the same CompletionMeter the rest of
+         * the app uses. On a phone the page and the binder stack at the page's own width.
+         */
+        const whole = binderCompletion(binder.pages, ownedIds);
+        const binderFinish = finishSummary ? toFinish(binder.pages.flatMap(pageCardIds), ownedIds, (id) => finishSummary[id]?.cur) : null;
+        const pageMeter = (i: number, pg: DemoPage | null) => {
+          const c = pg ? pageCompletion(pg, ownedIds) : null;
+          return pg && c && c.total ? (
+            <CompletionMeter c={c} label={`Page ${i + 1}`} finish={finishOf(pg)} testID={`binder-page-meter-${i + 1}`} />
+          ) : null;
+        };
+        const wholeMeter = <CompletionMeter c={whole} label="Binder" finish={binderFinish} testID="binder-whole-meter" />;
         if (phone) {
-          const c = pageCompletion(page, ownedIds);
-          const whole = binderCompletion(binder.pages, ownedIds);
-          const binderFinish = finishSummary ? toFinish(binder.pages.flatMap(pageCardIds), ownedIds, (id) => finishSummary[id]?.cur) : null;
           return (
             <View style={[styles.ownedStripPhone, { width: pageWidth }]} testID="binder-owned-strip">
-              {c.total ? <CompletionMeter inline c={c} label={`Page ${idx + 1}`} finish={finishOf(page)} testID={`binder-page-meter-${idx + 1}`} /> : <View style={{ height: 20 }} />}
-              <CompletionMeter inline c={whole} label="Binder" finish={binderFinish} testID="binder-whole-meter" />
+              {pageMeter(idx, page) ?? <View style={styles.ownedMeterSpacer} />}
+              {wholeMeter}
+            </View>
+          );
+        }
+        if (doubleSided) {
+          // The pages in view, counted together.
+          const inView = ([[spreadLeftIdx, leftPage], [spreadRightIdx, rightPage]] as [number, DemoPage | null][]).filter(
+            (x): x is [number, DemoPage] => !!x[1] && pageCompletion(x[1], ownedIds).total > 0,
+          );
+          const ids = inView.flatMap(([, pg]) => pageCardIds(pg));
+          const c = completionOf(ids, ownedIds);
+          const label = inView.length === 2 ? `Pages ${inView[0][0] + 1}-${inView[1][0] + 1}` : inView.length ? `Page ${inView[0][0] + 1}` : '';
+          const spreadFinish = finishSummary ? toFinish(ids, ownedIds, (id) => finishSummary[id]?.cur) : null;
+          return (
+            <View style={[styles.ownedStrip, { width: bookW * 2 + bookRowGap, gap: bookRowGap }]} testID="binder-owned-strip">
+              <View style={{ width: bookW }}>{wholeMeter}</View>
+              <View style={{ width: bookW }}>
+                {inView.length ? <CompletionMeter c={c} label={label} finish={spreadFinish} testID="binder-page-meter" /> : null}
+              </View>
             </View>
           );
         }
         return (
-          <View style={[styles.ownedStrip, { gap: gapW }]} testID="binder-owned-strip">
-            {cols.map(([i, pg], k) => {
-              const c = pg ? pageCompletion(pg, ownedIds) : null;
-              return (
-                <View key={k} style={{ width: colW, maxWidth: '100%' }}>
-                  {pg && c && c.total ? (
-                    <CompletionMeter inline c={c} label={`Page ${i + 1}`} finish={finishOf(pg)} testID={`binder-page-meter-${i + 1}`} />
-                  ) : null}
-                </View>
-              );
-            })}
+          <View style={[styles.ownedStrip, { width: pageWidth, gap: 24 }]} testID="binder-owned-strip">
+            <View style={styles.ownedCell}>{pageMeter(idx, page)}</View>
+            <View style={styles.ownedCell}>{wholeMeter}</View>
           </View>
         );
       })() : null}
@@ -2838,8 +2856,10 @@ const styles = StyleSheet.create({
   // art. 36px of it was the difference between a 700px window fitting and not.
   pageWrap: { alignItems: 'center', marginVertical: 8 },
   // MIC-060: OWNED_STRIP_H tall in all (a 20 px line, 10 px under it).
-  ownedStripPhone: { height: OWNED_STRIP_PHONE_H, gap: 6, paddingTop: 2, alignSelf: 'center' },
-  ownedStrip: { height: OWNED_STRIP_H, flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', paddingTop: 2, alignSelf: 'stretch' },
+  ownedStripPhone: { height: OWNED_STRIP_PHONE_H, gap: 10, paddingTop: 2, alignSelf: 'center' },
+  ownedStrip: { height: OWNED_STRIP_H, flexDirection: 'row', alignItems: 'flex-start', paddingTop: 2, alignSelf: 'center', maxWidth: '100%' },
+  ownedCell: { flex: 1, minWidth: 0 },
+  ownedMeterSpacer: { height: 28 },
   pageWrapPhone: { marginVertical: 0 },
   phoneCaption: { marginTop: 4, fontSize: FontSize.xs, lineHeight: 16, letterSpacing: 0.2 },
   // The turning layer must not clip its own entry animation, and must not change the layout it

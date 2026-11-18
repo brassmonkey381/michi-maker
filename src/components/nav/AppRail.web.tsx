@@ -22,6 +22,7 @@ import {
 
 import { LogoMark } from '@/components/brand/LogoMark';
 import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
+import { ScanCardsPrompt } from '@/components/nav/ScanCardsPrompt';
 import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -125,9 +126,11 @@ function RailGroup({
   pathname: string;
   onNavigate: (href: Href) => void;
 }) {
-  // The Scan Cards item is the one link here that is not instant: it mints a sign-in ticket first
-  // and opens tcgscan.ai in a new tab. Only the group holding it ever shows a pending state.
-  const { opening, open } = useTcgscanOpen();
+  // The Scan Cards item is the one link here that is not instant: since TCG-030 it opens a short
+  // prompt first (ScanCardsPrompt), whose "Scan on the web" mints the sign-in ticket and opens
+  // biboscan.com in a new tab. Only the group holding it ever shows a pending state.
+  const { opening } = useTcgscanOpen();
+  const [scanAsk, setScanAsk] = useState(false);
   return (
     <View style={[styles.group, !first && styles.groupRuled, PLAIN && !first && styles.groupRuledPlain]} accessibilityRole="list" accessibilityLabel={label}>
       <ThemedText type="smallBold" themeColor={PLAIN ? undefined : 'textSecondary'} style={[styles.groupLabel, PLAIN && styles.groupLabelPlain]}>
@@ -141,7 +144,7 @@ function RailGroup({
           return (
             <Pressable
               key={item.label}
-              onPress={() => (item.external ? open(String(item.href), { newTab: item.newTab }) : onNavigate(item.href))}
+              onPress={() => (item.external ? setScanAsk(true) : onNavigate(item.href))}
               disabled={busy}
               accessibilityRole="link"
               accessibilityState={{ selected: active, busy }}
@@ -182,6 +185,7 @@ function RailGroup({
           );
         })}
       </View>
+      {scanAsk ? <ScanCardsPrompt visible onClose={() => setScanAsk(false)} /> : null}
     </View>
   );
 }

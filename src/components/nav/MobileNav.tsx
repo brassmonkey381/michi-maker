@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LogoMark } from '@/components/brand/LogoMark';
 import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
+import { ScanCardsPrompt } from '@/components/nav/ScanCardsPrompt';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -45,7 +46,8 @@ export function MobileNav() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
-  const { opening, open: openTcgscan } = useTcgscanOpen();
+  const { opening } = useTcgscanOpen();
+  const [scanAsk, setScanAsk] = useState(false);
   // MIC-017 piece 5 ('browse-dock'): on /browse the thumb dock carries the menu (its ☰ sends
   // 'michi-open-menu'), so this button steps aside there instead of covering the dock.
   const dockCarriesMenu = BROWSE_DOCK && pathname === '/browse';
@@ -115,13 +117,15 @@ export function MobileNav() {
   const go = useCallback(
     (item: NavItem) => {
       if (item.external) {
-        openTcgscan(String(item.href), { newTab: item.newTab });
+        // TCG-030: Scan Cards asks first (ScanCardsPrompt); the menu closes behind it.
+        setOpen(false);
+        setScanAsk(true);
         return;
       }
       setOpen(false);
       router.push(item.href);
     },
-    [openTcgscan, router],
+    [router],
   );
 
   // EXACTLY WHERE THE RAIL IS NOT. One condition, so the two can never both show or both hide.
@@ -133,6 +137,7 @@ export function MobileNav() {
 
   return (
     <>
+      {scanAsk ? <ScanCardsPrompt visible onClose={() => setScanAsk(false)} /> : null}
       <Animated.View
         // Not just faded: it slides out past its own corner, so a half-finished transition never
         // leaves a ghost button sitting over the text.

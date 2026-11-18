@@ -7,7 +7,7 @@
  *
  * One block, the same on every surface it appears on (Home, Welcome, My binders), with the loop
  * drawn as three steps and one button. The button goes through useTcgscanOpen, which mints the SSO
- * handoff so a signed-in member lands on tcgscan.ai already signed in.
+ * handoff so a signed-in member lands on biboscan.com (was tcgscan.ai) already signed in.
  *
  * THE THREE STEPS ARE DRAWN WITH THE APP'S OWN PAGES, NOT EMOJI. A camera, a book and a printer
  * glyph read as machine-made, and visitors hold that against a site. Each step shows real example

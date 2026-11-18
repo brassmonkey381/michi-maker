@@ -6,7 +6,7 @@
  * "partner app" footnote, and What's New shows michi-maker's own changes. tcgscan-app carries the
  * same flag (lib/store-policy). Build with EXPO_PUBLIC_CROSS_APP=1 to bring it all back.
  *
- * EXCEPTION (owner, 2026-10-13): the rail's "Scan Cards" link to tcgscan.ai shows in every build;
+ * EXCEPTION (owner, 2026-10-13): the rail's "Scan Cards" link to biboscan.com (was tcgscan.ai) shows in every build;
  * see nav/navItems.ts. The flag keeps gating the selling, not the link.
  *
  * What it does NOT hide: the shared account and ledger (invisible), the privacy policy's account

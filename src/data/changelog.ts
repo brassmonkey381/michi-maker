@@ -130,6 +130,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    // TCG-030: Scan Cards moves to biboscan.com and asks first. Ship only after TCGScan's first-visit fix.
+    date: '2026-11-17',
+    title: 'Scan Cards opens BiBoScan',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Scan Cards now opens biboscan.com',
+        kind: 'better',
+        area: 'account',
+        body: 'Scan Cards now tells you where your scans go first: cards you scan in BiBoScan show up under “My collection” on the “My Binders” screen. “Scan on the web” opens biboscan.com, signed in with the same account.',
+      },
+    ],
+  },
+  {
     // THE REDESIGN LAUNCH (MIC-017, MIC-040, MIC-045): shipped with the flip of every redesign flag to
     // 'live' (newbinder-chat off; pockets-sleeves, firstrun-a and play-board still dev).
     date: '2026-11-17',

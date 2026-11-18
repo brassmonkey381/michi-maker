@@ -114,8 +114,9 @@ export interface ChangelogItem {
    * FEATURED (owner, 2026-09-21): the tier above pinned. A handful of items, hand-picked, that
    * the page lifts OUT of their dated batch into a card of their own at the very top, whatever
    * the date and whatever the recency window, with a bigger head and the loudest ground on the
-   * page. Featured implies pinned (the test holds it to that). Two or three, not ten: the third
-   * tier only means something while it is the smallest.
+   * page. Featured implies pinned (the test holds it to that). At most FOUR (owner, 2026-11-18:
+   * "make the max 4 FEATURED"), and the test caps it there: the third tier only means something
+   * while it is the smallest.
    */
   featured?: boolean;
 }
@@ -129,6 +130,28 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    // MIC-040 (owner 2026-11-18, Triage window): a FEATURED pin for % owned and completion tracking.
+    // Live pieces (ships AFTER mic-059-completion): MIC-059's "X of Y owned · N%" meters on each
+    // My Binders tile (once a card is owned), each set in My collection's "By set" view, and the
+    // whole binder and each page in view with Owned on; Browse Cards set tiles (kit showCompletion);
+    // the Set Binders preview's Whole set / Page N counts. NOT SetBuildView's "(N%)" meter, which
+    // the live /collect layout never draws.
+    date: '2026-11-18',
+    title: 'See how much you own',
+    items: [
+      {
+        products: ['michi'],
+        head: 'See how much you own, by binder, set and page',
+        kind: 'new',
+        area: 'collection',
+        big: true,
+        pinned: true,
+        featured: true,
+        body: 'Once you own a card, each binder in “My Binders” and each set in My collection’s “By set” view shows how many of its cards you have, with a percentage and a bar; turn on “Owned” in a binder (Settings, “My view”) to count the whole binder and the page you are on. Cards you scan in BiBoScan count, and so do cards you tick in a binder.',
+      },
+    ],
+  },
   {
     // TCG-030: Scan Cards moves to biboscan.com and asks first. Ship only after TCGScan's first-visit fix.
     date: '2026-11-17',

@@ -36,7 +36,8 @@ test('no pinned item names a plan or a price that is gone', () => {
 
 test('featured is the smallest tier, and every featured item is pinned', () => {
   const featured = CHANGELOG.flatMap((e) => e.items.filter((i) => i.featured));
-  assert.ok(featured.length <= 4, `${featured.length} featured: past a few, the top card is the page`);
+  // At most four (owner, 2026-11-18: "make the max 4 FEATURED").
+  assert.ok(featured.length <= 4, `${featured.length} featured: past four, the top card is the page`);
   for (const item of featured) assert.ok(item.pinned, `"${item.head}" is featured but not pinned`);
 });
 

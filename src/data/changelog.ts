@@ -114,8 +114,9 @@ export interface ChangelogItem {
    * FEATURED (owner, 2026-09-21): the tier above pinned. A handful of items, hand-picked, that
    * the page lifts OUT of their dated batch into a card of their own at the very top, whatever
    * the date and whatever the recency window, with a bigger head and the loudest ground on the
-   * page. Featured implies pinned (the test holds it to that). Two or three, not ten: the third
-   * tier only means something while it is the smallest.
+   * page. Featured implies pinned (the test holds it to that). At most FOUR (owner, 2026-11-18:
+   * "make the max 4 FEATURED"), and the test caps it there: the third tier only means something
+   * while it is the smallest.
    */
   featured?: boolean;
 }
@@ -129,6 +130,25 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    // MIC-040 (owner 2026-11-18, Triage window): a FEATURED pin for % owned and completion tracking.
+    // Live pieces: Set Binders' build meter (setbinders-build), the live preview's Whole set / Page N
+    // counts with the green check and grey fade (setbinders-preview, MIC-051), the binder Owned view.
+    date: '2026-11-17',
+    title: 'See how much you own',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Track how much of a set you own',
+        kind: 'new',
+        area: 'collection',
+        big: true,
+        pinned: true,
+        featured: true,
+        body: 'In “Set Binders”, a “Complete set” or “Master set” shows how many cards you have, the percentage and the price to finish, and the preview counts each page, with a green check on cards you own and a grey fade on the ones still to find. In any binder, turn on “Owned” in Settings under “My view” to see a green tick on the cards you have.',
+      },
+    ],
+  },
   {
     // TCG-030: Scan Cards moves to biboscan.com and asks first. Ship only after TCGScan's first-visit fix.
     date: '2026-11-17',

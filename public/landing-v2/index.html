@@ -1832,6 +1832,35 @@ footer p { max-width: 90ch; }
     if (a.dataset.cta) { u.searchParams.set('from', 'landing'); u.searchParams.set('cta', a.dataset.cta); }
     a.setAttribute('href', u.pathname + u.search);
   }, true);
+
+  /* MKT-040 landing.view: this static page loads no app code, so without this a visitor who reads it
+     and leaves is invisible. One POST per load to log_landing_view (supabase migration
+     20261118120000_landing_views.sql; publishable key only, the same one the app bundle carries).
+     device_id reuses the app's 'mm_analytics_device' so the studio can join this view to the app
+     session that follows. No IP, no user agent, referrer host only. Never blocks or breaks the page. */
+  (function () {
+    try {
+      var dev = null;
+      try {
+        dev = localStorage.getItem('mm_analytics_device');
+        if (!dev && window.crypto && crypto.randomUUID) { dev = crypto.randomUUID(); localStorage.setItem('mm_analytics_device', dev); }
+      } catch (_) {}
+      var params = {};
+      new URLSearchParams(location.search).forEach(function (v, k) { if (/^utm_|^code$|^rdt_cid$/.test(k)) params[k] = v; });
+      var ref = null;
+      try { if (document.referrer) { var r = new URL(document.referrer); if (r.host !== location.host) ref = r.hostname; } } catch (_) {}
+      var ua = navigator.userAgent || '';
+      fetch('https://piikwvntldytjejxmcla.supabase.co/rest/v1/rpc/log_landing_view', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json', apikey: 'sb_publishable_0jkaVJS_d0WF7AsHaJQoXA_VM5kAqKu' },
+        body: JSON.stringify({
+          p_device: dev, p_params: params, p_referrer: ref, p_width: innerWidth,
+          p_headless: !!navigator.webdriver || /HeadlessChrome/.test(ua), p_page: location.pathname.replace(/\/+$/, '') || '/landing-v2'
+        })
+      }).catch(function () {});
+    } catch (_) {}
+  })();
 </script>
 </body>
 </html>

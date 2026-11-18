@@ -132,8 +132,11 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     // MIC-040 (owner 2026-11-18, Triage window): a FEATURED pin for % owned and completion tracking.
-    // Live pieces: Set Binders' build meter (setbinders-build), the live preview's Whole set / Page N
-    // counts with the green check and grey fade (setbinders-preview, MIC-051), the binder Owned view.
+    // Live pieces: Browse Cards set/series tiles ("X / Y owned", a % badge and a bar, once the
+    // account owns a card: tcgscan-browse CatalogBrowser showCompletion), the Set Binders live
+    // preview's Whole set / Page N counts with the green check and grey fade (setbinders-preview,
+    // MIC-051), the binder Owned view and its tick. NOT SetBuildView's "(N%)" meter: with the
+    // preview live, collect.tsx returns its layout first and never draws that meter.
     date: '2026-11-17',
     title: 'See how much you own',
     items: [
@@ -145,7 +148,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         big: true,
         pinned: true,
         featured: true,
-        body: 'In “Set Binders”, a “Complete set” or “Master set” shows how many cards you have, the percentage and the price to finish, and the preview counts each page, with a green check on cards you own and a grey fade on the ones still to find. In any binder, turn on “Owned” in Settings under “My view” to see a green tick on the cards you have.',
+        body: 'Once you own a card, the sets in “Browse Cards” show how many you have, a percentage and a bar. In “Set Binders”, a “Complete set” or “Master set” counts the whole set and each page, with a green check on cards you have, a grey fade on the rest and the price to finish. Cards you scan in BiBoScan count, and so do cards you tick in a binder with “Owned” on (Settings, “My view”).',
       },
     ],
   },

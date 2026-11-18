@@ -61,7 +61,7 @@ function readPhoneStrip(): boolean {
   }
 }
 
-import { pillChip, sheet } from '@/constants/ui';
+import { pillChip, toggleChip, sheet } from '@/constants/ui';
 import { setHoverSuspended } from '@/components/binder/hoverGate';
 import { AboutHoverCard, PAGE_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
@@ -1615,8 +1615,8 @@ export function BinderPages({
                 {canDoubleSide ? (
                   <Pressable
                     onPress={toggleDoubleSided}
-                    style={[pillChip.base, doubleSided && pillChip.active]}>
-                    <Text style={[pillChip.text, doubleSided && pillChip.textActive]}>
+                    style={[toggleChip.base, doubleSided && toggleChip.active]}>
+                    <Text style={[toggleChip.text, doubleSided && toggleChip.textActive]}>
                       {doubleSided ? '✓ Double-sided' : 'Double-sided'}
                     </Text>
                   </Pressable>
@@ -1626,8 +1626,8 @@ export function BinderPages({
                     onPress={() => view.setPref('navDock', railLeft ? 'bottom' : 'left')}
                     accessibilityRole="button"
                     accessibilityLabel={railLeft ? 'Move page navigation to the bottom' : 'Move page navigation to the left'}
-                    style={[pillChip.base, railLeft && pillChip.active]}>
-                    <Text style={[pillChip.text, railLeft && pillChip.textActive]}>
+                    style={[toggleChip.base, railLeft && toggleChip.active]}>
+                    <Text style={[toggleChip.text, railLeft && toggleChip.textActive]}>
                       {railLeft ? '⬒ Pages left' : '⬓ Pages below'}
                     </Text>
                   </Pressable>
@@ -1647,8 +1647,8 @@ export function BinderPages({
                   accessibilityRole="switch"
                   accessibilityState={{ checked: phoneStrip }}
                   testID="phone-strip-toggle"
-                  style={[pillChip.base, phoneStrip && pillChip.active]}>
-                  <Text style={[pillChip.text, phoneStrip && pillChip.textActive]}>{phoneStrip ? '✓ Page strip' : 'Page strip'}</Text>
+                  style={[toggleChip.base, phoneStrip && toggleChip.active]}>
+                  <Text style={[toggleChip.text, phoneStrip && toggleChip.textActive]}>{phoneStrip ? '✓ Page strip' : 'Page strip'}</Text>
                 </Pressable>
               </View>
             </View>
@@ -1670,8 +1670,8 @@ export function BinderPages({
                 disabled={!labelsOn}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: !labelsOn }}
-                style={[pillChip.base, !labelsOn && styles.settingsControlOff]}>
-                <Text style={pillChip.text}>Which labels…</Text>
+                style={[toggleChip.base, !labelsOn && styles.settingsControlOff]}>
+                <Text style={toggleChip.text}>Which labels…</Text>
               </Pressable>
             </View>
           </View>
@@ -1694,8 +1694,8 @@ export function BinderPages({
                     accessibilityRole="button"
                     accessibilityLabel="Show where printed art would be cut to fit real pockets"
                     testID="view-cut-lines"
-                    style={[pillChip.base, view.cutLines && pillChip.active]}>
-                    <Text style={[pillChip.text, view.cutLines && pillChip.textActive]}>
+                    style={[toggleChip.base, view.cutLines && toggleChip.active]}>
+                    <Text style={[toggleChip.text, view.cutLines && toggleChip.textActive]}>
                       {view.cutLines ? '✓ Cut lines' : 'Cut lines'}
                     </Text>
                   </Pressable>
@@ -1703,8 +1703,8 @@ export function BinderPages({
                 {ownedCards ? (
                   <Pressable
                     onPress={() => setShowOwned(!showOwned)}
-                    style={[pillChip.base, showOwned && pillChip.active]}>
-                    <Text style={[pillChip.text, showOwned && pillChip.textActive]}>
+                    style={[toggleChip.base, showOwned && toggleChip.active]}>
+                    <Text style={[toggleChip.text, showOwned && toggleChip.textActive]}>
                       {showOwned ? '✓ Owned' : 'Owned'}
                     </Text>
                   </Pressable>
@@ -1712,8 +1712,8 @@ export function BinderPages({
                 {scanImages ? (
                   <Pressable
                     onPress={() => setShowScans(!showScans)}
-                    style={[pillChip.base, showScans && pillChip.active]}>
-                    <Text style={[pillChip.text, showScans && pillChip.textActive]}>
+                    style={[toggleChip.base, showScans && toggleChip.active]}>
+                    <Text style={[toggleChip.text, showScans && toggleChip.textActive]}>
                       {showScans ? '✓ Scans' : 'Scans'}
                     </Text>
                   </Pressable>
@@ -2832,10 +2832,11 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   fieldsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10 },
-  settingsTabs: { flexDirection: 'row', borderRadius: 999, borderWidth: 1, borderColor: Palette.hairline, padding: 2, gap: 2 },
-  settingsTab: { minHeight: 34, paddingHorizontal: 14, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  // MIC-061: a segmented control that reads as tabs (44 px; the off tab outlined on its own ground).
+  settingsTabs: { flexDirection: 'row', borderRadius: 999, borderWidth: 1.5, borderColor: Palette.hairlineStrong, backgroundColor: Palette.panel, padding: 3, gap: 3 },
+  settingsTab: { minHeight: 44, paddingHorizontal: 18, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.surface },
   settingsTabOn: { backgroundColor: Palette.accent },
-  settingsTabText: { fontSize: 14, fontWeight: '700', color: Palette.ink },
+  settingsTabText: { fontSize: 15, fontWeight: '700', color: Palette.ink },
   settingsTabTextOn: { color: Palette.accentText },
   hidden: { display: 'none' },
   settingsCard: {

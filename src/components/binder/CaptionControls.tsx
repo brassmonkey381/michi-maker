@@ -21,7 +21,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LabelsHelp } from '@/components/binder/LabelsHelp';
 import { FontSize, Palette, Spacing, Weight } from '@/constants/theme';
-import { pillChip, sheet } from '@/constants/ui';
+import { pillChip, sheet, toggleChip } from '@/constants/ui';
 import { pickerFields, type CaptionFieldKey } from '@/data/cardCaption';
 import { useCatalog } from '@/hooks/use-catalog';
 
@@ -30,8 +30,8 @@ export function CaptionControls({ enabled, onToggle }: { enabled: boolean; onTog
 
   return (
     <>
-      <Pressable onPress={onToggle} style={[pillChip.base, enabled && pillChip.active]}>
-        <Text style={[pillChip.text, enabled && pillChip.textActive]}>
+      <Pressable onPress={onToggle} accessibilityRole="switch" accessibilityState={{ checked: enabled }} style={[toggleChip.base, enabled && toggleChip.active]}>
+        <Text style={[toggleChip.text, enabled && toggleChip.textActive]}>
           {enabled ? '✓ Card labels' : 'Card labels'}
         </Text>
       </Pressable>
@@ -101,9 +101,9 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   helpBtn: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: Palette.hairlineStrong,
     alignItems: 'center',

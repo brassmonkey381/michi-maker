@@ -1,5 +1,5 @@
 {
-  "generatedOn": "2026-11-15",
+  "generatedOn": "2026-11-18",
   "guidesPublished": "2026-08-12",
   "guides": [
     {
@@ -58,7 +58,7 @@
       "slug": "print-binder",
       "title": "How to print a Pokémon binder fill sheet at true card size",
       "lede": "Cut-ready sheets, real card size, so the binder fills in as the cards arrive.",
-      "tip": "Preview your own binder as print sheets for free, watermarked. The print-ready PDF is a one-time unlock per binder.",
+      "tip": "Preview your own binder as print sheets before you print, so you can check every page first.",
       "steps": [
         {
           "title": "Open the print sheet",
@@ -129,8 +129,8 @@
           "body": "Forest, water, snow, night, city, sky, sunset, flowers. Any plain word about a picture is worth a try; the grey line under the box says how it was read."
         },
         {
-          "title": "Every match, and the pages built from them",
-          "body": "Free and guest accounts see the top few matches of any theme and how many more there are. PRO sees every match, and the same pictures power Same scene in the fill sheet, the scene pages Build a binder proposes, and the Story binder."
+          "title": "The pages built from them",
+          "body": "The same pictures power Same scene in the fill sheet, the scene pages Build a binder proposes, and the Story binder."
         }
       ]
     }
@@ -150,7 +150,7 @@
     },
     {
       "q": "Is Michi-Maker free?",
-      "a": "Yes. Building and sharing binders, the auto-fill methods, and the print preview are free. Paid plans add full-binder PDF export, binder covers, advanced and artwork-theme search, and more."
+      "a": "Yes. You can build and share binders, use the auto-fill methods and preview your print sheets in the browser, with no download and no account needed to start."
     },
     {
       "q": "What size are the printed pieces?",

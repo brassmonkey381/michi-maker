@@ -18,8 +18,9 @@ Before publishing one:
    sentence you cannot stand behind.
 2. Re-open each competitor link and re-check every claim marked "(their homepage, 2026-11-15)".
    Prices and limits change; a wrong claim about a small competitor is the main risk here.
-3. Decide the plan wording: the drafts say "paid plan" with its price rather than the plan name,
-   because guest-facing copy avoids plan names.
+3. Michi-Maker's own plans, limits, free tries and prices are left out on purpose (owner rule,
+   2026-11-18: no PRO, plans, caps, free tries or feature prices in public copy). Competitor
+   prices stay, as their facts.
 4. Then it becomes a page (route, canonical, sitemap entry) in a separate change with your yes.
 
 | Draft | Compared with | Why this one |

@@ -35,8 +35,6 @@ be the better pick. [BRIAN: one line on how you came across it, or delete.]
 - Builds the page **around the cards**: put one card in a pocket and fill the page by Pokémon,
   evolution line, artist or colour, or search by what the artwork shows.
 - Slices a picture across pockets too, and prints true-size fill sheets (63 by 88 mm).
-- Free account: 2 binders of up to 20 pages. Paid plan ($2.99 a month or $24.99 a year): no limits,
-  binder covers and unlimited artwork search.
 
 ## Pick Woahpoke's template if
 

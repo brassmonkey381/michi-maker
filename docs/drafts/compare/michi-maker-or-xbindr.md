@@ -39,13 +39,11 @@ xBindr. [BRIAN: one sentence on how you know xBindr, or delete.]
 - English and Japanese cards (an EN / JP switch on Browse and the home feed). Chinese, French and
   Pokémon TCG Pocket are planned, no date yet.
 - Prints true-size fill sheets (63 by 88 mm).
-- Free account: 2 binders of up to 20 pages. Paid plan: $2.99 a month or $24.99 a year, no page or
-  binder limits, plus binder covers and unlimited artwork search.
 
 ## Pick xBindr if
 
-- You want the **most free binders**: 5 binders of up to 1,100 cards, against our free 2 binders of
-  20 pages. That is the one place xBindr is the better deal.
+- You want the **most binders without paying**: xBindr's free account holds 5 binders of up to
+  1,100 cards.
 
 xBindr also covers French cards and Cardmarket prices in euros today, and offers grids beyond 4×4
 and binder materials like leather and canvas (see the list above).
@@ -56,10 +54,8 @@ and binder materials like leather and canvas (see the list above).
   come together around it.
 - You want to search cards by **what the artwork shows** (a beach, a night sky, food).
 - You want to try it **without signing up**.
-- You want to go further for little: the paid plan is **$2.99 a month** (or $24.99 a year) for
-  **unlimited binders** and unlimited card recommendations (Find similar, and Complete a page
-  from the cards already on it), which turn building a binder into exploring. A free account gets
-  three tries of each.
+- You want **card recommendations** that turn building a binder into exploring: "Find similar",
+  and "Complete" a page from the cards already on it.
 - [BRIAN: the reason you would give a friend, in one line, or delete.]
 
 ## What I will not claim

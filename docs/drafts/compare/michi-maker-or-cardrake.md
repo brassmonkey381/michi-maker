@@ -41,8 +41,6 @@ pockets. Both let you plan a binder in the browser for free.
 - Set binders too: pick a set and get every card in number order, one pocket each, with set
   planners for 26 sets that count pages and sheets per binder size.
 - Print true-size fill sheets (63 by 88 mm) to slide into the pockets until the real cards arrive.
-- A paid plan ($2.99 a month or $24.99 a year) removes the page and binder limits and adds binder
-  covers and unlimited artwork search. A free account holds 2 binders of up to 20 pages.
 
 ## Pick Cardrake if
 

@@ -190,7 +190,7 @@ export const GUIDE_LIST: Guide[] = [
         figure: diagram('swap'),
       },
     ],
-    tip: 'Preview your own binder as print sheets for free, watermarked. The print-ready PDF is a one-time unlock per binder.',
+    tip: 'Preview your own binder as print sheets before you print, so you can check every page first.',
     relatedSlugs: ['slice-studio', 'auto-page-fill'],
   },
   {
@@ -252,9 +252,9 @@ export const GUIDE_LIST: Guide[] = [
         figure: { kind: 'results', query: 'theme:night theme:city' },
       },
       {
-        title: 'Every match, and the pages built from them',
-        body: 'Free and guest accounts see the top few matches of any theme and how many more there are. PRO sees every match, and the same pictures power Same scene in the fill sheet, the scene pages Build a binder proposes, and the Story binder.',
-        figure: { kind: 'results', query: 'theme:snow', note: 'The row under a metered search says what a plan adds.' },
+        title: 'The pages built from them',
+        body: 'The same pictures power Same scene in the fill sheet, the scene pages Build a binder proposes, and the Story binder.',
+        figure: { kind: 'results', query: 'theme:snow', note: 'Every card whose artwork shows snow.' },
       },
     ],
     tip: 'The ? button beside the search box has an Artwork tab with these examples ready to tap.',

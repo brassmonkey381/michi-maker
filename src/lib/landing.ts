@@ -70,9 +70,30 @@ export function isAuthReturn(): boolean {
     || /[#&](access_token|refresh_token|error|error_description|th|type)=/.test(hash);
 }
 
+/**
+ * A signed-in MEMBER is never a first visit (TRI-007): someone who signed in from the in-app sheet on a
+ * deep link never passed "/", so the seen flag alone would send them to the marketing page. Read from
+ * the stored Supabase session, synchronously; an anonymous guest session (the silent guest sign-in)
+ * does not count, which is why the gate is not plain auth state.
+ */
+function hasMemberSession(): boolean {
+  try {
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const k = window.localStorage.key(i);
+      if (!k || !/^sb-.+-auth-token$/.test(k)) continue;
+      const v = JSON.parse(window.localStorage.getItem(k) || 'null') as { user?: { is_anonymous?: boolean } } | null;
+      if (v?.user && v.user.is_anonymous === false) return true;
+    }
+  } catch {
+    // Unreadable storage: fall through to the seen flag.
+  }
+  return false;
+}
+
 export function shouldShowLanding(): boolean {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
   if (isAuthReturn()) return false;
+  if (hasMemberSession()) return false;
   try {
     return !window.localStorage.getItem(LANDING_SEEN_KEY);
   } catch {

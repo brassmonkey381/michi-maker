@@ -138,7 +138,7 @@ p { margin: 0; }
 @property --tint { syntax: '<color>'; inherits: true; initial-value: #F6DE9A; }
 @property --tint-2 { syntax: '<color>'; inherits: true; initial-value: #E7B93E; }
 @property --cover { syntax: '<color>'; inherits: true; initial-value: #3B2C0C; }
-.hero { position: relative; padding: calc(68px + clamp(20px, 5vh, 56px)) 0 clamp(64px, 9vh, 120px); overflow: clip; transition: --tint .9s var(--ease-io), --tint-2 .9s var(--ease-io); }
+.hero { position: relative; padding: calc(68px + clamp(20px, 5vh, 56px)) 0 clamp(32px, 5vh, 64px); overflow: clip; transition: --tint .9s var(--ease-io), --tint-2 .9s var(--ease-io); }
 .hero .wrap {
   display: grid; width: min(100% - 2 * var(--gutter), var(--max));
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); grid-template-rows: 1fr auto auto auto auto auto 1fr;
@@ -301,7 +301,8 @@ p { margin: 0; }
 }
 
 /* ── Tools: sticky scrollytelling ─────────────────── */
-.tools { padding: var(--pad-section) 0 calc(var(--pad-section) * .5); }
+/* Owner 2026-11-18: less air between the hero and the first section (was 126 + 81 px at 1440). */
+.tools { padding: calc(var(--pad-section) * .6) 0 calc(var(--pad-section) * .5); }
 .sec-head { margin-bottom: clamp(48px, 8vh, 96px); max-width: 780px; }
 .sec-head .lede { margin-top: 24px; }
 .scrolly { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(40px, 6vw, 96px); }

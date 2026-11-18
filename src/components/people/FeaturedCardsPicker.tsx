@@ -53,59 +53,90 @@ export function FeaturedCardsPicker({
   // The browser needs a real height to lay its grid out in; the dialog caps itself to the viewport.
   const bodyH = Math.max(360, Math.min(820, height - (width < Breakpoints.phone ? 150 : 170)));
 
-  return (
-    <DialogCard visible onClose={onClose} maxWidth={1040} title="Featured cards" scroll={false}>
-      <View style={[styles.body, { height: bodyH }]} testID="featured-picker">
-        <View style={styles.head}>
-          <Text style={styles.hint} numberOfLines={2}>
-            Pick any three cards. Search by name or browse.
-          </Text>
-          <View style={styles.tray}>
-            {[0, 1, 2].map((i) => {
-              const id = picks[i];
-              return id ? (
-                <Pressable key={id} onPress={() => toggle(id)} accessibilityRole="button" accessibilityLabel={`Remove ${nameOf(id)}`}>
-                  <Image source={{ uri: manifestReady ? cardThumbUrl(id, 245) : '' }} style={styles.thumb} contentFit="cover" />
-                </Pressable>
-              ) : (
-                <View key={i} style={styles.slot} />
-              );
-            })}
-            <Text style={styles.count}>{picks.length}/3</Text>
+  // Desktop: the three picks stand big in a column on the left (the size they read at on the
+  // collector card), the browser fills the rest. Phone: the three picks in a row on top.
+  const side = width >= Breakpoints.rail;
+  const slotW = side ? 132 : Math.min(96, Math.floor((width - 2 * Spacing.four - 2 * Spacing.two) / 3));
+  const slotH = Math.round(slotW * 1.396);
+
+  const slots = (
+    <View style={[styles.slots, side && styles.slotsSide]}>
+      {[0, 1, 2].map((i) => {
+        const id = picks[i];
+        return (
+          <View key={id ?? `empty-${i}`} style={styles.slotWrap}>
+            {id ? (
+              <Pressable onPress={() => toggle(id)} accessibilityRole="button" accessibilityLabel={`Remove ${nameOf(id)}`}>
+                <Image source={{ uri: manifestReady ? cardThumbUrl(id, 640) : '' }} style={[styles.card, { width: slotW, height: slotH }]} contentFit="cover" />
+                <View style={styles.remove}><Text style={styles.removeText}>×</Text></View>
+              </Pressable>
+            ) : (
+              <View style={[styles.slot, { width: slotW, height: slotH }]}>
+                <Text style={styles.slotNum}>{i + 1}</Text>
+              </View>
+            )}
           </View>
-        </View>
+        );
+      })}
+    </View>
+  );
 
-        <View style={styles.browse}>
-          {catalog ? (
-            <CardBrowse
-              catalog={catalog}
-              compactHeader
-              cardSize={width < Breakpoints.phone ? 'S' : undefined}
-              onPickCard={(id) => toggle(id)}
-              quickAction={(card: CatalogCard) => ({
-                key: 'featured-pick',
-                label: picks.includes(card.id) ? '✓' : '＋',
-                onPress: (c: CatalogCard) => toggle(c.id),
-              })}
-            />
-          ) : (
-            <View style={styles.loading}>
-              <ActivityIndicator />
+  const saveBtn = (
+    <Pressable
+      onPress={save}
+      disabled={saving || picks.length === 0}
+      accessibilityRole="button"
+      testID="featured-save"
+      style={[styles.saveBtn, side && styles.saveBtnSide, (saving || picks.length === 0) && styles.dim]}>
+      <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save featured cards'}</Text>
+    </Pressable>
+  );
+
+  const browser = (
+    <View style={styles.browse}>
+      {catalog ? (
+        <CardBrowse
+          catalog={catalog}
+          compactHeader
+          cardSize={width < Breakpoints.phone ? 'S' : undefined}
+          onPickCard={(id) => toggle(id)}
+          quickAction={(card: CatalogCard) => ({
+            key: 'featured-pick',
+            label: picks.includes(card.id) ? '✓' : '＋',
+            onPress: (c: CatalogCard) => toggle(c.id),
+          })}
+        />
+      ) : (
+        <View style={styles.loading}>
+          <ActivityIndicator />
+          <Text style={styles.loadingText}>Loading cards…</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  return (
+    <DialogCard visible onClose={onClose} maxWidth={1100} title="Featured cards" scroll={false}>
+      <View style={[styles.body, side && styles.bodySide, { height: bodyH }]} testID="featured-picker">
+        {side ? (
+          <>
+            <View style={styles.left}>
+              <Text style={styles.hint}>Pick any three cards. Search by name or browse, then tap “＋”. Tap a pick to remove it.</Text>
+              {slots}
+              {note ? <Text style={styles.note}>{note}</Text> : null}
+              {saveBtn}
             </View>
-          )}
-        </View>
-
-        <View style={styles.foot}>
-          {note ? <Text style={styles.note}>{note}</Text> : <View />}
-          <Pressable
-            onPress={save}
-            disabled={saving || picks.length === 0}
-            accessibilityRole="button"
-            testID="featured-save"
-            style={[styles.saveBtn, (saving || picks.length === 0) && styles.dim]}>
-            <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save featured cards'}</Text>
-          </Pressable>
-        </View>
+            {browser}
+          </>
+        ) : (
+          <>
+            <Text style={styles.hint}>Pick any three cards. Search by name or browse, then tap “＋”.</Text>
+            {slots}
+            {browser}
+            {note ? <Text style={styles.note}>{note}</Text> : null}
+            {saveBtn}
+          </>
+        )}
       </View>
     </DialogCard>
   );
@@ -113,17 +144,23 @@ export function FeaturedCardsPicker({
 
 const styles = StyleSheet.create({
   body: { gap: Spacing.two },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, minHeight: 48 },
-  hint: { flexShrink: 1, fontSize: FontSize.sm, color: Palette.muted },
-  tray: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  thumb: { width: 32, height: 45, borderRadius: 4, borderWidth: 2, borderColor: Palette.accent },
-  slot: { width: 32, height: 45, borderRadius: 4, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Palette.hairlineStrong },
-  count: { fontSize: FontSize.sm, fontWeight: Weight.bold, color: Palette.ink2, minWidth: 28, textAlign: 'right' },
-  browse: { flex: 1, minHeight: 0 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  foot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
-  note: { flexShrink: 1, fontSize: FontSize.sm, color: Palette.muted },
-  saveBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.pill, backgroundColor: Palette.accent },
+  bodySide: { flexDirection: 'row', gap: Spacing.four },
+  left: { width: 132, gap: Spacing.three },
+  hint: { fontSize: FontSize.sm, lineHeight: 18, color: Palette.muted },
+  slots: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.two },
+  slotsSide: { flexDirection: 'column', gap: Spacing.two },
+  slotWrap: { alignItems: 'center' },
+  card: { borderRadius: 8, borderWidth: 2, borderColor: Palette.accent },
+  slot: { borderRadius: 8, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Palette.hairlineStrong, alignItems: 'center', justifyContent: 'center' },
+  slotNum: { fontSize: 22, fontWeight: Weight.bold, color: Palette.hairlineStrong },
+  remove: { position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
+  removeText: { color: '#fff', fontSize: 15, lineHeight: 17, fontWeight: Weight.bold },
+  browse: { flex: 1, minHeight: 0, minWidth: 0 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
+  loadingText: { fontSize: FontSize.sm, color: Palette.muted },
+  note: { fontSize: FontSize.sm, color: Palette.muted },
+  saveBtn: { alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.pill, backgroundColor: Palette.accent },
+  saveBtnSide: { alignSelf: 'stretch', alignItems: 'center' },
   saveText: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.accentText },
   dim: { opacity: 0.55 },
 });

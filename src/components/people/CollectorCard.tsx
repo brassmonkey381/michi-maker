@@ -2,7 +2,7 @@
  * THE COLLECTOR CARD (MIC-017 piece 11, the sweep's "collector card" with featured picks). A
  * profile as a holo trading card: the maker's name and level, three featured cards, the bio, and
  * their numbers written as a card's attacks. The owner chooses the three featured cards from their
- * own public binders; until they do (or until the column exists) the card shows the first three
+ * the whole card browser, any card (FeaturedCardsPicker, owner 2026-11-17); until they do (or until the column exists) the card shows the first three
  * cards of their most-liked binder.
  *
  * Behind the 'profile-card' dev flag. The featured picks live in profiles.featured_card_ids, an
@@ -11,9 +11,9 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { DialogCard } from '@/components/ui/DialogCard';
+import { FeaturedCardsPicker } from '@/components/people/FeaturedCardsPicker';
 import { Fonts, FontSize, Palette, Radius, Weight } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -70,9 +70,6 @@ export function CollectorCard({
   const likes = binders.reduce((n, b) => n + (b.likeCount ?? 0), 0);
   const level = Math.max(1, Math.min(99, binders.length * 2 + Math.floor(cardCount / 50)));
   const [choosing, setChoosing] = useState(false);
-  const [picks, setPicks] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
 
   const attacks: [string, string, string][] = [
     ['Binder Builder', `${binders.length} binder${binders.length === 1 ? '' : 's'}`, '◉◉'],
@@ -83,18 +80,6 @@ export function CollectorCard({
         ? ['Crowd Favourite', `${likes} like${likes === 1 ? '' : 's'}`, '◉◉◉']
         : ['Card Keeper', `${cardCount} card${cardCount === 1 ? '' : 's'}`, '◉◉◉'],
   ];
-
-  const save = () => {
-    if (saving) return;
-    setSaving(true);
-    setNote(null);
-    onSaveFeatured(picks)
-      .then((ok) => {
-        if (ok) setChoosing(false);
-        else setNote('Featured picks could not be saved yet. Try again later.');
-      })
-      .finally(() => setSaving(false));
-  };
 
   return (
     <View style={styles.wrap}>
@@ -135,40 +120,16 @@ export function CollectorCard({
           </View>
         </View>
       </LinearGradient>
-      {own && pool.length ? (
+      {own ? (
         <Pressable
-          onPress={() => {
-            setPicks(shown.slice(0, 3));
-            setChoosing(true);
-          }}
+          onPress={() => setChoosing(true)}
           accessibilityRole="button"
           testID="collector-choose"
           style={styles.choose}>
           <Text style={styles.chooseText}>Choose featured cards</Text>
         </Pressable>
       ) : null}
-      <DialogCard visible={choosing} onClose={() => setChoosing(false)} maxWidth={560} title="Featured cards">
-        <Text style={styles.chooserHint}>Pick three cards from your public binders. {picks.length}/3 picked.</Text>
-        <ScrollView style={styles.chooser} contentContainerStyle={styles.chooserGrid}>
-          {pool.slice(0, 120).map((id) => {
-            const on = picks.includes(id);
-            return (
-              <Pressable
-                key={id}
-                onPress={() => setPicks((p) => (on ? p.filter((x) => x !== id) : p.length >= 3 ? p : [...p, id]))}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: on }}
-                style={[styles.pickTile, on && styles.pickOn]}>
-                <Image source={{ uri: manifestReady ? cardThumbUrl(id, 'full') : '' }} style={styles.pickImg} contentFit="cover" />
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-        {note ? <Text style={styles.note}>{note}</Text> : null}
-        <Pressable onPress={save} disabled={saving || picks.length === 0} accessibilityRole="button" testID="collector-save" style={[styles.saveBtn, (saving || picks.length === 0) && styles.dim]}>
-          <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save featured cards'}</Text>
-        </Pressable>
-      </DialogCard>
+      {choosing ? <FeaturedCardsPicker initial={shown} onClose={() => setChoosing(false)} onSave={onSaveFeatured} /> : null}
     </View>
   );
 }
@@ -196,14 +157,4 @@ const styles = StyleSheet.create({
   footText: { fontSize: 10.5, color: 'rgba(255,255,255,0.6)' },
   choose: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairlineStrong },
   chooseText: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.ink },
-  chooserHint: { fontSize: FontSize.sm, color: Palette.muted, marginBottom: 8 },
-  chooser: { maxHeight: 420 },
-  chooserGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  pickTile: { width: 76, height: 106, borderRadius: 6, overflow: 'hidden', borderWidth: 3, borderColor: 'transparent' },
-  pickOn: { borderColor: Palette.accent },
-  pickImg: { width: '100%', height: '100%' },
-  note: { fontSize: FontSize.sm, color: Palette.muted, marginTop: 8 },
-  saveBtn: { marginTop: 12, alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.pill, backgroundColor: Palette.accent },
-  saveText: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.accentText },
-  dim: { opacity: 0.55 },
 });

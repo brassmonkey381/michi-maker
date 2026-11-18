@@ -132,23 +132,23 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     // MIC-040 (owner 2026-11-18, Triage window): a FEATURED pin for % owned and completion tracking.
-    // Live pieces: Browse Cards set/series tiles ("X / Y owned", a % badge and a bar, once the
-    // account owns a card: tcgscan-browse CatalogBrowser showCompletion), the Set Binders live
-    // preview's Whole set / Page N counts with the green check and grey fade (setbinders-preview,
-    // MIC-051), the binder Owned view and its tick. NOT SetBuildView's "(N%)" meter: with the
-    // preview live, collect.tsx returns its layout first and never draws that meter.
-    date: '2026-11-17',
+    // Live pieces (ships AFTER mic-059-completion): MIC-059's "X of Y owned · N%" meters on each
+    // My Binders tile (once a card is owned), each set in My collection's "By set" view, and the
+    // whole binder and each page in view with Owned on; Browse Cards set tiles (kit showCompletion);
+    // the Set Binders preview's Whole set / Page N counts. NOT SetBuildView's "(N%)" meter, which
+    // the live /collect layout never draws.
+    date: '2026-11-18',
     title: 'See how much you own',
     items: [
       {
         products: ['michi'],
-        head: 'Track how much of a set you own',
+        head: 'See how much you own, by binder, set and page',
         kind: 'new',
         area: 'collection',
         big: true,
         pinned: true,
         featured: true,
-        body: 'Once you own a card, the sets in “Browse Cards” show how many you have, a percentage and a bar. In “Set Binders”, a “Complete set” or “Master set” counts the whole set and each page, with a green check on cards you have, a grey fade on the rest and the price to finish. Cards you scan in BiBoScan count, and so do cards you tick in a binder with “Owned” on (Settings, “My view”).',
+        body: 'Once you own a card, each binder in “My Binders” and each set in My collection’s “By set” view shows how many of its cards you have, with a percentage and a bar; turn on “Owned” in a binder (Settings, “My view”) to count the whole binder and the page you are on. Cards you scan in BiBoScan count, and so do cards you tick in a binder.',
       },
     ],
   },

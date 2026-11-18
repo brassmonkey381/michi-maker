@@ -57,11 +57,6 @@
       "source": "/welcome",
       "destination": "/",
       "permanent": true
-    },
-    {
-      "source": "/home",
-      "destination": "/",
-      "permanent": true
     }
   ],
   "headers": [
@@ -252,11 +247,11 @@
           "key": "mm_app"
         }
       ],
-      "destination": "/app.html"
+      "destination": "/app"
     },
     {
       "source": "/",
-      "destination": "/home.html"
+      "destination": "/home"
     },
     {
       "source": "/binder/:id",
@@ -313,11 +308,11 @@
     },
     {
       "source": "/welcome_v2",
-      "destination": "/welcome_v2.html"
+      "destination": "/welcome_v2"
     },
     {
       "source": "/auto-fill-methods",
-      "destination": "/auto-fill-methods.html"
+      "destination": "/auto-fill-methods"
     },
     {
       "source": "/nine/db/rest/:path*",
@@ -329,15 +324,15 @@
     },
     {
       "source": "/(browse|collect|contest|contest-binders|coverage|daily|discover|feedback|kit|my-binders|new-binder|plans|pricing|purchases|search-guide|studio|subscriptions|whats-new|wishlist|auth-callback)",
-      "destination": "/app.html"
+      "destination": "/app"
     },
     {
       "source": "/legal/(privacy|terms|dmca)",
-      "destination": "/app.html"
+      "destination": "/app"
     },
     {
       "source": "/u/:id",
-      "destination": "/app.html"
+      "destination": "/app"
     },
     {
       "source": "/sets",

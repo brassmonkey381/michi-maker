@@ -91,7 +91,13 @@ function match(rule, p, req, url, host) {
 
 const fill = (dest, params) => dest.replace(/:([a-zA-Z_]\w*)\*?|\$(\d+)/g, (_, n, d) => params[n ?? d] ?? '');
 
+/**
+ * With cleanUrls, Vercel serves x.html only as /x: a path (or a rewrite destination) that names the
+ * .html never matches a file. MIC-037 shipped rewrites to /app.html and /home.html that this server
+ * resolved and Vercel did not; production served the 404 page at "/" for 17 minutes.
+ */
 function fileFor(p) {
+  if (V.cleanUrls && /\.html$/i.test(p)) return null;
   const tries = [p, `${p}.html`, path.posix.join(p, 'index.html')];
   for (const t of tries) {
     const f = path.join(DIST, decodeURIComponent(t));
@@ -133,6 +139,11 @@ http.createServer(async (req, res) => {
       const q = new URLSearchParams(url.search); q.delete('__host');
       if (q.toString()) to += (to.includes('?') ? '&' : '?') + q.toString();
       res.writeHead(r.permanent ? 308 : 307, { location: to });
+      return res.end();
+    }
+    if (V.cleanUrls && /\.html$/i.test(p)) {
+      const clean = p.replace(/(?:\/index)?\.html$/i, '') || '/';
+      res.writeHead(308, { location: clean + url.search });
       return res.end();
     }
     const extra = headersFor(p, req, url, host);

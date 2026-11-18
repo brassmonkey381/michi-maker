@@ -20,7 +20,7 @@ but file sizes and per-set counts; no key is used.
 |---|---|---|
 | `/` (no `mm_app` cookie: a first visit, every crawler) | `dist/home.html`: the landing (public/landing-v2) plus the gate, written by `scripts/build-home.mjs` | the landing, real HTML, no app bundle |
 | `/` with the `mm_app` cookie | `dist/app.html` | the app |
-| `/welcome`, `/home` | 308 to `/` | |
+| `/welcome` | 308 to `/` | |
 | `/landing-v2/` | the static file | the landing without the gate, canonical `/` |
 | `/michi-method`, `/learn`, `/learn/<slug>` | `api/page-static.js` | the page's text, composed onto the shell |
 | `/binder/<id>` | `api/page-binder.js` | title, pages, card list; noindex unless `api/_index.js` says indexable |

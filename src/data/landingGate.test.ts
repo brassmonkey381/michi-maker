@@ -119,11 +119,29 @@ test('vercel.json: "/" is the app only with the mm_app cookie, otherwise the lan
   const root = v.rewrites.filter((r) => r.source === '/');
   assert.equal(root.length, 2);
   assert.deepEqual(root[0].has, [{ type: 'cookie', key: 'mm_app' }]);
-  assert.equal(root[0].destination, '/app.html');
+  assert.equal(root[0].destination, '/app');
   assert.equal(root[1].has, undefined);
-  assert.equal(root[1].destination, '/home.html');
+  assert.equal(root[1].destination, '/home');
   assert.ok(v.rewrites.indexOf(root[0]) < v.rewrites.indexOf(root[1]), 'the cookie rule is checked first');
   assert.ok(v.redirects.some((r) => !r.has && r.source === '/welcome' && r.destination === '/'));
+});
+
+test('vercel.json: with cleanUrls, no rewrite names an .html file other than an index (it never matches on Vercel)', () => {
+  // 2026-11-18: rewrites to /app.html and /home.html shipped, matched nothing under cleanUrls, and "/" plus
+  // every app route served the 404 page until the rollback. index.html is the one name Vercel still resolves.
+  const v = JSON.parse(readFileSync(path.join(ROOT, 'vercel.json'), 'utf8')) as {
+    cleanUrls?: boolean;
+    rewrites: { source: string; destination: string }[];
+    redirects: { source: string }[];
+  };
+  assert.equal(v.cleanUrls, true);
+  for (const r of v.rewrites) {
+    if (/^https?:/.test(r.destination)) continue;
+    const p = r.destination.split('?')[0];
+    assert.ok(!/\.html$/i.test(p) || /(^|\/)index\.html$/.test(p), `${r.source} -> ${r.destination}`);
+  }
+  // A rewrite target must not also be a redirect source, or which one wins is Vercel's call, not ours.
+  for (const d of ['/app', '/home']) assert.ok(!v.redirects.some((r) => r.source === d), `${d} is not redirected`);
 });
 
 test('the landing copy carries the canonical, share tags and sets the cookie on its way into the app', () => {

@@ -178,4 +178,25 @@ export function markLandingSeen(): void {
   } catch {
     // Ignore — shouldShowLanding() fails open the same way.
   }
+  markAppCookie();
+}
+
+/**
+ * THE FRONT DOOR'S COOKIE (MIC-037). "/" is the static landing (dist/home.html) unless the request
+ * carries `mm_app`, in which case vercel.json serves the app (dist/app.html). The landing's gate
+ * (api/_landingGate.js) sets it too, from the same rules as shouldShowLanding, but only after one
+ * extra reload; setting it here, whenever the app knows the visitor has been in, saves that reload
+ * on their next "/". One year, whole site, first-party, carries nothing but "1".
+ */
+export const APP_COOKIE = 'mm_app';
+
+export function markAppCookie(): void {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  try {
+    if (new RegExp(`(^|;\\s*)${APP_COOKIE}=1`).test(document.cookie)) return;
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `${APP_COOKIE}=1; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+  } catch {
+    // Cookies blocked: the gate falls back to /my-binders, which is always the app.
+  }
 }

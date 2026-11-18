@@ -22,15 +22,28 @@ const path = require('node:path');
 
 let shellPromise = null;
 
+/**
+ * Which file is the plain shell. Since MIC-037 the build writes TWO: `dist/app.html` is the app
+ * shell every route without its own page is served (splash in #root), and `dist/index.html` is the
+ * HOME page, that same shell with home's head and body composed on (scripts/build-home.mjs). The
+ * functions must compose onto the plain one, so index.html is accepted only when it carries no
+ * composed body (an older build, or a local export without the home step).
+ */
+function isPlainShell(html) {
+  return typeof html === 'string' && html.includes('id="root"') && !html.includes('id="seo"');
+}
+
 function readShellFromDisk() {
   const candidates = [
+    path.join(process.cwd(), 'dist', 'app.html'),
+    path.join(__dirname, '..', 'dist', 'app.html'),
     path.join(process.cwd(), 'dist', 'index.html'),
     path.join(__dirname, '..', 'dist', 'index.html'),
   ];
   for (const p of candidates) {
     try {
       const html = fs.readFileSync(p, 'utf8');
-      if (html.includes('id="root"')) return html;
+      if (isPlainShell(html)) return html;
     } catch {
       /* try the next */
     }
@@ -43,10 +56,11 @@ async function fetchShell(req) {
     const proto = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0];
     const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0];
     if (!host) return null;
-    const res = await fetch(`${proto}://${host}/`, { headers: { 'user-agent': 'michi-shell/1' } });
+    // `/app` is dist/app.html (cleanUrls); `/` is the composed home page, so it is not the shell.
+    const res = await fetch(`${proto}://${host}/app`, { headers: { 'user-agent': 'michi-shell/1' } });
     if (!res.ok) return null;
     const html = await res.text();
-    return html.includes('id="root"') ? html : null;
+    return isPlainShell(html) ? html : null;
   } catch {
     return null;
   }
@@ -80,16 +94,48 @@ function stripDefaultHead(html) {
 }
 
 /**
- * The shell with `head` inserted before </head> and `body` inside #root. The body is what a
- * reader without JavaScript gets, and what every crawler indexes; React replaces it on mount, so
- * it should read as the page, not as a placeholder. Styles for it live in the fragment itself
- * (see `seoBodyStyle`), scoped under #seo so they cannot touch the app.
+ * The span of #root's children in `html`: [start of the content, start of root's closing tag], or
+ * null when there is no #root. Found by counting <div> and </div> from the opening tag, so it holds
+ * whatever the build put inside #root.
+ *
+ * WHY NOT A LITERAL. This used to be `html.replace('<div id="root"></div>', ...)`. On 2026-11-07
+ * (8d9f8c1, MIC-017) scripts/inject-meta.mjs started drawing a loading splash INSIDE #root, the
+ * literal stopped matching, and `replace` failed silently: every binder, guide and the explainer
+ * served "Michi-Maker / Loading" to crawlers for a week. src/data/seoShell.test.ts runs compose()
+ * on a shell with the splash and fails if the body is not in the output.
+ */
+function rootContentSpan(html) {
+  const open = /<div\s+id="root"[^>]*>/i.exec(html);
+  if (!open) return null;
+  const start = open.index + open[0].length;
+  const tag = /<(\/?)div(?=[\s>])[^>]*>/gi;
+  tag.lastIndex = start;
+  let depth = 1;
+  for (let m = tag.exec(html); m; m = tag.exec(html)) {
+    depth += m[1] ? -1 : 1;
+    if (depth === 0) return [start, m.index];
+  }
+  return null;
+}
+
+/**
+ * The shell with `head` inserted before </head> and `body` as the whole of #root. The body is what
+ * a reader without JavaScript gets, and what every crawler indexes; React replaces it on mount, so
+ * it should read as the page, not as a placeholder. It REPLACES the loading splash rather than
+ * sitting under it: the Expo shell sets `body { overflow: hidden }`, so text below a full-height
+ * splash could never be scrolled to, and unreachable text is hidden text. Styles for it live in
+ * the fragment itself (see `seoBodyStyle`), scoped under #seo so they cannot touch the app.
+ *
+ * Throws when a body is given and #root cannot be found: a page that silently loses its body is
+ * exactly the failure this function exists to prevent.
  */
 function compose(shell, { head, body }) {
   let html = stripDefaultHead(shell);
   html = html.replace('</head>', `${head}\n  </head>`);
   if (body) {
-    html = html.replace('<div id="root"></div>', `<div id="root">${body}</div>`);
+    const span = rootContentSpan(html);
+    if (!span) throw new Error('compose: no <div id="root"> in the shell');
+    html = `${html.slice(0, span[0])}${body}${html.slice(span[1])}`;
     // The shell's "enable JavaScript" notice is wrong once the body IS the page without it.
     html = html.replace(/<noscript>[\s\S]*?<\/noscript>\s*/i, '');
   }
@@ -117,4 +163,4 @@ const seoBodyStyle = `<style>
 #seo nav a{margin-right:14px}#seo .muted{color:#6B6459;font-size:14px}
 </style>`;
 
-module.exports = { getShell, compose, stripDefaultHead, seoBodyStyle };
+module.exports = { getShell, compose, stripDefaultHead, rootContentSpan, isPlainShell, seoBodyStyle };

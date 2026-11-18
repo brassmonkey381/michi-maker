@@ -1,5 +1,5 @@
 {
-  "buildCommand": "EXPO_PUBLIC_CHECKOUT_OPEN=1 EXPO_PUBLIC_TRIALS_OPEN=0 EXPO_PUBLIC_LIMITS_ENFORCED=1 expo export -p web && node scripts/inject-meta.mjs && node scripts/build-seo-data.mjs",
+  "buildCommand": "EXPO_PUBLIC_CHECKOUT_OPEN=1 EXPO_PUBLIC_TRIALS_OPEN=0 EXPO_PUBLIC_LIMITS_ENFORCED=1 expo export -p web && node scripts/inject-meta.mjs && node scripts/build-seo-data.mjs && node scripts/build-home.mjs && node scripts/build-set-pages.mjs",
   "outputDirectory": "dist",
   "devCommand": "expo",
   "cleanUrls": true,
@@ -20,17 +20,28 @@
     },
     "api/page-binder.js": {
       "maxDuration": 15,
-      "includeFiles": "dist/index.html"
+      "includeFiles": "dist/*.html"
     },
     "api/page-static.js": {
       "maxDuration": 15,
-      "includeFiles": "dist/index.html"
+      "includeFiles": "dist/*.html"
     },
     "api/sitemap.js": {
       "maxDuration": 30
     }
   },
   "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.michi-maker.com"
+        }
+      ],
+      "destination": "https://michi-maker.com/",
+      "permanent": true
+    },
     {
       "source": "/:path*",
       "has": [
@@ -40,6 +51,11 @@
         }
       ],
       "destination": "https://michi-maker.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/welcome",
+      "destination": "/",
       "permanent": true
     }
   ],
@@ -67,9 +83,176 @@
           "value": "noindex, nofollow"
         }
       ]
+    },
+    {
+      "source": "/(u/.*|my-binders|purchases|account|studio|subscriptions|wishlist|auth-callback|kit|welcome_v2|app)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/discover",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/discover>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/browse",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/browse>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/whats-new",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/whats-new>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/daily",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/daily>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/contest",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/contest>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/contest-binders",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/contest-binders>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/coverage",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/coverage>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/search-guide",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/search-guide>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/plans",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/plans>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/pricing",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/pricing>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/new-binder",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/new-binder>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/collect",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/collect>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/feedback",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/feedback>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/legal/privacy",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/legal/privacy>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/legal/terms",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/legal/terms>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/legal/dmca",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/legal/dmca>; rel=\"canonical\""
+        }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "cookie",
+          "key": "mm_app"
+        }
+      ],
+      "destination": "/app"
+    },
+    {
+      "source": "/",
+      "destination": "/home"
+    },
     {
       "source": "/binder/:id",
       "has": [
@@ -125,11 +308,11 @@
     },
     {
       "source": "/welcome_v2",
-      "destination": "/welcome_v2.html"
+      "destination": "/welcome_v2"
     },
     {
       "source": "/auto-fill-methods",
-      "destination": "/auto-fill-methods.html"
+      "destination": "/auto-fill-methods"
     },
     {
       "source": "/nine/db/rest/:path*",
@@ -140,8 +323,24 @@
       "destination": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/:path*"
     },
     {
+      "source": "/(browse|collect|contest|contest-binders|coverage|daily|discover|feedback|kit|my-binders|new-binder|plans|pricing|purchases|search-guide|studio|subscriptions|whats-new|wishlist|auth-callback)",
+      "destination": "/app"
+    },
+    {
+      "source": "/legal/(privacy|terms|dmca)",
+      "destination": "/app"
+    },
+    {
+      "source": "/u/:id",
+      "destination": "/app"
+    },
+    {
+      "source": "/sets",
+      "destination": "/sets/index.html"
+    },
+    {
       "source": "/:path*",
-      "destination": "/"
+      "destination": "/api/page-static?route=404"
     }
   ],
   "git": {

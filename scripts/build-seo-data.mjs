@@ -32,7 +32,7 @@ export const MICHI_FAQ = [
   },
   {
     q: 'Is Michi-Maker free?',
-    a: 'Yes. Building and sharing binders, the auto-fill methods, and the print preview are free. Paid PRO and VIP plans add full-binder PDF export, binder covers, advanced and artwork-theme search, and more.',
+    a: 'Yes. You can build and share binders, use the auto-fill methods and preview your print sheets in the browser, with no download and no account needed to start.',
   },
   {
     q: 'What size are the printed pieces?',

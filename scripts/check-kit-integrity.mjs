@@ -96,8 +96,19 @@ if (process.argv.includes('--bundle') && target) {
  */
 async function fetchBundle(origin) {
   try {
-    const html = await (await fetch(origin, { cache: 'no-store' })).text();
-    const src = /src="([^"]*_expo\/static\/js\/web\/[^"]+\.js)"/.exec(html)?.[1];
+    // Since MIC-037 "/" serves the static landing to a visitor without the mm_app cookie (no bundle
+    // on it), so read the app shell at /app first; an older deploy without it still answers at "/".
+    const bundleRe = /src="([^"]*_expo\/static\/js\/web\/[^"]+\.js)"/;
+    let html = '';
+    for (const page of [`${origin.replace(/\/+$/, '')}/app`, origin]) {
+      try {
+        html = await (await fetch(page, { cache: 'no-store' })).text();
+      } catch {
+        html = '';
+      }
+      if (bundleRe.test(html)) break;
+    }
+    const src = bundleRe.exec(html)?.[1];
     if (!src) return fail(`no Expo bundle referenced by ${origin} (is it serving the app at all?)`);
     const url = src.startsWith('http') ? src : new URL(src, origin).toString();
     const where = url.slice(url.lastIndexOf('/') + 1);

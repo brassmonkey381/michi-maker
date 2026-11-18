@@ -1,5 +1,8 @@
 # SHIP WHATEVER IS CHECKED OUT: fast-forward main to it, then promote main to production.
 #
+# BEFORE SHIPPING (MIC-037): refresh the /sets pages' prices and commit the result:
+#   node scripts/seo/refresh-set-pages.mjs      (docs/SEO-PAGES.md)
+#
 # The everyday case this is for: work has been landing on a feature branch (development builds
 # from it, preview has been checked), and now it should be michi-maker.com. This does the two
 # steps in order and stops loudly between them if anything is off:

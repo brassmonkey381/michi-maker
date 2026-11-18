@@ -18,8 +18,11 @@
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 const IMG_BASE = process.env.EXPO_PUBLIC_CATALOG_IMG_BASE || '';
-const SITE = process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com';
-const SITE_NAME = 'michi-maker';
+// ONE CANONICAL HOST (MIC-037): every canonical, og:url and sitemap entry names the apex. www
+// redirects to it (vercel.json), so a www value here would point search engines at a redirect.
+const SITE = (process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com').replace('://www.', '://').replace(/\/+$/, '');
+// ONE BRAND NAME (MIC-037): the spelling the app's own tab titles use (PageShell: "· Michi-Maker").
+const SITE_NAME = 'Michi-Maker';
 
 /**
  * Collapse a description to something that unfurls on ONE line, ellipsised.

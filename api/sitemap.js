@@ -7,23 +7,32 @@
  * the static pages. Submit once in Search Console and forget it.
  *
  * The publishable key sees only public rows under RLS, so nothing private can leak into the list.
+ *
+ * ONLY PAGES THAT ARE PAGES (MIC-037). A binder is listed only when api/_index.js says it is
+ * indexable: never a hidden (daily puzzle) binder, whose pages are future answers; never a thin or
+ * unnamed one; and pictures count only once the MIC-029 safety check approved them. The static
+ * list is the routes that serve their own title and text to a crawler. /browse, /plans,
+ * /whats-new, /search-guide and /feedback served the home shell under home's title, so they read as
+ * copies of the home page and are out until they have pages of their own. Profiles (/u/<id>) are
+ * out too: a person's page is noindex (vercel.json headers).
  * Sitemaps are capped at 50,000 URLs by the protocol; well above today, and the query limit
  * below keeps the response bounded if that ever changes (split into an index then).
  */
-const { SITE, sbSelect } = require('./_lib');
+const { SITE } = require('./_lib');
+const { indexableBinders } = require('./_index');
 const seo = require('./_seo.json');
+// The /sets pilot (MIC-037 phase B): static pages built from scripts/seo/set-pages.json; this is
+// their slug list, written by the same snapshot, and lastmod is the day that snapshot was taken.
+const setPages = require('./_sets.json');
 
 const STATIC = [
   { path: '/', priority: '1.0', changefreq: 'weekly' },
   { path: '/michi-method', priority: '0.9', changefreq: 'monthly' },
   { path: '/learn', priority: '0.8', changefreq: 'monthly' },
   ...seo.guides.map((g) => ({ path: `/learn/${g.slug}`, priority: '0.8', changefreq: 'monthly' })),
-  { path: '/search-guide', priority: '0.6', changefreq: 'monthly' },
-  { path: '/plans', priority: '0.6', changefreq: 'monthly' },
-  { path: '/whats-new', priority: '0.5', changefreq: 'weekly' },
-  { path: '/browse', priority: '0.5', changefreq: 'weekly' },
   { path: '/auto-fill-methods', priority: '0.5', changefreq: 'yearly' },
-  { path: '/feedback', priority: '0.3', changefreq: 'yearly' },
+  { path: '/sets', priority: '0.8', changefreq: 'monthly', lastmod: setPages.taken },
+  ...setPages.sets.map((s) => ({ path: `/sets/${s.slug}`, priority: '0.7', changefreq: 'monthly', lastmod: setPages.taken })),
 ];
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -40,23 +49,14 @@ function urlTag({ loc, lastmod, changefreq, priority }) {
 }
 
 module.exports = async (req, res) => {
-  const [binders, profiles] = await Promise.all([
-    sbSelect('binders?is_public=eq.true&removed_at=is.null&select=id,updated_at&order=updated_at.desc&limit=20000'),
-    sbSelect('profiles?is_public=eq.true&select=id,updated_at&limit=10000'),
-  ]);
+  const binders = await indexableBinders(5000);
   const entries = [
-    ...STATIC.map((s) => ({ loc: `${SITE}${s.path}`, lastmod: seo.generatedOn, changefreq: s.changefreq, priority: s.priority })),
-    ...(Array.isArray(binders) ? binders : []).map((b) => ({
+    ...STATIC.map((s) => ({ loc: `${SITE}${s.path}`, lastmod: s.lastmod || seo.generatedOn, changefreq: s.changefreq, priority: s.priority })),
+    ...binders.map((b) => ({
       loc: `${SITE}/binder/${b.id}`,
       lastmod: day(b.updated_at),
       changefreq: 'weekly',
       priority: '0.7',
-    })),
-    ...(Array.isArray(profiles) ? profiles : []).map((p) => ({
-      loc: `${SITE}/u/${p.id}`,
-      lastmod: day(p.updated_at),
-      changefreq: 'weekly',
-      priority: '0.4',
     })),
   ];
   const xml =
@@ -67,3 +67,5 @@ module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');
   res.end(xml);
 };
+// For the tests (src/data/setPages.test.ts): the fixed part of the list.
+module.exports.STATIC = STATIC;

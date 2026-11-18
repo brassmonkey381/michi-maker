@@ -16,7 +16,7 @@
  *   <TcgscanSynergyNote/>   — contextual note on scan-powered features (Build-a-binder-from-your-
  *                            collection): TCGScan makes your collection real; Pro unlocks more.
  *
- * Every TCGScan mention links to its landing page (TCGSCAN_URL → tcgscan.ai).
+ * Every TCGScan mention links to its landing page (TCGSCAN_URL → biboscan.com since TCG-030; tcgscan.ai 308s there).
  * Nothing here removes access — these are additive CTAs.
  */
 import { useCallback, useRef, useState } from 'react';
@@ -34,7 +34,7 @@ export { TCGSCAN_URL };
 /**
  * EVERY WAY OUT TO TCGSCAN goes through here: the rail link, the pairing card's button, the inline
  * mentions and the bundle card. A signed-in member gets a one-time handoff hash on the link so
- * they land on tcgscan.ai already signed in (tcgscan redeems it on any arrival page since
+ * they land on biboscan.com already signed in (tcgscan redeems it on any arrival page since
  * 2026-09-06); a guest, a signed-out visitor or a failed mint gets the plain link. Same-tab on
  * web: window.open after an await trips popup blockers.
  */
@@ -43,7 +43,7 @@ export function openTcgscan(): Promise<void> {
 }
 
 /**
- * Any tcgscan.ai address, with the handoff; a non-tcgscan address opens plainly.
+ * Any biboscan.com or tcgscan.ai address, with the handoff; any other address opens plainly.
  *
  * AWAITABLE, because it is not instant. Minting the ticket is a round trip to the edge function
  * and the navigation is another, so a second or two passes between the press and the page
@@ -59,7 +59,9 @@ export function openTcgscan(): Promise<void> {
  */
 export function openTcgscanUrl(url: string, tab: Window | null = null): Promise<void> {
   return (async () => {
-    const isTcgscan = /^https:\/\/([a-z0-9-]+\.)?tcgscan\.ai(\/|$)/i.test(url);
+    // TCG-030: biboscan.com is the scanner's home; tcgscan.ai stays matched (it 308s to biboscan.com
+    // and the #th fragment survives the redirect). Miss a host here and the sign-in ticket is silently dropped.
+    const isTcgscan = /^https:\/\/([a-z0-9-]+\.)?(biboscan\.com|tcgscan\.ai)(\/|$)/i.test(url);
     const target = isTcgscan ? withHandoffHash(url, await mintHandoffHash()) : url;
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       if (tab && !tab.closed) {

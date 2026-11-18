@@ -1,7 +1,7 @@
 /**
  * Cross-app SSO handoff (michi ⇄ tcgscan) — client side of the `auth-handoff` edge function.
  * Both apps share one Supabase project, but browsers isolate sessions per origin, so a signed-in
- * michi member landing on tcgscan.ai is signed out there. The handoff carries the session across:
+ * michi member landing on biboscan.com (was tcgscan.ai) is signed out there. The handoff carries the session across:
  *
  *  1. `mintHandoffHash()` asks auth-handoff for a ONE-TIME magic-link token hash for the
  *     caller's own account (JWT-verified server-side; guests and email-less accounts refused).

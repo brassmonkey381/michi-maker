@@ -65,7 +65,7 @@ export const NAV_MAKE: NavItem[] = [
   // free placeholders or a binder. Renamed in the menu only, 2026-10-27.
   { label: 'Set Binders', href: '/collect' as Href, icon: 'set', match: (p) => p.startsWith('/collect'), tag: 'Beta' },
   { label: 'Browse Cards', href: '/browse' as Href, icon: 'cards', match: (p) => p.startsWith('/browse') },
-  // SCAN CARDS (owner, 2026-10-13): tcgscan.ai in a new tab, signed in as this account by way of
+  // SCAN CARDS (owner, 2026-10-13): biboscan.com (TCG-030; was tcgscan.ai), after the ScanCardsPrompt, signed in as this account by way of
   // the one-time handoff ticket (data/handoff.ts), so a member does not sign in twice. Shown in
   // every build, NOT behind SHOW_CROSS_APP: the owner asked for the link itself; the bundle,
   // pairing card and the rest of the cross-selling stay behind that flag. `match` is never true

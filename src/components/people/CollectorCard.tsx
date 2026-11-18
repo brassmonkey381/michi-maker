@@ -44,6 +44,7 @@ export function CollectorCard({
   wins,
   own,
   onSaveFeatured,
+  showBio = true,
 }: {
   name: string;
   bio: string | null;
@@ -57,6 +58,9 @@ export function CollectorCard({
   own: boolean;
   /** Save new picks; resolves false when they could not be kept. */
   onSaveFeatured: (ids: string[]) => Promise<boolean>;
+  /** MIC-055: false when the page prints the whole bio beside or under the card. Three clipped
+   *  lines on the face read as cut off; without them the featured cards take the room. */
+  showBio?: boolean;
 }) {
   const manifestReady = useImageManifest();
   const pool = useMemo(() => cardsOf(binders), [binders]);
@@ -104,12 +108,12 @@ export function CollectorCard({
               MAKER <Text style={styles.levelNo}>LV {level}</Text>
             </Text>
           </View>
-          <View style={styles.strip} testID="collector-featured">
+          <View style={[styles.strip, !showBio && styles.stripTall]} testID="collector-featured">
             {shown.length
-              ? shown.map((id) => <Image key={id} source={{ uri: manifestReady ? cardThumbUrl(id, 'full') : '' }} style={styles.stripImg} contentFit="cover" />)
+              ? shown.map((id) => <Image key={id} source={{ uri: manifestReady ? cardThumbUrl(id, 'full') : '' }} style={styles.stripImg} contentFit="cover" contentPosition={showBio ? 'center' : 'top'} />)
               : [0, 1, 2].map((k) => <View key={k} style={[styles.stripImg, styles.stripEmpty]} />)}
           </View>
-          {bio ? (
+          {bio && showBio ? (
             <Text style={styles.bio} numberOfLines={3}>
               {bio}
             </Text>
@@ -178,6 +182,8 @@ const styles = StyleSheet.create({
   level: { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: Weight.semibold },
   levelNo: { fontSize: 18, fontWeight: Weight.bold, color: '#fff' },
   strip: { flexDirection: 'row', gap: 3, height: 128, borderRadius: 6, overflow: 'hidden' },
+  // No bio on the face: the strip takes the room, cropped from the top so the artwork shows.
+  stripTall: { height: undefined, flex: 1 },
   stripImg: { flex: 1, height: '100%' },
   stripEmpty: { backgroundColor: 'rgba(255,255,255,0.12)' },
   bio: { fontSize: 12, fontStyle: 'italic', color: 'rgba(255,255,255,0.8)', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.2)' },

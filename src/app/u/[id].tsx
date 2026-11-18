@@ -18,7 +18,7 @@
  */
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { Image } from 'expo-image';
 import { PocketsArt, StatePanel } from 'tcgscan-ui';
@@ -27,13 +27,14 @@ import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { ReportSheet } from '@/components/binder/ReportSheet';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { fetchPublicBinders } from '@/data/binderRepo';
 import { sortByRecentEdit, type DemoBinder } from '@/data/binderTypes';
 import { CONTEST, categoryLabel } from '@/data/contest';
 import { fetchWinsForOwner, type ContestWinner } from '@/data/contestRepo';
 import { fetchFeaturedCards, fetchProfile, saveFeaturedCards, type PublicProfile } from '@/data/profileRepo';
 import { CollectorCard } from '@/components/people/CollectorCard';
+import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { flag } from '@/lib/flags';
 
 /** MIC-017 piece 11 ('dev'): the profile as a collector card. */
@@ -44,6 +45,19 @@ const STATE_PANEL = flag('state-panel');
 const FIND_PEOPLE_HREF = flag('discover-v2') ? '/discover?view=makers' : '/discover';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useAuth } from '@/store/auth';
+
+/** MIC-055: from this window width the collector card gets a column beside it (name, the whole
+ *  bio, the latest binders). Below it the page stacks: card, then the whole bio. */
+const PROFILE_SIDE_BY_SIDE = 1100;
+/** How many recently updated binders the side column lists. */
+const RECENT_BINDERS = 4;
+
+/** The card a binder shows in a list: its cover card, else its first filled pocket. */
+function binderFace(b: DemoBinder): string | null {
+  if (b.coverCardId) return b.coverCardId;
+  for (const p of b.pages) for (const s of p.slots) if (s.cardId) return s.cardId;
+  return null;
+}
 
 /** 1 → 1st, 2 → 2nd, 3 → 3rd, 4 → 4th. */
 function ordinal(n: number): string {
@@ -60,6 +74,9 @@ export default function ProfileRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const wide = width >= PROFILE_SIDE_BY_SIDE;
+  const manifestReady = useImageManifest();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [reporting, setReporting] = useState(false);
   // The featured cards: undefined while loading, null when none are saved.
@@ -154,22 +171,85 @@ export default function ProfileRoute() {
         ) : (
           <View style={styles.body}>
             {PROFILE_CARD ? (
-              // On the left edge the "Public binders" section below starts from (MIC-039 p31).
-              <View style={styles.cardLeft}>
-              <CollectorCard
-                name={name}
-                bio={state.profile.bio}
-                binders={state.binders}
-                featured={featured?.id === state.profile.id ? featured.ids : null}
-                wins={state.wins.length}
-                own={user?.id === state.profile.id}
-                onSaveFeatured={async (ids) => {
-                  if (!user) return false;
-                  const ok = await saveFeaturedCards(user.id, ids);
-                  if (ok) setFeatured({ id: state.profile.id, ids });
-                  return ok;
-                }}
-              />
+              // MIC-055: the card on the left edge the "Public binders" section starts from (MIC-039
+              // p31), and beside it on a desktop a column with the name, the WHOLE bio (the card's
+              // face only had room for three clipped lines) and the latest binders. On a phone the
+              // whole bio sits under the card instead.
+              <View style={[styles.top, wide && styles.topWide]}>
+                <View style={styles.cardLeft}>
+                  <CollectorCard
+                    name={name}
+                    bio={state.profile.bio}
+                    showBio={false}
+                    binders={state.binders}
+                    featured={featured?.id === state.profile.id ? featured.ids : null}
+                    wins={state.wins.length}
+                    own={user?.id === state.profile.id}
+                    onSaveFeatured={async (ids) => {
+                      if (!user) return false;
+                      const ok = await saveFeaturedCards(user.id, ids);
+                      if (ok) setFeatured({ id: state.profile.id, ids });
+                      return ok;
+                    }}
+                  />
+                </View>
+                <View style={[styles.side, wide && styles.sideWide]} testID="profile-side">
+                  {wide ? (
+                    <ThemedText style={styles.sideName} numberOfLines={1}>
+                      {name}
+                    </ThemedText>
+                  ) : null}
+                  {state.wins.length > 0 ? (
+                    <Link href="/contest" asChild>
+                      <Pressable hitSlop={6}>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          🏆{' '}
+                          {state.wins
+                            .map((w) => `${ordinal(w.place)} place, ${categoryLabel(w.category)}`)
+                            .join(' · ')}
+                          {' · '}
+                          {CONTEST.name} ›
+                        </ThemedText>
+                      </Pressable>
+                    </Link>
+                  ) : null}
+                  {state.profile.bio ? (
+                    <ThemedText style={styles.sideBio} testID="profile-bio">
+                      {state.profile.bio}
+                    </ThemedText>
+                  ) : null}
+                  {wide && state.binders.length > 0 ? (
+                    <View style={styles.recent}>
+                      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.recentHead}>
+                        RECENTLY UPDATED
+                      </ThemedText>
+                      {state.binders.slice(0, RECENT_BINDERS).map((b) => {
+                        const face = binderFace(b);
+                        return (
+                          <Pressable
+                            key={b.id}
+                            onPress={() => router.push(`/binder/${b.id}`)}
+                            accessibilityRole="link"
+                            style={({ hovered }: { hovered?: boolean }) => [styles.recentRow, hovered && styles.recentRowHover]}>
+                            {face && manifestReady ? (
+                              <Image source={{ uri: cardThumbUrl(face, 245) }} style={styles.recentThumb} contentFit="cover" />
+                            ) : (
+                              <View style={[styles.recentThumb, styles.recentThumbEmpty]} />
+                            )}
+                            <View style={styles.recentText}>
+                              <ThemedText type="smallBold" numberOfLines={1}>
+                                {b.title}
+                              </ThemedText>
+                              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                                {b.pages.length} page{b.pages.length === 1 ? '' : 's'}
+                              </ThemedText>
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </View>
               </View>
             ) : (
             <>
@@ -299,6 +379,19 @@ const styles = StyleSheet.create({
   reportLink: { marginTop: Spacing.five, alignSelf: 'center', opacity: 0.8 },
   hint: { marginTop: Spacing.two, textAlign: 'center' },
   section: { width: '100%', marginTop: Spacing.five, gap: Spacing.three },
-  cardLeft: { alignSelf: 'stretch', alignItems: 'flex-start' },
+  cardLeft: { alignItems: 'flex-start' },
+  top: { alignSelf: 'stretch', gap: Spacing.three },
+  topWide: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.five },
+  side: { gap: Spacing.three, maxWidth: 640 },
+  sideWide: { flex: 1, minWidth: 0, paddingTop: Spacing.two },
+  sideName: { fontFamily: Fonts?.brand, fontSize: 34, lineHeight: 40, fontWeight: Weight.bold },
+  sideBio: { fontSize: FontSize.md, lineHeight: 26 },
+  recent: { marginTop: Spacing.two, gap: Spacing.one },
+  recentHead: { fontSize: 12, letterSpacing: 1, marginBottom: Spacing.one },
+  recentRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: 6, paddingHorizontal: 8, marginHorizontal: -8, borderRadius: Radius.sm },
+  recentRowHover: { backgroundColor: Palette.hairline },
+  recentThumb: { width: 40, height: 56, borderRadius: 4 },
+  recentThumbEmpty: { backgroundColor: Palette.hairline },
+  recentText: { flex: 1, minWidth: 0 },
   sectionTitle: { fontSize: FontSize.md },
 });

@@ -120,6 +120,7 @@ export function SetPreviewPanel({
   width,
   empty,
   busy,
+  scope = 'binder',
 }: {
   title: string;
   meta: string;
@@ -136,6 +137,9 @@ export function SetPreviewPanel({
   /** What the panel says while there is nothing to draw. */
   empty: string;
   busy: boolean;
+  /** MIC-051: what the main bar counts. 'set' for a complete or master set, 'binder' otherwise. The
+   *  bar always counts EVERY pocket; each page of the spread carries its own count underneath. */
+  scope?: 'set' | 'binder';
 }) {
   const manifestReady = useImageManifest();
   const perPage = shape.rows * shape.cols;
@@ -177,7 +181,10 @@ export function SetPreviewPanel({
       {pockets && list.length ? (
         <>
           <View style={styles.bar} testID="collect-preview-bar">
-            <Text style={styles.barText}>{`${have} of ${list.length}`}</Text>
+            <Text style={styles.barText} testID="collect-preview-count">
+              {scope === 'set' ? 'Whole set: ' : 'Whole binder: '}
+              <Text style={styles.barStrong}>{`${have} of ${list.length}`}</Text> owned
+            </Text>
             <View style={styles.track}><View style={[styles.fill, { width: `${pct}%` }]} /></View>
             {missing.length && toFinish > 0 ? (
               <Text style={styles.barText}><Text style={styles.barStrong}>{formatUsd(toFinish)}</Text> to finish (market)</Text>
@@ -185,7 +192,8 @@ export function SetPreviewPanel({
           </View>
           <View style={styles.spread}>
             {shown.map((pg, k) => (
-              <View key={first + k} style={[styles.page, { width: pageW }]}>
+              <View key={first + k} style={styles.pageCol}>
+              <View style={[styles.page, { width: pageW }]}>
                 {pg.map((p, i) => {
                   const c = cardOf(p.cardId);
                   const own = !!owned?.has(p.cardId);
@@ -221,6 +229,12 @@ export function SetPreviewPanel({
                     </View>
                   );
                 })}
+              </View>
+              {/* MIC-051: this page's own count, so "x of y" is never read as the spread's or the set's. */}
+              <Text style={styles.pageCount} testID="collect-page-count">
+                {`Page ${first + k + 1}: `}
+                <Text style={styles.pageCountStrong}>{`${owned ? pg.filter((p) => owned.has(p.cardId)).length : 0} of ${pg.length}`}</Text> owned
+              </Text>
               </View>
             ))}
           </View>
@@ -277,6 +291,9 @@ const styles = StyleSheet.create({
   barStrong: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
   track: { flex: 1, minWidth: 80, height: 8, borderRadius: 99, backgroundColor: Palette.hairline, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: Palette.accent },
+  pageCol: { alignItems: 'center', gap: 6 },
+  pageCount: { fontSize: FontSize.sm, color: Palette.muted },
+  pageCountStrong: { fontWeight: Weight.bold, color: Palette.ink },
   spread: { flexDirection: 'row', justifyContent: 'center', gap: 14 },
   page: { flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-start', gap: 6, padding: 8, borderRadius: 14, backgroundColor: '#fbfaf7', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   pocket: { borderRadius: 7, backgroundColor: 'rgba(120,116,108,0.08)', justifyContent: 'space-between', overflow: 'hidden' },

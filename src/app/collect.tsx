@@ -820,6 +820,7 @@ export default function CollectScreen() {
               width={previewW || Math.min(width, 640)}
               empty={previewEmpty}
               busy={busy}
+              scope={(kind === 'complete' || kind === 'master') && set ? 'set' : 'binder'}
             />
           </View>
         </View>

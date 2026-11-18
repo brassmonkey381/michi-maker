@@ -14,12 +14,19 @@ if (live > -1) {
   const src = process.argv[live + 1];
   if (!/^[a-z0-9_]+$/.test(src || '')) fail('--live needs a utm_source made of a-z, 0-9, _');
   step('L', `a landing view with utm_source=${src} landed in the last 15 minutes`);
-  const rows = await appSql(`select count(*)::int n, bool_and(is_qa) qa, max(ts) last
-    from public.landing_views where params->>'utm_source' = '${src}' and ts > now() - interval '15 minutes';`);
-  const r = rows[0];
-  if (!r || r.n < 1) fail(`no landing_views row for utm_source=${src}`);
+  let r = null;
+  for (let i = 1; i <= 3; i++) {
+    const rows = await appSql(`select count(*)::int as n, bool_and(is_qa) as qa, max(ts) as newest,
+      (select count(*)::int from public.landing_views where ts > now() - interval '15 minutes') as any_recent
+      from public.landing_views where params->>'utm_source' = '${src}' and ts > now() - interval '15 minutes';`);
+    r = rows[0];
+    console.log(`  try ${i}: ${JSON.stringify(r)}`);
+    if (r && r.n >= 1) break;
+    await new Promise((ok) => setTimeout(ok, 10000));
+  }
+  if (!r || r.n < 1) fail(`no landing_views row for utm_source=${src} (rows from any source in the last 15 minutes: ${r?.any_recent})`);
   if (!r.qa) fail('the row is not marked is_qa');
-  console.log(`  PASS: ${r.n} row(s), is_qa, last ${r.last}`);
+  console.log(`  PASS: ${r.n} row(s), is_qa, newest ${r.newest}`);
   process.exit(0);
 }
 

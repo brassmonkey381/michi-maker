@@ -41,6 +41,7 @@ import { patchDecoration, removeDecoration } from '@/data/coverDecorations';
 import { boxContains, decorationBox } from '@/data/coverGeometry';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
+import { Seg as KitSeg } from 'tcgscan-ui';
 import { CompletionMeter } from '@/components/collect/CompletionMeter';
 import { OwnedPriceToggles } from '@/components/binder/OwnedPriceToggles';
 import { binderCompletion, completionOf, pageCardIds, pageCompletion, toFinish } from '@/data/completion';
@@ -140,8 +141,6 @@ const COLUMN_LABEL_H = 26;
 const OWNED_STRIP_H = 42;
 /** On a phone the strip has two lines, the page and the whole binder (the header has no room). */
 const OWNED_STRIP_PHONE_H = 76;
-/** MIC-061: the phone's Owned / Prices row (44 px chips, 8 under). */
-const OWNED_TOGGLES_PHONE_H = 52;
 const PAGE_WRAP_BOTTOM_MARGIN = 8;
 /**
  * ...and the same margin above it. Both are real height and both were spent by the same style;
@@ -520,8 +519,6 @@ export function BinderPages({
    * Price label on too, "$XX.XX to finish": the market price of the missing cards, the Set Binders
    * preview's sum. The strip's height comes out of the page budget, so the spread still fits.
    */
-  // MIC-061: on a phone, Owned and Prices one tap away above the pages (the header has no room).
-  const phoneToggles = phone && !!ownedCards && ownedCards.size > 0;
   const ownedStrip = !!ownedIds && binderCompletion(binder.pages, ownedIds).total > 0;
   const priceLabelOn = labelsOn && labelFields.includes('price');
   // The summary hook keeps what it loaded when switched off, so gate it here too: Prices off means
@@ -542,7 +539,6 @@ export function BinderPages({
       (railLeft ? 0 : stripHeight + (phone && editable ? STRIP_CHIP_CLEARANCE : 0)) -
       COLUMN_LABEL_H -
       (ownedStrip ? (phone ? OWNED_STRIP_PHONE_H : OWNED_STRIP_H) : 0) -
-      (phoneToggles ? OWNED_TOGGLES_PHONE_H : 0) -
       // A phone spends none of these (owner, 2026-11-05: the page was not reaching the screen's
       // width because the chrome around it was taking the height). The style agrees: pageWrapPhone.
       (phone ? 0 : PAGE_WRAP_BOTTOM_MARGIN + PAGE_WRAP_TOP_MARGIN + PAGE_BREATHING_ROOM) -
@@ -1546,27 +1542,26 @@ export function BinderPages({
               <View style={styles.settingsHead}>
                 {/* "Binder" when the binder's own look is in here (editing); "View" when only how
                     you look at it is. A sheet of zips and sleeves called View said the wrong thing. */}
-                {SETTINGS_TABS && settingsExtras ? (
-                  <View style={styles.settingsTabs} accessibilityRole="tablist">
-                    {(['binder', 'view'] as const).map((t) => (
-                      <Pressable
-                        key={t}
-                        accessibilityRole="tab"
-                        accessibilityState={{ selected: settingsTab === t }}
-                        onPress={() => setSettingsTab(t)}
-                        testID={`settings-tab-${t}`}
-                        style={[styles.settingsTab, settingsTab === t && styles.settingsTabOn]}>
-                        <Text style={[styles.settingsTabText, settingsTab === t && styles.settingsTabTextOn]}>{t === 'binder' ? 'This binder' : 'My view'}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                ) : (
-                  <ThemedText type="subtitle">{settingsExtras ? 'Settings' : 'View'}</ThemedText>
-                )}
+                <ThemedText type="subtitle">{settingsExtras ? 'Settings' : 'View'}</ThemedText>
                 <Pressable onPress={onCloseSettings} hitSlop={10}>
                   <Text style={styles.fieldsDone}>Done</Text>
                 </Pressable>
               </View>
+              {/* MIC-061 (owner 2026-11-18: "more indication that This binder and My view are a
+                  toggle group pair that control the tab that's shown"): the kit's own segment group
+                  (tcgscan-ui Seg, the standard two-to-four choice), stretched across the sheet under
+                  its title, so it reads as the switch for everything below it. */}
+              {SETTINGS_TABS && settingsExtras ? (
+                <View style={styles.settingsTabsRow} testID="settings-tabs">
+                  <KitSeg
+                    fill
+                    accessibilityLabel="Which settings to show"
+                    options={[{ value: 'binder', label: 'This binder' }, { value: 'view', label: 'My view' }]}
+                    value={settingsTab}
+                    onChange={setSettingsTab}
+                  />
+                </View>
+              ) : null}
               <ScrollView contentContainerStyle={styles.settingsBody} keyboardShouldPersistTaps="handled">
         {/* NAMED ROWS, NOT ONE WRAPPED HEAP.
 
@@ -1607,6 +1602,20 @@ export function BinderPages({
             <View style={styles.settingsGroupHead}>
               <Text style={styles.settingsGroupTitle}>Your view</Text>
               <Text style={styles.settingsGroupNote}>How you look at binders.</Text>
+            </View>
+          ) : null}
+
+          {/* MIC-061 (owner 2026-11-18): Owned and Prices FIRST in My view, together, for an account
+              that owns cards: the two switches the owned bars and "to finish" depend on. Kept in
+              Settings only ("we dont have space for that" outside it). */}
+          {ownedCards ? (
+            <View style={styles.settingsRow} testID="settings-collection-row">
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
+                Collection
+              </ThemedText>
+              <View style={styles.settingsRowControls}>
+                <OwnedPriceToggles owned={showOwned} onOwned={setShowOwned} labels={labelsProp ?? ownLabels} />
+              </View>
             </View>
           ) : null}
 
@@ -1689,7 +1698,7 @@ export function BinderPages({
           {/* Owned: a green ✓ corner badge on the card slots the viewer owns — offered only when
               they have an inventory. Scans: pockets show the owner's own photos of the cards they
               scanned into their collection, likewise only when they have any. */}
-          {ownedCards || scanImages || viewerIsOwner ? (
+          {scanImages || viewerIsOwner ? (
             <View style={styles.settingsRow}>
               <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
                 Overlays
@@ -1706,15 +1715,6 @@ export function BinderPages({
                     style={[toggleChip.base, view.cutLines && toggleChip.active]}>
                     <Text style={[toggleChip.text, view.cutLines && toggleChip.textActive]}>
                       {view.cutLines ? '✓ Cut lines' : 'Cut lines'}
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {ownedCards ? (
-                  <Pressable
-                    onPress={() => setShowOwned(!showOwned)}
-                    style={[toggleChip.base, showOwned && toggleChip.active]}>
-                    <Text style={[toggleChip.text, showOwned && toggleChip.textActive]}>
-                      {showOwned ? '✓ Owned' : 'Owned'}
                     </Text>
                   </Pressable>
                 ) : null}
@@ -1803,11 +1803,6 @@ export function BinderPages({
             {...coverStripExtras}
           />
           </View>
-        </View>
-      ) : null}
-      {phoneToggles ? (
-        <View style={[styles.ownedTogglesPhone, { width: pageWidth }]}>
-          <OwnedPriceToggles compact owned={showOwned} onOwned={setShowOwned} labels={labelsProp ?? ownLabels} />
         </View>
       ) : null}
       {ownedStrip && page && ownedIds && !shut ? (() => {
@@ -2846,6 +2841,7 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   fieldsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10 },
+  settingsTabsRow: { marginBottom: 12, padding: 3, borderRadius: 16, borderWidth: 1.5, borderColor: Palette.hairlineStrong, backgroundColor: Palette.hairline },
   // MIC-061: a segmented control that reads as tabs (44 px; the off tab outlined on its own ground).
   settingsTabs: { flexDirection: 'row', borderRadius: 999, borderWidth: 1.5, borderColor: Palette.hairlineStrong, backgroundColor: Palette.panel, padding: 3, gap: 3 },
   settingsTab: { minHeight: 44, paddingHorizontal: 18, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.surface },
@@ -2871,7 +2867,6 @@ const styles = StyleSheet.create({
   // art. 36px of it was the difference between a 700px window fitting and not.
   pageWrap: { alignItems: 'center', marginVertical: 8 },
   // MIC-060: OWNED_STRIP_H tall in all (a 20 px line, 10 px under it).
-  ownedTogglesPhone: { height: OWNED_TOGGLES_PHONE_H, alignSelf: 'center', justifyContent: 'flex-start' },
   ownedStripPhone: { height: OWNED_STRIP_PHONE_H, gap: 10, paddingTop: 2, alignSelf: 'center' },
   ownedStrip: { height: OWNED_STRIP_H, flexDirection: 'row', alignItems: 'flex-start', paddingTop: 2, alignSelf: 'center', maxWidth: '100%' },
   ownedCell: { flex: 1, minWidth: 0 },

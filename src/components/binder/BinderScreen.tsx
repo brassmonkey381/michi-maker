@@ -74,8 +74,6 @@ import { QuickPreviewModal, SharePictureChooser } from '@/components/binder/Shar
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { pillChip, sheet } from '@/constants/ui';
-import { OwnedPriceToggles } from '@/components/binder/OwnedPriceToggles';
-import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { ContestLockBanner } from '@/components/contest/ContestLockBanner';
 import { fetchLockState, type Finalist } from '@/data/contestRepo';
 import { EditLockBanner } from '@/components/binder/EditLockBanner';
@@ -291,8 +289,6 @@ export function BinderScreen({
   const view = useViewPrefs();
   // MIC-060: ONE card-label preference for the header and the pages (BinderPages takes it as a prop).
   const chipLabels = useCardLabelPrefs();
-  // MIC-061: Owned and Prices one tap from the binder, for an account that owns cards.
-  const ownedForToggles = useOwnedCards();
   // Keep the saved-slice tray synced to the current (guest or signed-in) user while editing.
   useSavedSlicesSync();
   // Live tray size — the artUploads cap is a retention cap on slices KEPT in the account.
@@ -3394,9 +3390,6 @@ export function BinderScreen({
         {/* The view settings, in both modes, and LAST in both (owner, 2026-10-16): it used to sit
             before the viewing-only items, so it changed neighbours with every mode switch. Named,
             not a bare gear: a gear in a row of glyphs was one more thing to guess at. */}
-        {!phone && ownedForToggles && ownedForToggles.size > 0 ? (
-          <OwnedPriceToggles owned={view.owned} onOwned={(on) => view.setPref('owned', on)} labels={chipLabels} />
-        ) : null}
         <Tipped text="How this binder looks: page size, background, page style, sleeves">
           <Pressable
             onPress={() => setSettingsOpen(true)}

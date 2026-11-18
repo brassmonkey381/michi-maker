@@ -27,7 +27,12 @@ if (live > -1) {
   if (!r || r.n < 1) fail(`no landing_views row for utm_source=${src} (rows from any source in the last 15 minutes: ${r?.any_recent})`);
   if (!r.qa) fail('the row is not marked is_qa');
   console.log(`  PASS: ${r.n} row(s), is_qa, newest ${r.newest}`);
-  process.exit(0);
+  // exitCode, not process.exit(): exiting while undici's fetch handles are closing trips a libuv
+  // assertion on Windows (src\win\async.c line 76), which turned two PASSes into a nonzero exit
+  // (f4e06e, 5e1d89).
+  process.exitCode = 0;
+} else {
+  await applyAndProve();
 }
 
 async function rolledBack(tag, body) {
@@ -46,6 +51,7 @@ async function rolledBack(tag, body) {
   return JSON.parse(json);
 }
 
+async function applyAndProve() {
 step(1, 'apply 20261118120000_landing_views.sql');
 await appSql(fs.readFileSync(`${ROOT}/supabase/migrations/20261118120000_landing_views.sql`, 'utf8'));
 console.log('  applied');
@@ -82,3 +88,4 @@ const ok3 = p3.anon_sees === 0 && p3.device === null && JSON.stringify(p3.keys) 
 if (!ok3) fail('proof 3 FAILED');
 console.log('  PASS');
 console.log('DONE: landing_views and log_landing_view are live.');
+}

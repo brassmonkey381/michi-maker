@@ -3,7 +3,9 @@
  * the /collect page lays out when the flag is on: numbered step headings, the game chips, the
  * binder kinds as small pocket-grid pictures, and the preview panel on the right, which draws the
  * pockets the page has already worked out as a two-page checklist spread (number, name, market
- * price), the completion bar and the price to finish. It builds on the 'setbinders-build'
+ * price), the completion bar and the price to finish. Since MIC-051 every pocket shows the card's
+ * art: owned cards carry the binder Owned view's green check circle, cards not collected yet sit
+ * under a grey fade with their number and price still readable. It builds on the 'setbinders-build'
  * checklist view (SetBuildView): same reading of owned and missing, same price to finish.
  *
  * Presentational only. The page owns every choice, the result and the build.
@@ -15,7 +17,7 @@ import type { CatalogCard } from 'tcgscan-browse';
 
 import { FontSize, Fonts, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import type { CollectorKind, CollectorPocket } from '@/data/collectorBinders';
-import { cardThumbUrl } from '@/lib/catalogConfig';
+import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { formatUsd } from '@/lib/prices';
 
 /** A numbered step heading: "1 GAME". */
@@ -135,6 +137,7 @@ export function SetPreviewPanel({
   empty: string;
   busy: boolean;
 }) {
+  const manifestReady = useImageManifest();
   const perPage = shape.rows * shape.cols;
   const list = pockets ?? [];
   const pageCount = Math.ceil(list.length / perPage);
@@ -188,14 +191,31 @@ export function SetPreviewPanel({
                   const own = !!owned?.has(p.cardId);
                   const price = priceOf(p.cardId);
                   return (
-                    <View key={`${p.cardId}-${i}`} style={[styles.pocket, { width: cell, height: cellH }, own && styles.pocketOwned]}>
-                      {own ? (
+                    <View
+                      key={`${p.cardId}-${i}`}
+                      style={[styles.pocket, { width: cell, height: cellH }]}
+                      accessibilityLabel={`${pocketNumber(c)} ${c?.name ?? 'Card'}${p.finish ? ' (reverse)' : ''}, ${own ? 'owned' : 'not collected yet'}`}
+                      testID={own ? 'collect-pocket-owned' : 'collect-pocket-missing'}>
+                      {manifestReady ? (
                         <Image source={{ uri: cardThumbUrl(p.cardId, 245) }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                      ) : null}
+                      {own ? (
+                        // The binder Owned view's mark (BinderGrid OwnedBadge): a green circle, white check.
+                        <View style={[styles.ownedBadge, cell < 70 && styles.ownedBadgeSmall]}>
+                          <Text style={[styles.ownedBadgeText, cell < 70 && styles.ownedBadgeTextSmall]}>✓</Text>
+                        </View>
                       ) : (
                         <>
-                          <Text style={[styles.num, cell < 70 && styles.numSmall]} numberOfLines={1}>{pocketNumber(c)}</Text>
-                          <Text style={styles.name} numberOfLines={cell < 70 ? 2 : 3}>{`${c?.name ?? 'Card'}${p.finish ? ' (reverse)' : ''}`}</Text>
-                          <Text style={styles.price} numberOfLines={1}>{typeof price === 'number' && price > 0 ? formatUsd(price) : ' '}</Text>
+                          <View style={styles.fade} />
+                          <View style={styles.missingText}>
+                            <Text style={[styles.num, cell < 70 && styles.numSmall]} numberOfLines={1}>{pocketNumber(c)}</Text>
+                            {p.finish ? <Text style={styles.finish} numberOfLines={1}>Reverse</Text> : null}
+                          </View>
+                          {typeof price === 'number' && price > 0 ? (
+                            <View style={styles.pricePill}>
+                              <Text style={[styles.price, cell < 70 && styles.priceSmall]} numberOfLines={1}>{formatUsd(price)}</Text>
+                            </View>
+                          ) : null}
                         </>
                       )}
                     </View>
@@ -259,12 +279,20 @@ const styles = StyleSheet.create({
   fill: { height: '100%', backgroundColor: Palette.accent },
   spread: { flexDirection: 'row', justifyContent: 'center', gap: 14 },
   page: { flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-start', gap: 6, padding: 8, borderRadius: 14, backgroundColor: '#fbfaf7', shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  pocket: { borderRadius: 7, borderWidth: 1, borderColor: 'rgba(120,116,108,0.2)', backgroundColor: 'rgba(120,116,108,0.05)', paddingVertical: 7, paddingHorizontal: 6, justifyContent: 'space-between', overflow: 'hidden' },
-  pocketOwned: { borderWidth: 0, padding: 0 },
-  num: { fontSize: 18, fontWeight: Weight.bold, color: '#b9b4aa' },
+  pocket: { borderRadius: 7, backgroundColor: 'rgba(120,116,108,0.08)', justifyContent: 'space-between', overflow: 'hidden' },
+  // Not collected yet: a grey fade over the art; the number and price sit on top of it.
+  fade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(236,234,229,0.62)' },
+  missingText: { paddingTop: 5, paddingHorizontal: 6 },
+  num: { fontSize: 18, fontWeight: Weight.bold, color: '#3f3b35' },
   numSmall: { fontSize: 13 },
-  name: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: '#555', lineHeight: 13 },
+  finish: { fontSize: 10, fontWeight: Weight.semibold, color: '#3f3b35' },
+  pricePill: { position: 'absolute', left: 4, bottom: 4, maxWidth: '92%', paddingHorizontal: 5, paddingVertical: 1, borderRadius: Radius.pill, backgroundColor: 'rgba(255,255,255,0.92)' },
   price: { fontSize: FontSize.sm, fontWeight: Weight.bold, color: '#1f8a4c' },
+  priceSmall: { fontSize: 10 },
+  ownedBadge: { position: 'absolute', top: 4, left: 4, width: 18, height: 18, borderRadius: 9, backgroundColor: '#2e9e5b', alignItems: 'center', justifyContent: 'center' },
+  ownedBadgeSmall: { width: 14, height: 14, borderRadius: 7 },
+  ownedBadgeText: { color: Palette.white, fontSize: 11, fontWeight: Weight.bold, lineHeight: 13 },
+  ownedBadgeTextSmall: { fontSize: 8, lineHeight: 10 },
   foot: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
   pager: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   arrow: { minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.pill, backgroundColor: Palette.surface },

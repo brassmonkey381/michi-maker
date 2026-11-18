@@ -8,9 +8,8 @@
  * plain body a crawler can read. React replaces the body on mount; a person and a crawler are sent
  * the same bytes at the same URL (no user-agent branch anywhere in this file).
  *
- * THE HOME PAGE (MIC-037) is built from `homePage()` below, but not served from here: `/` is a
- * static file, so the ad landing stays an edge-cached file with no function in front of it.
- * scripts/build-home.mjs composes homePage() onto the shell at build time into dist/index.html.
+ * THE HOME PAGE is not served from here: `/` is the static landing (dist/home.html, written by
+ * scripts/build-home.mjs), or the app when the mm_app cookie is set (docs/SEO-PAGES.md).
  *
  * NOT FOUND (MIC-037): `?route=404` is the end of vercel.json's rewrites. Any path that is not a
  * route the app has gets the app shell with status 404 and noindex, so the app still draws its own
@@ -65,52 +64,6 @@ const SIZES_HTML =
   `<li><strong>3×4 page, 12 pockets.</strong> For larger binders: three rows of four.</li>` +
   `<li><strong>Printed pieces are true card size:</strong> 2.5 by 3.5 inches (63 by 88 mm), printed at 100 percent with no scaling, so each one fits a standard pocket.</li>` +
   `</ul>`;
-
-/* ---- / : the front door. Composed at build time by scripts/build-home.mjs (see the header). */
-function homePage() {
-  const url = `${SITE}/`;
-  const description =
-    'Plan Pokémon card binder pages for free: lay out 9-pocket and 12-pocket pages with real cards, build a page around one card, and print true-size fill sheets.';
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'WebApplication',
-    name: SITE_NAME,
-    url,
-    applicationCategory: 'DesignApplication',
-    operatingSystem: 'Any (web browser)',
-    description,
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-  };
-  const head = headFor({
-    fullTitle: `${SITE_NAME}: free Pokémon card binder planner and page builder`,
-    description,
-    url,
-    jsonLd,
-    type: 'website',
-  });
-  const body = `${seoBodyStyle}<main id="seo">
-<p class="k">${esc(SITE_NAME)} · free Pokémon card binder planner</p>
-<h1>Plan Pokémon binder pages worth staring at</h1>
-<p>${esc(SITE_NAME)} is a free planner for Pokémon card binders that runs in your browser. Lay out 9-pocket and 12-pocket pages with real cards, build a whole page around one card you love, and print true-size fill sheets so the binder fills in as the cards arrive.</p>
-<nav><a href="${SITE}/new-binder">Start a binder</a><a href="${SITE}/discover">See binders other collectors made</a><a href="${SITE}/michi-method">What is a michi binder?</a></nav>
-<h2>Pages you can build</h2>
-<ul>${seo.michiLayouts.map((l) => `<li><strong>${esc(l.name)}</strong>: ${esc(l.body)}</li>`).join('')}</ul>
-<h2>How it works</h2>
-<ol>
-<li><strong>Pick a page shape.</strong> 3×3 is the classic; 3×4 suits larger binders.</li>
-<li><strong>Place one card.</strong> Search the catalog by name, set, artist or what the artwork shows.</li>
-<li><strong>Build the page around it.</strong> The same Pokémon, its evolution line, its artist, or cards that share its colours.</li>
-<li><strong>Print it at true size.</strong> Slide the paper pieces into the pockets and swap in the real cards as you collect them.</li>
-</ol>
-<h2>Page shapes and sizes</h2>
-${SIZES_HTML}
-<h2>How-to guides</h2>
-${guideLinks()}
-<p><a href="${SITE}/auto-fill-methods">Build a page around one card: eight ways, each shown as a finished page</a></p>
-<p class="muted">${esc(SITE_NAME)} is a free fan-made binder planner, not affiliated with or endorsed by Nintendo, Creatures Inc., or GAME FREAK inc. Pokémon and all related card artwork are © their respective owners. <a href="${SITE}/legal/terms">Terms</a> · <a href="${SITE}/legal/privacy">Privacy</a></p>
-</main>`;
-  return { head, body, maxAge: 3600 };
-}
 
 /**
  * Example binders for the explainer: the fullest indexable public binders (api/_index.js), so a
@@ -274,4 +227,4 @@ async function handler(req, res) {
 
 module.exports = handler;
 // For scripts/build-home.mjs and the tests (src/data/seoShell.test.ts).
-module.exports.pages = { homePage, michiMethod, learnHub, guide, NOT_FOUND_HEAD };
+module.exports.pages = { michiMethod, learnHub, guide, NOT_FOUND_HEAD };

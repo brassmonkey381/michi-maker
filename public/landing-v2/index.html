@@ -5,6 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Michi-Maker: binder pages worth staring at</title>
 <meta name="description" content="Compose curated Pokémon card binder pages around one card, then print them at true card size and slide them into a real binder.">
+<link rel="canonical" href="https://michi-maker.com/">
+<link rel="icon" href="/favicon.ico">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Michi-Maker">
+<meta property="og:title" content="Michi-Maker: binder pages worth staring at">
+<meta property="og:description" content="Compose curated Pokémon card binder pages around one card, then print them at true card size and slide them into a real binder.">
+<meta property="og:url" content="https://michi-maker.com/">
+<meta property="og:image" content="https://michi-maker.com/og.png">
+<meta property="og:image:width" content="2400">
+<meta property="og:image:height" content="1260">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://michi-maker.com/og.png">
 <!--
   Michi-Maker landing v2 (MKT-040), ported from the approved Landing Lab prototype (triage-studio state/mkt040-final/michi,
   2026-11-17). Served at /landing-v2 (asset paths are absolute so it works with or without the trailing slash). Since the
@@ -1828,6 +1840,9 @@ footer p { max-width: 90ch; }
     var a = e.target.closest && e.target.closest('a[data-cta], a[data-app]');
     if (!a) return;
     try { localStorage.setItem('michi.landing.seen', '1'); } catch (_) {}
+    /* MIC-037: "/" serves this page unless the mm_app cookie is set (vercel.json), so the cookie is
+       what makes the next "/" the app. */
+    try { document.cookie = 'mm_app=1; Path=/; Max-Age=31536000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : ''); } catch (_) {}
     var u = new URL(a.getAttribute('href'), location.origin);
     new URLSearchParams(location.search).forEach(function (v, k) { if (/^utm_|^code$|^rdt_cid$/.test(k)) u.searchParams.set(k, v); });
     if (a.dataset.cta) { u.searchParams.set('from', 'landing'); u.searchParams.set('cta', a.dataset.cta); }
@@ -1857,7 +1872,7 @@ footer p { max-width: 90ch; }
         headers: { 'Content-Type': 'application/json', apikey: 'sb_publishable_0jkaVJS_d0WF7AsHaJQoXA_VM5kAqKu' },
         body: JSON.stringify({
           p_device: dev, p_params: params, p_referrer: ref, p_width: innerWidth,
-          p_headless: !!navigator.webdriver || /HeadlessChrome/.test(ua), p_page: location.pathname.replace(/\/+$/, '') || '/landing-v2'
+          p_headless: !!navigator.webdriver || /HeadlessChrome/.test(ua), p_page: location.pathname.replace(/\/+$/, '') || '/'
         })
       }).catch(function () {});
     } catch (_) {}

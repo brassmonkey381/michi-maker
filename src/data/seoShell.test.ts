@@ -87,7 +87,6 @@ test('every page the functions and the build compose has its body, a canonical a
   const shell = realShell();
   const examples = [{ id: 'b1', title: 'Eeveelutions', pages: 3, filled: 27 }];
   const built = {
-    home: pages.homePage(),
     'michi-method': await pages.michiMethod({ examples }),
     learn: pages.learnHub(),
     guide: pages.guide('print-binder'),
@@ -103,8 +102,6 @@ test('every page the functions and the build compose has its body, a canonical a
     assert.doesNotMatch(text, /—/, `${name}: no em dashes in copy`);
     assert.doesNotMatch(text, /\bPRO\b|\bVIP\b/, `${name}: no plan names to guests`);
   }
-  assert.match(built.home.head, /<title>Michi-Maker: free Pokémon card binder planner and page builder<\/title>/);
-  assert.match(built.home.head, /href="https:\/\/michi-maker\.com\/"/);
   assert.match(built['michi-method'].body, /href="https:\/\/michi-maker\.com\/binder\/b1">Eeveelutions<\/a>/, 'links the example binders');
   assert.match(built['michi-method'].body, /@peeplop/, 'credits Michi');
   assert.match(built['michi-method'].body, /12 pockets/);
@@ -192,7 +189,8 @@ test('every route the app has is served, and only an unknown path reaches the 40
   assert.match(last.destination, /route=404/);
   const served = plain.slice(0, -1);
   for (const p of appPaths()) {
-    if (p === '/') continue; // dist/index.html, the composed home page, straight from the filesystem
+    // MIC-037: /welcome is a 308 to / (the landing), not a rewrite.
+    if (vercel.redirects.some((r) => !r.has && sourceRe(r.source).test(p))) continue;
     assert.ok(served.some((r) => sourceRe(r.source).test(p)), `${p} is rewritten before the 404 catch-all`);
   }
   for (const p of ['/llms.txt', '/this-does-not-exist-xyz', '/wp-admin', '/binder']) {

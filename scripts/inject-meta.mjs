@@ -13,9 +13,11 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shell = path.join(root, 'dist/index.html');
 
-const TITLE = 'Michi-Maker: build beautiful Pokémon card binders';
+// MIC-037: the same title and description as the landing at "/" (public/landing-v2/index.html), so the
+// app shell and the front door share one generic preview text.
+const TITLE = 'Michi-Maker: binder pages worth staring at';
 const DESCRIPTION =
-  'Compose curated Pokémon card binder pages and print true-size fill sheets to build the real thing.';
+  'Compose curated Pokémon card binder pages around one card, then print them at true card size and slide them into a real binder.';
 const ORIGIN = 'https://michi-maker.com';
 
 /**

@@ -25,7 +25,7 @@ import '@/lib/devMode';
 import { DevBadge } from '@/components/nav/DevBadge';
 import { redeemHandoffHashFromLocation } from '@/data/handoff';
 import { trackLandingCta, type LandingCta } from '@/lib/analytics';
-import { consumeLandingCtaArrival } from '@/lib/landing';
+import { consumeLandingCtaArrival, markAppCookie, shouldShowLanding } from '@/lib/landing';
 import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';
 
@@ -60,6 +60,10 @@ export default function TabLayout() {
   useEffect(() => {
     const cta = consumeLandingCtaArrival();
     if (cta) trackLandingCta(cta as LandingCta);
+    // MIC-037: someone the landing would not be shown to is "in", so their next "/" is the app with
+    // no gate reload (the mm_app cookie, see lib/landing.ts). A first visit on a deep link stays
+    // cookie-less and still sees the landing on its first "/".
+    if (!shouldShowLanding()) markAppCookie();
   }, []);
 
   return (

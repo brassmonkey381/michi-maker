@@ -52,6 +52,16 @@
       ],
       "destination": "https://michi-maker.com/:path*",
       "permanent": true
+    },
+    {
+      "source": "/welcome",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/home",
+      "destination": "/",
+      "permanent": true
     }
   ],
   "headers": [
@@ -87,9 +97,167 @@
           "value": "noindex"
         }
       ]
+    },
+    {
+      "source": "/discover",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/discover>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/browse",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/browse>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/whats-new",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/whats-new>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/daily",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/daily>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/contest",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/contest>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/contest-binders",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/contest-binders>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/coverage",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/coverage>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/search-guide",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/search-guide>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/plans",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/plans>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/pricing",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/pricing>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/new-binder",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/new-binder>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/collect",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/collect>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/feedback",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/feedback>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/legal/privacy",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/legal/privacy>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/legal/terms",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/legal/terms>; rel=\"canonical\""
+        }
+      ]
+    },
+    {
+      "source": "/legal/dmca",
+      "headers": [
+        {
+          "key": "Link",
+          "value": "<https://michi-maker.com/legal/dmca>; rel=\"canonical\""
+        }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "cookie",
+          "key": "mm_app"
+        }
+      ],
+      "destination": "/app.html"
+    },
+    {
+      "source": "/",
+      "destination": "/home.html"
+    },
     {
       "source": "/binder/:id",
       "has": [
@@ -122,10 +290,6 @@
         }
       ],
       "destination": "/api/og-michi"
-    },
-    {
-      "source": "/welcome",
-      "destination": "/index.html"
     },
     {
       "source": "/binder/:id",

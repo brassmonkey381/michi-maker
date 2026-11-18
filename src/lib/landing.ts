@@ -52,8 +52,23 @@ export function consumeLandingCtaArrival(): string | null {
   }
 }
 
+/**
+ * AN AUTH RETURN IS NEVER A FIRST VISIT (MKT-040 pre-ship, after Doggle's swap broke Google sign-in on
+ * phones). Since the landing is a static page reached by a full load, sending one of these to it
+ * would drop the hash or leave ?code= on a page that cannot redeem it: an OAuth or email-link return
+ * that fell back to the Site URL (?code=, #access_token=, ?error=, token_hash, type=recovery), or the
+ * BiBo sign-in ticket (#th=). Those always stay in the app.
+ */
+export function isAuthReturn(): boolean {
+  if (typeof window === 'undefined') return false;
+  const { search, hash } = window.location;
+  return /[?&](code|error|error_description|error_code|token_hash|type)=/.test(search)
+    || /[#&](access_token|refresh_token|error|error_description|th|type)=/.test(hash);
+}
+
 export function shouldShowLanding(): boolean {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
+  if (isAuthReturn()) return false;
   try {
     return !window.localStorage.getItem(LANDING_SEEN_KEY);
   } catch {

@@ -20,6 +20,7 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import { consumeAuthReturn } from '@/lib/authReturn';
+import { markLandingSeen } from '@/lib/landing';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
 import { flag } from '@/lib/flags';
@@ -77,6 +78,9 @@ export default function AuthCallback() {
       done = true;
       failed0.current = false;
       const back = consumeAuthReturn();
+      // MKT-040: signing in is entering the app, so "/" never sends a just-signed-in member (on a
+      // device that never saw it) out to the static landing page.
+      markLandingSeen();
       // `resume=1` tells the binder route this is a return, so a binder that is gone (a sign-in to
       // a different account leaves a guest's binders behind) falls back to the shelf, not to 404.
       router.replace((back ? `${back}${back.includes('?') ? '&' : '?'}resume=1` : '/') as Href);

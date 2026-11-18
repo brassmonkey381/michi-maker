@@ -34,3 +34,10 @@ test('a page counts its card pockets only; a binder adds its pages up', () => {
   assert.deepEqual(pageCompletion(p2, owned), { have: 1, total: 1, pct: 100 });
   assert.deepEqual(binderCompletion([p1, p2], owned), { have: 2, total: 3, pct: 67 });
 });
+
+test('to finish adds the market price of every missing pocket, unpriced ones count nothing', async () => {
+  const { toFinish } = await import('./completion.ts');
+  const prices: Record<string, number> = { a: 1.5, b: 2.25, c: 10 };
+  assert.equal(toFinish(['a', 'b', 'b', 'c', 'd'], new Set(['c']), (id) => prices[id]), 6);
+  assert.equal(toFinish(['a'], new Set(['a']), (id) => prices[id]), 0);
+});

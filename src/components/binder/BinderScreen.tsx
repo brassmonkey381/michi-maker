@@ -161,7 +161,8 @@ import { useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
 import { useViewPrefs } from '@/hooks/use-view-prefs';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
-import { binderCompletion } from '@/data/completion';
+import { binderCompletion, pageCardIds as completionCardIds, toFinish } from '@/data/completion';
+import { formatUsd } from '@/lib/prices';
 
 // Real side-load page grids only — 4 rows × 3 columns doesn't exist physically (binderPhysics).
 
@@ -291,6 +292,10 @@ export function BinderScreen({
   const view = useViewPrefs();
   // MIC-059: the whole binder's owned count, in the header row (no height taken from the spread).
   const ownedForChip = useOwnedCards();
+  // MIC-060: with the Price label on too, the chip adds the market price of the missing cards.
+  const chipLabels = useCardLabelPrefs();
+  const chipPriceOn = view.owned && !!ownedForChip && chipLabels.on && chipLabels.fields.includes('price');
+  const chipPrices = usePriceSummaryWhen(chipPriceOn);
   // Keep the saved-slice tray synced to the current (guest or signed-in) user while editing.
   useSavedSlicesSync();
   // Live tray size — the artUploads cap is a retention cap on slices KEPT in the account.
@@ -3392,9 +3397,11 @@ export function BinderScreen({
         {/* The view settings, in both modes, and LAST in both (owner, 2026-10-16): it used to sit
             before the viewing-only items, so it changed neighbours with every mode switch. Named,
             not a bare gear: a gear in a row of glyphs was one more thing to guess at. */}
-        {view.owned && ownedForChip && binder ? (() => {
+        {view.owned && ownedForChip && binder && !phone ? (() => {
           const c = binderCompletion(binder.pages, ownedForChip);
           if (!c.total) return null;
+          const done = c.have === c.total;
+          const finish = chipPrices && !done ? toFinish(binder.pages.flatMap(completionCardIds), ownedForChip, (id) => chipPrices[id]?.cur) : null;
           return (
             <Tipped text="How many of this binder's cards you own. Each page's count is beside its name.">
               <View
@@ -3403,11 +3410,10 @@ export function BinderScreen({
                 accessibilityLabel={`Whole binder: ${c.have} of ${c.total} owned, ${c.pct} percent`}
                 testID="binder-whole-owned">
                 <Text style={styles.ownedChipText} numberOfLines={1}>
-                  {phone ? `${c.pct}% owned` : <><Text style={styles.ownedChipStrong}>{`${c.have} of ${c.total}`}</Text>{` owned · ${c.pct}%`}</>}
+                  <Text style={styles.ownedChipStrong}>{`${c.have} of ${c.total}`}</Text>{` owned · ${c.pct}%`}
+                  {finish != null ? <>{' · '}<Text style={styles.ownedChipStrong}>{formatUsd(finish)}</Text>{' to finish'}</> : done ? ' · complete' : ''}
                 </Text>
-                {phone ? null : (
-                  <View style={styles.ownedChipTrack}><View style={[styles.ownedChipFill, { width: `${c.pct}%` }]} /></View>
-                )}
+                <View style={styles.ownedChipTrack}><View style={[styles.ownedChipFill, { width: `${c.pct}%` }, done && styles.ownedChipFillDone]} /></View>
               </View>
             </Tipped>
           );
@@ -5124,8 +5130,9 @@ const styles = StyleSheet.create({
   ownedChip: { alignItems: 'stretch', gap: 3, minWidth: 0 },
   ownedChipText: { fontSize: FontSize.label, color: Palette.muted },
   ownedChipStrong: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
-  ownedChipTrack: { height: 4, borderRadius: 99, backgroundColor: Palette.hairline, overflow: 'hidden' },
+  ownedChipTrack: { height: 6, borderRadius: 99, backgroundColor: Palette.hairline, overflow: 'hidden' },
   ownedChipFill: { height: '100%', backgroundColor: Palette.accent },
+  ownedChipFillDone: { backgroundColor: '#2e9e5b' },
   // --- the phone header (see the phone branch in the render) ---
   phoneHeader: {
     paddingTop: Spacing.two,

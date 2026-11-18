@@ -41,7 +41,9 @@ import { patchDecoration, removeDecoration } from '@/data/coverDecorations';
 import { boxContains, decorationBox } from '@/data/coverGeometry';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
-import { pageCompletion } from '@/data/completion';
+import { CompletionMeter } from '@/components/collect/CompletionMeter';
+import { binderCompletion, pageCardIds, pageCompletion, toFinish } from '@/data/completion';
+import { usePriceSummaryWhen } from '@/lib/prices';
 import { ThemedView } from '@/components/themed-view';
 import { BinderSurface, FontSize, Palette, Radius, Weight } from '@/constants/theme';
 import { flag } from '@/lib/flags';
@@ -133,6 +135,10 @@ const NAV_RAIL_WIDTH = 78;
  * silently over-reaches by the difference if they drift.
  */
 const COLUMN_LABEL_H = 26;
+/** MIC-060: the owned strip above the pages, one line per page in view (text and bar). Budgeted. */
+const OWNED_STRIP_H = 30;
+/** On a phone the strip has two lines, the page and the whole binder (the header has no room). */
+const OWNED_STRIP_PHONE_H = 54;
 const PAGE_WRAP_BOTTOM_MARGIN = 8;
 /**
  * ...and the same margin above it. Both are real height and both were spent by the same style;
@@ -496,15 +502,19 @@ export function BinderPages({
    * already half-saying two lines below it. Putting it here costs nothing — the label was always
    * drawn — and puts a page's name on the page rather than on the chrome.
    */
-  // MIC-059: with "Owned" on, each column's label also says how much of that page is owned. It
-  // rides the label line that is already there, so the count costs the spread no height.
-  const ownedSuffix = (pg: DemoPage | null | undefined) => {
-    if (!ownedIds || !pg) return '';
-    const c = pageCompletion(pg, ownedIds);
-    return c.total ? ` · ${c.have} of ${c.total} owned` : '';
-  };
   const columnLabel = (pg: DemoPage | null | undefined, fallback: string) =>
-    ((pg?.title || '').trim() || fallback) + ownedSuffix(pg);
+    (pg?.title || '').trim() || fallback;
+  /*
+   * MIC-060 (owner 2026-11-18): with "Owned" on, each page in view gets its own bar and "X of Y
+   * owned · N%" in a strip above the pages (blue while partial, green when complete), and with the
+   * Price label on too, "$XX.XX to finish": the market price of the missing cards, the Set Binders
+   * preview's sum. The strip's height comes out of the page budget, so the spread still fits.
+   */
+  const ownedStrip = !!ownedIds && binderCompletion(binder.pages, ownedIds).total > 0;
+  const priceLabelOn = labelsOn && labelFields.includes('price');
+  const finishSummary = usePriceSummaryWhen(ownedStrip && priceLabelOn);
+  const finishOf = (pg: DemoPage) =>
+    finishSummary && ownedIds ? toFinish(pageCardIds(pg), ownedIds, (id) => finishSummary[id]?.cur) : null;
   // MIC-017 book: a visitor's binder reads as a book; the filmstrip gives way to a slim count.
   const book = BOOK_FLAG && !editable;
   const railLeft = view.navDock === 'left' && !phone && !book;
@@ -516,6 +526,7 @@ export function BinderPages({
       contentAbove -
       (railLeft ? 0 : stripHeight + (phone && editable ? STRIP_CHIP_CLEARANCE : 0)) -
       COLUMN_LABEL_H -
+      (ownedStrip ? (phone ? OWNED_STRIP_PHONE_H : OWNED_STRIP_H) : 0) -
       // A phone spends none of these (owner, 2026-11-05: the page was not reaching the screen's
       // width because the chrome around it was taking the height). The style agrees: pageWrapPhone.
       (phone ? 0 : PAGE_WRAP_BOTTOM_MARGIN + PAGE_WRAP_TOP_MARGIN + PAGE_BREATHING_ROOM) -
@@ -1778,6 +1789,39 @@ export function BinderPages({
           </View>
         </View>
       ) : null}
+      {ownedStrip && page && ownedIds && !shut ? (() => {
+        // Each page's line sits over its own column, so "Page 2" is never read as the left page.
+        const cols: [number, DemoPage | null][] = doubleSided
+          ? [[spreadLeftIdx, leftPage], [spreadRightIdx, rightPage]]
+          : [[idx, page]];
+        const colW = doubleSided ? bookW : pageWidth;
+        const gapW = doubleSided ? bookRowGap : 0;
+        if (phone) {
+          const c = pageCompletion(page, ownedIds);
+          const whole = binderCompletion(binder.pages, ownedIds);
+          const binderFinish = finishSummary ? toFinish(binder.pages.flatMap(pageCardIds), ownedIds, (id) => finishSummary[id]?.cur) : null;
+          return (
+            <View style={[styles.ownedStripPhone, { width: pageWidth }]} testID="binder-owned-strip">
+              {c.total ? <CompletionMeter inline c={c} label={`Page ${idx + 1}`} finish={finishOf(page)} testID={`binder-page-meter-${idx + 1}`} /> : <View style={{ height: 20 }} />}
+              <CompletionMeter inline c={whole} label="Binder" finish={binderFinish} testID="binder-whole-meter" />
+            </View>
+          );
+        }
+        return (
+          <View style={[styles.ownedStrip, { gap: gapW }]} testID="binder-owned-strip">
+            {cols.map(([i, pg], k) => {
+              const c = pg ? pageCompletion(pg, ownedIds) : null;
+              return (
+                <View key={k} style={{ width: colW, maxWidth: '100%' }}>
+                  {pg && c && c.total ? (
+                    <CompletionMeter inline c={c} label={`Page ${i + 1}`} finish={finishOf(pg)} testID={`binder-page-meter-${i + 1}`} />
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+        );
+      })() : null}
       {/* WEB: let the page scroll vertically under a finger; the swipe only wants the horizontal. */}
       <GestureDetector gesture={swipe} touchAction="pan-y">
       <View
@@ -2226,7 +2270,7 @@ export function BinderPages({
           so a screenshot carries the binder's name, the page and where it was made. */}
       {phone && !editable && page ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.phoneCaption} numberOfLines={1} testID="page-caption">
-          {`${binder.title} · Page ${idx + 1} of ${count}${ownedSuffix(page)} · michi-maker.com`}
+          {`${binder.title} · Page ${idx + 1} of ${count} · michi-maker.com`}
         </ThemedText>
       ) : null}
       {/* One page at a time: nothing beside it to sweep over, so the outgoing page lifts on the
@@ -2786,6 +2830,9 @@ const styles = StyleSheet.create({
   // that the page is fitted to the height it has, every pixel of margin comes straight off the card
   // art. 36px of it was the difference between a 700px window fitting and not.
   pageWrap: { alignItems: 'center', marginVertical: 8 },
+  // MIC-060: OWNED_STRIP_H tall in all (a 20 px line, 10 px under it).
+  ownedStripPhone: { height: OWNED_STRIP_PHONE_H, gap: 6, paddingTop: 2, alignSelf: 'center' },
+  ownedStrip: { height: OWNED_STRIP_H, flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', paddingTop: 2, alignSelf: 'stretch' },
   pageWrapPhone: { marginVertical: 0 },
   phoneCaption: { marginTop: 4, fontSize: FontSize.xs, lineHeight: 16, letterSpacing: 0.2 },
   // The turning layer must not clip its own entry animation, and must not change the layout it

@@ -42,6 +42,7 @@ import { boxContains, decorationBox } from '@/data/coverGeometry';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
 import { CompletionMeter } from '@/components/collect/CompletionMeter';
+import { OwnedPriceToggles } from '@/components/binder/OwnedPriceToggles';
 import { binderCompletion, completionOf, pageCardIds, pageCompletion, toFinish } from '@/data/completion';
 import { usePriceSummaryWhen } from '@/lib/prices';
 import { ThemedView } from '@/components/themed-view';
@@ -139,6 +140,8 @@ const COLUMN_LABEL_H = 26;
 const OWNED_STRIP_H = 42;
 /** On a phone the strip has two lines, the page and the whole binder (the header has no room). */
 const OWNED_STRIP_PHONE_H = 76;
+/** MIC-061: the phone's Owned / Prices row (44 px chips, 8 under). */
+const OWNED_TOGGLES_PHONE_H = 52;
 const PAGE_WRAP_BOTTOM_MARGIN = 8;
 /**
  * ...and the same margin above it. Both are real height and both were spent by the same style;
@@ -517,6 +520,8 @@ export function BinderPages({
    * Price label on too, "$XX.XX to finish": the market price of the missing cards, the Set Binders
    * preview's sum. The strip's height comes out of the page budget, so the spread still fits.
    */
+  // MIC-061: on a phone, Owned and Prices one tap away above the pages (the header has no room).
+  const phoneToggles = phone && !!ownedCards && ownedCards.size > 0;
   const ownedStrip = !!ownedIds && binderCompletion(binder.pages, ownedIds).total > 0;
   const priceLabelOn = labelsOn && labelFields.includes('price');
   const finishSummary = usePriceSummaryWhen(ownedStrip && priceLabelOn);
@@ -534,6 +539,7 @@ export function BinderPages({
       (railLeft ? 0 : stripHeight + (phone && editable ? STRIP_CHIP_CLEARANCE : 0)) -
       COLUMN_LABEL_H -
       (ownedStrip ? (phone ? OWNED_STRIP_PHONE_H : OWNED_STRIP_H) : 0) -
+      (phoneToggles ? OWNED_TOGGLES_PHONE_H : 0) -
       // A phone spends none of these (owner, 2026-11-05: the page was not reaching the screen's
       // width because the chrome around it was taking the height). The style agrees: pageWrapPhone.
       (phone ? 0 : PAGE_WRAP_BOTTOM_MARGIN + PAGE_WRAP_TOP_MARGIN + PAGE_BREATHING_ROOM) -
@@ -1796,6 +1802,11 @@ export function BinderPages({
           </View>
         </View>
       ) : null}
+      {phoneToggles ? (
+        <View style={[styles.ownedTogglesPhone, { width: pageWidth }]}>
+          <OwnedPriceToggles compact owned={showOwned} onOwned={setShowOwned} labels={labelsProp ?? ownLabels} />
+        </View>
+      ) : null}
       {ownedStrip && page && ownedIds && !shut ? (() => {
         /*
          * MIC-060 v2 (owner 2026-11-18, "fix the alignment"): ONE strip, exactly as wide as the
@@ -2857,6 +2868,7 @@ const styles = StyleSheet.create({
   // art. 36px of it was the difference between a 700px window fitting and not.
   pageWrap: { alignItems: 'center', marginVertical: 8 },
   // MIC-060: OWNED_STRIP_H tall in all (a 20 px line, 10 px under it).
+  ownedTogglesPhone: { height: OWNED_TOGGLES_PHONE_H, alignSelf: 'center', justifyContent: 'flex-start' },
   ownedStripPhone: { height: OWNED_STRIP_PHONE_H, gap: 10, paddingTop: 2, alignSelf: 'center' },
   ownedStrip: { height: OWNED_STRIP_H, flexDirection: 'row', alignItems: 'flex-start', paddingTop: 2, alignSelf: 'center', maxWidth: '100%' },
   ownedCell: { flex: 1, minWidth: 0 },

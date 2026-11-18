@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex, nofollow">
 <title>Michi-Maker: binder pages worth staring at</title>
 <meta name="description" content="Compose curated Pokémon card binder pages around one card, then print them at true card size and slide them into a real binder.">
 <!--
   Michi-Maker landing v2 (MKT-040), ported from the approved Landing Lab prototype (triage-studio state/mkt040-final/michi,
-  2026-11-17). Served at /landing-v2 only (asset paths are absolute so it works with or without the trailing slash): noindex, unlinked, not in the sitemap. The live home is untouched.
+  2026-11-17). Served at /landing-v2 (asset paths are absolute so it works with or without the trailing slash). Since the
+  swap (MKT-040) it is where "/" sends a first web visit (src/lib/landing.ts LANDING_PAGE); the old /welcome route is kept.
   Self-contained: fonts/ (Fraunces + Permanent Marker from the app's public/fonts; Inter, OFL 1.1, Rasmus Andersson,
   from tcgscan-app public/fonts), img/c/ (card art from the marketing set-kit catalogue), img/art-*.webp (Pexels / Pixabay,
   credited in the footer), img/studio*.webp (a crop of the redesign QA capture M5-hand-toast-after.png, DEV badge cropped off),
@@ -695,7 +695,7 @@ footer p { max-width: 90ch; }
       <li><a href="#print">Print</a></li>
       <li><a href="#share">Share</a></li>
     </ul>
-    <a class="btn btn-primary" href="https://michi-maker.com/">Start a binder</a>
+    <a class="btn btn-primary" href="/" data-cta="enter_hero">Start a binder</a>
   </div>
   <div class="progress" id="progress" aria-hidden="true"></div>
 </header>
@@ -753,8 +753,8 @@ footer p { max-width: 90ch; }
     </div>
     <p class="lede rise" style="--d:3">Michi-Maker builds curated Pokémon card binders. Build a page around one card you love, then print it at true card size and slide it into a real binder.</p>
     <div class="cta-row rise" style="--d:4">
-      <a class="btn btn-primary" href="https://michi-maker.com/">Start a binder</a>
-      <a class="tlink" href="https://michi-maker.com/discover">See some binders <span aria-hidden="true">→</span></a>
+      <a class="btn btn-primary" href="/" data-cta="enter_hero">Start a binder</a>
+      <a class="tlink" href="/discover" data-cta="discover">See some binders <span aria-hidden="true">→</span></a>
     </div>
     <p class="fine rise" style="--d:5"><b>Free to start on the web.</b></p>
   </div>
@@ -1088,8 +1088,8 @@ footer p { max-width: 90ch; }
     <h2 id="close-h">Your next page starts with one card.</h2>
     <p class="lede">Pick it, build around it, print it. Sign in and your binders follow you between devices.</p>
     <div class="cta-row">
-      <a class="btn btn-primary" href="https://michi-maker.com/">Start a binder</a>
-      <a class="tlink" href="https://michi-maker.com/discover">See some binders <span aria-hidden="true">→</span></a>
+      <a class="btn btn-primary" href="/" data-cta="enter_closing">Start a binder</a>
+      <a class="tlink" href="/discover" data-cta="discover">See some binders <span aria-hidden="true">→</span></a>
     </div>
     <p class="fine"><b>Free to start on the web.</b></p>
   </div>
@@ -1105,9 +1105,9 @@ footer p { max-width: 90ch; }
         <span class="wordmark">Michi<b>-</b>Maker</span>
       </a>
       <nav aria-label="Footer"><ul>
-        <li><a href="https://michi-maker.com/discover">Discover</a></li>
-        <li><a href="https://michi-maker.com/whats-new">What’s New</a></li>
-        <li><a href="https://michi-maker.com/michi-method">The Michi Method</a></li>
+        <li><a href="/discover" data-app>Discover</a></li>
+        <li><a href="/whats-new" data-app>What’s New</a></li>
+        <li><a href="/michi-method" data-app>The Michi Method</a></li>
       </ul></nav>
     </div>
     <p>Card images belong to their respective owners. Michi-Maker is a fan-made tool and is not affiliated with Nintendo, Creatures, or The Pokémon Company. Lava photo by Brent Keane (Pexels); beach and tide art by aalmeidah (Pixabay).</p>
@@ -1817,6 +1817,21 @@ footer p { max-width: 90ch; }
   nav.addEventListener('focusin', () => nav.classList.remove('hide'));
   onScroll();
 })();
+</script>
+<script>
+  /* MKT-040: this page is where "/" sends a first web visit. Any way into the app marks the landing
+     seen (the same localStorage flag src/lib/landing.ts reads, so "/" never sends them back here) and
+     carries the visit's utm_* along; a CTA also adds from=landing&cta=..., which the app records as
+     landing.cta. */
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[data-cta], a[data-app]');
+    if (!a) return;
+    try { localStorage.setItem('michi.landing.seen', '1'); } catch (_) {}
+    var u = new URL(a.getAttribute('href'), location.origin);
+    new URLSearchParams(location.search).forEach(function (v, k) { if (/^utm_|^code$|^rdt_cid$/.test(k)) u.searchParams.set(k, v); });
+    if (a.dataset.cta) { u.searchParams.set('from', 'landing'); u.searchParams.set('cta', a.dataset.cta); }
+    a.setAttribute('href', u.pathname + u.search);
+  }, true);
 </script>
 </body>
 </html>

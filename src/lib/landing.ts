@@ -13,6 +13,36 @@ import { landingCampaignParams } from '@/lib/analytics';
  */
 const LANDING_SEEN_KEY = 'michi.landing.seen';
 
+/**
+ * WHERE A FIRST VISIT GOES (MKT-040, owner 2026-11-17: "yes to every app swap of the landing page").
+ * The static landing v2 at public/landing-v2/ (a full page load, not a route). Its CTAs set the seen
+ * flag above themselves and come back with ?from=landing&cta=<LandingCta>, which the root layout
+ * records as landing.cta (consumeLandingCtaArrival). To go back to the old page, set this to
+ * '/welcome': the Expo route is untouched and still reachable there.
+ */
+export const LANDING_PAGE: string = '/landing-v2';
+
+const LANDING_CTAS = new Set(['enter_hero', 'enter_closing', 'discover', 'sample_binder']);
+
+/**
+ * An arrival from the static landing: returns its cta and strips from/cta from the address (utm_*
+ * stay, so attribution is unchanged). Null for every other load. Web only.
+ */
+export function consumeLandingCtaArrival(): string | null {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('from') !== 'landing') return null;
+    const cta = url.searchParams.get('cta');
+    url.searchParams.delete('from');
+    url.searchParams.delete('cta');
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    return cta && LANDING_CTAS.has(cta) ? cta : null;
+  } catch {
+    return null;
+  }
+}
+
 export function shouldShowLanding(): boolean {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
   try {

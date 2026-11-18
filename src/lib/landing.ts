@@ -31,12 +31,21 @@ const LANDING_CTAS = new Set(['enter_hero', 'enter_closing', 'discover', 'sample
 export function consumeLandingCtaArrival(): string | null {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
   try {
-    const url = new URL(window.location.href);
-    if (url.searchParams.get('from') !== 'landing') return null;
-    const cta = url.searchParams.get('cta');
-    url.searchParams.delete('from');
-    url.searchParams.delete('cta');
-    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    const first = new URL(window.location.href);
+    if (first.searchParams.get('from') !== 'landing') return null;
+    const cta = first.searchParams.get('cta');
+    // Expo Router writes its own idea of the location back to the URL as it settles on first load
+    // (the same thing data/handoff.ts works around), which would put from/cta straight back and
+    // count the press again on a refresh. So the scrub runs now and again after it has settled.
+    const scrub = () => {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('from') !== 'landing') return;
+      url.searchParams.delete('from');
+      url.searchParams.delete('cta');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    };
+    scrub();
+    for (const ms of [250, 1000, 3000]) setTimeout(scrub, ms);
     return cta && LANDING_CTAS.has(cta) ? cta : null;
   } catch {
     return null;

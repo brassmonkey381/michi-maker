@@ -66,7 +66,7 @@ import { setHoverSuspended } from '@/components/binder/hoverGate';
 import { AboutHoverCard, PAGE_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { PAGE_PAD, PEEK_MIN_WIDTH, PHONE_DOCK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
-import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
+import { useCardLabelPrefs, type CardLabelPrefsState } from '@/hooks/use-card-label-prefs';
 import { useViewPrefs, type ViewPrefsState } from '@/hooks/use-view-prefs';
 import { AUTO_FLIP_MAX, AUTO_FLIP_MIN, AUTO_FLIP_STEP } from '@/data/viewPrefs';
 import { CoverSurface } from '@/components/binder/BinderCover';
@@ -330,6 +330,11 @@ export interface BinderPagesProps {
    * Omit it and this component keeps its own, which is what the public viewer does.
    */
   view?: ViewPrefsState;
+  /**
+   * The card-label preferences, when the caller holds them (BinderScreen does, so its header and
+   * these pages read and change ONE copy: two hook instances would not see each other's toggles).
+   */
+  labels?: CardLabelPrefsState;
   /** Shared "which spread column is mid-drag" value, so that column lifts above its neighbours
    *  (edit only). Omit on read-only surfaces. */
   dragCol?: SharedValue<number>;
@@ -362,17 +367,19 @@ export function BinderPages({
   settingsActions,
   onCoverContext,
   view: viewProp,
+  labels: labelsProp,
   dragCol,
 }: BinderPagesProps) {
   // Remembered per account (and per device for guests) rather than reset on every visit — see
   // use-card-label-prefs. Which labels you want on a card is a settled preference, not a decision
   // to re-make each time you open a binder.
+  const ownLabels = useCardLabelPrefs();
   const {
     on: labelsOn,
     fields: labelFields,
     setOn: setLabelsOn,
     toggleField: toggleLabelField,
-  } = useCardLabelPrefs();
+  } = labelsProp ?? ownLabels;
   // A PHONE SHOWS THE CARDS AND NOTHING ELSE (owner decision 2026-09-08). Below the width at
   // which a page can have neighbours, a 3x3 card is about 90px wide: a label under it is a smear,
   // and a rail beside it takes the width the cards need. So on a narrow window the labels are

@@ -3745,6 +3745,7 @@ export function BinderScreen({
                 ) : null
               }
               view={view}
+              labels={chipLabels}
               onCoverContext={onCoverContext}
               renderGrid={renderGrid}
             />

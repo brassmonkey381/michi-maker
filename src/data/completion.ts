@@ -42,3 +42,21 @@ export function pageCompletion(page: Pick<DemoPage, 'slots'>, owned: ReadonlySet
 export function binderCompletion(pages: readonly Pick<DemoPage, 'slots'>[], owned: ReadonlySet<string> | null | undefined): Completion {
   return completionOf(pages.flatMap(pageCardIds), owned);
 }
+
+/**
+ * MIC-060: what the missing pockets cost at market, the Set Binders preview's "to finish": the sum of
+ * every unowned pocket's price, unpriced ones left out (they add nothing rather than guessing).
+ */
+export function toFinish(
+  cardIds: readonly string[],
+  owned: ReadonlySet<string> | null | undefined,
+  priceOf: (cardId: string) => number | undefined,
+): number {
+  let sum = 0;
+  for (const id of cardIds) {
+    if (owned?.has(id)) continue;
+    const v = priceOf(id);
+    if (typeof v === 'number' && v > 0) sum += v;
+  }
+  return sum;
+}

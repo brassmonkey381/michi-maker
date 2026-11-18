@@ -41,7 +41,9 @@ import { patchDecoration, removeDecoration } from '@/data/coverDecorations';
 import { boxContains, decorationBox } from '@/data/coverGeometry';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
-import { pageCompletion } from '@/data/completion';
+import { CompletionMeter } from '@/components/collect/CompletionMeter';
+import { binderCompletion, completionOf, pageCardIds, pageCompletion, toFinish } from '@/data/completion';
+import { usePriceSummaryWhen } from '@/lib/prices';
 import { ThemedView } from '@/components/themed-view';
 import { BinderSurface, FontSize, Palette, Radius, Weight } from '@/constants/theme';
 import { flag } from '@/lib/flags';
@@ -64,7 +66,7 @@ import { setHoverSuspended } from '@/components/binder/hoverGate';
 import { AboutHoverCard, PAGE_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { PAGE_PAD, PEEK_MIN_WIDTH, PHONE_DOCK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
-import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
+import { useCardLabelPrefs, type CardLabelPrefsState } from '@/hooks/use-card-label-prefs';
 import { useViewPrefs, type ViewPrefsState } from '@/hooks/use-view-prefs';
 import { AUTO_FLIP_MAX, AUTO_FLIP_MIN, AUTO_FLIP_STEP } from '@/data/viewPrefs';
 import { CoverSurface } from '@/components/binder/BinderCover';
@@ -133,6 +135,10 @@ const NAV_RAIL_WIDTH = 78;
  * silently over-reaches by the difference if they drift.
  */
 const COLUMN_LABEL_H = 26;
+/** MIC-060: the owned strip above the pages (a 13 px line and a 6 px bar, 12 px under). Budgeted. */
+const OWNED_STRIP_H = 42;
+/** On a phone the strip has two lines, the page and the whole binder (the header has no room). */
+const OWNED_STRIP_PHONE_H = 76;
 const PAGE_WRAP_BOTTOM_MARGIN = 8;
 /**
  * ...and the same margin above it. Both are real height and both were spent by the same style;
@@ -324,6 +330,11 @@ export interface BinderPagesProps {
    * Omit it and this component keeps its own, which is what the public viewer does.
    */
   view?: ViewPrefsState;
+  /**
+   * The card-label preferences, when the caller holds them (BinderScreen does, so its header and
+   * these pages read and change ONE copy: two hook instances would not see each other's toggles).
+   */
+  labels?: CardLabelPrefsState;
   /** Shared "which spread column is mid-drag" value, so that column lifts above its neighbours
    *  (edit only). Omit on read-only surfaces. */
   dragCol?: SharedValue<number>;
@@ -356,17 +367,19 @@ export function BinderPages({
   settingsActions,
   onCoverContext,
   view: viewProp,
+  labels: labelsProp,
   dragCol,
 }: BinderPagesProps) {
   // Remembered per account (and per device for guests) rather than reset on every visit — see
   // use-card-label-prefs. Which labels you want on a card is a settled preference, not a decision
   // to re-make each time you open a binder.
+  const ownLabels = useCardLabelPrefs();
   const {
     on: labelsOn,
     fields: labelFields,
     setOn: setLabelsOn,
     toggleField: toggleLabelField,
-  } = useCardLabelPrefs();
+  } = labelsProp ?? ownLabels;
   // A PHONE SHOWS THE CARDS AND NOTHING ELSE (owner decision 2026-09-08). Below the width at
   // which a page can have neighbours, a 3x3 card is about 90px wide: a label under it is a smear,
   // and a rail beside it takes the width the cards need. So on a narrow window the labels are
@@ -496,15 +509,19 @@ export function BinderPages({
    * already half-saying two lines below it. Putting it here costs nothing — the label was always
    * drawn — and puts a page's name on the page rather than on the chrome.
    */
-  // MIC-059: with "Owned" on, each column's label also says how much of that page is owned. It
-  // rides the label line that is already there, so the count costs the spread no height.
-  const ownedSuffix = (pg: DemoPage | null | undefined) => {
-    if (!ownedIds || !pg) return '';
-    const c = pageCompletion(pg, ownedIds);
-    return c.total ? ` · ${c.have} of ${c.total} owned` : '';
-  };
   const columnLabel = (pg: DemoPage | null | undefined, fallback: string) =>
-    ((pg?.title || '').trim() || fallback) + ownedSuffix(pg);
+    (pg?.title || '').trim() || fallback;
+  /*
+   * MIC-060 (owner 2026-11-18): with "Owned" on, each page in view gets its own bar and "X of Y
+   * owned · N%" in a strip above the pages (blue while partial, green when complete), and with the
+   * Price label on too, "$XX.XX to finish": the market price of the missing cards, the Set Binders
+   * preview's sum. The strip's height comes out of the page budget, so the spread still fits.
+   */
+  const ownedStrip = !!ownedIds && binderCompletion(binder.pages, ownedIds).total > 0;
+  const priceLabelOn = labelsOn && labelFields.includes('price');
+  const finishSummary = usePriceSummaryWhen(ownedStrip && priceLabelOn);
+  const finishOf = (pg: DemoPage) =>
+    finishSummary && ownedIds ? toFinish(pageCardIds(pg), ownedIds, (id) => finishSummary[id]?.cur) : null;
   // MIC-017 book: a visitor's binder reads as a book; the filmstrip gives way to a slim count.
   const book = BOOK_FLAG && !editable;
   const railLeft = view.navDock === 'left' && !phone && !book;
@@ -516,6 +533,7 @@ export function BinderPages({
       contentAbove -
       (railLeft ? 0 : stripHeight + (phone && editable ? STRIP_CHIP_CLEARANCE : 0)) -
       COLUMN_LABEL_H -
+      (ownedStrip ? (phone ? OWNED_STRIP_PHONE_H : OWNED_STRIP_H) : 0) -
       // A phone spends none of these (owner, 2026-11-05: the page was not reaching the screen's
       // width because the chrome around it was taking the height). The style agrees: pageWrapPhone.
       (phone ? 0 : PAGE_WRAP_BOTTOM_MARGIN + PAGE_WRAP_TOP_MARGIN + PAGE_BREATHING_ROOM) -
@@ -1778,6 +1796,57 @@ export function BinderPages({
           </View>
         </View>
       ) : null}
+      {ownedStrip && page && ownedIds && !shut ? (() => {
+        /*
+         * MIC-060 v2 (owner 2026-11-18, "fix the alignment"): ONE strip, exactly as wide as the
+         * spread and lined up with its edges. On a desk an open book gets two columns, each exactly
+         * over a page: the whole binder over the left, the pages in view ("Pages 2-3", or "Page 1"
+         * beside a cover) over the right; a single page splits its width between the page and the
+         * binder. Each is a line of text with its bar under it, the same CompletionMeter the rest of
+         * the app uses. On a phone the page and the binder stack at the page's own width.
+         */
+        const whole = binderCompletion(binder.pages, ownedIds);
+        const binderFinish = finishSummary ? toFinish(binder.pages.flatMap(pageCardIds), ownedIds, (id) => finishSummary[id]?.cur) : null;
+        const pageMeter = (i: number, pg: DemoPage | null) => {
+          const c = pg ? pageCompletion(pg, ownedIds) : null;
+          return pg && c && c.total ? (
+            <CompletionMeter c={c} label={`Page ${i + 1}`} finish={finishOf(pg)} testID={`binder-page-meter-${i + 1}`} />
+          ) : null;
+        };
+        const wholeMeter = <CompletionMeter c={whole} label="Binder" finish={binderFinish} testID="binder-whole-meter" />;
+        if (phone) {
+          return (
+            <View style={[styles.ownedStripPhone, { width: pageWidth }]} testID="binder-owned-strip">
+              {pageMeter(idx, page) ?? <View style={styles.ownedMeterSpacer} />}
+              {wholeMeter}
+            </View>
+          );
+        }
+        if (doubleSided) {
+          // The pages in view, counted together.
+          const inView = ([[spreadLeftIdx, leftPage], [spreadRightIdx, rightPage]] as [number, DemoPage | null][]).filter(
+            (x): x is [number, DemoPage] => !!x[1] && pageCompletion(x[1], ownedIds).total > 0,
+          );
+          const ids = inView.flatMap(([, pg]) => pageCardIds(pg));
+          const c = completionOf(ids, ownedIds);
+          const label = inView.length === 2 ? `Pages ${inView[0][0] + 1}-${inView[1][0] + 1}` : inView.length ? `Page ${inView[0][0] + 1}` : '';
+          const spreadFinish = finishSummary ? toFinish(ids, ownedIds, (id) => finishSummary[id]?.cur) : null;
+          return (
+            <View style={[styles.ownedStrip, { width: bookW * 2 + bookRowGap, gap: bookRowGap }]} testID="binder-owned-strip">
+              <View style={{ width: bookW }}>{wholeMeter}</View>
+              <View style={{ width: bookW }}>
+                {inView.length ? <CompletionMeter c={c} label={label} finish={spreadFinish} testID="binder-page-meter" /> : null}
+              </View>
+            </View>
+          );
+        }
+        return (
+          <View style={[styles.ownedStrip, { width: pageWidth, gap: 24 }]} testID="binder-owned-strip">
+            <View style={styles.ownedCell}>{pageMeter(idx, page)}</View>
+            <View style={styles.ownedCell}>{wholeMeter}</View>
+          </View>
+        );
+      })() : null}
       {/* WEB: let the page scroll vertically under a finger; the swipe only wants the horizontal. */}
       <GestureDetector gesture={swipe} touchAction="pan-y">
       <View
@@ -2226,7 +2295,7 @@ export function BinderPages({
           so a screenshot carries the binder's name, the page and where it was made. */}
       {phone && !editable && page ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.phoneCaption} numberOfLines={1} testID="page-caption">
-          {`${binder.title} · Page ${idx + 1} of ${count}${ownedSuffix(page)} · michi-maker.com`}
+          {`${binder.title} · Page ${idx + 1} of ${count} · michi-maker.com`}
         </ThemedText>
       ) : null}
       {/* One page at a time: nothing beside it to sweep over, so the outgoing page lifts on the
@@ -2786,6 +2855,11 @@ const styles = StyleSheet.create({
   // that the page is fitted to the height it has, every pixel of margin comes straight off the card
   // art. 36px of it was the difference between a 700px window fitting and not.
   pageWrap: { alignItems: 'center', marginVertical: 8 },
+  // MIC-060: OWNED_STRIP_H tall in all (a 20 px line, 10 px under it).
+  ownedStripPhone: { height: OWNED_STRIP_PHONE_H, gap: 10, paddingTop: 2, alignSelf: 'center' },
+  ownedStrip: { height: OWNED_STRIP_H, flexDirection: 'row', alignItems: 'flex-start', paddingTop: 2, alignSelf: 'center', maxWidth: '100%' },
+  ownedCell: { flex: 1, minWidth: 0 },
+  ownedMeterSpacer: { height: 28 },
   pageWrapPhone: { marginVertical: 0 },
   phoneCaption: { marginTop: 4, fontSize: FontSize.xs, lineHeight: 16, letterSpacing: 0.2 },
   // The turning layer must not clip its own entry animation, and must not change the layout it

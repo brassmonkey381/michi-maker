@@ -83,7 +83,9 @@ function cardImage(cardId) {
  */
 //   r14 v2 by default: the binder's look (backgrounds, stitch and thread, zipper and pull, spine,
 //       sleeves and art backing) drawn into the image, and the owner's own backdrop when set
-const OG_IMAGE_REV = 16;
+//   r17 MIC-065: 1.2× (1284×756 spread, 900×756 single), q82 4:2:0, cached 30 days; was 2.4×,
+//       15 to 28 s cold and up to 1.4 MB
+const OG_IMAGE_REV = 17;
 
 /**
  * The two canvases the renderer knows how to draw. A SPREAD needs the width for two facing pages;
@@ -93,8 +95,9 @@ const OG_IMAGE_REV = 16;
 // 1.7:1 rather than the 1.91:1 of old: a spread's height binds, so the extra width was cream on
 // both sides. Discord, Slack, iMessage and Facebook show the whole image at this shape; X crops to
 // 2:1 and loses a sliver top and bottom, which the vertical margins absorb.
-const OG_SPREAD = { w: 2568, h: 1512 };
-const OG_SINGLE = { w: 1800, h: 1512 };
+// Kept in step with W/H and SINGLE_W/SINGLE_H in api/og-image-binder.js at its default scale (1.2).
+const OG_SPREAD = { w: 1284, h: 756 };
+const OG_SINGLE = { w: 900, h: 756 };
 
 /**
  * Would the renderer draw ONE page rather than an open spread? Mirrors `pickPages` in

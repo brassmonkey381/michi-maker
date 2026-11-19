@@ -5,6 +5,12 @@
  *   node scripts/warm-og.mjs                 # every public binder
  *   node scripts/warm-og.mjs <binder-id>...  # just these
  *   node scripts/warm-og.mjs --site https://michi-maker-xyz.vercel.app   # a preview deployment
+ *   node scripts/warm-og.mjs --sitemap       # only the binders the live sitemap lists (indexable)
+ *
+ * AFTER EVERY DEPLOY (MIC-065, 2026-11-18). A new deployment starts with an empty CDN cache, so
+ * every binder's image is cold again, and a cold render used to take 15 to 28 s: the first
+ * scraper (and the triage SEO check) gave up. The ship path now runs `--sitemap` straight after
+ * the domains move, so every indexable binder answers from cache on its first fetch.
  *
  * WHEN TO RUN IT. The app already warms a binder when its share sheet opens, so day to day this
  * is not needed. It exists for the one case the app cannot cover: bumping OG_IMAGE_REV in
@@ -44,6 +50,16 @@ async function publicBinderIds() {
   return res.json();
 }
 
+/** The binders the sitemap lists: the indexable ones, the ones a search result or a scraper meets. */
+async function sitemapBinderIds(site) {
+  const res = await fetch(`${site}/sitemap.xml`);
+  if (!res.ok) throw new Error(`reading ${site}/sitemap.xml failed: ${res.status}`);
+  const xml = await res.text();
+  const ids = [...new Set([...xml.matchAll(/\/binder\/([0-9a-f-]{36})/gi)].map((m) => m[1]))];
+  if (!ids.length) throw new Error('the sitemap lists no binders');
+  return ids.map((id) => ({ id }));
+}
+
 async function warm(site, binder) {
   const started = Date.now();
   try {
@@ -71,9 +87,13 @@ async function main() {
   const siteAt = args.indexOf('--site');
   const site = (siteAt >= 0 ? args[siteAt + 1] : process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com')
     .replace(/\/$/, '');
-  const ids = args.filter((a, i) => !a.startsWith('--') && i !== siteAt + 1);
+  const ids = args.filter((a, i) => !a.startsWith('--') && (siteAt < 0 || i !== siteAt + 1));
 
-  const binders = ids.length ? ids.map((id) => ({ id })) : await publicBinderIds();
+  const binders = ids.length
+    ? ids.map((id) => ({ id }))
+    : args.includes('--sitemap')
+      ? await sitemapBinderIds(site)
+      : await publicBinderIds();
   console.log(`warming ${binders.length} preview image(s) on ${site}`);
 
   let ok = 0;
@@ -86,10 +106,10 @@ async function main() {
     }),
   );
   console.log(`\n${ok}/${binders.length} warmed.`);
-  process.exit(ok === binders.length ? 0 : 1);
+  process.exitCode = ok === binders.length ? 0 : 1;
 }
 
 main().catch((e) => {
   console.error(e.message);
-  process.exit(1);
+  process.exitCode = 1;
 });

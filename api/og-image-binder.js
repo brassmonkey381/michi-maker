@@ -1,5 +1,5 @@
 /**
- * Composed page image for a shared binder — a 2880×1512 render of the binder's fullest
+ * Composed page image for a shared binder — a 1284×756 render (MIC-065; 2880×1512 before r17) of the binder's fullest
  * page (its cards laid out the way the page looks), used as the og:image for
  * `/binder/:id`. So a shared link unfurls as the actual page, not a single card.
  *
@@ -52,11 +52,18 @@ const SITE = process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com';
 // and it is already ~2.6× the pixels Discord actually displays (~550 CSS px wide), so the scales
 // above it buy nothing anyone can see. All pixel sizes below are multiplied by S, scaling the
 // layout uniformly (fractional S is fine — Satori accepts sub-pixel styles).
-const S = Number(process.env.OG_SCALE) || 2.4;
+//
+// MIC-065 (2026-11-18): THE LINK PREVIEW IS NOW 1.2× (1284×756 spread, 900×756 single). Measured on
+// production that day, the 2.4× render took 15 to 28 s cold for sitemap binders and weighed 0.85 to
+// 1.4 MB: past the 20 s a scraper waits, and over the ~300 KB WhatsApp-style scrapers take. At 1.2×
+// the same three binders render in 2 to 5 s (locally) at 170 to 270 KB, and 1284 px is still wider
+// than any preview card draws (Discord ~550 CSS px, Facebook and X about 500 to 600). The poster
+// (og-image-hires, 4×) and the quick look (og-image-quick, 1×) set their own scale and are unchanged.
+const S = Number(process.env.OG_SCALE) || 1.2;
 // The spread canvas is 1.7:1 since r12 (was 1.91:1): the pages' height binds, so the extra width
 // was empty cream either side. Keep in step with OG_SPREAD in api/_lib.js.
-const W = Math.round(1070 * S); // 2568 — ImageResponse needs integer dimensions
-const H = Math.round(630 * S); // 1512
+const W = Math.round(1070 * S); // 1284 at the default scale; ImageResponse needs integer dimensions
+const H = Math.round(630 * S); // 756
 
 // A SINGLE page is a different shape of problem. A 3×3 page is about 0.75:1, so scaled to the full
 // height of a 1.9:1 frame it can only occupy about a third of the width — roughly two thirds of a
@@ -66,16 +73,30 @@ const H = Math.round(630 * S); // 1512
 // SPREADS ARE UNCHANGED and still render at W×H: two facing pages genuinely need the width.
 // Which shape is used is decided by api/og-binder.js and passed in the URL (see `ogImageUrl`), so
 // the og:image:width/height it declares and what this renders can never disagree.
-const SINGLE_W = Math.round(750 * S); // 1800 at the default scale
-const SINGLE_H = Math.round(630 * S); // 1512
+const SINGLE_W = Math.round(750 * S); // 900 at the default scale
+const SINGLE_H = Math.round(630 * S); // 756
 
 // JPEG settings. 4:4:4 (no chroma subsampling) costs ~0.2MB over 4:2:0 and is worth it here: the
 // frame is dense small card text and saturated red/blue art edges, which is precisely what
 // subsampling smears. mozjpeg is what gets it back under a megabyte.
-const JPEG = { quality: Number(process.env.OG_JPEG_QUALITY) || 88, progressive: true, mozjpeg: true, chromaSubsampling: '4:4:4' };
+// At link-preview scale (S <= 1.5) the pockets are small enough that 4:2:0 at q82 reads the same and
+// keeps the file under ~300 KB (MIC-065: 174 to 268 KB on the three heaviest sitemap binders); the
+// poster keeps 4:4:4 at q88.
+const LINK_SIZED = S <= 1.5;
+const JPEG = {
+  quality: Number(process.env.OG_JPEG_QUALITY) || (LINK_SIZED ? 82 : 88),
+  progressive: true,
+  mozjpeg: true,
+  chromaSubsampling: process.env.OG_JPEG_SUBSAMPLING || (LINK_SIZED ? '4:2:0' : '4:4:4'),
+};
 /** Unsharp-mask radius applied before the JPEG (see `render`); 0 turns it off. */
 const SHARPEN = process.env.OG_SHARPEN === undefined ? 0.8 : Number(process.env.OG_SHARPEN) || 0;
 const CACHE = 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400';
+// A COMPOSED image is immutable for its URL: the URL carries the render revision (r) and the binder's
+// updated_at (t), so any change is a new URL. Hold it at the CDN for 30 days instead of letting it go
+// cold a day after the last scraper (MIC-065: every sitemap binder tested was a MISS). The cover
+// fallback keeps the short CACHE so a binder that failed once is retried soon.
+const CACHE_RENDERED = 'public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400';
 // THE EDITOR'S NUMBERS (2026-09-15): 10px between pockets, a 14px page margin, a 16px page radius
 // and an 8px pocket radius, all times S, so the share image, the poster and the quick look draw
 // the page the way the editor and the shelf draw it. Keep in step with binderLayout PAD/GAP and
@@ -2127,7 +2148,7 @@ module.exports = async (req, res) => {
         if (pages.length && anyImage) {
           const { body, type } = await render(pages, manifest, art, single, undefined, { look, binder });
           res.setHeader('content-type', type);
-          res.setHeader('cache-control', CACHE);
+          res.setHeader('cache-control', CACHE_RENDERED);
           return res.end(body);
         }
       }

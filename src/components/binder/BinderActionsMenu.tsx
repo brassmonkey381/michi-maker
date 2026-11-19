@@ -33,6 +33,7 @@ export function BinderActionsMenu({
   onShare,
   onCover,
   onPrint,
+  onPull,
   onDelete,
   onClose,
 }: {
@@ -48,6 +49,8 @@ export function BinderActionsMenu({
   onCover?: () => void;
   /** Open the "Print placeholders" PDF sheet. Omit to hide the tile. */
   onPrint?: () => void;
+  /** TCG-035: make a BiBo pull list for the owned cards in this binder. Omit to hide the row. */
+  onPull?: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -69,6 +72,7 @@ export function BinderActionsMenu({
             ) : null}
             <View style={styles.list}>
               {!readOnly ? <Row glyph="✎" label="Rename" onPress={onRename} /> : null}
+              {onPull && !readOnly ? <Row glyph="⇲" label="Pull these cards" onPress={onPull} /> : null}
               <Row glyph="⧉" label="Duplicate" onPress={onDuplicate} />
               {canShare && !readOnly ? <Row glyph="↗" label="Share" onPress={onShare} /> : null}
             </View>

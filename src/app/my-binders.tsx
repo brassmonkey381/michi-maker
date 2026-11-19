@@ -17,6 +17,7 @@ import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 import { sendBrowseCommand } from 'tcgscan-browse';
 
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
+import { PullListSheet } from '@/components/binder/PullListSheet';
 import { BinderCoverSheet } from '@/components/binder/BinderCoverSheet';
 import { BinderCoverGrid } from '@/components/binder/BinderCoverGrid';
 import { BinderShelf } from '@/components/binder/BinderShelf';
@@ -240,6 +241,9 @@ export default function MyBindersScreen() {
   });
 
   const menuBinder = menuId ? (store.getBinder(menuId) ?? null) : null;
+  // TCG-035: the binder whose "Pull these cards" sheet is open.
+  const [pullId, setPullId] = useState<string | null>(null);
+  const pullBinder = pullId ? (store.getBinder(pullId) ?? null) : null;
   const shareBinder = shareId ? store.getBinder(shareId) : null;
   const coverBinder = coverId ? store.getBinder(coverId) : null;
   const printBinder = printId ? store.getBinder(printId) : null;
@@ -577,10 +581,19 @@ export default function MyBindersScreen() {
           onShare={shareFromMenu}
           onCover={menuBinder.isDemo ? undefined : coverFromMenu}
           onPrint={menuBinder.isDemo ? undefined : printFromMenu}
+          onPull={
+            menuBinder.isDemo || store.tier === 'guest' || !isSupabaseConfigured || !menuBinder.pages.some((p) => p.slots.some((s) => s.type === 'card' && s.cardId))
+              ? undefined
+              : () => {
+                  setPullId(menuBinder.id);
+                  setMenuId(null);
+                }
+          }
           onDelete={deleteFromMenu}
           onClose={() => setMenuId(null)}
         />
       )}
+      {pullBinder && <PullListSheet binder={pullBinder} onClose={() => setPullId(null)} />}
       {coverBinder && (
         <BinderCoverSheet
           binder={coverBinder}

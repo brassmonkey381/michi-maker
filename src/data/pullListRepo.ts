@@ -19,8 +19,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CopySpot, PullItem } from '@/data/pullList';
 import { requireSupabase } from '@/lib/supabase';
 
-/** "Open in BiBo" target. Off until BiBo's web build serves /pull/[id] (TCGCSV will say). */
-export const BIBO_PULL_LINK_LIVE = false;
+/** "Open in BiBo" target: BiBo's web /pull/[id] (noindex). ship-tcg035.ps1 checks it answers before deploying. */
+export const BIBO_PULL_LINK_LIVE = true;
 export const biboPullUrl = (listId: string) => `https://www.biboscan.com/pull/${listId}`;
 
 const db = () => requireSupabase() as unknown as SupabaseClient;

@@ -147,7 +147,7 @@ export function PullListView({
                 ) : null}
                 <Text style={styles.muted}>
                   BiBo lists every card with its exact spot, in walking order. Check each one off as you find it. Nothing moves in your
-                  collection until you tap &quot;Commit&quot; in BiBo.
+                  collection until you tap &quot;Move&quot; in BiBo.
                 </Text>
                 <Pressable
                   onPress={onMake}

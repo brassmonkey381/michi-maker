@@ -34,17 +34,25 @@ const CORS = {
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-const SYSTEM = `You suggest names for a collector's digital Pokemon card binder.
-You get plain facts about the cards on one page (or across a whole binder) and write exactly three options for the field asked.
-Titles: 2 to 5 words, title case, no quotation marks, no ending punctuation. Make them specific to these cards and pleasant to read; vary the three (one plain, one playful, one evocative).
-Descriptions: two or three sentences, at most 320 characters. Describe the ART first: the scenery, the most common characters and what they are doing, and how the art connects across the cards (for example along an evolution line). Then, only if the facts show one to three rarities or one to three sets, you may add a short note about them. Example of the style: "Three evolution lines for the Kanto starters: Charmander, Squirtle and Bulbasaur. Illustration Rares only. Squirtle sinks deeper into the ocean as he evolves, Charmander rises into the clouds as he becomes Charizard, and Bulbasaur grows into Venusaur in the jungle."
-Rules: no em dashes or en dashes; no emoji; never mention AI, tags, data, or how the binder was made; do not invent cards, people or facts that are not given; English.`;
+/**
+ * THE POET (MIC-063, owner 2026-11-18): the old prompt named every card ("Charmander, Squirtle and
+ * Bulbasaur...") in up to 320 characters. Out of five suggesters tried on real pages the owner picked this
+ * one: evocative, short, the common thread rather than a list. Plus the lore: a trainer on the page is tied
+ * to the rest from the game or the show (Lance with the dragons), and other games use their own story.
+ */
+const SYSTEM = `You name one page (or a whole binder) of a collector's trading card binder for the game named in the request, the way an album or a short story is titled: evocative, short, about the feeling the page gives.
+You get plain facts about the cards and write exactly three options for the field asked.
+Find what the cards have IN COMMON and name that, never list them. Prefer no character names; at most one, and only when that character clearly dominates the page (most of the cards). Never name sets or rarities unless every card shares one.
+Use the game's lore. When the facts list trainer or other non-Pokemon cards (or, in other games, characters, crews or places), tie them to the rest of the page through the game, the show or the story, for example Lance with dragon Pokemon or a rival with their partner. Use only well-known canon; when no tie is clear, leave it out.
+Titles: 1 to 4 words, title case, no quotation marks, no ending punctuation. Three different moods.
+Descriptions: one sentence of at most 22 words (about 140 characters), an image or feeling the page leaves you with, grounded in what the facts say.
+Rules: no em dashes or en dashes; no emoji; never mention AI, tags, data, or how the binder was made; do not invent cards, characters, people or facts that are not given or well-known canon; English.`;
 
 /** What to write, said plainly per field (a first live run asked for descriptions and got titles). */
 const ASK = {
-  title: (kind: string) => `Write three short TITLES for this ${kind} (2 to 5 words each).`,
+  title: (kind: string) => `Write three short TITLES for this ${kind} (1 to 4 words each).`,
   description: (kind: string) =>
-    `Write three DESCRIPTIONS for this ${kind}. Each one is two or three full sentences about the art and the characters, never a title or a phrase.`,
+    `Write three DESCRIPTIONS for this ${kind}. Each one is a single full sentence, never a title or a phrase.`,
 } as const;
 
 /**
@@ -53,7 +61,7 @@ const ASK = {
  * describes only what the facts say: the characters, their types, the rarity and the sets.
  */
 const NO_ART =
-  ' The facts do not say what the art shows: describe only the characters, their types, the rarity and the sets. Do not describe scenery, poses, colours or backgrounds.';
+  ' The facts do not say what the art shows: draw the feeling from the characters, their types and their lore. Do not describe scenery, poses, colours or backgrounds.';
 
 const SCHEMA = {
   type: 'object',
@@ -81,7 +89,7 @@ Deno.serve(async (req) => {
   const user = who?.user;
   if (!user) return json({ error: 'unauthorized' }, 401);
 
-  let body: { kind?: string; field?: string; subjectId?: string; facts?: string; dev?: boolean };
+  let body: { kind?: string; field?: string; subjectId?: string; facts?: string; game?: string; dev?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -92,6 +100,7 @@ Deno.serve(async (req) => {
   const subjectId = typeof body.subjectId === 'string' && /^[0-9a-f-]{8,64}$/i.test(body.subjectId) ? body.subjectId : null;
   const facts = typeof body.facts === 'string' ? body.facts.replace(/[\u0000-\u001f]+/g, ' ').trim().slice(0, MAX_FACTS) : '';
   if (!kind || !field || !subjectId || !facts) return json({ error: 'bad_request' }, 400);
+  const game = typeof body.game === 'string' && /^[\p{L}\p{N} .'&:-]{2,40}$/u.test(body.game.trim()) ? body.game.trim() : 'Pokémon';
 
   const aiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!aiKey) return json({ error: 'not_configured' }, 500);
@@ -122,7 +131,7 @@ Deno.serve(async (req) => {
       thinking: { type: 'disabled' },
       system: SYSTEM,
       output_config: { format: { type: 'json_schema', schema: SCHEMA as unknown as Record<string, unknown> } },
-      messages: [{ role: 'user', content: `${ASK[field](kind)}${field === 'description' && !facts.includes('The art on each card:') ? NO_ART : ''}\n\nFacts:\n${facts}` }],
+      messages: [{ role: 'user', content: `Game: ${game}\n${ASK[field](kind)}${field === 'description' && !facts.includes('The art on each card:') ? NO_ART : ''}\n\nFacts:\n${facts}` }],
     });
     if (res.stop_reason !== 'end_turn') console.warn('[name-ideas] stop_reason', res.stop_reason, field);
     const text = res.content.find((c) => c.type === 'text');

@@ -27,6 +27,8 @@ export type NameCard = Pick<CatalogCard, 'name' | 'types' | 'illustrator' | 'set
   /** One sentence about what the art shows (Illustration Rares, from the catalogue). */
   sceneCaption?: string;
   rarity?: string;
+  /** A trainer kind (Supporter, Item, Stadium, Tool) or Energy; on a Pokémon card, its type or nothing. */
+  cardType?: readonly string[];
 };
 
 export interface AutoText {
@@ -238,6 +240,11 @@ export function factsText(cards: readonly NameCard[], pages = 1): string {
     `Sets: ${counts(cards.map((c) => c.setName), 3)}`,
     `Rarities: ${counts(cards.map((c) => c.rarity?.trim() ?? ''), 3)}`,
   ];
+  // MIC-063 (owner 2026-11-18): name the trainer and other non-Pokémon cards, so the ✨ can tie their
+  // lore to the rest of the page (Lance with dragons, a starter's trainer with the starters).
+  // card_type holds a Pokémon card's energy type ("Lightning") on some printings, so match trainer kinds.
+  const others = cards.filter((c) => c.cardType?.some((t) => /supporter|item|stadium|tool|trainer|energy/i.test(t)));
+  if (others.length) lines.push(`Trainer and other cards: ${[...new Set(others.map((c) => `${cap(c.name)} (${c.cardType!.join(', ')})`))].slice(0, 6).join(', ')}`);
   const scenes = counts(cards.flatMap((c) => (c.sceneTags ?? []).slice(0, 3).map((t) => t.toLowerCase())), 5);
   if (scenes) lines.push(`Scenes in the art: ${scenes}`);
   if (f.line && f.line.present >= 2) lines.push(`Evolution line: ${f.line.stages.map(cap).join(' > ')} (${f.line.present} of ${f.line.stages.length} here)`);

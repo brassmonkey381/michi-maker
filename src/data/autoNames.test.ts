@@ -97,4 +97,8 @@ test('the facts the ✨ sends: short plain lines, empty fields left out', async 
   assert.match(t, /Evolution line: Charmander > Charmeleon > Charizard \(2 of 3 here\)/);
   assert.match(t, /Scenes in the art: volcano 1/);
   assert.equal(factsText([]), '');
+  // MIC-063: trainers and other non-Pokémon cards get their own line; Pokémon cards do not.
+  const withLance = factsText([card('Dragonite', { cardType: ['Pokémon'] }), card('Lance', { cardType: ['Supporter'] }), card('Rare Candy', { cardType: ['Item'] })]);
+  assert.match(withLance, /Trainer and other cards: Lance \(Supporter\), Rare Candy \(Item\)/);
+  assert.doesNotMatch(factsText([card('Dragonite', { cardType: ['Pokémon'] }), card('Pikachu', { cardType: ['Lightning'] })]), /Trainer and other cards/);
 });

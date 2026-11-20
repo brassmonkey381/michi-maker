@@ -14,7 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
 import { claimedByEntry } from '@/data/ownedCopies';
-import { planPull, pocketsOf, pullSummary, type CopySpot } from '@/data/pullList';
+import { planPull, pocketsOf, pullSummary, type CopySpot, type PullPlan } from '@/data/pullList';
 import { BIBO_PULL_LINK_LIVE, biboPullUrl, fetchCopyWhere, homeCollection, savePullList, type CopyWhere } from '@/data/pullListRepo';
 import { useOwnedCopies } from '@/hooks/use-owned-copies';
 import { track } from '@/lib/analytics';
@@ -60,7 +60,7 @@ export function PullListSheet({ binder, onClose }: { binder: DemoBinder; onClose
   }, [entries, where, store.userBinders, binder.pages]);
 
   const counts = useMemo(() => {
-    const c = { loose: 0, piles: 0, binder: 0 };
+    const c: PullCounts = { loose: 0, piles: 0, binder: 0 };
     for (const i of plan?.items ?? []) c[group(i.spot)]++;
     return c;
   }, [plan]);
@@ -83,6 +83,34 @@ export function PullListSheet({ binder, onClose }: { binder: DemoBinder; onClose
     }
   };
 
+  return <PullListView title={binder.title} plan={plan} counts={counts} busy={busy} saved={saved} error={error} onMake={make} onClose={onClose} />;
+}
+
+export type PullCounts = { loose: number; piles: number; binder: number };
+
+/**
+ * The sheet itself, with no data access: the container above feeds it. Kept apart so the screens
+ * can be checked (and screenshotted) with demo data and no account.
+ */
+export function PullListView({
+  title,
+  plan,
+  counts,
+  busy,
+  saved,
+  error,
+  onMake,
+  onClose,
+}: {
+  title: string;
+  plan: PullPlan | null;
+  counts: PullCounts;
+  busy: boolean;
+  saved: { listId: string; kept: number; added: number } | null;
+  error: string | null;
+  onMake: () => void;
+  onClose: () => void;
+}) {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
@@ -92,7 +120,7 @@ export function PullListSheet({ binder, onClose }: { binder: DemoBinder; onClose
               Pull these cards
             </ThemedText>
             <Text style={styles.body} numberOfLines={2}>
-              {binder.title}
+              {title}
             </Text>
 
             {!plan && !error ? (
@@ -119,10 +147,10 @@ export function PullListSheet({ binder, onClose }: { binder: DemoBinder; onClose
                 ) : null}
                 <Text style={styles.muted}>
                   BiBo lists every card with its exact spot, in walking order. Check each one off as you find it. Nothing moves in your
-                  collection until you tap &quot;Commit&quot; in BiBo.
+                  collection until you tap &quot;Move&quot; in BiBo.
                 </Text>
                 <Pressable
-                  onPress={make}
+                  onPress={onMake}
                   disabled={busy || plan.items.length === 0}
                   accessibilityRole="button"
                   accessibilityLabel="Make the pull list"
@@ -164,6 +192,7 @@ export function PullListSheet({ binder, onClose }: { binder: DemoBinder; onClose
     </Modal>
   );
 }
+
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: Palette.scrim45, alignItems: 'center', justifyContent: 'center', padding: Spacing.four },

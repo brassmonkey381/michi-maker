@@ -14,6 +14,10 @@ import { isCurrentEpoch, stamp } from './prefsEpoch.ts';
 export type PocketBarPlacement = 'over' | 'below' | 'beside';
 export const POCKET_BAR_PLACEMENTS: readonly PocketBarPlacement[] = ['over', 'below', 'beside'];
 
+/** MIC-072: the order of the covers on My Binders. */
+export type BinderSort = 'recent' | 'name' | 'owned' | 'value';
+export const BINDER_SORTS: readonly BinderSort[] = ['recent', 'name', 'owned', 'value'];
+
 export interface ViewPrefs {
   /** Green ✓ on pockets holding a card you own. */
   owned: boolean;
@@ -64,6 +68,8 @@ export interface ViewPrefs {
    * pockets, and a grey one where a folded pair folds (see printFit.cutBoundaries). Owner only.
    */
   cutLines: boolean;
+  /** MIC-072: My Binders' order: last edited, name, most owned, most valuable. */
+  binderSort: BinderSort;
 }
 
 export const AUTO_FLIP_MIN = 1;
@@ -94,6 +100,7 @@ export const VIEW_PREF_DEFAULTS: ViewPrefs = {
   coverGrid: false,
   autoFlipSeconds: 4,
   cutLines: false,
+  binderSort: 'recent',
 };
 
 /**
@@ -130,7 +137,8 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
     !('coverSnap' in raw) &&
     !('coverGrid' in raw) &&
     !('autoFlipSeconds' in raw) &&
-    !('cutLines' in raw)
+    !('cutLines' in raw) &&
+    !('binderSort' in raw)
   ) {
     return null;
   }
@@ -164,6 +172,7 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
       ? raw.autoFlipSeconds
       : VIEW_PREF_DEFAULTS.autoFlipSeconds,
     cutLines: flag('cutLines'),
+    binderSort: BINDER_SORTS.includes(raw.binderSort as BinderSort) ? (raw.binderSort as BinderSort) : VIEW_PREF_DEFAULTS.binderSort,
   };
   // Written before the current rollout: force that rollout's settings on, keep the rest of what
   // they chose. Idempotent, so it re-applies harmlessly on every read until they next save.
@@ -191,6 +200,7 @@ export function storedViewPrefs(prefs: ViewPrefs): {
   coverGrid: boolean;
   autoFlipSeconds: number;
   cutLines: boolean;
+  binderSort: BinderSort;
   v: number;
 } {
   return stamp({
@@ -206,5 +216,6 @@ export function storedViewPrefs(prefs: ViewPrefs): {
     coverGrid: prefs.coverGrid,
     autoFlipSeconds: prefs.autoFlipSeconds,
     cutLines: prefs.cutLines,
+    binderSort: prefs.binderSort,
   });
 }

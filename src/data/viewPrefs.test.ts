@@ -111,7 +111,20 @@ test('the defaults are the binder as it is meant to read', () => {
     autoFlipSeconds: 4,
     // Off until asked for: the lines are for planning a print, not for reading a binder.
     cutLines: false,
+    // MIC-072: My Binders in last-edited order until someone picks another.
+    binderSort: 'recent',
   });
+});
+
+test('MIC-072: binderSort keeps one of the four orders and drops anything else', () => {
+  for (const ok of ['recent', 'name', 'owned', 'value']) {
+    assert.equal(normalizeViewPrefs(stamped({ binderSort: ok }))?.binderSort, ok);
+  }
+  for (const bad of ['price', '', 3, null, true]) {
+    assert.equal(normalizeViewPrefs(stamped({ binderSort: bad }))?.binderSort, 'recent', `binderSort: ${String(bad)}`);
+  }
+  // Written back, so it travels to the account and the next device.
+  assert.equal(storedViewPrefs({ ...VIEW_PREF_DEFAULTS, binderSort: 'value' }).binderSort, 'value');
 });
 
 test('auto flip keeps a cadence on the half second and in range, and drops anything else', () => {

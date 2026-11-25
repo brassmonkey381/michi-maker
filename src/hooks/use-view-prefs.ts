@@ -44,7 +44,7 @@ import {
   storedViewPrefs,
   type ViewPrefs,
 } from '@/data/viewPrefs';
-import { supabase } from '@/lib/supabase';
+import { saveAccountPref, setEditedPref, useEditedPref } from '@/lib/sharedPrefs';
 import { useAuth } from '@/store/auth';
 
 /** Guests share one bucket; accounts get their own. */
@@ -62,7 +62,9 @@ export function useViewPrefs(): ViewPrefsState {
   const { user, profile } = useAuth();
   const userId = user?.id ?? null;
 
-  const [edited, setEdited] = useState<{ userId: string | null; prefs: ViewPrefs } | null>(null);
+  // MIC-072: one copy for the whole app (lib/sharedPrefs), so a change on any screen is the
+  // setting on every screen at once.
+  const edited = useEditedPref<ViewPrefs>('binderView', userId);
   const [device, setDevice] = useState<{ userId: string | null; prefs: ViewPrefs } | null>(null);
 
   useEffect(() => {
@@ -87,7 +89,7 @@ export function useViewPrefs(): ViewPrefsState {
   }, [profile]);
 
   const prefs =
-    (edited?.userId === userId ? edited.prefs : null) ??
+    edited ??
     account ??
     (device?.userId === userId ? device.prefs : null) ??
     VIEW_PREF_DEFAULTS;
@@ -97,26 +99,8 @@ export function useViewPrefs(): ViewPrefsState {
       AsyncStorage.setItem(storageKey(userId), JSON.stringify(storedViewPrefs(next))).catch(
         () => {},
       );
-      // Real accounts only: an anonymous session's profile is thrown away with the session, so
-      // writing to it spends a round trip on something nobody will ever read back.
-      if (supabase && user && !user.is_anonymous) {
-        // Spread into a plain JSON shape: the generated `preferences` type is a recursive Json
-        // union, and a typed interface is not assignable to it however JSON-shaped it is.
-        const merged = {
-          ...((profile?.preferences as object) ?? {}),
-          // Stamped with the current prefs epoch, so a rollout that forces a setting on stops
-          // applying to this account the moment its owner says otherwise (see `prefsEpoch`).
-          binderView: storedViewPrefs(next),
-        };
-        void supabase
-          .from('profiles')
-          .update({ preferences: merged })
-          .eq('id', user.id)
-          .then(
-            () => {},
-            () => {},
-          );
-      }
+      // Real accounts only, merged with every other preference written this session.
+      saveAccountPref(user, profile?.preferences, 'binderView', storedViewPrefs(next));
     },
     [userId, user, profile],
   );
@@ -124,7 +108,7 @@ export function useViewPrefs(): ViewPrefsState {
   const setPref = useCallback(
     <K extends keyof ViewPrefs>(key: K, on: ViewPrefs[K]) => {
       const next = { ...prefs, [key]: on };
-      setEdited({ userId, prefs: next });
+      setEditedPref('binderView', userId, next);
       persist(next);
     },
     [persist, prefs, userId],

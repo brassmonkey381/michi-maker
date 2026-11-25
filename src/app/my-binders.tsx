@@ -13,7 +13,7 @@
  */
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { sendBrowseCommand } from 'tcgscan-browse';
 
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
@@ -59,9 +59,8 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { ProTrialPrompt } from '@/components/monetization/ProTrialPrompt';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
-import { pillChip } from '@/constants/ui';
 import { BinderGrid, pageBoxHeight } from '@/components/binder/BinderGrid';
-import { fillerName, sortByRecentEdit, type DemoPage } from '@/data/binderTypes';
+import { fillerName, sortByRecentEdit, type DemoBinder, type DemoPage } from '@/data/binderTypes';
 import { seedPages, seedSetFor } from '@/data/seedPages';
 import { binderLimitMessage, binderTrialMessage, limitCta } from '@/data/limitMessages';
 import { useTrial } from '@/hooks/use-trial';
@@ -73,6 +72,11 @@ import { BinderFaceThumb } from '@/components/auth/AuthKeepParts';
 import { CompletionMeter } from '@/components/collect/CompletionMeter';
 import { binderCompletion } from '@/data/completion';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
+import { MyBindersBar } from '@/components/binder/MyBindersBar';
+import { pricesOn, setPricesOn } from '@/components/binder/OwnedPriceToggles';
+import { useViewPrefs } from '@/hooks/use-view-prefs';
+import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
+import { binderValue, formatUsd, usePriceSummaryWhen } from '@/lib/prices';
 
 /** Which binders the list shows. Module-level so it survives leaving and coming back. */
 type Visibility = 'all' | 'public' | 'private' | 'puzzles';
@@ -233,8 +237,36 @@ export default function MyBindersScreen() {
   // MIC-059: how much of each binder is owned, under its tile. Shown once the account owns a card;
   // an empty collection gets the start card in My collection instead of a row of zeros.
   const ownedCards = useOwnedCards();
-  const meters = !!ownedCards && ownedCards.size > 0;
-  const visibleBinders = sortByRecentEdit(shelf).filter((b) => {
+  // MIC-072: the bar's Owned and Prices ARE a binder's My view settings (one copy, see
+  // lib/sharedPrefs), so what is on here is on in every binder and the other way round.
+  const view = useViewPrefs();
+  const labels = useCardLabelPrefs();
+  const showPrices = pricesOn(labels);
+  const priceSummary = usePriceSummaryWhen(showPrices);
+  // Owned needs an account (a collection to count); undefined = guest or not loaded yet.
+  const canOwn = ownedCards !== undefined;
+  const ownedOn = canOwn && view.owned;
+  // A row of "0 of 9" on every cover says nothing; with nothing owned yet the bar says how to start.
+  const meters = ownedOn && !!ownedCards && ownedCards.size > 0;
+  const noneOwnedYet = ownedOn && !!ownedCards && ownedCards.size === 0;
+  const values = showPrices && !!priceSummary;
+  const { width: winW } = useWindowDimensions();
+  const sortKey =
+    view.binderSort === 'owned' && !ownedOn ? 'recent' : view.binderSort === 'value' && !showPrices ? 'recent' : view.binderSort;
+  const sortShelf = (list: DemoBinder[]): DemoBinder[] => {
+    const recent = sortByRecentEdit(list);
+    if (sortKey === 'name') return [...recent].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+    if (sortKey === 'owned' && ownedCards) {
+      const pct = new Map(recent.map((b) => [b.id, binderCompletion(b.pages, ownedCards)]));
+      return [...recent].sort((a, b) => pct.get(b.id)!.pct - pct.get(a.id)!.pct || pct.get(b.id)!.have - pct.get(a.id)!.have);
+    }
+    if (sortKey === 'value' && priceSummary) {
+      const val = new Map(recent.map((b) => [b.id, binderValue(b, priceSummary)]));
+      return [...recent].sort((a, b) => val.get(b.id)! - val.get(a.id)!);
+    }
+    return recent;
+  };
+  const visibleBinders = sortShelf(shelf).filter((b) => {
     if (showVisibilityFilter && visibility === 'public' && !b.isPublic) return false;
     if (showVisibilityFilter && visibility === 'private' && b.isPublic) return false;
     return !showBinderSearch || !q || matchBinder(b, q) !== null;
@@ -433,30 +465,38 @@ export default function MyBindersScreen() {
                     )}
                   </View>
                 ) : null}
-                {showVisibilityFilter ? (
-                  <View style={styles.visibilityRow}>
-                    {(
-                      [
-                        ['all', 'All', store.userBinders.length],
-                        ['public', 'Public', publicCount],
-                        ['private', 'Private', privateCount],
-                        ...(puzzleBinders.length ? [['puzzles', 'Puzzles', puzzleBinders.length]] : []),
-                      ] as [Visibility, string, number][]
-                    ).map(([v, label, n]) => (
-                      <Pressable
-                        key={v}
-                        onPress={() => pickVisibility(v)}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: visibility === v }}
-                        accessibilityLabel={`${label}, ${n} binder${n === 1 ? '' : 's'}`}
-                        style={[pillChip.base, visibility === v && pillChip.active]}>
-                        <Text style={[pillChip.text, visibility === v && pillChip.textActive]}>
-                          {label} {n}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                ) : null}
+                {/* MIC-072: the view bar. Owned, Prices, and the order and filter of the covers, in
+                    one row; "Show" folds into "Sort" on a phone. */}
+                <View style={styles.barWrap}>
+                  <MyBindersBar<Visibility>
+                    narrow={winW < 600}
+                    owned={canOwn ? view.owned : null}
+                    onOwned={(on) => view.setPref('owned', on)}
+                    prices={showPrices}
+                    onPrices={(on) => setPricesOn(labels, on)}
+                    sort={sortKey}
+                    onSort={(v) => view.setPref('binderSort', v)}
+                    show={
+                      showVisibilityFilter
+                        ? {
+                            value: visibility,
+                            onPick: pickVisibility,
+                            options: [
+                              { id: 'all', label: `All ${store.userBinders.length}` },
+                              { id: 'public', label: `Public ${publicCount}` },
+                              { id: 'private', label: `Private ${privateCount}` },
+                              ...(puzzleBinders.length ? [{ id: 'puzzles' as const, label: `Puzzles ${puzzleBinders.length}` }] : []),
+                            ],
+                          }
+                        : null
+                    }
+                  />
+                  {noneOwnedYet ? (
+                    <Text style={styles.barNote} testID="my-binders-owned-note">
+                      No cards marked as owned yet. In a binder, tap the ✓ on a card you have, or scan your cards in BiBoScan.
+                    </Text>
+                  ) : null}
+                </View>
                 {showBinderSearch ? (
                   <TextInput
                     value={binderQuery}
@@ -517,9 +557,18 @@ export default function MyBindersScreen() {
                     maxCols={SHELF ? 5 : 6}
                     pageSize={SHELF ? 10 : undefined}
                     testID="my-binders-grid"
-                    footer={meters ? (binder) => {
-                      const c = binderCompletion(binder.pages, ownedCards);
-                      return c.total ? <CompletionMeter c={c} compact testID={`binder-meter-${binder.id}`} /> : <View style={styles.meterSpacer} />;
+                    footer={meters || values ? (binder) => {
+                      const c = meters ? binderCompletion(binder.pages, ownedCards) : null;
+                      return (
+                        <View style={styles.tileFoot}>
+                          {c ? (c.total ? <CompletionMeter c={c} compact testID={`binder-meter-${binder.id}`} /> : <View style={styles.meterSpacer} />) : null}
+                          {values && priceSummary ? (
+                            <Text style={styles.tileValue} numberOfLines={1} testID={`binder-value-${binder.id}`}>
+                              {formatUsd(binderValue(binder, priceSummary))}
+                            </Text>
+                          ) : null}
+                        </View>
+                      );
                     } : undefined}
                     accessory={(binder) => {
                       const hit = q && showBinderSearch ? matchBinder(binder, q) : null;
@@ -547,7 +596,7 @@ export default function MyBindersScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="New binder"
                         testID="my-binders-new-tile"
-                        style={({ pressed }) => [styles.newTile, { width: w, height: pageBoxHeight(w, 3, 3) + 44 + (meters ? METER_H : 0) }, pressed && styles.pressed]}>
+                        style={({ pressed }) => [styles.newTile, { width: w, height: pageBoxHeight(w, 3, 3) + 44 + (meters ? METER_H : 0) + (values ? VALUE_H : 0) }, pressed && styles.pressed]}>
                         <Text style={styles.newTilePlus}>+</Text>
                         <Text style={styles.newTileText}>New binder</Text>
                       </Pressable>
@@ -706,6 +755,8 @@ function RenameDialog({
 const EMPTY_PAGE: DemoPage = { id: 'empty-shelf', rows: 3, cols: 3, slots: [] };
 /** MIC-059: the owned line under a tile (6 margin + a 13 px line + the bar), so New binder stays level. */
 const METER_H = 33;
+/** MIC-072: the value line under a cover (Prices on). */
+const VALUE_H = 20;
 const EMPTY_PAGE_W = 132;
 
 const styles = StyleSheet.create({
@@ -772,13 +823,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
     maxWidth: 480,
   },
-  visibilityRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-    marginBottom: Spacing.three,
-  },
   noMatch: { paddingVertical: Spacing.three },
+  // MIC-072: the view bar, flush with the grid's edges, one row.
+  barWrap: { gap: 6, marginBottom: Spacing.two },
+  barNote: { fontSize: 13, lineHeight: 18, color: Palette.muted },
+  tileFoot: { gap: 2, minWidth: 0 },
+  tileValue: { fontSize: 13, fontWeight: Weight.bold, color: Palette.ink },
   upgradeRow: { marginBottom: Spacing.three },
   tileActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   tileActionsWrap: { gap: Spacing.one, alignItems: 'flex-end' },

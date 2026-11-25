@@ -310,14 +310,8 @@ function EmptyCollection({
   }
   return (
     <View style={styles.curateCard}>
-      {/* MIC-059: an empty collection says how to start, so the page, set and binder counts have
-          something to count. */}
-      <View style={styles.startTracking} testID="collection-start-tracking">
-        <Text style={styles.startTitle}>See how much of each set you own</Text>
-        <Text style={styles.startBody}>
-          Scan cards in BiBoScan, or open a binder, turn on “Owned” in Settings under “My view” and tap the cards you have. Each set, binder and page then counts what you own.
-        </Text>
-      </View>
+      {/* MIC-072: the faint "See how much of each set you own" hint is gone; My Binders' bar has
+          "Owned", and says how to start when nothing is owned yet. */}
       {/* The same before-and-after card Learn shows, with its buttons wired to the sheet below
           rather than to a navigation: this IS the page they would have been sent to. */}
       <CurateCallout surface={surface} onPick={(mode) => (mode === 'example' ? openExample() : openImport())} />
@@ -1975,9 +1969,6 @@ const styles = StyleSheet.create({
   },
   groupSeries: { marginTop: Spacing.three },
   groupSet: { marginTop: Spacing.one },
-  startTracking: { gap: 4, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, borderRadius: 10, backgroundColor: Palette.panelAlt, marginBottom: Spacing.two },
-  startTitle: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
-  startBody: { fontSize: FontSize.label, lineHeight: 19, color: Palette.muted },
   setMeter: { maxWidth: 420, marginTop: 4, marginBottom: Spacing.one },
   cardModalWrap: { width: '100%', maxWidth: 320 },
   cardModal: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.two },

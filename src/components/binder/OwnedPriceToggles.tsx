@@ -16,6 +16,17 @@ export function pricesOn(labels: Pick<CardLabelPrefsState, 'on' | 'fields'>): bo
   return labels.on && labels.fields.includes('price');
 }
 
+/** Prices on or off the way this pill does it (MIC-072: My Binders' bar shares it). */
+export function setPricesOn(labels: Pick<CardLabelPrefsState, 'on' | 'fields' | 'update'>, on: boolean): void {
+  if (on === pricesOn(labels)) return;
+  if (!on) {
+    labels.update({ fields: labels.fields.filter((f) => f !== 'price') });
+    return;
+  }
+  // One write: labels on AND the Price field, so neither undoes the other.
+  labels.update({ on: true, fields: labels.fields.includes('price') ? labels.fields : [...labels.fields, 'price'] });
+}
+
 export function OwnedPriceToggles({
   owned,
   onOwned,
@@ -29,14 +40,7 @@ export function OwnedPriceToggles({
   compact?: boolean;
 }) {
   const prices = pricesOn(labels);
-  const togglePrices = () => {
-    if (prices) {
-      labels.toggleField('price');
-      return;
-    }
-    if (!labels.on) labels.setOn(true);
-    if (!labels.fields.includes('price')) labels.toggleField('price');
-  };
+  const togglePrices = () => setPricesOn(labels, !prices);
   return (
     <View style={styles.row} testID="owned-price-toggles">
       <Pressable

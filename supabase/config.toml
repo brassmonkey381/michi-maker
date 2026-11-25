@@ -57,3 +57,7 @@ verify_jwt = false
 # does not need special access"). Read-only; it returns public binders only, never card results.
 [functions.discover-search]
 verify_jwt = false
+
+# MIC-068: called by pg_cron with a shared secret (x-page-tags-secret). No platform JWT gate.
+[functions.page-tags]
+verify_jwt = false

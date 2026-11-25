@@ -31,7 +31,8 @@ import {
 
 import { expandThemeFields, parseQuery, searchCards, srgbToLab } from 'tcgscan-browse';
 
-import { cardsInFamily, PAGE_MATCH_BAR, PAGE_MATCH_MIN_CARDS, PAGE_SHARE_FLOOR } from '@/data/colourFamilies';
+import { cardsInFamily, PAGE_MATCH_BAR, PAGE_MATCH_MIN_CARDS, PAGE_SHARE_FLOOR, type ColourFamily } from '@/data/colourFamilies';
+import { colourWordIn } from '@/data/colourWords';
 import { loadedColorIndexes, loadPokemonColorIndexes } from '@/lib/colorIndexes';
 
 import { AccountButton } from '@/components/auth/AccountButton';
@@ -159,6 +160,7 @@ function RankedResults({
   perShelf,
   onOpen,
   testID,
+  colourPages,
 }: {
   rows: readonly RankedBinderRow[];
   extra?: readonly DemoBinder[];
@@ -172,6 +174,8 @@ function RankedResults({
   perShelf: number;
   onOpen: (b: DemoBinder) => void;
   testID: string;
+  /** MIC-068: binders that came back for a colour, and its name, for a "5 green pages" line. */
+  colourPages?: { family: string; ids: ReadonlySet<string> };
 }) {
   const [shown, setShown] = useState<{ upTo: number; binders: DemoBinder[] }>({ upTo: 0, binders: [] });
   const [busy, setBusy] = useState(false);
@@ -197,9 +201,16 @@ function RankedResults({
   const list = rowsLeft ? shown.binders : [...shown.binders, ...(extra ?? []).filter((b) => !ranked.has(b.id))];
   const more = rowsLeft || !!extraNext;
   const loadMore = () => (rowsLeft ? loadRows(shown.upTo) : onMoreExtra?.());
-  const tile = (b: DemoBinder) => (
-    <BinderThumb key={b.id} binder={b} width={phone ? tileW : tileW} matchPages={b.matchPages} onPress={() => onOpen(b)} />
-  );
+  const tile = (b: DemoBinder) => {
+    // Results open at the best page only, so say how many pages matched the colour (MIC-068).
+    const n = colourPages?.ids.has(b.id) ? (b.matchPages?.length ?? 0) : 0;
+    const footer = n ? (
+      <ThemedText type="small" themeColor="textSecondary" numberOfLines={1} testID="binder-colour-pages">
+        {`${n} ${colourPages!.family} ${n === 1 ? 'page' : 'pages'}`}
+      </ThemedText>
+    ) : undefined;
+    return <BinderThumb key={b.id} binder={b} width={tileW} matchPages={b.matchPages} footer={footer} onPress={() => onOpen(b)} />;
+  };
   if (!list.length) {
     return busy || rowsLeft ? (
       <View style={styles.center}>
@@ -273,6 +284,31 @@ function cardSearchBody(parsed: ReturnType<typeof parseQuery>, fields: ReturnTyp
   };
 }
 
+/**
+ * BY PAGE (owner, 2026-11-11: "binders with PAGEs that exhibit a lot of black"): each card's share
+ * of the colour comes from the palette index, and a page matches at that colour's own bar
+ * (data/colourFamilies). The binders come back through those pages. No top-up of near pages
+ * (owner, 2026-11-11: results that are "not PINK"): only pages at the bar.
+ * Null when the palette index is not available. Used by the swatches and by typed colour words.
+ */
+async function colourFamilyRows(family: ColourFamily): Promise<RankedBinderRow[] | null> {
+  const sw = SWATCHES.find((x) => x.name === family);
+  if (!sw) return null;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(sw.hex.slice(i, i + 2), 16));
+  await loadPokemonColorIndexes();
+  const indexes = loadedColorIndexes();
+  if (!indexes.length) return null;
+  const { ids, shares } = cardsInFamily(indexes, sw.name, srgbToLab(r, g, b));
+  return searchBinderPagesByShares(ids, shares, { minShare: PAGE_MATCH_BAR[sw.name], minCards: PAGE_MATCH_MIN_CARDS, floor: PAGE_SHARE_FLOOR });
+}
+
+/** Two ranked lists as one, the lead list first, never a binder twice. */
+function mergeRows(lead: readonly RankedBinderRow[] | null, rest: readonly RankedBinderRow[] | null): RankedBinderRow[] | null {
+  if (!lead && !rest) return null;
+  const seen = new Set((lead ?? []).map((r) => r.binder_id));
+  return [...(lead ?? []), ...(rest ?? []).filter((r) => !seen.has(r.binder_id))];
+}
+
 async function rankByCards(q: string): Promise<RankedBinderRow[] | null> {
   const parsed = parseQuery(q);
   // PLAIN WORDS ARE ALSO WHAT THE ART SHOWS (owner, 2026-11-11: search binders by theme, scenery,
@@ -313,6 +349,8 @@ export default function DiscoverScreen() {
   const [results, setResults] = useState<DemoBinder[] | null>(null);
   // MIC-017 piece 8: binders ranked by how much of them the search's cards fill (null: not ranked).
   const [cardHits, setCardHits] = useState<RankedBinderRow[] | null>(null);
+  // MIC-068: a typed colour word also runs the swatch search; these binders get a "5 green pages" line.
+  const [wordColour, setWordColour] = useState<{ family: string; ids: ReadonlySet<string> } | null>(null);
   const [colour, setColour] = useState<(typeof SWATCHES)[number] | null>(null);
   const [colourHits, setColourHits] = useState<RankedBinderRow[] | 'unavailable' | null>(null);
   // Binders | Makers (owner, 2026-11-11: Makers is a feed of makers, not a people search).
@@ -449,14 +487,23 @@ export default function DiscoverScreen() {
     if (query.trim().length < MIN_QUERY) return;
     const handle = setTimeout(async () => {
       try {
-        const [page, ranked] = await Promise.all([
+        // A COLOUR WORD IS ALSO A SWATCH (MIC-068): "green", "emerald", "pastel pink" run the page
+        // colour search too. Alone, its pages lead; inside a longer query they follow its own hits.
+        const cw = DISCOVER_V2 ? colourWordIn(query.trim()) : null;
+        const [page, ranked, byColour] = await Promise.all([
           searchBindersPage(query.trim()),
           DISCOVER_V2 ? rankByCards(query.trim()) : Promise.resolve(null),
+          cw ? colourFamilyRows(cw.family).catch(() => null) : Promise.resolve(null),
         ]);
         if (id !== reqId.current) return; // a newer query superseded this one
         setResults(page.binders);
         setResultsNext(page.next);
-        setCardHits(ranked);
+        setCardHits(cw?.onlyColour ? mergeRows(byColour, ranked) : mergeRows(ranked, byColour));
+        // Only rows that came from the colour search say "N green pages": a card-ranked row's
+        // matching pages are about the cards, not the colour.
+        const kept = new Set(cw?.onlyColour ? [] : (ranked ?? []).map((r) => r.binder_id));
+        const colourIds = (byColour ?? []).map((r) => r.binder_id).filter((b) => !kept.has(b));
+        setWordColour(cw && colourIds.length ? { family: cw.family, ids: new Set(colourIds) } : null);
       } catch {
         if (id === reqId.current) setResults([]);
       }
@@ -503,19 +550,7 @@ export default function DiscoverScreen() {
     setColour(sw);
     setColourHits(null);
     setQuery('');
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(sw.hex.slice(i, i + 2), 16));
-    // BY PAGE (owner, 2026-11-11: "binders with PAGEs that exhibit a lot of black"): each card's
-    // share of the colour comes from the palette index, and a page matches at that colour's own
-    // bar (data/colourFamilies). The binders come back through those pages. A rare colour with
-    // few binders at its bar is topped up with the closest pages, after the matches.
-    loadPokemonColorIndexes()
-      .then(async () => {
-        const indexes = loadedColorIndexes();
-        if (!indexes.length) return null;
-        const { ids, shares } = cardsInFamily(indexes, sw.name, srgbToLab(r, g, b));
-        // No top-up of near pages (owner, 2026-11-11: results that are "not PINK"): only pages at the bar.
-        return searchBinderPagesByShares(ids, shares, { minShare: PAGE_MATCH_BAR[sw.name], minCards: PAGE_MATCH_MIN_CARDS, floor: PAGE_SHARE_FLOOR });
-      })
+    colourFamilyRows(sw.name)
       .then((hits) => setColourHits(hits ?? 'unavailable'))
       .catch(() => setColourHits([]));
   };
@@ -633,6 +668,7 @@ export default function DiscoverScreen() {
                   perShelf={perShelf}
                   onOpen={(b) => openBinder(b.id, b.matchPages?.[0])}
                   testID="discover-colour-results"
+                  colourPages={{ family: colour.name, ids: new Set(colourHits.map((r) => r.binder_id)) }}
                 />
               )}
             </View>
@@ -674,6 +710,7 @@ export default function DiscoverScreen() {
                   perShelf={perShelf}
                   onOpen={(b) => openBinder(b.id, b.matchPages?.[0])}
                   testID="discover-results"
+                  colourPages={wordColour ?? undefined}
                 />
               </>
             )

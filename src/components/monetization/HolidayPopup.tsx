@@ -21,6 +21,7 @@ import { useHolidayTrial } from '@/hooks/use-holiday-trial';
 import { useTier } from '@/hooks/use-tier';
 import { useTrial } from '@/hooks/use-trial';
 import { track } from '@/lib/analytics';
+import { hadCheckoutReturn } from '@/lib/checkoutReturn';
 import { endTurn, takeTurn } from '@/lib/promptQueue';
 import { useAuth } from '@/store/auth';
 
@@ -46,7 +47,7 @@ function markSeen(): void {
 function isQaVisit(): boolean {
   try {
     const q = new URL(window.location.href).searchParams;
-    return q.get('utm_medium') === 'qa' || q.has('checkout');
+    return q.get('utm_medium') === 'qa' || q.has('checkout') || hadCheckoutReturn();
   } catch {
     return true;
   }

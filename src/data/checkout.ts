@@ -109,10 +109,12 @@ export async function fetchPurchaseHistory(): Promise<PurchasePayment[]> {
 }
 
 /** Where Stripe should send the user back to — the current page on web. */
-function currentReturnUrl(): string {
+function currentReturnUrl(params?: Record<string, string>): string {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     const here = new URL(window.location.href);
     here.searchParams.delete('checkout'); // never carry a stale result flag back around
+    // MIC-084: the exact place to come back to (the binder page Print was opened from).
+    for (const [k, v] of Object.entries(params ?? {})) here.searchParams.set(k, v);
     return here.toString();
   }
   return 'https://www.michi-maker.com/plans';
@@ -140,7 +142,7 @@ function currentReturnUrl(): string {
  */
 export async function startCheckout(
   lookupKey: string,
-  opts?: { binderId?: string; bundle?: boolean; surface?: string },
+  opts?: { binderId?: string; bundle?: boolean; surface?: string; returnParams?: Record<string, string> },
 ): Promise<void> {
   const surface = opts?.surface ?? 'unknown';
   const referral = storedReferralCode();
@@ -151,7 +153,7 @@ export async function startCheckout(
     url = await fetchStripeUrl({
       action: 'checkout',
       lookupKey,
-      returnUrl: currentReturnUrl(),
+      returnUrl: currentReturnUrl(opts?.returnParams),
       ...(opts?.binderId ? { binderId: opts.binderId } : {}),
       ...(opts?.bundle ? { bundle: true } : {}),
       // MIC-069: the invite this browser arrived with. The server uses it only on a trial checkout.

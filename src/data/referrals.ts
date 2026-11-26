@@ -2,15 +2,16 @@
  * MIC-069 REFER A FRIEND, client side (owner 2026-11-25).
  *
  * The program: share your invite link (/r/<code>). When a friend who came through it starts the
- * free trial, you get 1 free PDF print. When they pay, you each get 1 more. No caps, no expiry.
- * A refund of the friend's payment takes back the unused prints that payment earned; cancelling
- * the trial takes back nothing.
+ * free trial, you get a free print code. When they pay, you each get one more. No caps; referral
+ * codes never expire. Each code is a one-use Stripe promotion code for the binder PDF, entered at
+ * checkout, and anyone can use it. A refund of the friend's payment turns off the unused codes that
+ * payment earned; cancelling the trial takes back nothing.
  *
  * Everything that grants is on the server (supabase/migrations/20261126120000_referrals_print_credits.sql,
  * stripe-checkout, payments-webhook). This file only:
  *   - remembers the invite code a browser arrived with, so checkout can carry it;
  *   - reads the caller's invite page data and code;
- *   - spends a free print on a binder.
+ *   - (finishing any codes still being made is checkout.ts's syncPrintCodes: it is an edge call).
  *
  * The code is kept in localStorage, not in the analytics session: it has to survive the sign-up,
  * the Google round trip and a later visit, and the trial may start days after the first click.
@@ -24,8 +25,8 @@ import { requireSupabase } from '@/lib/supabase';
 
 import { normalizeReferralCode, parseReferralSummary, type ReferralSummary } from './referralCore';
 
-export { normalizeReferralCode, parseReferralSummary, referralCounts } from './referralCore';
-export type { ReferralStatus, ReferralSummary } from './referralCore';
+export { normalizeReferralCode, parseReferralSummary, printCodeReasonText, printCodeStatusText, referralCounts } from './referralCore';
+export type { PrintCode, ReferralStatus, ReferralSummary } from './referralCore';
 
 const rpcClient = () => requireSupabase() as unknown as SupabaseClient;
 
@@ -71,10 +72,4 @@ export async function ensureReferralCode(): Promise<string> {
   const code = normalizeReferralCode(data);
   if (!code) throw new Error('Could not make your invite link. Try again.');
   return code;
-}
-
-/** Spend one free print on this binder. Afterwards it reads exactly like a purchased unlock. */
-export async function redeemPrintCredit(binderId: string): Promise<void> {
-  const { error } = await rpcClient().rpc('redeem_print_credit', { p_binder_id: binderId });
-  if (error) throw new Error(error.message);
 }

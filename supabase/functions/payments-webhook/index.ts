@@ -28,6 +28,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 // the arithmetic lives in one place so a mid-term upgrade can never grant a fresh year again.
 import { PRINTS_PER_MONTH, termPrintAllocation } from '../../../src/data/proration.ts';
 import { secretKey } from '../_shared/keys.ts';
+import { deactivatePrintCodes, mintPrintCodes } from '../_shared/printCodes.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   httpClient: Stripe.createFetchHttpClient(),
@@ -431,6 +432,33 @@ Deno.serve(async (req: Request) => {
                 },
                 { onConflict: 'user_id,product' },
               );
+            // MIC-069: a free print code used on this order is recorded as redeemed on its
+            // owner's /invite list. Fail-soft: the unlock above is what this event is for.
+            try {
+              const promoIds = new Set<string>();
+              const take = (p: unknown) => {
+                const id = typeof p === 'string' ? p : (p as { id?: string } | null)?.id;
+                if (id) promoIds.add(id);
+              };
+              for (const d of (session as unknown as { discounts?: { promotion_code?: unknown }[] }).discounts ?? []) {
+                take(d.promotion_code);
+              }
+              if (!promoIds.size && (session.total_details?.amount_discount ?? 0) > 0) {
+                const full = await stripe.checkout.sessions.retrieve(session.id, { expand: ['total_details.breakdown'] });
+                for (const d of full.total_details?.breakdown?.discounts ?? []) {
+                  take((d.discount as unknown as { promotion_code?: unknown }).promotion_code);
+                }
+              }
+              for (const id of promoIds) {
+                const { error } = await service().rpc('print_code_mark_redeemed', {
+                  p_promotion_code_id: id,
+                  p_user_id: userId,
+                });
+                if (error) console.error('print code redemption not recorded', error.message);
+              }
+            } catch (e) {
+              console.error('print code redemption not read', (e as Error).message);
+            }
           }
         } else if (session.mode === 'subscription' && session.subscription) {
           const sub = await stripe.subscriptions.retrieve(
@@ -475,6 +503,8 @@ Deno.serve(async (req: Request) => {
                 p_subscription_id: sub.id,
               });
               if (error) console.error('referral trial not recorded', sub.id, error.message);
+              // The granted print gets its checkout code now (fail-soft; /invite mints any left).
+              else await mintPrintCodes(stripe, service());
             }
           }
         }
@@ -506,6 +536,7 @@ Deno.serve(async (req: Request) => {
               p_subscription_id: sub.id,
             });
             if (error) console.error('referral payment not recorded', sub.id, error.message);
+            else await mintPrintCodes(stripe, service());
           }
         }
         break;
@@ -545,8 +576,10 @@ Deno.serve(async (req: Request) => {
               .maybeSingle();
             const invitee = (map as { user_id?: string } | null)?.user_id;
             if (invitee) {
-              const { error } = await service().rpc('referral_void_for_invitee', { p_invitee_id: invitee });
+              const { data, error } = await service().rpc('referral_void_for_invitee', { p_invitee_id: invitee });
               if (error) console.error('referral void failed', error.message);
+              // The voided codes stop working at checkout too.
+              else await deactivatePrintCodes(stripe, (data as string[] | null) ?? []);
             }
           }
           break;

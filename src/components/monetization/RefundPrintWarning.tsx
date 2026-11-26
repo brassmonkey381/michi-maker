@@ -27,8 +27,8 @@ export function RefundPrintWarning() {
   if (!show) return null;
   return (
     <ThemedText type="small" themeColor="textSecondary" style={styles.note} testID="refund-print-warning">
-      Before you cancel: cancelling keeps your free prints. If your payment is refunded, the unused free prints it
-      earned are removed, for you and for the friend who invited you.
+      Before you cancel: cancelling keeps your free print codes. If your payment is refunded, the unused codes it
+      earned stop working, for you and for the friend who invited you.
     </ThemedText>
   );
 }

@@ -52,6 +52,18 @@ async function fetchStripeUrl(body: Record<string, string | boolean>): Promise<s
   return url;
 }
 
+/**
+ * MIC-069: finish making the caller's free print codes. The webhook mints each code right after
+ * the grant; this catches any it missed. Soft: a failure leaves those codes at "being made".
+ */
+export async function syncPrintCodes(): Promise<void> {
+  try {
+    await invokeStripe({ action: 'print_codes' });
+  } catch {
+    // soft
+  }
+}
+
 /** One Stripe payment as /purchases shows it — a subscription invoice or a one-time checkout. */
 export interface PurchasePayment {
   id: string;

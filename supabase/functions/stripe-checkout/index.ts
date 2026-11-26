@@ -40,6 +40,7 @@ import {
 import { bundleQualifies, bundleSiblingsFor } from '../../../src/data/bundle.ts';
 import { promoActive } from '../../../src/data/promo.ts';
 import { publishableKey, secretKey } from '../_shared/keys.ts';
+import { mintPrintCodes } from '../_shared/printCodes.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -705,6 +706,14 @@ Deno.serve(async (req: Request) => {
         })),
     ].sort((a, b) => b.createdAt - a.createdAt);
     return json(200, { payments });
+  }
+
+  // ── MIC-069: finish making the caller's free print codes ────────────────
+  // The webhook mints a code right after each grant; this catches any it missed, so /invite never
+  // shows a code stuck at "being made". Only the caller's own rows. Fail-soft.
+  if (body.action === 'print_codes') {
+    const minted = await mintPrintCodes(stripe, service, user.id);
+    return json(200, { minted });
   }
 
   // ── Checkout ────────────────────────────────────────────────────────────

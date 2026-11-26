@@ -171,6 +171,10 @@ function PuzzlePanel() {
   );
 }
 
+/** What's New: never fewer than this many, and at most this many to measure against. */
+const MIN_NEW = 5;
+const MAX_NEW = 10;
+
 function WhatsNewPanel() {
   const router = useRouter();
   // The newest Michi items across the latest batches: headlines first within a batch.
@@ -179,18 +183,37 @@ function WhatsNewPanel() {
     for (const e of CHANGELOG) {
       const mine = e.items.filter((i) => i.products.includes('michi')).sort((a, b) => Number(!!b.big) - Number(!!a.big));
       for (const i of mine) out.push({ date: e.date, head: i.head, body: i.body, kind: i.kind });
-      if (out.length >= 5) break;
+      if (out.length >= MAX_NEW) break;
     }
-    return out.slice(0, 5);
+    return out.slice(0, MAX_NEW);
   }, []);
+  // AS MANY AS FIT (owner, 2026-11-26: "can we fit more on this feed if there's room?"). Never fewer
+  // than the five it always showed; when a taller neighbour stretches the row, the list fills that
+  // height with more items instead of spreading five apart. Stable: more items only ever fill room
+  // the row already has, so they never make the row taller.
+  const [listH, setListH] = useState(0);
+  const [itemH, setItemH] = useState(0);
+  const fit = listH && itemH ? Math.max(MIN_NEW, Math.min(items.length, Math.floor(listH / itemH))) : MIN_NEW;
   return (
     <View style={styles.panel} testID="home-whats-new">
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.eyebrow}>
         {"What's new"}
       </ThemedText>
-      <View style={[styles.grow, styles.newList]}>
-        {items.map((it, i) => (
-          <View key={i} style={[styles.newItem, i > 0 && styles.newItemRule]}>
+      <View
+        style={[styles.grow, styles.newList]}
+        onLayout={(e) => {
+          const h = Math.floor(e.nativeEvent.layout.height);
+          setListH((cur) => (Math.abs(cur - h) > 1 ? h : cur));
+        }}>
+        {items.slice(0, fit).map((it, i) => (
+          <View
+            key={i}
+            style={[styles.newItem, i > 0 && styles.newItemRule]}
+            // The tallest item sets the step (a one-line body is shorter than a two-line one).
+            onLayout={(e) => {
+              const h = Math.ceil(e.nativeEvent.layout.height);
+              setItemH((cur) => (h > cur ? h : cur));
+            }}>
             <View style={styles.newHead}>
               <Text style={[styles.kind, it.kind === 'new' && styles.kindNew]}>{it.kind === 'new' ? 'NEW' : it.kind === 'fix' ? 'FIX' : 'BETTER'}</Text>
               <Text style={styles.meta}>{shortDate(it.date)}</Text>

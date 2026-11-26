@@ -1,21 +1,28 @@
 /**
- * MIC-041 (owner, 2026-11-26, picked B over a compact carousel): the public profile's Want and
- * Trade lists as a page-wide grid of large card art that loads more as you scroll.
+ * MIC-041 (owner, 2026-11-26, picked B over a compact carousel): Want and Trade lists as a
+ * page-wide grid of large card art that loads more as you scroll. The public profile shows it
+ * read-only; the owner's /lists (`owner`) adds Owned to the switch and the tiles, and a tap opens
+ * the card's sheet (want count, each copy's For trade).
  *
  * It shares one toolbar under the MIC-017 rules: a search box, All / Want / Trade (segmented),
  * a Sort dropdown and a Filters sheet (set, type, rarity). Every control is 44 px tall, text 13 px
  * or more, and on a phone the bar wraps to a second line instead of scrolling sideways.
  */
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { fetchCardsByIds, type CatalogCard } from 'tcgscan-browse';
 import { Button, Input, Seg, Sheet } from 'tcgscan-ui';
 
 import { DropdownSelect, type DropdownOption } from '@/components/ui/DropdownSelect';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { resolveCatalogCardWith } from '@/data/cardResolver';
+import type { TableRow } from '@/data/collectionLists';
 import {
   activeFilterCount,
   applyListQuery,
+  browseRows,
+  cardInfo,
   filterChoices,
   NO_FILTERS,
   type BrowseRow,
@@ -25,9 +32,17 @@ import {
   type ListSort,
 } from '@/data/listBrowse';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
+import type { Catalog } from '@/lib/catalog';
 
 const SHOW = [
   { value: 'all', label: 'All' },
+  { value: 'want', label: 'Want' },
+  { value: 'trade', label: 'Trade' },
+] as const;
+
+const SHOW_OWNER = [
+  { value: 'all', label: 'All' },
+  { value: 'owned', label: 'Owned' },
   { value: 'want', label: 'Want' },
   { value: 'trade', label: 'Trade' },
 ] as const;
@@ -40,6 +55,30 @@ const SORT: readonly DropdownOption<ListSort>[] = [
 
 const WANT = '#2f7fc1';
 const TRADE = '#b07400';
+const OWNED = '#2e7d4f';
+
+/**
+ * Table rows with each card's name, set, type and rarity for search and filters. A visitor who is
+ * signed out has no catalog, so the cards it cannot answer are read by id, once.
+ */
+export function useBrowseRows(rows: readonly TableRow[], catalog: Catalog | null): BrowseRow[] {
+  const [byId, setById] = useState<Record<string, CatalogCard>>({});
+  const missing = useMemo(() => rows.map((r) => r.cardId).filter((id) => !resolveCatalogCardWith(catalog, id)), [rows, catalog]);
+  const missingKey = missing.join(',');
+  useEffect(() => {
+    if (!missingKey) return;
+    let live = true;
+    fetchCardsByIds(missingKey.split(','))
+      .then((cards) => {
+        if (live) setById((m) => ({ ...m, ...Object.fromEntries(cards.map((c) => [c.id, c])) }));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [missingKey]);
+  return useMemo(() => browseRows(rows, (id) => cardInfo(resolveCatalogCardWith(catalog, id) ?? byId[id])), [rows, catalog, byId]);
+}
 
 export function useListQuery() {
   const [query, setQuery] = useState<ListQuery>({ q: '', show: 'all', sort: 'newest', filters: NO_FILTERS });
@@ -51,10 +90,12 @@ export function ListBrowseBar({
   rows,
   query,
   set,
+  owner,
 }: {
   rows: readonly BrowseRow[];
   query: ListQuery;
   set: (patch: Partial<ListQuery>) => void;
+  owner?: boolean;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [w, setW] = useState(0);
@@ -82,7 +123,7 @@ export function ListBrowseBar({
         {oneRow ? null : filters}
       </View>
       <View style={styles.controls}>
-        <Seg options={SHOW} value={query.show} onChange={(show: ListShow) => set({ show })} accessibilityLabel="Show" />
+        <Seg options={owner ? SHOW_OWNER : SHOW} value={query.show} onChange={(show: ListShow) => set({ show })} accessibilityLabel="Show" />
         <DropdownSelect label="Sort" value={query.sort} options={SORT} onChange={(sort) => set({ sort })} caption={false} plain minWidth={112} display={`Sort: ${SORT.find((s) => s.id === query.sort)?.label}`} testID="lists-sort" />
         {oneRow ? filters : null}
       </View>
@@ -128,14 +169,27 @@ function FiltersSheet({
 }
 
 /** One card: its art large, the ♥ want and ⇄ trade counts on it, its name under it. */
-function ListTile({ row, width, manifestReady }: { row: BrowseRow; width: number; manifestReady: boolean }) {
+function ListTile({ row, width, manifestReady, owner, onOpen }: { row: BrowseRow; width: number; manifestReady: boolean; owner?: boolean; onOpen?: (row: BrowseRow) => void }) {
   const uri = (manifestReady ? cardThumbUrl(row.cardId, width > 150 ? 640 : 245) : '') || undefined;
   const name = row.info.name || row.cardId;
+  const label = `${name}${row.info.setName ? `, ${row.info.setName}` : ''}: ${[owner && row.owned ? `${row.owned} owned` : '', row.want ? `wants ${row.want}` : '', row.trade ? `${row.trade} for trade` : ''].filter(Boolean).join(', ')}`;
   return (
-    <View style={{ width }} testID={`lists-tile-${row.cardId}`} accessible accessibilityLabel={`${name}${row.info.setName ? `, ${row.info.setName}` : ''}: ${row.want ? `wants ${row.want}` : ''}${row.want && row.trade ? ', ' : ''}${row.trade ? `${row.trade} for trade` : ''}`}>
+    <Pressable
+      style={({ hovered }: { hovered?: boolean }) => [{ width }, onOpen && hovered ? styles.tileHover : null]}
+      onPress={onOpen ? () => onOpen(row) : undefined}
+      disabled={!onOpen}
+      accessibilityRole={onOpen ? 'button' : undefined}
+      testID={`lists-tile-${row.cardId}`}
+      accessible
+      accessibilityLabel={label}>
       <View style={[styles.art, { width, height: Math.round((width * 88) / 63) }]}>
         <Image source={uri ? { uri } : undefined} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
         <View style={styles.badges}>
+          {owner && row.owned ? (
+            <View style={[styles.badge, { backgroundColor: OWNED }]}>
+              <Text style={styles.badgeText}>{`✓ ${row.owned}`}</Text>
+            </View>
+          ) : null}
           {row.want ? (
             <View style={[styles.badge, { backgroundColor: WANT }]}>
               <Text style={styles.badgeText}>{`♥ ${row.want}`}</Text>
@@ -150,14 +204,15 @@ function ListTile({ row, width, manifestReady }: { row: BrowseRow; width: number
       </View>
       <Text style={styles.tileName} numberOfLines={1}>{name}</Text>
       <Text style={styles.tileSet} numberOfLines={2}>{row.info.setName}</Text>
-    </View>
+    </Pressable>
   );
 }
 
-function Totals({ rows }: { rows: readonly BrowseRow[] }) {
-  const t = rows.reduce((a, r) => ({ want: a.want + r.want, trade: a.trade + r.trade }), { want: 0, trade: 0 });
+function Totals({ rows, owner }: { rows: readonly BrowseRow[]; owner?: boolean }) {
+  const t = rows.reduce((a, r) => ({ owned: a.owned + r.owned, want: a.want + r.want, trade: a.trade + r.trade }), { owned: 0, want: 0, trade: 0 });
   return (
-    <View style={styles.totals}>
+    <View style={styles.totals} testID="lists-totals">
+      {owner ? <Text style={[styles.total, { color: OWNED }]}>{`✓ ${t.owned} owned`}</Text> : null}
       <Text style={[styles.total, { color: WANT }]}>{`♥ ${t.want} want`}</Text>
       <Text style={[styles.total, { color: TRADE }]}>{`⇄ ${t.trade} trade`}</Text>
     </View>
@@ -171,7 +226,22 @@ function Empty() {
 const PAGE = 24;
 
 /** Layout B: page-wide grid of large card art; the next 24 load as the end comes into view. */
-export function ListsGrid({ rows }: { rows: readonly BrowseRow[] }) {
+export function ListsGrid({
+  rows,
+  owner,
+  onOpen,
+  title = 'Want and Trade',
+  above,
+}: {
+  rows: readonly BrowseRow[];
+  /** The owner's /lists: Owned in the switch and on the tiles. */
+  owner?: boolean;
+  /** A tile was tapped (the owner's card sheet). */
+  onOpen?: (row: BrowseRow) => void;
+  title?: string | null;
+  /** Drawn between the totals line and the toolbar (the owner's share switch). */
+  above?: ReactNode;
+}) {
   const manifestReady = useImageManifest();
   const { query, set } = useListQuery();
   const shown = useMemo(() => applyListQuery(rows, query), [rows, query]);
@@ -196,18 +266,19 @@ export function ListsGrid({ rows }: { rows: readonly BrowseRow[] }) {
     return () => io.disconnect();
   }, [more, limit]);
   return (
-    <View style={styles.section} testID="profile-lists-grid">
+    <View style={[styles.section, owner && styles.sectionOwner]} testID={owner ? 'lists-grid' : 'profile-lists-grid'}>
       <View style={styles.head}>
-        <Text style={styles.titleLg}>Want and Trade</Text>
-        <Totals rows={rows} />
+        {title ? <Text style={styles.titleLg}>{title}</Text> : null}
+        <Totals rows={rows} owner={owner} />
       </View>
-      <ListBrowseBar rows={rows} query={query} set={set} />
+      {above}
+      <ListBrowseBar rows={rows} query={query} set={set} owner={owner} />
       {shown.length === 0 ? (
         <Empty />
       ) : (
         <View style={[styles.grid, { gap: GAP }]} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
           {shown.slice(0, limit).map((r) => (
-            <ListTile key={r.cardId} row={r} width={tileW} manifestReady={manifestReady} />
+            <ListTile key={r.cardId} row={r} width={tileW} manifestReady={manifestReady} owner={owner} onOpen={onOpen} />
           ))}
         </View>
       )}
@@ -233,6 +304,8 @@ const styles = StyleSheet.create({
   controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
   sheetBody: { gap: Spacing.three, paddingVertical: Spacing.two },
   section: { width: '100%', marginTop: Spacing.five, gap: Spacing.three },
+  sectionOwner: { marginTop: 0 },
+  tileHover: { opacity: 0.85 },
   head: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.two },
   titleLg: { fontSize: FontSize.md, fontWeight: Weight.bold, color: Palette.ink },
   totals: { flexDirection: 'row', gap: Spacing.three },

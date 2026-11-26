@@ -11,6 +11,7 @@
  * of a shared rule is one caller quietly opting out of it.
  */
 import assert from 'node:assert/strict';
+import { TRIAL_CTA_TEXT } from './holiday.ts';
 import { test } from 'node:test';
 
 import { LEGACY_FREE_LIMITS, TIER_LIMITS, type Tier } from './tiers.ts';
@@ -34,7 +35,7 @@ test('every tier that can pay is sent to plans', () => {
   for (const tier of PAID) {
     assert.deepEqual(limitCta(tier), { kind: 'plans', label: 'See plans' });
   }
-  assert.deepEqual(limitCta('free', true), { kind: 'plans', label: 'Try PRO for FREE' });
+  assert.deepEqual(limitCta('free', true), { kind: 'plans', label: TRIAL_CTA_TEXT });
   assert.deepEqual(limitCta('pro', true), { kind: 'plans', label: 'See plans' });
 });
 

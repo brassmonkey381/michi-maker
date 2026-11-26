@@ -12,6 +12,7 @@
  * (data/guestFill), into a stub catalogue the unchanged completer reads. The tap that places a fill
  * takes the one `fillPage` taste the Fill sheet shares; after it, the free-account wall.
  */
+import { TRIAL_CTA_TEXT } from '@/data/holiday';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
@@ -241,7 +242,7 @@ export function CompletePageSheet({
               <ThemedText type="smallBold">Keep the ideas coming</ThemedText>
               <CapGateOffer
                 message="Theme, look-alike and palette ideas are part of PRO. Deal by type, artist and lines stays free."
-                trialMessage="Try PRO for FREE and deal these ideas any time. Deal by type, artist and lines stays free."
+                trialMessage={`${TRIAL_CTA_TEXT} and deal these ideas any time. Deal by type, artist and lines stays free.`}
                 surface="suggest_gate"
                 onBeforePress={onClose}
               />

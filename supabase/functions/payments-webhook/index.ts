@@ -544,7 +544,26 @@ Deno.serve(async (req: Request) => {
 
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
-        await upsertSubscriptionGrant(event.data.object as Stripe.Subscription);
+        let sub = event.data.object as Stripe.Subscription;
+        // MIC-073 (owner, 2026-11-25): "cancelling the trial [should] immediately revert the account
+        // to free user tier". Stripe's portal cancels a trial at its end, so a HOLIDAY trial that is
+        // still trialing and has been set to cancel is cancelled now; the grant below then ends PRO
+        // (status 'canceled' expires the row at ended_at). Only holiday trials: a paying member's
+        // cancel keeps what they paid for, and a 3-day trial keeps today's rule.
+        const cancelling = sub.cancel_at_period_end || (sub as unknown as { cancel_at?: number | null }).cancel_at;
+        if (
+          event.type === 'customer.subscription.updated' &&
+          sub.status === 'trialing' &&
+          sub.metadata?.holiday_trial === 'true' &&
+          cancelling
+        ) {
+          try {
+            sub = await stripe.subscriptions.cancel(sub.id);
+          } catch (e) {
+            console.error('holiday trial not cancelled now', sub.id, (e as Error).message);
+          }
+        }
+        await upsertSubscriptionGrant(sub);
         break;
       }
 

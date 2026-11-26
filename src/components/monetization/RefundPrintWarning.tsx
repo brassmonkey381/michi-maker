@@ -8,7 +8,10 @@ import { useEffect, useState } from 'react';
 import { Platform, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Palette } from '@/constants/theme';
 import { fetchReferralSummary } from '@/data/referrals';
+import { HOLIDAY_CANCEL_NOTE } from '@/data/holiday';
+import { useHolidayTrial } from '@/hooks/use-holiday-trial';
 import { useAuth } from '@/store/auth';
 
 export function RefundPrintWarning() {
@@ -33,4 +36,18 @@ export function RefundPrintWarning() {
   );
 }
 
-const styles = StyleSheet.create({ note: { fontSize: 13 } });
+/**
+ * MIC-073 (owner review): the cancel rule of the holiday trial, said where cancelling starts.
+ * Shown only to an account on a holiday trial right now.
+ */
+export function HolidayCancelWarning() {
+  const holiday = useHolidayTrial();
+  if (!holiday.onHolidayTrial) return null;
+  return (
+    <ThemedText type="small" style={[styles.note, styles.warn]} testID="holiday-cancel-warning">
+      {`Your free trial runs until Jan 1. ${HOLIDAY_CANCEL_NOTE} Your account goes back to free, and you can start PRO again later at the regular price.`}
+    </ThemedText>
+  );
+}
+
+const styles = StyleSheet.create({ note: { fontSize: 13 }, warn: { color: Palette.warning ?? Palette.ink } });

@@ -56,7 +56,7 @@ test('Free advertises no price to discount', () => {
 test('THE PRO BUTTON NAMES THE FREE DAYS for an account that can still have them (2026-10-11)', () => {
   // The trial lives in Stripe Checkout now, so the gate says what pressing it gets you.
   assert.deepEqual(planCta(pro, 'free', false, true), { kind: 'buy', label: TRIAL_CTA_LABEL });
-  assert.equal(TRIAL_CTA_LABEL, 'Try PRO for FREE');
+  assert.ok(TRIAL_CTA_LABEL === 'Try PRO for FREE' || TRIAL_CTA_LABEL === 'Try PRO for FREE until Jan 1');
   // Used or ineligible: an ordinary purchase, and it says so.
   assert.deepEqual(planCta(pro, 'free', false, false), { kind: 'buy', label: 'Upgrade to PRO' });
   // A guest chooses first: checkout needs an account, so the free days are not promised yet.

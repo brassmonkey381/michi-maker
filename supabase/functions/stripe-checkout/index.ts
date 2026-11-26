@@ -41,6 +41,8 @@ import { bundleQualifies, bundleSiblingsFor } from '../../../src/data/bundle.ts'
 import { promoActive } from '../../../src/data/promo.ts';
 import { publishableKey, secretKey } from '../_shared/keys.ts';
 import { mintPrintCodes } from '../_shared/printCodes.ts';
+import { holidayEligible } from '../_shared/holiday.ts';
+import { HOLIDAY_CANCEL_NOTE, holidayTrialEnd } from '../../../src/data/holiday.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -716,6 +718,29 @@ Deno.serve(async (req: Request) => {
     return json(200, { minted });
   }
 
+  // ── MIC-073: may this account start the holiday trial? (the app's buttons ask; checkout decides) ─
+  if (body.action === 'holiday_status') {
+    const end = holidayTrialEnd();
+    if (!end) return json(200, { active: false, eligible: false, endsAt: null });
+    const { data: hm } = await service
+      .from('billing_customers')
+      .select('stripe_customer_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    const eligible = await holidayEligible(stripe, service, user.id, hm?.stripe_customer_id);
+    // On a holiday trial right now? Drives the "cancelling ends PRO right away" warning.
+    let onHolidayTrial = false;
+    if (hm?.stripe_customer_id) {
+      try {
+        const subs = await stripe.subscriptions.list({ customer: hm.stripe_customer_id, status: 'trialing', limit: 10 });
+        onHolidayTrial = subs.data.some((s) => s.metadata?.holiday_trial === 'true');
+      } catch {
+        // soft
+      }
+    }
+    return json(200, { active: true, eligible, onHolidayTrial, endsAt: new Date(end).toISOString() });
+  }
+
   // ── Checkout ────────────────────────────────────────────────────────────
   if (body.action !== 'checkout') return json(400, { error: 'unknown action' });
   const lookupKey = String(body.lookupKey ?? '');
@@ -962,8 +987,32 @@ Deno.serve(async (req: Request) => {
   const family = appFamilyOf(lookupKey);
   const rules = family ? TRIAL_FAMILY[family] : null;
   let checkoutTrial = false;
+
+  /**
+   * MIC-073 THE HOLIDAY TRIAL: until Dec 30, a michi PRO/VIP checkout by anyone who never paid for
+   * it (past 3-day trialists included, current trials excluded; see _shared/holiday.ts) gets a
+   * trial ending Jan 1 instead of 3 days. Cancelling it ends PRO at once (payments-webhook), and
+   * the checkout page says so. Checked first, so the 3-day block below never runs for it.
+   */
+  let holidayEnd: number | null = null;
+  if (
+    family === 'michi' &&
+    trialDays === undefined &&
+    mode === 'subscription' &&
+    !founder &&
+    (TRIAL_FAMILY.michi.products as readonly string[]).includes(michiProduct) &&
+    !isBundleKey(lookupKey)
+  ) {
+    const end = holidayTrialEnd();
+    if (end && (await holidayEligible(stripe, service, user.id, mapping?.stripe_customer_id))) {
+      holidayEnd = end;
+      checkoutTrial = true;
+    }
+  }
+
   if (
     rules &&
+    !holidayEnd &&
     trialDays === undefined &&
     mode === 'subscription' &&
     !founder &&
@@ -1057,7 +1106,11 @@ Deno.serve(async (req: Request) => {
               ...(checkoutTrial ? { checkout_trial: 'true' } : {}),
               // MIC-069: the webhook pays out invite prints for exactly this id.
               ...(referralId ? { referral_id: referralId } : {}),
+              // MIC-073: the webhook ends PRO at once when exactly this trial is cancelled.
+              ...(holidayEnd ? { holiday_trial: 'true' } : {}),
             },
+            // MIC-073: the holiday trial ends on a date, not after a number of days.
+            ...(holidayEnd ? { trial_end: Math.floor(holidayEnd / 1000) } : {}),
             // Buying the tier you are already TRIALLING must not cut the trial short. Without
             // this, deciding early to keep PRO would charge immediately and bin the remaining free
             // days — strictly worse than waiting, which is not a choice anyone should be punished
@@ -1068,7 +1121,9 @@ Deno.serve(async (req: Request) => {
           // A trial with no card is the thing being retired; Checkout collects one up front and
           // charges it when the free days end. (Stripe's default for a trial is already 'always';
           // stated so a future default cannot quietly turn this back into a no-card trial.)
-          ...(trialDays ? { payment_method_collection: 'always' as const } : {}),
+          ...(trialDays || holidayEnd ? { payment_method_collection: 'always' as const } : {}),
+          // MIC-073: the cancel rule is said where the trial starts (owner review), beside the button.
+          ...(holidayEnd ? { custom_text: { submit: { message: HOLIDAY_CANCEL_NOTE } } } : {}),
         }
       : statementSuffixFor(lookupKey)
         ? { payment_intent_data: { statement_descriptor_suffix: statementSuffixFor(lookupKey)! } }

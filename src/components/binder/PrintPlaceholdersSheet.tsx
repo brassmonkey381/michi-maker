@@ -39,6 +39,7 @@ import {
   type PurchaseStatus,
 } from '@/data/pdfSnapshot';
 import { PrintCapExceededError, recordPrintEvent, type RecordedPrint } from '@/data/printRepo';
+import { TRIAL_CTA_TEXT } from '@/data/holiday';
 import { ANNUAL_POOL, BINDER_PDF_LOOKUP_KEY, BINDER_PDF_PRICE, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useFrames } from '@/hooks/use-frames';
@@ -942,7 +943,7 @@ export function PrintPlaceholdersSheet({
                     {/* Eligible free users see the trial first, start it and the sheet re-renders
                         to the subscriber Download button. Renders null when not eligible. */}
                     <TrialCta
-                      message="New here? Try PRO for FREE and print this binder."
+                      message={`New here? ${TRIAL_CTA_TEXT} and print this binder.`}
                       surface="print_gate"
                       onImpression={markOfferShown}
                       onBeforeStart={markTrialStarted}

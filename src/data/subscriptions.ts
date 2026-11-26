@@ -15,6 +15,7 @@
 import type { Tier } from '@/data/tiers';
 // Relative, with its extension: the unit tests load this file without the path aliases.
 import { SHOW_CROSS_APP } from '../lib/crossApp.ts';
+import { TRIAL_CTA_TEXT } from './holiday.ts';
 
 export const CHECKOUT_OPEN = process.env.EXPO_PUBLIC_CHECKOUT_OPEN === '1';
 
@@ -182,7 +183,8 @@ const TIER_RANK: Record<Tier, number> = { guest: 0, free: 1, pro: 2, vip: 3 };
  * Every PRO wall a free account meets wears it while the trial is still theirs to take, and leads
  * to the plans page, whose own PRO button says the same.
  */
-export const TRIAL_CTA_LABEL = 'Try PRO for FREE';
+// MIC-073: "Try PRO for FREE until Jan 1" while the holiday offer is on (src/data/holiday.ts).
+export const TRIAL_CTA_LABEL = TRIAL_CTA_TEXT;
 
 export function planCta(column: PlanHeader, current: Tier, onTrial = false, trialEligible = false): PlanCta {
   const columnRank = TIER_RANK[column.tier];

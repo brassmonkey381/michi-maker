@@ -15,7 +15,7 @@
  *   read "N · Unlimited" for everyone. That is honest about what the build is doing, which is the
  *   point of the flag, and it is the reason this must never go back to a hardcoded cap set.
  */
-import { RefundPrintWarning } from '@/components/monetization/RefundPrintWarning';
+import { HolidayCancelWarning, RefundPrintWarning } from '@/components/monetization/RefundPrintWarning';
 import { useEffect, useState } from 'react';
 import { busyLook, useBusyAction } from '@/hooks/use-busy-action';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -394,6 +394,7 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
           able to reach cancellation and payment-method management regardless. */}
       {/* MIC-069: the refund warning for an invited friend, before the cancel link. */}
       {tier === 'pro' || tier === 'vip' ? <RefundPrintWarning /> : null}
+      {tier === 'pro' || tier === 'vip' ? <HolidayCancelWarning /> : null}
       {tier === 'pro' || tier === 'vip' ? (
         <ThemedText
           type="linkPrimary"

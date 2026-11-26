@@ -64,6 +64,27 @@ export async function syncPrintCodes(): Promise<void> {
   }
 }
 
+/** MIC-073: the holiday trial, as the server sees this account. */
+export interface HolidayStatus {
+  /** The offer is on (before Dec 30). */
+  active: boolean;
+  /** This account may start it (never paid for michi PRO/VIP, not on a plan or trial now). */
+  eligible: boolean;
+  /** This account is on a holiday trial now (drives the cancel warning). */
+  onHolidayTrial: boolean;
+  endsAt: string | null;
+}
+
+/** Ask the server (stripe-checkout "holiday_status"). Soft: any failure reads as "not offered". */
+export async function fetchHolidayStatus(): Promise<HolidayStatus> {
+  try {
+    const d = (await invokeStripe({ action: 'holiday_status' })) as Partial<HolidayStatus>;
+    return { active: !!d.active, eligible: !!d.eligible, onHolidayTrial: !!d.onHolidayTrial, endsAt: d.endsAt ?? null };
+  } catch {
+    return { active: false, eligible: false, onHolidayTrial: false, endsAt: null };
+  }
+}
+
 /** One Stripe payment as /purchases shows it — a subscription invoice or a one-time checkout. */
 export interface PurchasePayment {
   id: string;

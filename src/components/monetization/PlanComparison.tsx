@@ -45,6 +45,7 @@ import { BUNDLE_PERCENT_OFF, formatMinor, PERCENT_OFF, promoActive, promoPriceMi
 import { useTier } from '@/hooks/use-tier';
 import { rememberAuthReturn } from '@/lib/authReturn';
 import { useTrial } from '@/hooks/use-trial';
+import { useHolidayTrial } from '@/hooks/use-holiday-trial';
 import { useAuth } from '@/store/auth';
 import { flag } from '@/lib/flags';
 
@@ -144,7 +145,9 @@ export function PlanComparison({ resumeKey }: { resumeKey?: string | null } = {}
   const onTrial = trialState === 'active';
   // Never trialled, never paid: the PRO button reads "Try PRO for FREE" and checkout gives the
   // free days. Resolved by the server again at checkout; this only chooses the words.
-  const trialEligible = trialState === 'eligible';
+  // MIC-073: while the holiday offer is on, past 3-day trialists may start it too (the server says).
+  const holiday = useHolidayTrial();
+  const trialEligible = trialState === 'eligible' || (holiday.active && holiday.eligible);
   // tcgscanIsPaid, not hasTcgscanPro: a TRIALLING sibling earns no bundle, so quoting 60% off
   // monthly here would advertise a price stripe-checkout now refuses.
   const bundleEligible = !CROSS_DISCOUNT_RETIRED && !loading && tcgscanIsPaid && !(isPaid && !onTrial);

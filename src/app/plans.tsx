@@ -27,6 +27,8 @@ import { promoActive } from '@/data/promo';
 import { CROSS_DISCOUNT_RETIRED } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
 import { useTrial } from '@/hooks/use-trial';
+import { useHolidayTrial } from '@/hooks/use-holiday-trial';
+import { HOLIDAY_BANNER } from '@/data/holiday';
 import { useAuth } from '@/store/auth';
 
 export default function PlansScreen() {
@@ -41,7 +43,10 @@ export default function PlansScreen() {
   const isTrial = trialState === 'active';
   // Never trialled, never paid: checkout gives 3 days free with a card on file, and the page
   // says so above the plans. stripe-checkout re-checks eligibility; this only draws the line.
-  const trialEligible = trialState === 'eligible';
+  const holiday = useHolidayTrial();
+  // MIC-073: the holiday offer also reaches past 3-day trialists (the server decides who).
+  const holidayOffer = holiday.active && holiday.eligible && !(isPaid && !isTrial);
+  const trialEligible = trialState === 'eligible' || holidayOffer;
 
   // Inbound cross-app SSO: a "save 60% on michi" link from tcgscan carries a one-time #th=
   // hash — redeem it into a session here (no-op without one), then re-read the tier so the
@@ -117,7 +122,15 @@ export default function PlansScreen() {
       {/* THE FREE TRIAL IS AT CHECKOUT (owner, 2026-10-11). The one-press in-app trial is closed;
           an account that has never held PRO gets the free days when it picks a plan below, with a
           card on file. This line says so, once, where the plan is chosen. */}
-      {CHECKOUT_OPEN && trialEligible ? (
+      {/* MIC-073: the holiday banner (owner review: "free until Jan 1", no cancel line here). */}
+      {CHECKOUT_OPEN && holidayOffer ? (
+        <View style={[styles.trialHero, styles.holidayHero]} testID="holiday-banner">
+          <ThemedText type="smallBold" style={styles.holidayTitle}>{HOLIDAY_BANNER.title}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.trialHeroSub}>
+            {HOLIDAY_BANNER.body}
+          </ThemedText>
+        </View>
+      ) : CHECKOUT_OPEN && trialEligible ? (
         <View style={styles.trialHero}>
           <ThemedText type="smallBold">Try everything PRO free for {TRIAL_DAYS_TEXT}.</ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.trialHeroSub}>
@@ -214,6 +227,8 @@ export default function PlansScreen() {
 }
 
 const styles = StyleSheet.create({
+  holidayHero: { borderWidth: 1, borderColor: Palette.accent, backgroundColor: Palette.panelAlt, borderRadius: Radius.lg, padding: Spacing.three },
+  holidayTitle: { color: Palette.accent, fontSize: FontSize.md },
   masthead: {
     width: '100%',
     maxWidth: 720,

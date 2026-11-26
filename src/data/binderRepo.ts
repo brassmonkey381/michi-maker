@@ -1126,6 +1126,10 @@ export interface RankedBinderRow {
   face_page_id?: string | null;
   /** search_binder_pages_by_cards: the 1-based public page numbers that matched. */
   match_pages?: number[] | null;
+  /** search_binder_pages_by_cards: the ranking score (best page's share). Read by the search lab. */
+  score?: number | null;
+  /** search_binder_pages_by_cards: how many of the search's cards the binder holds. */
+  hits?: number | null;
 }
 
 /** Where a list left off: the last ranked row. Opaque to callers; hand it back for the next page. */
@@ -1364,12 +1368,20 @@ export async function searchBinderPagesByShares(
  * binder's tile a carousel page at a time (hydrateRankedBinders). Everyone gets it.
  * Null when the function is not deployed or fails, so the caller falls back.
  */
-export async function discoverByQuery(rpcBody: Record<string, unknown>): Promise<RankedBinderRow[] | null> {
+export async function discoverByQuery(
+  rpcBody: Record<string, unknown>,
+  /** The search lab's ear (MIC-080): why the answer is null. Discover passes nothing. */
+  onError?: (message: string) => void,
+): Promise<RankedBinderRow[] | null> {
   try {
     const { data, error } = await requireSupabase().functions.invoke<{ rows?: RankedBinderRow[] }>('discover-search', { body: { rpc: rpcBody } });
-    if (error || !data || !Array.isArray(data.rows)) return null;
+    if (error || !data || !Array.isArray(data.rows)) {
+      onError?.(error ? `discover-search: ${error.message}` : 'discover-search: no rows in the answer');
+      return null;
+    }
     return data.rows;
-  } catch {
+  } catch (e) {
+    onError?.(e instanceof Error ? e.message : String(e));
     return null;
   }
 }

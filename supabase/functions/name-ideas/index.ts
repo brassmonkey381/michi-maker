@@ -119,8 +119,14 @@ Deno.serve(async (req) => {
   if (usedErr) return json({ error: 'unavailable' }, 503);
   const rows = (used ?? []) as { props: { subject?: string } | null }[];
   const accountCap = user.is_anonymous ? CAP_GUEST : CAP_ACCOUNT;
-  if (rows.length >= accountCap) return json({ error: 'limit', which: 'account', cap: accountCap }, 429);
-  if (rows.filter((r) => r.props?.subject === subjectId).length >= CAP_SUBJECT) return json({ error: 'limit', which: 'subject', cap: CAP_SUBJECT }, 429);
+  // UNLIMITED ACCOUNTS (owner, 2026-11-25: "un-restrict my account", "let @fakemichi call
+  // unlimited"): user ids in the NAME_IDEAS_UNLIMITED function secret (comma-separated) skip both
+  // caps. A secret, not a table, so the list changes with one `secrets set` and no migration.
+  const unlimited = (Deno.env.get('NAME_IDEAS_UNLIMITED') ?? '').split(',').map((s) => s.trim()).includes(user.id);
+  if (!unlimited) {
+    if (rows.length >= accountCap) return json({ error: 'limit', which: 'account', cap: accountCap }, 429);
+    if (rows.filter((r) => r.props?.subject === subjectId).length >= CAP_SUBJECT) return json({ error: 'limit', which: 'subject', cap: CAP_SUBJECT }, 429);
+  }
 
   const ai = new Anthropic({ apiKey: aiKey });
   let options: string[] = [];

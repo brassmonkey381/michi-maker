@@ -343,6 +343,8 @@ Deno.serve(async (req: Request) => {
     returnUrl?: string;
     binderId?: string;
     bundle?: boolean;
+    /** MIC-069: the invite code this browser arrived with (/r/<code>), if any. */
+    referralCode?: string;
   };
   try {
     body = await req.json();
@@ -986,6 +988,48 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  /**
+   * MIC-069 REFER A FRIEND. A friend who arrived through someone's invite link and is starting
+   * THE FREE TRIAL is recorded as that person's referral, and the referral id rides on the
+   * subscription so the webhook can pay out: the referrer +1 print when the trial starts, both +1
+   * on the first paid invoice. Only a trial checkout counts (that is the program: "every friend
+   * who signs up for a trial"), and the trial check above already means "new to PRO here".
+   * One referral per invitee, ever: a second checkout reuses a pending row and never moves a
+   * friend to a different inviter. FAIL-SOFT: nothing here may block a checkout.
+   */
+  let referralId: string | null = null;
+  const referralCode = String(body.referralCode ?? '').toLowerCase();
+  if (checkoutTrial && /^[a-z0-9]{6,16}$/.test(referralCode)) {
+    try {
+      const { data: codeRow } = await service
+        .from('referral_codes')
+        .select('user_id')
+        .eq('code', referralCode)
+        .maybeSingle();
+      const inviter = (codeRow as { user_id?: string } | null)?.user_id;
+      if (inviter && inviter !== user.id) {
+        const { data: existing } = await service
+          .from('referrals')
+          .select('id, status')
+          .eq('invitee_id', user.id)
+          .maybeSingle();
+        const row = existing as { id: string; status: string } | null;
+        if (row) {
+          if (row.status === 'pending') referralId = row.id;
+        } else {
+          const { data: made } = await service
+            .from('referrals')
+            .insert({ inviter_id: inviter, invitee_id: user.id, code: referralCode })
+            .select('id')
+            .maybeSingle();
+          referralId = (made as { id?: string } | null)?.id ?? null;
+        }
+      }
+    } catch (e) {
+      console.error('referral not recorded', (e as Error).message);
+    }
+  }
+
   const params: Stripe.Checkout.SessionCreateParams = {
     mode,
     line_items: [{ price: price.id, quantity: 1 }],
@@ -1002,6 +1046,8 @@ Deno.serve(async (req: Request) => {
               // The webhook writes the pro_trials row for exactly this flag, so the free days are
               // handed out once per account across both the old in-app trial and this one.
               ...(checkoutTrial ? { checkout_trial: 'true' } : {}),
+              // MIC-069: the webhook pays out invite prints for exactly this id.
+              ...(referralId ? { referral_id: referralId } : {}),
             },
             // Buying the tier you are already TRIALLING must not cut the trial short. Without
             // this, deciding early to keep PRO would charge immediately and bin the remaining free

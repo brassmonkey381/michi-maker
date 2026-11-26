@@ -323,7 +323,7 @@
       "destination": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/:path*"
     },
     {
-      "source": "/(browse|collect|contest|contest-binders|coverage|daily|discover|feedback|kit|lists|my-binders|new-binder|plans|pricing|purchases|search-guide|studio|subscriptions|whats-new|wishlist|auth-callback|lab/search|lab/card)",
+      "source": "/(browse|collect|contest|contest-binders|coverage|daily|discover|feedback|invite|kit|lists|my-binders|new-binder|plans|pricing|purchases|search-guide|studio|subscriptions|whats-new|wishlist|auth-callback|lab/search|lab/card)",
       "destination": "/app"
     },
     {
@@ -332,6 +332,10 @@
     },
     {
       "source": "/u/:id",
+      "destination": "/app"
+    },
+    {
+      "source": "/r/:code",
       "destination": "/app"
     },
     {

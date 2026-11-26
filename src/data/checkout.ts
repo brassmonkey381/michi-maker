@@ -10,6 +10,7 @@
  */
 import { Platform } from 'react-native';
 
+import { storedReferralCode } from '@/data/referrals';
 import { requireSupabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 
@@ -109,6 +110,7 @@ export async function startCheckout(
   opts?: { binderId?: string; bundle?: boolean; surface?: string },
 ): Promise<void> {
   const surface = opts?.surface ?? 'unknown';
+  const referral = storedReferralCode();
   track('offer.checkout_start', { lookup_key: lookupKey, surface, bundle: !!opts?.bundle });
   let url: string;
   try {
@@ -118,6 +120,8 @@ export async function startCheckout(
       returnUrl: currentReturnUrl(),
       ...(opts?.binderId ? { binderId: opts.binderId } : {}),
       ...(opts?.bundle ? { bundle: true } : {}),
+      // MIC-069: the invite this browser arrived with. The server uses it only on a trial checkout.
+      ...(referral ? { referralCode: referral } : {}),
     });
   } catch (e) {
     // A fixed class, never the thrown message - those carry ids and sometimes URLs.

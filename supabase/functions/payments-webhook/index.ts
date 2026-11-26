@@ -467,6 +467,15 @@ Deno.serve(async (req: Request) => {
             } catch (e) {
               console.error('checkout trial not recorded', sub.id, (e as Error).message);
             }
+            // MIC-069: the invited friend's card trial started, so the referrer earns 1 print.
+            // Idempotent in SQL (pending -> trialled once). Isolated like the ledger write above.
+            if (sub.metadata?.referral_id) {
+              const { error } = await service().rpc('referral_mark_trialled', {
+                p_referral_id: sub.metadata.referral_id,
+                p_subscription_id: sub.id,
+              });
+              if (error) console.error('referral trial not recorded', sub.id, error.message);
+            }
           }
         }
         break;
@@ -487,6 +496,17 @@ Deno.serve(async (req: Request) => {
         if (subId) {
           const sub = await stripe.subscriptions.retrieve(subId);
           await upsertSubscriptionGrant(sub);
+          // MIC-069: the invited friend's FIRST real payment (the $0 trial-start invoice does not
+          // count) gives the referrer and the friend 1 print each. Later renewals find the
+          // referral already 'paid' and grant nothing. A lost write costs prints, never access,
+          // so it is logged rather than failing the event.
+          if (sub.metadata?.referral_id && (invoice.amount_paid ?? 0) > 0) {
+            const { error } = await service().rpc('referral_mark_paid', {
+              p_referral_id: sub.metadata.referral_id,
+              p_subscription_id: sub.id,
+            });
+            if (error) console.error('referral payment not recorded', sub.id, error.message);
+          }
         }
         break;
       }
@@ -510,6 +530,27 @@ Deno.serve(async (req: Request) => {
         if (!intent) break;
         const sessions = await stripe.checkout.sessions.list({ payment_intent: intent, limit: 1 });
         const session = sessions.data[0];
+        // MIC-069: A REFUNDED SUBSCRIPTION PAYMENT VOIDS THE INVITE PRINTS IT EARNED. A one-time
+        // purchase (a PDF, a Founder) has a payment-mode Checkout Session on its intent; a
+        // subscription invoice's charge has none. So no session = a subscription payment, and the
+        // customer's account loses the unspent prints its referral's payment earned (both sides).
+        // The trial print stays ("069 A") and spent prints stay spent. Fail-soft.
+        if (!session) {
+          const customer = typeof charge.customer === 'string' ? charge.customer : charge.customer?.id;
+          if (customer) {
+            const { data: map } = await service()
+              .from('billing_customers')
+              .select('user_id')
+              .eq('stripe_customer_id', customer)
+              .maybeSingle();
+            const invitee = (map as { user_id?: string } | null)?.user_id;
+            if (invitee) {
+              const { error } = await service().rpc('referral_void_for_invitee', { p_invitee_id: invitee });
+              if (error) console.error('referral void failed', error.message);
+            }
+          }
+          break;
+        }
         const product = session?.metadata?.michi_product;
         const userId = session?.client_reference_id ?? session?.metadata?.supabase_user_id;
         if (!session || session.metadata?.founder !== 'true' || !userId) break;

@@ -39,6 +39,7 @@ export type NavIconName =
   | 'news'
   | 'plans'
   | 'vote'
+  | 'invite'
   | 'feedback';
 
 export type NavItem = {
@@ -103,6 +104,8 @@ export const NAV_ACCOUNT: NavItem[] = [
     icon: 'plans',
     match: (p) => p.startsWith('/plans') || p.startsWith('/subscriptions') || p.startsWith('/pricing') || p.startsWith('/purchases'),
   },
+  // MIC-069: refer a friend, paid in free prints.
+  { label: 'Invite Friends', href: '/invite' as Href, icon: 'invite', match: (p) => p.startsWith('/invite') },
   { label: 'Vote on What’s Next', href: '/wishlist' as Href, icon: 'vote', match: (p) => p.startsWith('/wishlist') },
   { label: 'Leave Feedback', href: '/feedback' as Href, icon: 'feedback', match: (p) => p.startsWith('/feedback') },
 ];

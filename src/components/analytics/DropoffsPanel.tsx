@@ -24,6 +24,8 @@ const WINDOWS = [1, 7, 30] as const;
 function labelOf(r: DropoffRow): string {
   if (r.lastEvent === 'session.start') return 'opened, nothing else';
   if (r.lastEvent === 'page.view') return `viewing ${r.lastRoute ?? 'a page'}`;
+  // MIC-083: the page a session left from (a binder by its title), not just "page leave".
+  if (r.lastEvent === 'page.leave') return `left ${r.lastRoute ?? 'a page'}`;
   return r.lastEvent.replace(/[._]/g, ' ');
 }
 

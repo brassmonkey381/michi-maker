@@ -65,7 +65,7 @@ export const PAGE_MATCH_MIN_CARDS = 3;
  */
 export const PAGE_SHARE_FLOOR = 6;
 /** Cards below this share are not sent: they barely move a page's average. */
-const CARD_MIN_SHARE = 0.1;
+export const CARD_MIN_SHARE = 0.1;
 
 /** sRGB (0..1) from CIELAB (D65). */
 function labToRgb(L: number, a: number, b: number): [number, number, number] {

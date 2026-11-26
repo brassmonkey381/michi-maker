@@ -29,11 +29,9 @@ import {
   View,
 } from 'react-native';
 
-import { expandThemeFields, parseQuery, searchCards, srgbToLab } from 'tcgscan-browse';
-
-import { cardsInFamily, PAGE_MATCH_BAR, PAGE_MATCH_MIN_CARDS, PAGE_SHARE_FLOOR, type ColourFamily } from '@/data/colourFamilies';
 import { colourWordIn } from '@/data/colourWords';
-import { loadedColorIndexes, loadPokemonColorIndexes } from '@/lib/colorIndexes';
+import { finalCardHits, wordColourPages } from '@/data/discoverMerge';
+import { colourFamilyRows, rankByCards, SWATCHES } from '@/data/discoverSearch';
 
 import { AccountButton } from '@/components/auth/AccountButton';
 import { MakersFeed } from '@/components/people/MakersFeed';
@@ -61,9 +59,6 @@ import {
   fetchDiscoverPage,
   OFFICIAL_AUTHOR,
   searchBindersPage,
-  searchBindersByCardsRows,
-  searchBinderPagesByShares,
-  discoverByQuery,
   hydrateRankedBinders,
   type RankedBinderRow,
   type BinderListCursor,
@@ -253,84 +248,8 @@ function LoadMore({ busy, onPress, testID }: { busy: boolean; onPress: () => voi
 
 /** MIC-017 piece 8 ('dev'): card-ranked search, colour and theme, Binders | Makers. */
 const DISCOVER_V2 = flag('discover-v2');
-/** The colours Discover offers, with a name to say back. */
-const SWATCHES = [
-  { hex: '#d93b30', name: 'red' },
-  { hex: '#f08a24', name: 'orange' },
-  { hex: '#f2c94c', name: 'yellow' },
-  { hex: '#3fa34d', name: 'green' },
-  { hex: '#2f8fe0', name: 'blue' },
-  { hex: '#8e5bd1', name: 'purple' },
-  { hex: '#e86fae', name: 'pink' },
-  { hex: '#2b2b33', name: 'black' },
-] as const;
-/**
- * A search as cards: the card server answers the query (names, theme:, the full grammar), and the
- * binders those cards fill most come back ranked. Null when there is nothing to rank by.
- */
-/** A search body for the card server's search_cards. */
-function cardSearchBody(parsed: ReturnType<typeof parseQuery>, fields: ReturnType<typeof parseQuery>['fields']): Record<string, unknown> {
-  return {
-    p_words: parsed.words,
-    p_fields: expandThemeFields(fields, { on: true, game: 'pokemon' }).fields,
-    p_compares: parsed.comparisons.map((c) => ({ field: c.field, op: c.op, value: c.value })),
-    p_facets: null,
-    p_min_price: parsed.minPrice,
-    p_max_price: parsed.maxPrice,
-    p_sort: parsed.sort,
-    p_dir: parsed.sortDir,
-    p_limit: 400,
-    p_offset: 0,
-  };
-}
-
-/**
- * BY PAGE (owner, 2026-11-11: "binders with PAGEs that exhibit a lot of black"): each card's share
- * of the colour comes from the palette index, and a page matches at that colour's own bar
- * (data/colourFamilies). The binders come back through those pages. No top-up of near pages
- * (owner, 2026-11-11: results that are "not PINK"): only pages at the bar.
- * Null when the palette index is not available. Used by the swatches and by typed colour words.
- */
-async function colourFamilyRows(family: ColourFamily): Promise<RankedBinderRow[] | null> {
-  const sw = SWATCHES.find((x) => x.name === family);
-  if (!sw) return null;
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(sw.hex.slice(i, i + 2), 16));
-  await loadPokemonColorIndexes();
-  const indexes = loadedColorIndexes();
-  if (!indexes.length) return null;
-  const { ids, shares } = cardsInFamily(indexes, sw.name, srgbToLab(r, g, b));
-  return searchBinderPagesByShares(ids, shares, { minShare: PAGE_MATCH_BAR[sw.name], minCards: PAGE_MATCH_MIN_CARDS, floor: PAGE_SHARE_FLOOR });
-}
-
-/** Two ranked lists as one, the lead list first, never a binder twice. */
-function mergeRows(lead: readonly RankedBinderRow[] | null, rest: readonly RankedBinderRow[] | null): RankedBinderRow[] | null {
-  if (!lead && !rest) return null;
-  const seen = new Set((lead ?? []).map((r) => r.binder_id));
-  return [...(lead ?? []), ...(rest ?? []).filter((r) => !seen.has(r.binder_id))];
-}
-
-async function rankByCards(q: string): Promise<RankedBinderRow[] | null> {
-  const parsed = parseQuery(q);
-  // PLAIN WORDS ARE ALSO WHAT THE ART SHOWS (owner, 2026-11-11: search binders by theme, scenery,
-  // art style). "watercolor" or "rainy city" with no field words is asked twice: as words (names,
-  // card text) and as themes (every word must be in the art); the name matches lead.
-  const plain = parsed.words.length > 0 && parsed.fields.length === 0 && parsed.comparisons.length === 0;
-  const [byWords, byArt] = await Promise.all([
-    discoverByQuery(cardSearchBody(parsed, parsed.fields)),
-    plain
-      ? discoverByQuery(cardSearchBody({ ...parsed, words: [] }, parsed.words.map((w) => ({ key: 'theme', value: w }))))
-      : Promise.resolve(null),
-  ]);
-  const viaServer = byWords || byArt ? [...(byWords ?? []), ...(byArt ?? []).filter((x) => !(byWords ?? []).some((y) => y.binder_id === x.binder_id))] : null;
-  if (viaServer) return viaServer;
-  try {
-    const page = await searchCards(parseQuery(q), { limit: 400 });
-    if (page.failed || !page.cards.length) return null;
-    return await searchBindersByCardsRows(page.cards.map((c) => c.id), 60);
-  } catch {
-    return null;
-  }
-}
+// The search lanes (card words, art, colour word) and how they join live in data/discoverSearch
+// and data/discoverMerge, shared with the owner's search lab (/lab/search, MIC-080).
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -498,12 +417,10 @@ export default function DiscoverScreen() {
         if (id !== reqId.current) return; // a newer query superseded this one
         setResults(page.binders);
         setResultsNext(page.next);
-        setCardHits(cw?.onlyColour ? mergeRows(byColour, ranked) : mergeRows(ranked, byColour));
+        setCardHits(finalCardHits(ranked, byColour, cw));
         // Only rows that came from the colour search say "N green pages": a card-ranked row's
         // matching pages are about the cards, not the colour.
-        const kept = new Set(cw?.onlyColour ? [] : (ranked ?? []).map((r) => r.binder_id));
-        const colourIds = (byColour ?? []).map((r) => r.binder_id).filter((b) => !kept.has(b));
-        setWordColour(cw && colourIds.length ? { family: cw.family, ids: new Set(colourIds) } : null);
+        setWordColour(wordColourPages(ranked, byColour, cw));
       } catch {
         if (id === reqId.current) setResults([]);
       }

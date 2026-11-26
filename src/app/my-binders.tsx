@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { sendBrowseCommand } from 'tcgscan-browse';
 
+import { toggleChip } from '@/constants/ui';
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
 import { PullListSheet } from '@/components/binder/PullListSheet';
 import { BinderCoverSheet } from '@/components/binder/BinderCoverSheet';
@@ -385,7 +386,10 @@ export default function MyBindersScreen() {
               button (Sign in for anyone without an account) sits top right as it does on Home.
               Where the rail is hidden (native / narrow web), keep a way back Home on the left. */}
           <View style={styles.topRow}>
-            <View />
+            {/* MIC-041: the Want and Trade lists, and the owned | want | trade table. */}
+            <Pressable onPress={() => router.push('/lists' as Href)} accessibilityRole="link" testID="open-lists" style={({ pressed }) => [toggleChip.base, pressed && { opacity: 0.7 }]}>
+              <Text style={toggleChip.text}>{'♥ ⇄ My lists'}</Text>
+            </Pressable>
             <AccountButton />
           </View>
 

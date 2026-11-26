@@ -131,6 +131,85 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    // MIC-072 (ships with mic-072-view-bar; this update's ship runs after it), MIC-068 colour words,
+    // MIC-070 search privacy fix.
+    date: '2026-11-25',
+    title: 'A view bar on My Binders',
+    items: [
+      {
+        products: ['michi'],
+        head: 'A view bar at the top of My Binders',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body: 'Turn on “Owned” to see how much of each binder you own on every cover, and “Prices” to see what each binder is worth. “Sort” orders them by Recent, Name, Most owned or Most valuable, and “Show” picks All, Public, Private or Puzzles (on a phone, both are under “Sort”).',
+      },
+      {
+        products: ['michi'],
+        head: 'Your view settings follow you',
+        kind: 'better',
+        area: 'account',
+        body: '“Owned”, “Prices”, the sort and your card labels are now one setting across My Binders, every binder and My collection. Signed in, they are saved to your account, so they are still there next visit.',
+      },
+      {
+        products: ['michi'],
+        head: 'Type a colour in Discover',
+        kind: 'new',
+        area: 'sharing',
+        body: 'Typing a colour word like green, emerald or pastel pink in Discover also finds pages in that colour. On its own the colour pages come first; inside a longer search they follow the other results.',
+      },
+      {
+        products: ['michi'],
+        head: 'Private pages stay out of search',
+        kind: 'fix',
+        area: 'sharing',
+        body: 'A page title from a private binder no longer matches in Discover search. Only public pages can be found.',
+      },
+    ],
+  },
+  {
+    // TCG-035: "Pull these cards" makes a BiBo pull list (BIBO_PULL_LINK_LIVE on).
+    date: '2026-11-19',
+    title: 'Pull these cards',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Pull the cards for a binder',
+        kind: 'new',
+        area: 'collection',
+        body: '“Pull these cards” in a binder’s menu makes a pull list of one copy you own for each pocket, with the page and pocket it goes in. “Open in BiBo” takes you to the list to check the cards off as you sleeve them.',
+      },
+    ],
+  },
+  {
+    // MIC-063 name ideas, MIC-065 share image speed, MIC-037 /sets planners.
+    date: '2026-11-18',
+    title: 'Better name ideas and faster link pictures',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Name ideas that find the thread',
+        kind: 'better',
+        area: 'binders',
+        body: '✨ Ideas now names what ties a page’s cards together in a few words and one short sentence, instead of listing the cards.',
+      },
+      {
+        products: ['michi'],
+        head: 'Shared links show their picture sooner',
+        kind: 'better',
+        area: 'sharing',
+        body: 'The picture a binder link shows in chats and on social sites now takes a few seconds to make instead of up to half a minute, so it is there when you post.',
+      },
+      {
+        products: ['michi'],
+        head: 'Set binder planners',
+        kind: 'new',
+        area: 'browse',
+        body: 'michi-maker.com/sets has a planner for 26 sets: how many pages each binder size needs, a 9-pocket page plan and the full checklist. Each set’s start button opens a new binder on that set.',
+      },
+    ],
+  },
+  {
     // MIC-040 (owner 2026-11-18, Triage window): a FEATURED pin for % owned and completion tracking.
     // Live pieces (ships AFTER mic-059-completion): MIC-059's "X of Y owned · N%" meters on each
     // My Binders tile (once a card is owned), each set in My collection's "By set" view, and the
@@ -148,7 +227,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         big: true,
         pinned: true,
         featured: true,
-        body: 'Once you own a card, each binder in “My Binders” and each set in My collection’s “By set” view shows how many of its cards you have, with a percentage and a bar; turn on “Owned” in a binder (Settings, “My view”) to count the whole binder and the page you are on. Cards you scan in BiBoScan count, and so do cards you tick in a binder.',
+        body: 'Once you own a card, each binder in “My Binders” (with “Owned” on in the bar at the top) and each set in My collection’s “By set” view shows how many of its cards you have, with a percentage and a bar; turn on “Owned” in a binder (Settings, “My view”) to count the whole binder and the page you are on. Cards you scan in BiBoScan count, and so do cards you tick in a binder.',
       },
     ],
   },

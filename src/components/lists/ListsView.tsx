@@ -35,12 +35,15 @@ export function ListsView({
   actions,
   initialShow = 'all',
   initialOpen = null,
+  readOnly = false,
 }: {
   rows: TableRow[];
   ready: boolean;
   catalog: Catalog | null;
-  share: { on: boolean; busy: boolean; set: (on: boolean) => void };
-  actions: ListsActions;
+  share?: { on: boolean; busy: boolean; set: (on: boolean) => void };
+  actions?: ListsActions;
+  /** A visitor on someone's profile: Want and Trade only, no owned counts, nothing to change. */
+  readOnly?: boolean;
   initialShow?: TableFilter;
   initialOpen?: string | null;
 }) {
@@ -61,13 +64,14 @@ export function ListsView({
     <View>
       <View style={styles.bar}>
         <View style={styles.totals} testID="lists-totals">
-          <Text style={styles.total}>{`${totals.owned} owned`}</Text>
+          {readOnly ? null : <Text style={styles.total}>{`${totals.owned} owned`}</Text>}
           <Text style={[styles.total, styles.wantText]}>{`♥ ${totals.want} want`}</Text>
           <Text style={[styles.total, styles.tradeText]}>{`⇄ ${totals.trade} trade`}</Text>
         </View>
-        <DropdownSelect label="Show" value={show} options={SHOW} onChange={setShow} testID="lists-show" />
+        <DropdownSelect label="Show" value={show} options={readOnly ? SHOW.filter((o) => o.id !== 'owned') : SHOW} onChange={setShow} testID="lists-show" />
       </View>
 
+      {share && !readOnly ? (
       <View style={styles.shareRow} testID="lists-share">
         <View style={styles.shareText}>
           <ThemedText type="smallBold">Show my lists on my profile</ThemedText>
@@ -77,10 +81,11 @@ export function ListsView({
         </View>
         <Switch value={share.on} onValueChange={share.set} disabled={share.busy} accessibilityLabel="Show my lists on my profile" />
       </View>
+      ) : null}
 
       <View style={styles.head}>
         <Text style={[styles.th, styles.cardCol]}>Card</Text>
-        <Text style={styles.th}>Owned</Text>
+        {readOnly ? null : <Text style={styles.th}>Owned</Text>}
         <Text style={styles.th}>Want</Text>
         <Text style={styles.th}>Trade</Text>
       </View>
@@ -88,7 +93,7 @@ export function ListsView({
         <ThemedText type="small" themeColor="textSecondary">Loading your lists...</ThemedText>
       ) : shown.length === 0 ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-          {show === 'want'
+          {readOnly ? 'Nothing here yet.' : show === 'want'
             ? 'Nothing on your Want list yet. In a binder, tap a card’s corner circle once, or use "Mark every card I don’t own as WANT" in the binder’s settings.'
             : show === 'trade'
               ? 'Nothing marked for trade yet. Tap an owned card’s green check in a binder, or open a card below and switch on "For trade".'
@@ -101,9 +106,10 @@ export function ListsView({
           return (
             <View key={r.cardId} style={styles.rowWrap} testID={`lists-row-${r.cardId}`}>
               <Pressable
-                onPress={() => setOpen(isOpen ? null : r.cardId)}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: isOpen }}
+                onPress={readOnly ? undefined : () => setOpen(isOpen ? null : r.cardId)}
+                disabled={readOnly}
+                accessibilityRole={readOnly ? undefined : 'button'}
+                accessibilityState={readOnly ? undefined : { expanded: isOpen }}
                 accessibilityLabel={`${card?.name ?? r.cardId}: ${r.owned} owned, ${r.want} wanted, ${r.trade} for trade`}
                 style={styles.row}>
                 <View style={[styles.cardCol, styles.cardCell]}>
@@ -113,11 +119,11 @@ export function ListsView({
                     <Text style={styles.sub} numberOfLines={1}>{card?.setName ?? ''}</Text>
                   </View>
                 </View>
-                <Text style={styles.td}>{r.owned || ''}</Text>
+                {readOnly ? null : <Text style={styles.td}>{r.owned || ''}</Text>}
                 <Text style={[styles.td, styles.wantText]}>{r.want ? `♥ ${r.want}` : ''}</Text>
                 <Text style={[styles.td, styles.tradeText]}>{r.trade ? `⇄ ${r.trade}` : ''}</Text>
               </Pressable>
-              {isOpen ? <RowDetail row={r} actions={actions} /> : null}
+              {isOpen && actions && !readOnly ? <RowDetail row={r} actions={actions} /> : null}
             </View>
           );
         })

@@ -133,3 +133,19 @@ export function filterTable(rows: readonly TableRow[], f: TableFilter): TableRow
   if (f === 'all') return [...rows];
   return rows.filter((r) => r[f] > 0);
 }
+
+/** Someone's shared lists (public_collection_lists) as table rows: want and trade per card, no owned. */
+export function publicRows(l: {
+  wants: { card_id: string; quantity: number }[];
+  trades: { card_id: string; quantity: number }[];
+}): TableRow[] {
+  const by = new Map<string, TableRow>();
+  const row = (cardId: string) => {
+    let r = by.get(cardId);
+    if (!r) by.set(cardId, (r = { cardId, owned: 0, want: 0, trade: 0, copies: [] }));
+    return r;
+  };
+  for (const w of l.wants) row(w.card_id).want += Math.max(1, w.quantity);
+  for (const t of l.trades) row(t.card_id).trade += Math.max(1, t.quantity);
+  return [...by.values()];
+}

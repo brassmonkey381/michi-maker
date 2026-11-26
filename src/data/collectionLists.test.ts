@@ -8,6 +8,7 @@ import {
   pocketStateOf,
   stepsFor,
   tradeCopyFor,
+  publicRows,
   unownedToWant,
 } from './collectionLists.ts';
 
@@ -67,4 +68,12 @@ test('the table counts owned | want | trade per card, copies listed, trade clamp
   assert.deepEqual(filterTable(rows, 'trade').map((r) => r.cardId), ['x']);
   assert.deepEqual(filterTable(rows, 'want').map((r) => r.cardId), ['x', 'z']);
   assert.equal(filterTable(rows, 'all').length, 3);
+});
+
+test('a public profile table counts wants and trades per card, never owned', () => {
+  const rows = publicRows({
+    wants: [{ card_id: 'a', quantity: 2 }],
+    trades: [{ card_id: 'a', quantity: 1 }, { card_id: 'b', quantity: 1 }],
+  });
+  assert.deepEqual(rows.map((r) => [r.cardId, r.owned, r.want, r.trade]), [['a', 0, 2, 1], ['b', 0, 0, 1]]);
 });

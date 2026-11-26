@@ -13,37 +13,11 @@
  * merge every key written this session over the loaded bag, and go out one at a time, so the row
  * always ends with every choice in it.
  */
-import { useSyncExternalStore } from 'react';
-
 import { supabase } from '@/lib/supabase';
 import type { Json } from '@/types/database';
 
-type Entry = { userId: string | null; value: unknown };
-
-const edited = new Map<string, Entry>();
-const listeners = new Set<() => void>();
-let version = 0;
-
-function subscribe(fn: () => void): () => void {
-  listeners.add(fn);
-  return () => {
-    listeners.delete(fn);
-  };
-}
-const getVersion = () => version;
-
-/** What this account last chose for `key` in this session, or null. Re-renders on any change. */
-export function useEditedPref<T>(key: string, userId: string | null): T | null {
-  useSyncExternalStore(subscribe, getVersion, getVersion);
-  const e = edited.get(key);
-  return e && e.userId === userId ? (e.value as T) : null;
-}
-
-export function setEditedPref(key: string, userId: string | null, value: unknown): void {
-  edited.set(key, { userId, value });
-  version += 1;
-  for (const fn of listeners) fn();
-}
+// The in-memory copy and its hook live in editedPrefs (MIC-077: testable under the React Compiler).
+export { setEditedPref, useEditedPref } from './editedPrefs';
 
 /** Per account: every preference key written this session, and the write chain. */
 const written = new Map<string, Record<string, unknown>>();

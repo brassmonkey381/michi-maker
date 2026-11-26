@@ -10,7 +10,7 @@
  */
 import { Platform } from 'react-native';
 
-import { storedReferralCode } from '@/data/referrals';
+import { storedReferralCode, storedReferralOpenedAt } from '@/data/referrals';
 import { requireSupabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 
@@ -144,6 +144,7 @@ export async function startCheckout(
 ): Promise<void> {
   const surface = opts?.surface ?? 'unknown';
   const referral = storedReferralCode();
+  const openedAt = storedReferralOpenedAt();
   track('offer.checkout_start', { lookup_key: lookupKey, surface, bundle: !!opts?.bundle });
   let url: string;
   try {
@@ -155,6 +156,8 @@ export async function startCheckout(
       ...(opts?.bundle ? { bundle: true } : {}),
       // MIC-069: the invite this browser arrived with. The server uses it only on a trial checkout.
       ...(referral ? { referralCode: referral } : {}),
+      // MIC-069 gap B: when that invite was first opened here; the server counts only newer accounts.
+      ...(referral && openedAt ? { referralOpenedAt: String(openedAt) } : {}),
     });
   } catch (e) {
     // A fixed class, never the thrown message - those carry ids and sometimes URLs.

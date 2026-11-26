@@ -83,6 +83,7 @@ import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
 import { trackAffiliateClick } from '@/lib/analytics';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
+import { POCKET_LABEL, pocketStateOf, type PocketState } from '@/data/collectionLists';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { usePriceSummaryWhen, type PriceSummary } from '@/lib/prices';
 
@@ -341,6 +342,10 @@ interface BinderGridProps {
   /** Card ids the viewer owns (own ≥ 1) — card slots for these get a green ✓ corner badge.
    *  Undefined/omitted = the owned overlay is off. */
   ownedIds?: ReadonlySet<string>;
+  /** MIC-041: card ids on the viewer's Want list (light blue heart while not owned). */
+  wantIds?: ReadonlySet<string>;
+  /** MIC-041: card ids whose copy here is marked for trade (amber swap arrows). */
+  tradeIds?: ReadonlySet<string>;
   /**
    * Tapping the owned mark (owner, 2026-10-26). With this, every card pocket gets a target where
    * the mark sits: the green tick when owned, a hollow ring when not, and a tap flips it. Without
@@ -436,6 +441,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onLift,
     dropTargets,
     ownedIds,
+    wantIds,
+    tradeIds,
     onOwnedPress,
     scanUrlOf,
   }: BinderGridProps,
@@ -688,6 +695,9 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   }, [ghosts]);
   const arrivals = seen.arrived.size;
   let arrivalIndex = 0;
+  // MIC-041: NO > WANT > OWNED > TRADE, what each pocket's corner circle shows.
+  const markOf = (cardId?: string): PocketState =>
+    cardId && ownedIds ? pocketStateOf(cardId, ownedIds, wantIds ?? NO_IDS, tradeIds ?? NO_IDS) : 'no';
   // A slot's picture: the pocket's content, also drawn for a card on its way out.
   const contentFor = (slot: DemoSlot) => (
             <SlotContent
@@ -698,6 +708,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               small={small}
               catalog={catalog}
               owned={!!(slot.cardId && ownedIds?.has(slot.cardId))}
+              mark={markOf(slot.cardId)}
               scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
               captionFields={captionFields}
               instantImages={instantImages}
@@ -1144,7 +1155,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           !small &&
           page.slots.map((slot) => {
             if (!slot.cardId || slot.type !== 'card' || connected) return null;
-            const owned = ownedIds.has(slot.cardId);
+            const state = markOf(slot.cardId);
             const b = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
             const size = chipBox(chipScale).height;
             return (
@@ -1155,11 +1166,11 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                 <Pressable
                   onPress={() => onOwnedPress(slot)}
                   accessibilityRole="button"
-                  accessibilityState={{ checked: owned }}
-                  accessibilityLabel={owned ? 'Owned, tap to unmark' : 'Not owned, tap to mark as owned'}
+                  accessibilityState={{ checked: state !== 'no' }}
+                  accessibilityLabel={POCKET_LABEL[state]}
                   hitSlop={{ top: 10, left: 10, bottom: 6, right: 6 }}
                   testID={`owned-toggle-${slot.id}`}
-                  style={[styles.ownedTarget, { width: size, height: size, borderRadius: size / 2 }, !owned && styles.ownedRing]}
+                  style={[styles.ownedTarget, { width: size, height: size, borderRadius: size / 2 }, state === 'no' && styles.ownedRing]}
                 />
               </View>
             );
@@ -1228,6 +1239,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               small={small}
               catalog={catalog}
               owned={!!(dragged.cardId && ownedIds?.has(dragged.cardId))}
+              mark={markOf(dragged.cardId)}
               scanUri={dragged.cardId ? scanUrlOf?.(dragged) : undefined}
               captionFields={captionFields}
               instantImages={instantImages}
@@ -2062,6 +2074,7 @@ function SlotContent({
   pageTitle,
   onArtHover,
   owned = false,
+  mark,
   scanUri,
   captionFields = [],
   price,
@@ -2118,6 +2131,8 @@ function SlotContent({
   price?: number;
   /** The viewer owns this card (own ≥ 1) — show the green ✓ corner badge. */
   owned?: boolean;
+  /** MIC-041: the corner circle's state; wins over `owned` when set. */
+  mark?: PocketState;
   /** This card's real scan (see BinderGridProps.scanUrlOf); card pockets only. */
   scanUri?: string;
   /** The page's own name, so a reserved art panel can say which page's brief it is holding. */
@@ -2231,7 +2246,7 @@ function SlotContent({
         {backingImage ? <WearImage uri={backingImage} radius={radius} instant={instantImages} /> : null}
         <CardImage key={id} id={id} radius={Math.max(0, radius - ringPad)} small={small} contentFit={spanning ? 'cover' : 'contain'} instant={instantImages} />
         <KindBadge kind={kind} small={small} />
-        <OwnedBadge owned={owned} small={small} scale={chipScale} />
+        <OwnedBadge state={mark ?? (owned ? 'owned' : 'no')} small={small} scale={chipScale} />
       </View>
     );
   }
@@ -2262,7 +2277,7 @@ function SlotContent({
           small={small}
           renderImage={() => <CardImage key={id} id={id} radius={0} small={false} contentFit="cover" scanUri={scanUri} instant={instantImages} />}
         />
-        <OwnedBadge owned={owned} small={small} scale={chipScale} />
+        <OwnedBadge state={mark ?? (owned ? 'owned' : 'no')} small={small} scale={chipScale} />
       </View>
     );
   }
@@ -2301,7 +2316,7 @@ function SlotContent({
           <View style={[styles.foilBar, styles.foilBarB]} />
         </View>
         <KindBadge kind={kind} small={small} hidden={codeRowOn} />
-        <OwnedBadge owned={owned} small={small} scale={chipScale} />
+        <OwnedBadge state={mark ?? (owned ? 'owned' : 'no')} small={small} scale={chipScale} />
         <CardLabels
           card={resolveCatalogCardWith(catalog, id)}
           kind={kind}
@@ -2546,10 +2561,13 @@ function CardLabels({
   );
 }
 
+const NO_IDS: ReadonlySet<string> = new Set();
+const BADGE_GLYPH: Record<PocketState, string> = { no: '', want: '♥', owned: '✓', trade: '⇄' };
+
 /** A green ✓ corner badge marking a card the viewer owns (own ≥ 1) — top-left, matching the
  *  browse grid's owned marker. Off unless `owned`; shrinks on small (neighbour) tiles. */
-function OwnedBadge({ owned, small, scale = 1 }: { owned: boolean; small: boolean; scale?: number }) {
-  if (!owned) return null;
+function OwnedBadge({ state, small, scale = 1 }: { state: PocketState; small: boolean; scale?: number }) {
+  if (state === 'no') return null;
   // THE SAME HEIGHT AS THE FINISH CHIP OPPOSITE IT. Both sit at the top of the pocket and the eye
   // pairs them, so the owned mark takes the finish chip's box rather than a size of its own — it
   // was noticeably the taller of the two. Neighbour tiles keep the old small mark: a filmstrip is
@@ -2560,8 +2578,9 @@ function OwnedBadge({ owned, small, scale = 1 }: { owned: boolean; small: boolea
   return (
     <View
       pointerEvents="none"
-      style={[styles.ownedBadge, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={[styles.ownedBadgeText, type]}>✓</Text>
+      testID={`pocket-mark-${state}`}
+      style={[styles.ownedBadge, state === 'want' && styles.wantBadge, state === 'trade' && styles.tradeBadge, { width: size, height: size, borderRadius: size / 2 }]}>
+      <Text style={[styles.ownedBadgeText, type]}>{BADGE_GLYPH[state]}</Text>
     </View>
   );
 }
@@ -3479,6 +3498,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // MIC-041: WANT is a white heart on light blue, TRADE is swap arrows on amber.
+  wantBadge: { backgroundColor: '#5aa9e6' },
+  tradeBadge: { backgroundColor: '#e8a317' },
   ownedBadgeSmall: { top: 2, left: 2, width: 13, height: 13, borderRadius: 6.5 },
   /** The tap layer over the owned corner, in grid coordinates like variantRow. */
   ownedRow: { position: 'absolute', flexDirection: 'row', justifyContent: 'flex-start', zIndex: 20 },

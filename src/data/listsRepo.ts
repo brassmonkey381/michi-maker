@@ -64,7 +64,7 @@ export async function markTrade(userId: string, entryId: string, quantity = 1): 
   if (!c) return;
   const { error } = await c
     .from('entry_trades')
-    .upsert({ user_id: userId, entry_id: entryId, quantity: Math.max(1, Math.round(quantity)) }, { onConflict: 'entry_id' });
+    .upsert({ user_id: userId, entry_id: entryId, quantity: Math.max(1, Math.round(quantity)) }, { onConflict: 'user_id,entry_id' });
   if (error) throw new Error(error.message);
 }
 

@@ -6,7 +6,9 @@
 -- offline-first merge. So both lists are Michi-owned tables that BiBo never reads or writes:
 --   - card_wants: per CARD, with a quantity ("I want 2 more of this").
 --   - entry_trades: per owned COPY (one portfolio_entries row; a lot of 3 can offer 1). Keyed to
---     the entry id with ON DELETE CASCADE, so a copy BiBo deletes takes its trade mark with it.
+--     the entry by portfolio_entries' real key, (user_id, id) since 20260715010000, with ON DELETE
+--     CASCADE, so a copy BiBo deletes takes its trade mark with it, and a mark can only ever name
+--     one of its own owner's copies. Nothing is added to portfolio_entries itself.
 -- profiles.show_lists (off by default) lets other people see both lists on the profile page,
 -- through public_collection_lists(), which returns nothing unless it is on.
 -- ADDITIVE: new tables, one new nullable-safe column, one function. No change to any BiBo table.
@@ -40,14 +42,15 @@ grant select, insert, update, delete on public.card_wants to authenticated;
 
 -- Trades --------------------------------------------------------------------------------------
 create table if not exists public.entry_trades (
-  entry_id   text primary key references public.portfolio_entries (id) on delete cascade,
   user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  entry_id   text not null,
   quantity   integer not null default 1 check (quantity between 1 and 999),
   note       text check (note is null or char_length(note) <= 200),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  primary key (user_id, entry_id),
+  foreign key (user_id, entry_id) references public.portfolio_entries (user_id, id) on delete cascade
 );
-create index if not exists entry_trades_user_id_idx on public.entry_trades (user_id);
 
 alter table public.entry_trades enable row level security;
 drop policy if exists "entry_trades_select_own" on public.entry_trades;
@@ -72,7 +75,7 @@ declare
   owner uuid;
   qty integer;
 begin
-  select e.user_id, e.quantity into owner, qty from public.portfolio_entries e where e.id = new.entry_id;
+  select e.user_id, e.quantity into owner, qty from public.portfolio_entries e where e.user_id = new.user_id and e.id = new.entry_id;
   if owner is null or owner <> new.user_id then
     raise exception 'entry_trades: not your copy' using errcode = '42501';
   end if;
@@ -102,7 +105,7 @@ returns jsonb language sql stable security definer set search_path = '' as $$
         select jsonb_agg(jsonb_build_object(
                  'card_id', e.card_id, 'variant', e.variant, 'condition', e.condition,
                  'quantity', least(t.quantity, greatest(e.quantity, 1))) order by t.updated_at desc)
-        from public.entry_trades t join public.portfolio_entries e on e.id = t.entry_id
+        from public.entry_trades t join public.portfolio_entries e on e.user_id = t.user_id and e.id = t.entry_id
         where t.user_id = p_user), '[]'::jsonb))
   else null end
 $$;

@@ -82,7 +82,7 @@ export function InviteBody({
         {summary ? (
           <View style={styles.stats} testID="invite-stats">
             <Stat value={counts.trialled} label="started the trial" />
-            <Stat value={counts.paid} label="paid" />
+            <Stat value={counts.paid} label={counts.paid === 1 ? 'paid subscriber' : 'paid subscribers'} />
             <Stat value={counts.ready} label={counts.ready === 1 ? 'free print code' : 'free print codes'} />
           </View>
         ) : null}

@@ -545,6 +545,17 @@ Deno.serve(async (req: Request) => {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         let sub = event.data.object as Stripe.Subscription;
+        // HOLIDAY TRIALS ARE GRANTED FROM STRIPE'S CURRENT STATE, not the event's snapshot. Stripe
+        // does not promise order: a late "updated" (trialing, set to cancel) arriving after the
+        // "deleted" would otherwise write a Jan 1 expiry back onto a cancelled trial and hand PRO
+        // back. Re-reading the subscription makes every event land on the latest truth.
+        if (sub.metadata?.holiday_trial === 'true') {
+          try {
+            sub = await stripe.subscriptions.retrieve(sub.id);
+          } catch (e) {
+            console.error('holiday trial not re-read, using the event snapshot', sub.id, (e as Error).message);
+          }
+        }
         // MIC-073 (owner, 2026-11-25): "cancelling the trial [should] immediately revert the account
         // to free user tier". Stripe's portal cancels a trial at its end, so a HOLIDAY trial that is
         // still trialing and has been set to cancel is cancelled now; the grant below then ends PRO

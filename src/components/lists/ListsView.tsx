@@ -12,7 +12,7 @@ import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { filterTable, type TableFilter, type TableRow } from '@/data/collectionLists';
 import { resolveCardWith } from '@/data/cardResolver';
 import type { Catalog } from '@/lib/catalog';
-import { cardThumbUrl } from '@/lib/catalogConfig';
+import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 
 const SHOW: readonly DropdownOption<TableFilter>[] = [
   { id: 'all', label: 'All' },
@@ -44,6 +44,9 @@ export function ListsView({
   initialShow?: TableFilter;
   initialOpen?: string | null;
 }) {
+  // The manifest flag is read here and used in the thumb lookup so the React Compiler recomputes
+  // the URL when the manifest lands (cardThumbUrl reads module state it cannot track).
+  const manifestReady = useImageManifest();
   const [show, setShow] = useState<TableFilter>(initialShow);
   const [open, setOpen] = useState<string | null>(initialOpen);
   const shown = useMemo(() => {
@@ -104,7 +107,7 @@ export function ListsView({
                 accessibilityLabel={`${card?.name ?? r.cardId}: ${r.owned} owned, ${r.want} wanted, ${r.trade} for trade`}
                 style={styles.row}>
                 <View style={[styles.cardCol, styles.cardCell]}>
-                  <Image source={{ uri: cardThumbUrl(r.cardId, 245) || undefined }} style={styles.thumb} contentFit="contain" />
+                  <Image source={{ uri: (manifestReady ? cardThumbUrl(r.cardId, 245) : '') || undefined }} style={styles.thumb} contentFit="contain" />
                   <View style={styles.cardText}>
                     <Text style={styles.name} numberOfLines={1}>{card?.name ?? r.cardId}</Text>
                     <Text style={styles.sub} numberOfLines={1}>{card?.setName ?? ''}</Text>

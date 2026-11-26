@@ -11,14 +11,18 @@ import { FontSize, Palette, Spacing, Weight } from '@/constants/theme';
 import { resolveCardWith } from '@/data/cardResolver';
 import { fetchPublicLists, type PublicLists } from '@/data/listsRepo';
 import { useCatalog } from '@/hooks/use-catalog';
+import type { Catalog } from '@/lib/catalog';
 
 const FIRST = 12;
 
-export function PublicListsSection({ userId }: { userId: string }) {
-  const [lists, setLists] = useState<{ userId: string; lists: PublicLists | null } | null>(null);
-  const { catalog } = useCatalog(true);
+/** `initial` hands in lists instead of reading them (the review preview); a real profile omits it. */
+export function PublicListsSection({ userId, initial, catalogOverride }: { userId: string; initial?: PublicLists; catalogOverride?: Catalog | null }) {
+  const [lists, setLists] = useState<{ userId: string; lists: PublicLists | null } | null>(initial ? { userId, lists: initial } : null);
+  const loaded = useCatalog(true).catalog;
+  const catalog = catalogOverride ?? loaded;
 
   useEffect(() => {
+    if (initial) return;
     let live = true;
     fetchPublicLists(userId)
       .then((l) => {
@@ -28,7 +32,7 @@ export function PublicListsSection({ userId }: { userId: string }) {
     return () => {
       live = false;
     };
-  }, [userId]);
+  }, [userId, initial]);
 
   const l = lists?.userId === userId ? lists.lists : null;
   if (!l || (!l.wants.length && !l.trades.length)) return null;

@@ -38,14 +38,14 @@ export default function ListsScreen() {
 
   if (!user || user.is_anonymous) {
     return (
-      <PageShell title="My lists">
+      <PageShell title="My lists" heading="My lists" lede="Owned, Want and Trade, card by card.">
         <ThemedText>Create an account to keep a Want list and a Trade list.</ThemedText>
         <AccountButton />
       </PageShell>
     );
   }
   return (
-    <PageShell title="My lists">
+    <PageShell title="My lists" heading="My lists" lede="Owned, Want and Trade, card by card.">
       <ListsView rows={rows} ready={lists.ready && copies !== undefined} catalog={catalog} share={share} actions={lists} />
     </PageShell>
   );

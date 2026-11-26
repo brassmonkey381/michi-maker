@@ -5,7 +5,8 @@
 --     card-backed checkout trial has started (the webhook sees checkout.session.completed).
 --   - If the friend pays, "they each get another": the first invoice with amount_paid > 0 on the
 --     referred subscription gives the referrer +1 and the friend +1. 3 prints in total.
---   - "no caps": no monthly cap. Referral codes never expire.
+--   - "no caps": no monthly cap. Owner 2026-11-25: "referal gift codes expire a year from grant"
+--     (and the MIC-073 thank-you codes too; the MIC-074 holiday codes end Jan 31).
 --   - "refund voids the print codes": a full refund of the friend's subscription payment voids
 --     the UNUSED codes that payment earned (the two paid ones). A trial cancel voids nothing
 --     ("069 A"). A code already used stays used.
@@ -60,7 +61,8 @@ create table if not exists public.print_credits (
   reason                   text not null
                              check (reason in ('friend_trial', 'friend_paid', 'paid_with_invite', 'subscriber_thanks', 'holiday_gift')),
   granted_at               timestamptz not null default now(),
-  -- NULL = never expires (referral codes). The Stripe promotion code carries the same expiry.
+  -- When the code stops working (referral and thank-you codes: a year from grant, owner 2026-11-25;
+  -- holiday gift codes: Jan 31). NULL = never. The Stripe promotion code carries the same expiry.
   expires_at               timestamptz,
   -- The checkout code (upper case, 6 characters) and its Stripe id; NULL until minted.
   code                     text unique check (code ~ '^[A-Z0-9]{6}$'),
@@ -171,8 +173,8 @@ begin
    where id = p_referral_id and status = 'pending'
   returning inviter_id into inviter;
   if inviter is not null then
-    insert into public.print_credits (user_id, referral_id, reason)
-    values (inviter, p_referral_id, 'friend_trial')
+    insert into public.print_credits (user_id, referral_id, reason, expires_at)
+    values (inviter, p_referral_id, 'friend_trial', now() + interval '1 year')
     on conflict (referral_id, user_id, reason) where referral_id is not null do nothing;
   end if;
 end $$;
@@ -190,9 +192,9 @@ begin
    where id = p_referral_id and status in ('pending', 'trialled')
   returning inviter_id, invitee_id into r;
   if r.inviter_id is not null then
-    insert into public.print_credits (user_id, referral_id, reason)
-    values (r.inviter_id, p_referral_id, 'friend_paid'),
-           (r.invitee_id, p_referral_id, 'paid_with_invite')
+    insert into public.print_credits (user_id, referral_id, reason, expires_at)
+    values (r.inviter_id, p_referral_id, 'friend_paid', now() + interval '1 year'),
+           (r.invitee_id, p_referral_id, 'paid_with_invite', now() + interval '1 year')
     on conflict (referral_id, user_id, reason) where referral_id is not null do nothing;
   end if;
 end $$;

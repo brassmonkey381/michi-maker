@@ -114,7 +114,7 @@ export function InviteBody({
             2. When their trial ends and they pay: you each get one more.
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Invite as many friends as you like. Codes from invites never expire. A friend counts once, for the first
+            Invite as many friends as you like. Each code works for a year from the day you get it. A friend counts once, for the first
             link they used. If a friend’s payment is refunded, the unused codes it earned stop working. Cancelling a
             trial changes nothing.
           </ThemedText>

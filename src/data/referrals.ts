@@ -3,7 +3,7 @@
  *
  * The program: share your invite link (/r/<code>). When a friend who came through it starts the
  * free trial, you get a free print code. When they pay, you each get one more. No caps; referral
- * codes never expire. Each code is a one-use Stripe promotion code for the binder PDF, entered at
+ * codes last a year from grant. Each code is a one-use Stripe promotion code for the binder PDF, entered at
  * checkout, and anyone can use it. A refund of the friend's payment turns off the unused codes that
  * payment earned; cancelling the trial takes back nothing.
  *

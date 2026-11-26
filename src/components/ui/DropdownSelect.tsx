@@ -26,6 +26,7 @@ export function DropdownSelect<T extends string>({
   testID,
   minWidth = 160,
   caption = true,
+  plain = false,
 }: {
   /** Said before the value to a screen reader, and as the small caption above the field. */
   label: string;
@@ -38,6 +39,9 @@ export function DropdownSelect<T extends string>({
   minWidth?: number;
   /** Off where a step heading above already names the choice. */
   caption?: boolean;
+  /** A light bordered field with its own ▾, for a dense toolbar (MIC-041: the kit's dark
+   *  chevron box read as a black square there). */
+  plain?: boolean;
 }) {
   const ref = useRef<ViewType>(null);
   const [at, setAt] = useState<{ x: number; y: number; w: number } | null>(null);
@@ -49,12 +53,24 @@ export function DropdownSelect<T extends string>({
     <View style={styles.wrap} testID={testID}>
       {caption ? <Text style={styles.caption}>{label}</Text> : null}
       <View ref={ref} collapsable={false} style={{ minWidth }}>
-        <SelectTrigger
-          value={display ?? current?.label ?? ''}
-          onPress={open}
-          expanded={!!at}
-          accessibilityLabel={`${label}: ${display ?? current?.label ?? ''}`}
-        />
+        {plain ? (
+          <Pressable
+            onPress={open}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: !!at }}
+            accessibilityLabel={`${label}: ${display ?? current?.label ?? ''}`}
+            style={({ pressed }) => [styles.plain, pressed && styles.itemPressed]}>
+            <Text style={styles.plainText} numberOfLines={1}>{display ?? current?.label ?? ''}</Text>
+            <Text style={styles.plainChevron}>▾</Text>
+          </Pressable>
+        ) : (
+          <SelectTrigger
+            value={display ?? current?.label ?? ''}
+            onPress={open}
+            expanded={!!at}
+            accessibilityLabel={`${label}: ${display ?? current?.label ?? ''}`}
+          />
+        )}
       </View>
       {at ? (
         <Modal visible transparent animationType="none" onRequestClose={() => setAt(null)}>
@@ -119,5 +135,8 @@ const styles = StyleSheet.create({
   itemPressed: { opacity: 0.8 },
   itemText: { fontSize: 15, fontWeight: '600', color: Palette.ink },
   itemTextOn: { color: Palette.accentText },
+  plain: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: Palette.hairlineStrong, backgroundColor: Palette.surface },
+  plainText: { flexShrink: 1, fontSize: 15, fontWeight: '600', color: Palette.ink },
+  plainChevron: { fontSize: 14, color: Palette.muted },
   itemHint: { fontSize: 13, color: Palette.muted, marginTop: 2 },
 });

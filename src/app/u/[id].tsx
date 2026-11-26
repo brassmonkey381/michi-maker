@@ -72,10 +72,7 @@ type State =
   | { status: 'missing' };
 
 export default function ProfileRoute() {
-  const { id, lists: listsParam } = useLocalSearchParams<{ id: string; lists?: string }>();
-  // MIC-041 (owner choosing, 2026-11-26): ?lists=a is the compact carousel top right, ?lists=b the
-  // page-wide grid; without it, the shipped table. Branch profile-lists-ab only, not live.
-  const listsLayout = listsParam === 'a' ? 'rail' : listsParam === 'b' ? 'grid' : 'table';
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const { width } = useWindowDimensions();
@@ -254,11 +251,6 @@ export default function ProfileRoute() {
                     </View>
                   ) : null}
                 </View>
-                {listsLayout === 'rail' && wide ? (
-                  <View style={styles.listsTop}>
-                    <PublicListsSection userId={state.profile.id} layout="rail" compact />
-                  </View>
-                ) : null}
               </View>
             ) : (
             <>
@@ -312,12 +304,6 @@ export default function ProfileRoute() {
             </>
             )}
 
-            {listsLayout === 'rail' && !(PROFILE_CARD && wide) ? (
-              <View style={styles.listsUnder}>
-                <PublicListsSection userId={state.profile.id} layout="rail" />
-              </View>
-            ) : null}
-
             <View style={styles.section}>
               <ThemedText type="smallBold" style={styles.sectionTitle}>
                 Public binders
@@ -335,7 +321,7 @@ export default function ProfileRoute() {
             </View>
 
             {/* MIC-041: their Want and Trade lists, only when they switched sharing on. */}
-            {listsLayout === 'rail' ? null : <PublicListsSection userId={state.profile.id} layout={listsLayout} />}
+            <PublicListsSection userId={state.profile.id} />
 
             {/* The takedown intake for profile content (bio, avatar), the same flow as reporting a
                 binder, filed with profile_id instead. Hidden on your own page. */}
@@ -412,6 +398,4 @@ const styles = StyleSheet.create({
   recentThumbEmpty: { backgroundColor: Palette.hairline },
   recentText: { flex: 1, minWidth: 0 },
   sectionTitle: { fontSize: FontSize.md },
-  listsTop: { width: 400, flexShrink: 0 },
-  listsUnder: { width: '100%', marginTop: Spacing.four },
 });

@@ -1,18 +1,14 @@
 /**
- * MIC-041 (owner, 2026-11-26): the public profile's Want and Trade lists as cards, in two layouts
- * the owner is choosing between (`?lists=a` / `?lists=b` on /u/<name>, branch profile-lists-ab):
+ * MIC-041 (owner, 2026-11-26, picked B over a compact carousel): the public profile's Want and
+ * Trade lists as a page-wide grid of large card art that loads more as you scroll.
  *
- *   A  ListsRail: a compact box, top right of the profile on a desktop; the cards scroll left and
- *      right like a carousel (arrows for a mouse, a swipe on a phone).
- *   B  ListsGrid: as wide as the page; a grid of large card art that loads more as you scroll.
- *
- * Both share one toolbar under the MIC-017 rules: a search box, All / Want / Trade (segmented),
+ * It shares one toolbar under the MIC-017 rules: a search box, All / Want / Trade (segmented),
  * a Sort dropdown and a Filters sheet (set, type, rarity). Every control is 44 px tall, text 13 px
  * or more, and on a phone the bar wraps to a second line instead of scrolling sideways.
  */
 import { Image } from 'expo-image';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Platform, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Button, Input, Seg, Sheet } from 'tcgscan-ui';
 
 import { DropdownSelect, type DropdownOption } from '@/components/ui/DropdownSelect';
@@ -50,24 +46,22 @@ export function useListQuery() {
   return { query, set: (patch: Partial<ListQuery>) => setQuery((q) => ({ ...q, ...patch })) };
 }
 
-/** The one toolbar. `compact` (layout A's narrow box) puts the search on its own line. */
+/** The one toolbar: one row when it fits, else search + Filters, then the switch and sort. */
 export function ListBrowseBar({
   rows,
   query,
   set,
-  compact,
 }: {
   rows: readonly BrowseRow[];
   query: ListQuery;
   set: (patch: Partial<ListQuery>) => void;
-  compact?: boolean;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [w, setW] = useState(0);
   const n = activeFilterCount(query.filters);
   // One row when there is room for it. Otherwise two: search and Filters, then the
   // All / Want / Trade switch and the sort.
-  const oneRow = !compact && w >= 720;
+  const oneRow = w >= 720;
   const filters = (
     <Button label={n ? `Filters (${n})` : 'Filters'} look={n ? 'primary' : 'secondary'} onPress={() => setFiltersOpen(true)} accessibilityLabel={n ? `Filters, ${n} on` : 'Filters'} />
   );
@@ -89,7 +83,7 @@ export function ListBrowseBar({
       </View>
       <View style={styles.controls}>
         <Seg options={SHOW} value={query.show} onChange={(show: ListShow) => set({ show })} accessibilityLabel="Show" />
-        <DropdownSelect label="Sort" value={query.sort} options={SORT} onChange={(sort) => set({ sort })} caption={false} minWidth={112} display={`Sort: ${SORT.find((s) => s.id === query.sort)?.label}`} testID="lists-sort" />
+        <DropdownSelect label="Sort" value={query.sort} options={SORT} onChange={(sort) => set({ sort })} caption={false} plain minWidth={112} display={`Sort: ${SORT.find((s) => s.id === query.sort)?.label}`} testID="lists-sort" />
         {oneRow ? filters : null}
       </View>
       <FiltersSheet visible={filtersOpen} rows={rows} value={query.filters} onChange={(filters) => set({ filters })} onClose={() => setFiltersOpen(false)} />
@@ -155,7 +149,7 @@ function ListTile({ row, width, manifestReady }: { row: BrowseRow; width: number
         </View>
       </View>
       <Text style={styles.tileName} numberOfLines={1}>{name}</Text>
-      <Text style={styles.tileSet} numberOfLines={1}>{row.info.setName}</Text>
+      <Text style={styles.tileSet} numberOfLines={2}>{row.info.setName}</Text>
     </View>
   );
 }
@@ -172,61 +166,6 @@ function Totals({ rows }: { rows: readonly BrowseRow[] }) {
 
 function Empty() {
   return <Text style={styles.empty}>No cards match.</Text>;
-}
-
-/** Layout A: a compact box with the cards in one sideways-scrolling line. */
-export function ListsRail({ rows, compact }: { rows: readonly BrowseRow[]; compact?: boolean }) {
-  const manifestReady = useImageManifest();
-  const { query, set } = useListQuery();
-  const shown = useMemo(() => applyListQuery(rows, query), [rows, query]);
-  const scroller = useRef<ScrollView>(null);
-  const [x, setX] = useState(0);
-  const [viewW, setViewW] = useState(0);
-  const [contentW, setContentW] = useState(0);
-  const TILE = compact ? 112 : 128;
-  const step = Math.max(TILE + Spacing.two, Math.floor(viewW / (TILE + Spacing.two)) * (TILE + Spacing.two));
-  const go = (dir: 1 | -1) => scroller.current?.scrollTo({ x: Math.max(0, x + dir * step), animated: true });
-  const canBack = x > 4;
-  const canFwd = x + viewW < contentW - 4;
-  return (
-    <View style={styles.box} testID="profile-lists-rail">
-      <View style={styles.head}>
-        <Text style={styles.title}>Want and Trade</Text>
-        <Totals rows={rows} />
-      </View>
-      <ListBrowseBar rows={rows} query={query} set={set} compact={compact} />
-      {shown.length === 0 ? (
-        <Empty />
-      ) : (
-        <View>
-          <ScrollView
-            ref={scroller}
-            horizontal
-            showsHorizontalScrollIndicator={Platform.OS === 'web'}
-            onScroll={(e) => setX(e.nativeEvent.contentOffset.x)}
-            scrollEventThrottle={32}
-            onLayout={(e) => setViewW(e.nativeEvent.layout.width)}
-            onContentSizeChange={(w) => setContentW(w)}
-            contentContainerStyle={styles.railRow}>
-            {shown.map((r) => (
-              <ListTile key={r.cardId} row={r} width={TILE} manifestReady={manifestReady} />
-            ))}
-          </ScrollView>
-          {Platform.OS === 'web' && contentW > viewW + 4 ? (
-            <View style={styles.arrows}>
-              <Text style={styles.count}>{`${shown.length} card${shown.length === 1 ? '' : 's'}`}</Text>
-              <Pressable onPress={() => go(-1)} disabled={!canBack} accessibilityRole="button" accessibilityLabel="Previous cards" style={[styles.arrow, !canBack && styles.arrowOff]}>
-                <Text style={styles.arrowText}>‹</Text>
-              </Pressable>
-              <Pressable onPress={() => go(1)} disabled={!canFwd} accessibilityRole="button" accessibilityLabel="More cards" style={[styles.arrow, !canFwd && styles.arrowOff]}>
-                <Text style={styles.arrowText}>›</Text>
-              </Pressable>
-            </View>
-          ) : null}
-        </View>
-      )}
-    </View>
-  );
 }
 
 const PAGE = 24;
@@ -293,18 +232,11 @@ const styles = StyleSheet.create({
   searchRow: { flex: 1, width: undefined, minWidth: 0 },
   controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
   sheetBody: { gap: Spacing.three, paddingVertical: Spacing.two },
-  box: { gap: Spacing.three, padding: Spacing.three, borderRadius: Radius.panel, borderWidth: 1, borderColor: Palette.hairline, backgroundColor: Palette.surface },
   section: { width: '100%', marginTop: Spacing.five, gap: Spacing.three },
   head: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.two },
-  title: { fontSize: FontSize.md, fontWeight: Weight.bold, color: Palette.ink },
   titleLg: { fontSize: FontSize.md, fontWeight: Weight.bold, color: Palette.ink },
   totals: { flexDirection: 'row', gap: Spacing.three },
   total: { fontSize: FontSize.label, fontWeight: Weight.bold },
-  railRow: { gap: Spacing.two, paddingBottom: Spacing.two },
-  arrows: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Spacing.two },
-  arrow: { width: 44, height: 44, borderRadius: Radius.pill, borderWidth: 1, borderColor: Palette.hairlineStrong, alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.surface },
-  arrowOff: { opacity: 0.35 },
-  arrowText: { fontSize: 24, lineHeight: 26, fontWeight: Weight.bold, color: Palette.ink },
   count: { flex: 1, fontSize: 13, color: Palette.muted },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   art: { borderRadius: 6, overflow: 'hidden', backgroundColor: Palette.hairline },

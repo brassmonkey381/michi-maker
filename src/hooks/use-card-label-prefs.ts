@@ -25,7 +25,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { CAPTION_FIELDS, DEFAULT_CAPTION_FIELDS, ROLLED_OUT_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import { isCurrentEpoch, stamp } from '@/data/prefsEpoch';
-import { supabase } from '@/lib/supabase';
+import { saveAccountPref, setEditedPref, useEditedPref } from '@/lib/sharedPrefs';
 import { useAuth } from '@/store/auth';
 
 export interface CardLabelPrefs {
@@ -80,6 +80,8 @@ function normalize(value: unknown): CardLabelPrefs | null {
 export interface CardLabelPrefsState extends CardLabelPrefs {
   setOn: (on: boolean) => void;
   toggleField: (key: CaptionFieldKey) => void;
+  /** Several changes as one write (setOn then toggleField would each start from the old copy). */
+  update: (patch: Partial<CardLabelPrefs>) => void;
 }
 
 export function useCardLabelPrefs(): CardLabelPrefsState {
@@ -97,7 +99,8 @@ export function useCardLabelPrefs(): CardLabelPrefsState {
    * derives back to defaults during the very same render instead of briefly showing the previous
    * account's choices — one of which is the print finish of cards they own.
    */
-  const [edited, setEdited] = useState<{ userId: string | null; prefs: CardLabelPrefs } | null>(null);
+  // MIC-072: shared by every screen (lib/sharedPrefs).
+  const edited = useEditedPref<CardLabelPrefs>('cardLabels', userId);
   const [device, setDevice] = useState<{ userId: string | null; prefs: CardLabelPrefs } | null>(null);
 
   // Device-local: resolves in milliseconds, and is the only store guests have.
@@ -123,7 +126,7 @@ export function useCardLabelPrefs(): CardLabelPrefsState {
   }, [profile]);
 
   const prefs =
-    (edited?.userId === userId ? edited.prefs : null) ??
+    edited ??
     account ??
     (device?.userId === userId ? device.prefs : null) ??
     DEFAULTS;
@@ -134,32 +137,15 @@ export function useCardLabelPrefs(): CardLabelPrefsState {
       // the moment they say otherwise (see `prefsEpoch`).
       const bag = stamp({ on: next.on, fields: [...next.fields], offered: [...ROLLED_OUT_FIELDS] });
       AsyncStorage.setItem(storageKey(userId), JSON.stringify(bag)).catch(() => {});
-      // Real accounts only: an anonymous session's profile is thrown away with the session, so
-      // writing to it spends a round trip on something nobody will ever read back.
-      if (supabase && user && !user.is_anonymous) {
-        // Spread into a plain JSON shape: the generated `preferences` type is a recursive Json
-        // union, and a typed interface is not assignable to it however JSON-shaped it happens to
-        // be. This is a widening, not a cast away from anything real.
-        const merged = {
-          ...((profile?.preferences as object) ?? {}),
-          cardLabels: bag,
-        };
-        void supabase
-          .from('profiles')
-          .update({ preferences: merged })
-          .eq('id', user.id)
-          .then(
-            () => {},
-            () => {},
-          );
-      }
+      // Real accounts only, merged with every other preference written this session.
+      saveAccountPref(user, profile?.preferences, 'cardLabels', bag);
     },
     [userId, user, profile],
   );
 
   const apply = useCallback(
     (next: CardLabelPrefs) => {
-      setEdited({ userId, prefs: next });
+      setEditedPref('cardLabels', userId, next);
       persist(next);
     },
     [persist, userId],
@@ -178,5 +164,7 @@ export function useCardLabelPrefs(): CardLabelPrefsState {
     [apply, prefs],
   );
 
-  return { ...prefs, setOn, toggleField };
+  const update = useCallback((patch: Partial<CardLabelPrefs>) => apply({ ...prefs, ...patch }), [apply, prefs]);
+
+  return { ...prefs, setOn, toggleField, update };
 }

@@ -30,7 +30,7 @@ import {
   type LanguageStore,
 } from 'tcgscan-browse';
 
-import { supabase } from '@/lib/supabase';
+import { saveAccountPref } from '@/lib/sharedPrefs';
 import { useAuth } from '@/store/auth';
 
 const STORAGE_KEY = 'michi.cardLanguages';
@@ -85,13 +85,7 @@ export function useLanguagePref(): [CardLanguage[], (v: CardLanguage[]) => void]
       setKit(next); // kit store + AsyncStorage (via languageStore.save)
       // account: real (non-guest) sessions only. Fail-soft — pre-migration this errors and we
       // simply keep the device-local copy.
-      if (supabase && user && !user.is_anonymous) {
-        const merged = { ...((profile?.preferences as object) ?? {}), cardLanguages: next };
-        void supabase.from('profiles').update({ preferences: merged }).eq('id', user.id).then(
-          () => {},
-          () => {},
-        );
-      }
+      saveAccountPref(user, profile?.preferences, 'cardLanguages', next);
     },
     [setKit, user, profile],
   );

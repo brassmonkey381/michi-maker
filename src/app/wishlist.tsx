@@ -13,7 +13,7 @@
  */
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, Text } from 'react-native';
 
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { PageShell } from '@/components/layout/PageShell';
@@ -21,7 +21,7 @@ import { SurveyForm } from '@/components/survey/SurveyForm';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidth, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { FEATURE_IDEAS, VOTE_CAP, applyToggle, rankedIdeas, type VoteState } from '@/data/featureIdeas';
+import { FEATURE_IDEAS, VOTE_CAP, applyToggle, isBuilt, rankedIdeas, type VoteState } from '@/data/featureIdeas';
 import { loadVotes, writeVote } from '@/data/featureVotesRepo';
 import { submitSurvey } from '@/data/survey/surveyRepo';
 import { toPayload } from '@/data/survey/surveyState';
@@ -72,6 +72,8 @@ export default function WishlistScreen() {
   const busy = useRef(new Set<string>());
   const vote = async (id: string) => {
     if (!votes || !auth.ready || busy.current.has(id)) return;
+    // A built idea takes no votes (its button is disabled too; this is the second lock).
+    if (FEATURE_IDEAS.some((i) => i.id === id && isBuilt(i))) return;
     const next = applyToggle(votes, id);
     if (next.on && next.mine.size > VOTE_CAP) {
       setVoteError(`Up to ${VOTE_CAP} votes per account. Take one back to cast another.`);
@@ -171,16 +173,23 @@ export default function WishlistScreen() {
           {ranked.map((idea) => {
             const on = votes?.mine.has(idea.id) ?? false;
             const n = votes?.counts.get(idea.id) ?? 0;
+            const built = isBuilt(idea);
             return (
               <Pressable
                 key={idea.id}
                 onPress={() => vote(idea.id)}
-                disabled={!votes}
+                disabled={!votes || built}
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: on, disabled: !votes }}
-                accessibilityLabel={`${idea.label}. ${idea.blurb} ${n} vote${n === 1 ? '' : 's'}.`}
+                accessibilityState={{ checked: on, disabled: !votes || built }}
+                accessibilityLabel={`${idea.label}. ${built ? 'Built! ' : ''}${idea.blurb} ${n} vote${n === 1 ? '' : 's'}.`}
                 testID={`wishlist-idea-${idea.id}`}
-                style={({ pressed }) => [styles.card, on && styles.cardOn, !votes && styles.cardOff, pressed && styles.pressed]}>
+                style={({ pressed }) => [styles.card, on && !built && styles.cardOn, !votes && styles.cardOff, built && styles.cardBuilt, pressed && !built && styles.pressed]}>
+                {/* BUILT! (owner, 2026-11-26): a stamp across the card; title and votes stay readable under it. */}
+                {built ? (
+                  <View pointerEvents="none" style={styles.stampWrap} testID={`wishlist-built-${idea.id}`}>
+                    <Text style={styles.stamp}>BUILT!</Text>
+                  </View>
+                ) : null}
                 <View style={styles.cardHead}>
                   <ThemedText type="smallBold" style={[styles.cardLabel, on && styles.cardLabelOn]}>
                     {on ? '✓ ' : ''}
@@ -284,6 +293,21 @@ const styles = StyleSheet.create({
   },
   cardOn: { borderColor: Palette.accent, backgroundColor: Palette.panel },
   cardOff: { opacity: 0.6 },
+  cardBuilt: { borderColor: '#c0392b', backgroundColor: Palette.panel, overflow: 'hidden' },
+  stampWrap: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
+  stamp: {
+    transform: [{ rotate: '-12deg' }],
+    color: 'rgba(192,57,43,0.85)',
+    borderWidth: 3,
+    borderColor: 'rgba(192,57,43,0.85)',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 2,
+    fontSize: 30,
+    fontWeight: Weight.bold,
+    letterSpacing: 3,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   cardLabel: { flexShrink: 1, fontSize: FontSize.body },
   cardLabelOn: { color: Palette.accent },

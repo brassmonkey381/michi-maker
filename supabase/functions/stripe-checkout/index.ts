@@ -42,6 +42,7 @@ import { promoActive } from '../../../src/data/promo.ts';
 import { publishableKey, secretKey } from '../_shared/keys.ts';
 import { mintPrintCodes } from '../_shared/printCodes.ts';
 import { holidayEligible } from '../_shared/holiday.ts';
+import { referralCounts } from '../_shared/referralRule.ts';
 import { HOLIDAY_CANCEL_NOTE, holidayTrialEnd } from '../../../src/data/holiday.ts';
 
 const CORS = {
@@ -348,6 +349,8 @@ Deno.serve(async (req: Request) => {
     bundle?: boolean;
     /** MIC-069: the invite code this browser arrived with (/r/<code>), if any. */
     referralCode?: string;
+    /** MIC-069 gap B: when the browser first opened the invite link (ms since 1970). */
+    referralOpenedAt?: string | number | null;
   };
   try {
     body = await req.json();
@@ -1065,7 +1068,15 @@ Deno.serve(async (req: Request) => {
         .eq('code', referralCode)
         .maybeSingle();
       const inviter = (codeRow as { user_id?: string } | null)?.user_id;
-      if (inviter && inviter !== user.id) {
+      // GAP B: only an account made after its owner opened the link (referralRule.ts).
+      const counts = referralCounts({
+        inviterId: inviter,
+        inviteeId: user.id,
+        accountCreatedMs: Date.parse(user.created_at ?? ''),
+        openedAtMs: body.referralOpenedAt != null ? Number(body.referralOpenedAt) : null,
+        nowMs: Date.now(),
+      });
+      if (inviter && counts) {
         const { data: existing } = await service
           .from('referrals')
           .select('id, status')

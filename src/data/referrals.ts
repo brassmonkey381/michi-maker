@@ -31,13 +31,18 @@ export type { PrintCode, ReferralStatus, ReferralSummary } from './referralCore'
 const rpcClient = () => requireSupabase() as unknown as SupabaseClient;
 
 const STORAGE_KEY = 'michi.referralCode';
+/** MIC-069 gap B: when this browser first opened that invite (ms). Only a newer account counts. */
+const OPENED_KEY = 'michi.referralOpenedAt';
 
 /** Remember the invite this browser arrived with. The FIRST invite wins, like the server's rule. */
 export function rememberReferralCode(raw: unknown): boolean {
   const code = normalizeReferralCode(raw);
   if (!code || Platform.OS !== 'web' || typeof localStorage === 'undefined') return false;
   try {
-    if (!localStorage.getItem(STORAGE_KEY)) localStorage.setItem(STORAGE_KEY, code);
+    if (!localStorage.getItem(STORAGE_KEY)) {
+      localStorage.setItem(STORAGE_KEY, code);
+      localStorage.setItem(OPENED_KEY, String(Date.now()));
+    }
     return true;
   } catch {
     return false;
@@ -45,6 +50,17 @@ export function rememberReferralCode(raw: unknown): boolean {
 }
 
 /** The invite code to send with a checkout, if this browser has one. */
+/** When the stored invite was first opened, or null (older browsers stored the code only). */
+export function storedReferralOpenedAt(): number | null {
+  if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return null;
+  try {
+    const n = Number(localStorage.getItem(OPENED_KEY));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
 export function storedReferralCode(): string | null {
   if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return null;
   try {

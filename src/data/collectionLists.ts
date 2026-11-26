@@ -149,3 +149,46 @@ export function publicRows(l: {
   for (const t of l.trades) row(t.card_id).trade += Math.max(1, t.quantity);
   return [...by.values()];
 }
+
+// Instant taps (owner, 2026-11-26: "it first goes to blank and then a second later goes to owned") --
+
+/** Cards whose circle was just tapped, and the state the tap is heading to. */
+export type PendingMarks = ReadonlyMap<string, PocketState>;
+
+/**
+ * The sets a pocket draws from, with every pending tap already at its target. Wants and trade
+ * marks change on the device at once, but OWNED follows the server (the copy is written, then the
+ * collection feed says so), so without this a WANT -> OWNED tap showed NO for a second and a
+ * TRADE -> NO tap showed OWNED. The pending target wins until the real state catches up.
+ */
+export function applyPending(
+  owned: ReadonlySet<string>,
+  wanted: ReadonlySet<string>,
+  traded: ReadonlySet<string>,
+  pending: PendingMarks,
+): { owned: Set<string>; wanted: Set<string>; traded: Set<string> } {
+  const o = new Set(owned);
+  const w = new Set(wanted);
+  const t = new Set(traded);
+  for (const [id, s] of pending) {
+    o.delete(id);
+    w.delete(id);
+    t.delete(id);
+    if (s === 'owned' || s === 'trade') o.add(id);
+    if (s === 'trade') t.add(id);
+    if (s === 'want') w.add(id);
+  }
+  return { owned: o, wanted: w, traded: t };
+}
+
+/** The pending taps the real state has not reached yet (the others are done and drop out). */
+export function unsettled(
+  pending: PendingMarks,
+  owned: ReadonlySet<string>,
+  wanted: ReadonlySet<string>,
+  traded: ReadonlySet<string>,
+): Map<string, PocketState> {
+  const left = new Map<string, PocketState>();
+  for (const [id, s] of pending) if (pocketStateOf(id, owned, wanted, traded) !== s) left.set(id, s);
+  return left;
+}

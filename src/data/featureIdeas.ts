@@ -14,7 +14,16 @@ export interface FeatureIdea {
   label: string;
   /** One line of scope, so two people voting for it mean the same thing. */
   blurb: string;
+  /**
+   * BUILT (owner, 2026-11-26: "a big stamp over this that says BUILT! and disable the vote"): the
+   * idea shipped. The card wears a BUILT! stamp, keeps its votes on show and takes no new votes.
+   * The item id that shipped it, for the record.
+   */
+  built?: string;
 }
+
+/** Whether an idea has shipped (its card is stamped and takes no votes). */
+export const isBuilt = (idea: Pick<FeatureIdea, 'built'>): boolean => !!idea.built;
 
 export const FEATURE_IDEAS: readonly FeatureIdea[] = [
   // Pruned 2026-10-27 (owner: "prune things we already kind of have"): prices on the page (the
@@ -30,7 +39,7 @@ export const FEATURE_IDEAS: readonly FeatureIdea[] = [
   { id: 'deck-binders', label: 'Deck binders', blurb: 'Pages shaped for a 60-card deck and its sideboard, one deck per binder.' },
   { id: 'build-together', label: 'Build a binder together', blurb: 'Invite a friend to edit the same binder.' },
   { id: 'own-layouts', label: 'Design your own layouts', blurb: 'Save a page shape and its art panels as a layout you can reuse.' },
-  { id: 'want-list', label: 'Want list and trade list', blurb: 'What each set still needs, and the cards you can spare, as one list.' },
+  { id: 'want-list', label: 'Want list and trade list', blurb: 'What each set still needs, and the cards you can spare, as one list.', built: 'MIC-041' },
   { id: 'scan-to-pocket', label: 'Scan a card into a pocket', blurb: 'Point your phone at a card and it lands in the pocket you chose.' },
   { id: 'binder-comments', label: 'Comments on shared binders', blurb: 'Leave a note on a public binder, and read what people say about yours.' },
   { id: 'binder-stats', label: 'Binder stats', blurb: 'Total value, rarest card, most used artist, and how complete each set is.' },

@@ -40,3 +40,12 @@ test('ranking: most votes first, the written order breaks ties', () => {
   const r = rankedIdeas(new Map([['z', 2], ['y', 2]]), ideas);
   assert.deepEqual(r.map((i) => i.id), ['y', 'z', 'x']);
 });
+
+test('a built idea is stamped and takes no votes: Want list and trade list shipped as MIC-041', async () => {
+  const { FEATURE_IDEAS, isBuilt } = await import('./featureIdeas.ts');
+  const want = FEATURE_IDEAS.find((i) => i.id === 'want-list');
+  assert.ok(want && isBuilt(want), 'want-list carries the built flag');
+  assert.equal(want.built, 'MIC-041');
+  assert.equal(isBuilt({}), false, 'an idea with no flag is still open for votes');
+  assert.ok(FEATURE_IDEAS.some((i) => !isBuilt(i)), 'the ballot still has ideas to vote on');
+});

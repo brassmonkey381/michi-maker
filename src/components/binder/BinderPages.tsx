@@ -1615,7 +1615,7 @@ export function BinderPages({
                 Collection
               </ThemedText>
               <View style={styles.settingsRowControls}>
-                <OwnedPriceToggles owned={showOwned} onOwned={setShowOwned} labels={labelsProp ?? ownLabels} />
+                <OwnedPriceToggles owned={showOwned} onOwned={setShowOwned} labels={labelsProp ?? ownLabels} compact />
                 {/* MIC-041: "Mark all ♥" fills the Want list from this binder, inline with Owned and Prices. */}
                 <WantRestButton cardIds={binder.pages.flatMap(pageCardIds)} owned={ownedCards} />
               </View>

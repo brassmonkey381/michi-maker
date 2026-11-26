@@ -42,7 +42,7 @@ export function WantRestView({
         accessibilityRole="button"
         accessibilityLabel="Mark every card I don't own as WANT"
         testID="want-rest-start"
-        style={[toggleChip.base, count === 0 && styles.off]}>
+        style={[toggleChip.base, styles.chip, count === 0 && styles.off]}>
         <Text style={toggleChip.text}>{WANT_REST_LABEL}</Text>
       </Pressable>
       {done ? <Text style={styles.done}>{done}</Text> : null}

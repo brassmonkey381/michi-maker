@@ -106,6 +106,7 @@ import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import { applyPending, nextPocketState, pocketStateOf, stepsFor, tradeCopyFor, unsettled, type PocketState, type PocketStep } from '@/data/collectionLists';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useCollectionLists } from '@/hooks/use-collection-lists';
+import { checkoutResult } from '@/lib/checkoutReturn';
 import { usePriceSummaryWhen } from '@/lib/prices';
 import { chipFor, effectiveFinish, finishIsAskable, nextFinish } from '@/constants/printVariant';
 import { ThemedText } from '@/components/themed-text';
@@ -706,7 +707,9 @@ export function BinderScreen({
   const [printOpen, setPrintOpen] = useState(
     () =>
       initialPrintOpen ||
-      (Platform.OS === 'web' && typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('checkout') === 'success'),
+      // MIC-084: read once and stripped from the address (lib/checkoutReturn), so Back, a reload or
+      // a later open of this binder never reopens the sheet.
+      (Platform.OS === 'web' && checkoutResult() === 'success'),
   );
   // P opens the print sheet with the preview already rendering (owner, 2026-10-16); the buttons
   // open it at rest, as before.
@@ -4732,6 +4735,7 @@ export function BinderScreen({
           <PrintPlaceholdersSheet
             binder={binder}
             previewAtOpen={printPreviewAtOpen}
+            returnPage={idx + 1}
             onClose={() => {
               setPrintOpen(false);
               setPrintPreviewAtOpen(false);

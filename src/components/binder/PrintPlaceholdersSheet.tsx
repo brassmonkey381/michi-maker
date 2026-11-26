@@ -27,6 +27,7 @@ import { EXAMPLE_FILL_SHEET_BINDER, EXAMPLE_FILL_SHEET_OWNED } from '@/data/exam
 import { createWebArtLoader } from '@/data/fillSheetArt';
 import { fileStem, saveBytes, saveFillSheetFiles } from '@/data/fillSheetSave';
 import { startCheckout } from '@/data/checkout';
+import { checkoutResult, consumeCheckoutResult } from '@/lib/checkoutReturn';
 import { Seg } from '@/components/binder/inspector/controls';
 import { buildFillSheetPdfs, collectFillTiles, describeDownload, describeFiles, type FillSheetPdf, type MatColor, CARDSTOCK_SHEET_USD } from '@/data/placeholderPdf';
 import { printCutWarningText, printCutWarnings } from '@/data/printFit';
@@ -69,12 +70,15 @@ const MAT_OPTIONS = [
 export function PrintPlaceholdersSheet({
   binder,
   previewAtOpen = false,
+  returnPage,
   onClose,
   onDone,
 }: {
   binder: DemoBinder;
   /** Open with the preview of this binder already rendering (the P key). */
   previewAtOpen?: boolean;
+  /** MIC-084: the one-based page Print was opened on; checkout comes back to it. */
+  returnPage?: number;
   onClose: () => void;
   /** Fired after a successful download (for a host toast): the sheets and a line naming the files. */
   onDone?: (done: { sheets: number; files: number; summary: string }) => void;
@@ -110,12 +114,9 @@ export function PrintPlaceholdersSheet({
   // under this sheet), so the modal fires when the grant lands on this visit and never on a
   // later re-open of an already-purchased binder. Lazy state, not an effect — setting it in the
   // effect would be a cascading-render setState.
-  const [cameFromCheckout] = useState(
-    () =>
-      Platform.OS === 'web' &&
-      typeof window !== 'undefined' &&
-      new URL(window.location.href).searchParams.get('checkout') === 'success',
-  );
+  // MIC-084: one-shot (lib/checkoutReturn). Consumed when the "ready" modal closes, so reopening
+  // the sheet, or the binder later, says nothing.
+  const [cameFromCheckout] = useState(() => Platform.OS === 'web' && checkoutResult() === 'success');
   const [celebrated, setCelebrated] = useState(false);
   useEffect(() => {
     if (!cameFromCheckout || purchased) return;
@@ -416,7 +417,8 @@ export function PrintPlaceholdersSheet({
     setConfirming(null);
     setBuying(true);
     setError(null);
-    startCheckout(BINDER_PDF_LOOKUP_KEY, { binderId: binder.id, surface: 'print_gate' })
+    // MIC-084: come back to the page Print was opened from.
+    startCheckout(BINDER_PDF_LOOKUP_KEY, { binderId: binder.id, surface: 'print_gate', returnParams: returnPage ? { page: String(returnPage) } : undefined })
       .catch((e) => setError((e as Error).message))
       .finally(() => setBuying(false));
   };
@@ -1084,7 +1086,10 @@ export function PrintPlaceholdersSheet({
         files={fileList}
         downloaded={autoDownloaded}
         downloading={busy && autoStarted && !autoDownloaded}
-        onClose={() => setCelebrated(true)}
+        onClose={() => {
+          setCelebrated(true);
+          consumeCheckoutResult();
+        }}
       />
     </DialogCard>
   );

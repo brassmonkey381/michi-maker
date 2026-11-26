@@ -18,6 +18,8 @@
 -- A spent credit writes the SAME entitlement a $1.99 purchase writes (pdf_binder:<id>), with a
 -- fresh granted_at, so the print sheet's snapshot logic treats it exactly like a purchase.
 
+begin;
+
 create table if not exists public.referral_codes (
   user_id    uuid primary key references auth.users (id) on delete cascade,
   code       text not null unique check (code ~ '^[a-z0-9]{6,16}$'),
@@ -233,3 +235,5 @@ grant execute on function public.redeem_print_credit(uuid)              to authe
 grant execute on function public.referral_mark_trialled(uuid, text)     to service_role;
 grant execute on function public.referral_mark_paid(uuid, text)         to service_role;
 grant execute on function public.referral_void_for_invitee(uuid)        to service_role;
+
+commit;

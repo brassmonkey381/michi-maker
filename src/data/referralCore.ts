@@ -84,6 +84,8 @@ export function referralCounts(summary: Pick<ReferralSummary, 'invites' | 'print
   trialled: number;
   paid: number;
   ready: number;
+  /** Codes given to you rather than earned by an invite: holiday gift, subscriber thanks, joining through a friend. */
+  gifted: number;
 } {
   let trialled = 0;
   let paid = 0;
@@ -92,7 +94,8 @@ export function referralCounts(summary: Pick<ReferralSummary, 'invites' | 'print
     if (i.status === 'paid') paid += 1;
   }
   const ready = summary.printCodes.filter((c) => c.state === 'ready' || c.state === 'making').length;
-  return { trialled, paid, ready };
+  const gifted = summary.printCodes.filter((c) => c.reason === 'holiday_gift' || c.reason === 'subscriber_thanks' || c.reason === 'paid_with_invite').length;
+  return { trialled, paid, ready, gifted };
 }
 
 /** What a code's status line says, in the reader's words. `fmt` formats a date for display. */

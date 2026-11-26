@@ -43,7 +43,7 @@ export const TRIAL_CTA_TEXT = holidayActive() ? HOLIDAY_CTA_LABEL : 'Try PRO for
 
 /** The plans page banner (owner review: "free until Jan 1", with no cancel line). */
 export const HOLIDAY_BANNER = {
-  title: 'Holiday gift: PRO free until Jan 1',
+  title: 'Happy Holidays! PRO is free until Jan 1',
   body: 'Start your free trial today and keep PRO through the holidays. After that, $2.99 a month or $24.99 a year.',
 } as const;
 

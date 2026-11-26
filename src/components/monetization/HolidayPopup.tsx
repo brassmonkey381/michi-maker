@@ -67,7 +67,7 @@ export function HolidayPopupView({
   onClose: () => void;
 }) {
   return (
-    <DialogCard title={variant === 'thanks' ? 'Thank you' : 'Happy holidays'} onClose={onClose} maxWidth={420}>
+    <DialogCard title={variant === 'thanks' ? 'Thank you' : 'Happy Holidays!'} onClose={onClose} maxWidth={420}>
       <View style={styles.body} testID={`holiday-popup-${variant}`}>
         {variant === 'thanks' ? (
           <>
@@ -104,12 +104,8 @@ export function HolidayPopupView({
             <Text style={styles.head}>Thank you for building with us</Text>
             <ThemedText type="small">This community made Michi what it is. Here&apos;s a little something back:</ThemedText>
             <ThemedText type="small">
-              <Text style={styles.strong}>PRO free until Jan 1.</Text> Start the free trial and keep PRO through the
+              <Text style={styles.strong}>PRO is free until Jan 1.</Text> Start the free trial and keep PRO through the
               holidays.
-            </ThemedText>
-            <ThemedText type="small">
-              <Text style={styles.strong}>Invite friends:</Text> each friend who starts the free trial earns you a free
-              binder print code.
             </ThemedText>
           </>
         )}

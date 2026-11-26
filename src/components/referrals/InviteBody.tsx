@@ -81,9 +81,11 @@ export function InviteBody({
 
         {summary ? (
           <View style={styles.stats} testID="invite-stats">
-            <Stat value={counts.trialled} label="started the trial" />
-            <Stat value={counts.paid} label={counts.paid === 1 ? 'paid subscriber' : 'paid subscribers'} />
-            <Stat value={counts.ready} label={counts.ready === 1 ? 'free print code' : 'free print codes'} />
+            {/* Owner review 2026-11-26: a "Gifted to You" cell, and capitalised labels. */}
+            <Stat value={counts.trialled} label="Started the Trial" />
+            <Stat value={counts.paid} label={counts.paid === 1 ? 'Paid Subscriber' : 'Paid Subscribers'} />
+            <Stat value={counts.ready} label={counts.ready === 1 ? 'Free Print Code' : 'Free Print Codes'} />
+            <Stat value={counts.gifted} label="Gifted to You" />
           </View>
         ) : null}
 
@@ -199,9 +201,10 @@ const styles = StyleSheet.create({
   },
   btnQuietText: { color: Palette.ink, fontSize: FontSize.md, fontWeight: Weight.semibold },
   dim: { opacity: 0.7 },
-  stats: { flexDirection: 'row', gap: Spacing.three },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
   stat: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 140,
     minWidth: 0,
     padding: Spacing.three,
     borderWidth: 1,

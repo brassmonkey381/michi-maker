@@ -59,8 +59,15 @@ test('counts: a paid or refunded friend still started the trial; ready includes 
       ],
       printCodes: [code('ready'), code('making'), code('redeemed'), code('expired'), code('voided')],
     }),
-    { trialled: 3, paid: 1, ready: 2 },
+    { trialled: 3, paid: 1, ready: 2, gifted: 0 },
   );
+});
+
+test('counts: Gifted to You is the holiday gift, subscriber thanks and joining through a friend', () => {
+  const at = '2026-11-25T00:00:00Z';
+  const c = (reason: PrintCode['reason']): PrintCode => ({ code: 'ABCDEF', reason, state: 'ready', grantedAt: at, expiresAt: null, redeemedAt: null });
+  const n = referralCounts({ invites: [], printCodes: [c('holiday_gift'), c('subscriber_thanks'), c('subscriber_thanks'), c('paid_with_invite'), c('friend_trial'), c('friend_paid')] });
+  assert.equal(n.gifted, 4);
 });
 
 test('each code says plainly where it stands, and when it expires or never does', () => {

@@ -108,10 +108,10 @@ export function InviteBody({
             How it works
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            1. A friend opens your link and starts the free trial: you get a free print code.
+            1. A friend opens your link and starts the trial: you get 1 code for a free print unlock.
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            2. When their trial ends and they pay: you each get one more.
+            2. That friend becomes a paying subscriber: you each get 1 additional code.
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             Invite as many friends as you like. Each code works for a year from the day you get it. A friend counts once, for the first

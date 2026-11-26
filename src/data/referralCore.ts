@@ -117,7 +117,7 @@ export function printCodeReasonText(reason: PrintCodeReason): string {
     case 'friend_trial':
       return 'A friend started the free trial';
     case 'friend_paid':
-      return 'A friend you invited paid';
+      return 'A friend you invited became a paying subscriber';
     case 'paid_with_invite':
       return 'You joined through a friend’s invite';
     case 'subscriber_thanks':

@@ -105,7 +105,7 @@ export default function InvitePage() {
       title={TITLE}
       description={DESCRIPTION}
       heading="Invite Friends"
-      lede="Share your link. When a friend starts the free trial, you get a free print code for a binder PDF. If they stay on and pay, you each get one more.">
+      lede="Share your link. When your friend starts the trial, you get 1 code for a free print unlock. When that friend becomes a paying subscriber, you each get 1 additional code, for a total of 3 free prints.">
       <InviteBody
         summary={summary}
         link={link}

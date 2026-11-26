@@ -13,7 +13,8 @@ import { unownedToWant } from '@/data/collectionLists';
 import { useCollectionLists } from '@/hooks/use-collection-lists';
 import { useAuth } from '@/store/auth';
 
-export const WANT_REST_LABEL = 'Mark every card I don’t own as WANT';
+// Owner review 2026-11-26: inline with Owned and Prices, labelled just "Mark all" and a heart.
+export const WANT_REST_LABEL = 'Mark all ♥';
 
 /** The chip and its confirm pop-up, with no data access (the review preview draws it). */
 export function WantRestView({
@@ -39,9 +40,10 @@ export function WantRestView({
         onPress={onStart}
         disabled={count === 0}
         accessibilityRole="button"
+        accessibilityLabel="Mark every card I don't own as WANT"
         testID="want-rest-start"
-        style={[toggleChip.base, styles.chip, count === 0 && styles.off]}>
-        <Text style={[toggleChip.text, styles.text]}>{`♥ ${WANT_REST_LABEL}`}</Text>
+        style={[toggleChip.base, count === 0 && styles.off]}>
+        <Text style={toggleChip.text}>{WANT_REST_LABEL}</Text>
       </Pressable>
       {done ? <Text style={styles.done}>{done}</Text> : null}
       {asking ? (

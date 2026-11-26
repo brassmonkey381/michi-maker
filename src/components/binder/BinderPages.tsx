@@ -1616,16 +1616,7 @@ export function BinderPages({
               </ThemedText>
               <View style={styles.settingsRowControls}>
                 <OwnedPriceToggles owned={showOwned} onOwned={setShowOwned} labels={labelsProp ?? ownLabels} />
-              </View>
-            </View>
-          ) : null}
-          {/* MIC-041: fill the Want list from this binder, its own aligned row, no copy. */}
-          {ownedCards ? (
-            <View style={styles.settingsRow} testID="settings-want-row">
-              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
-                Want
-              </ThemedText>
-              <View style={styles.settingsRowControls}>
+                {/* MIC-041: "Mark all ♥" fills the Want list from this binder, inline with Owned and Prices. */}
                 <WantRestButton cardIds={binder.pages.flatMap(pageCardIds)} owned={ownedCards} />
               </View>
             </View>

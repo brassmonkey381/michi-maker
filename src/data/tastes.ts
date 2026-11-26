@@ -42,6 +42,7 @@
  * on top, so this file is reachable from `node --test`.
  */
 import type { Tier } from './tiers';
+import { TRIAL_CTA_TEXT } from './holiday.ts';
 
 export const TASTE_FEATURES = ['findSimilar', 'advancedSearch', 'binderCovers', 'binderTracks', 'artViews', 'fillPage'] as const;
 export type TasteFeature = (typeof TASTE_FEATURES)[number];
@@ -164,7 +165,7 @@ export function tasteToast(
   // Same shape for a free account (owner, 2026-10-30: never "is free this visit"), with the PRO
   // trial as the way to keep it. "samples remaining", never "tastes" in anything a person reads.
   const count = left > 0 ? ` (${left} ${left === 1 ? 'sample' : 'samples'} remaining)` : '';
-  return `Try PRO for FREE to keep using ${label}${count}`;
+  return `${TRIAL_CTA_TEXT} to keep using ${label}${count}`;
 }
 
 /** The wall a GUEST meets once their taste is gone (owner, 2026-10-30): the free account, and nothing about plans. */

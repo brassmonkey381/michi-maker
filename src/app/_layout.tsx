@@ -10,6 +10,7 @@ import { initRedditPixel } from '@/lib/redditPixel';
 import { AvatarConsentPrompt } from '@/components/auth/AvatarConsentPrompt';
 import { UsernameGate } from '@/components/auth/UsernameGate';
 import { ProStatusBanner } from '@/components/monetization/ProStatusBanner';
+import { HolidayPopup } from '@/components/monetization/HolidayPopup';
 import { ThemedView } from '@/components/themed-view';
 import { AppRail } from '@/components/nav/AppRail';
 import { MobileNav } from '@/components/nav/MobileNav';
@@ -109,6 +110,8 @@ export default function TabLayout() {
                 attestation: the two take turns through promptQueue, and BOTH can now happen in a
                 single visit. See src/data/prompts.ts for who gets which prompt, and where. */}
             <AvatarConsentPrompt />
+            {/* MIC-073: the one-time holiday pop-up (offer, or a subscriber thank-you). Null otherwise. */}
+            <HolidayPopup />
             {/* "DEV" while this browser is in dev mode (lib/devMode); tap to leave. Null otherwise. */}
             <DevBadge />
           </BinderProvider>

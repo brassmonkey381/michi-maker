@@ -18,6 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { PdfUnlockedModal } from '@/components/monetization/PdfUnlockedModal';
 import { PrintPreview } from '@/components/binder/PrintPreview';
 import { TrialCta } from '@/components/monetization/TrialCta';
+import { PrintCodeNote } from '@/components/monetization/PrintCodeNote';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
@@ -38,6 +39,7 @@ import {
   type PurchaseStatus,
 } from '@/data/pdfSnapshot';
 import { PrintCapExceededError, recordPrintEvent, type RecordedPrint } from '@/data/printRepo';
+import { TRIAL_CTA_TEXT } from '@/data/holiday';
 import { ANNUAL_POOL, BINDER_PDF_LOOKUP_KEY, BINDER_PDF_PRICE, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useFrames } from '@/hooks/use-frames';
@@ -882,6 +884,8 @@ export function PrintPlaceholdersSheet({
                         {allowance.error}
                       </ThemedText>
                     ) : null}
+                    {/* MIC-069: free print codes go in at checkout; say so beside the unlock. */}
+                    <PrintCodeNote />
                     {CHECKOUT_OPEN ? (
                       <Pressable
                         onPress={() => setConfirming('buy')}
@@ -912,6 +916,8 @@ export function PrintPlaceholdersSheet({
                       Your purchased version{versions.length === 1 ? ' is' : 's are'} below, 
                       download them anytime. Printing the edited version needs its own unlock.
                     </ThemedText>
+                    {/* MIC-069: free print codes go in at checkout; say so beside the unlock. */}
+                    <PrintCodeNote />
                     {CHECKOUT_OPEN ? (
                       <Pressable
                         onPress={() => setConfirming('buy')}
@@ -932,10 +938,12 @@ export function PrintPlaceholdersSheet({
                       Preview it free below. The unlock covers this binder as it is today, and that
                       version is yours to download again forever. Later edits need a new unlock.
                     </ThemedText>
+                    {/* MIC-069: free print codes go in at checkout; say so beside the unlock. */}
+                    <PrintCodeNote />
                     {/* Eligible free users see the trial first, start it and the sheet re-renders
                         to the subscriber Download button. Renders null when not eligible. */}
                     <TrialCta
-                      message="New here? Try PRO for FREE and print this binder."
+                      message={`New here? ${TRIAL_CTA_TEXT} and print this binder.`}
                       surface="print_gate"
                       onImpression={markOfferShown}
                       onBeforeStart={markTrialStarted}

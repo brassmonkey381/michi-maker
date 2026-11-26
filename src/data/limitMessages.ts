@@ -8,6 +8,7 @@
  */
 import { TIER_LIMITS, type Tier, type TierLimits } from './tiers.ts';
 import { TRIAL_DAYS_TEXT } from './trialLength.ts';
+import { TRIAL_CTA_TEXT } from './holiday.ts';
 
 export function binderLimitMessage(tier: Tier, limits: TierLimits): string {
   if (tier === 'guest') {
@@ -54,7 +55,7 @@ export function limitCta(tier: Tier, trialEligible = false): LimitCta {
   if (tier === 'guest') return { kind: 'signin', label: 'Create account (free)' };
   // A free account that can still take the trial is offered it by name (owner, 2026-10-29); one
   // that has used it, or a paid tier at a higher cap, is shown the plans.
-  return { kind: 'plans', label: tier === 'free' && trialEligible ? 'Try PRO for FREE' : 'See plans' };
+  return { kind: 'plans', label: tier === 'free' && trialEligible ? TRIAL_CTA_TEXT : 'See plans' };
 }
 
 /**

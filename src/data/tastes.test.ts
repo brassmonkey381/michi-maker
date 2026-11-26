@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { TRIAL_CTA_TEXT } from './holiday.ts';
 import { describe, it } from 'node:test';
 
 import {
@@ -60,7 +61,7 @@ describe('tastes', () => {
     assert.doesNotMatch(guest, /PRO/);
     // The fill toast names the method (owner, 2026-10-30: "Keep using Fill Same Pokemon with a free account").
     assert.equal(tasteToast('fillPage', 'guest', 0, 'Fill Same Pokemon'), 'Keep using Fill Same Pokemon with a free account');
-    assert.equal(tasteToast('findSimilar', 'free', 2), 'Try PRO for FREE to keep using Find similar (2 samples remaining)');
+    assert.equal(tasteToast('findSimilar', 'free', 2), `${TRIAL_CTA_TEXT} to keep using Find similar (2 samples remaining)`);
     assert.doesNotMatch(tasteToast('findSimilar', 'free', 2), /free this visit/, 'owner, 2026-10-30');
     assert.equal(guestTasteWall('findSimilar'), 'Create a free account to keep using Find similar.');
     assert.equal(guestTasteWall('fillPage'), 'Create a free account to keep using Fill page.');

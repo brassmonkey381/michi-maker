@@ -69,8 +69,9 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.panel,
   },
   text: { flex: 1, lineHeight: 18 },
-  noteStacked: { flexDirection: 'column', alignItems: 'flex-start', gap: Spacing.two },
-  textStacked: { flex: 0 },
+  // Owner review 2026-11-26: centred when stacked (a phone).
+  noteStacked: { flexDirection: 'column', alignItems: 'center', gap: Spacing.two },
+  textStacked: { flex: 0, textAlign: 'center' },
   btn: {
     backgroundColor: Palette.accent,
     paddingVertical: Spacing.one,

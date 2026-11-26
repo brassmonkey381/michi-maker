@@ -6,6 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { TRIAL_CTA_TEXT } from './holiday.ts';
 
 import { planCta, PLAN_HEADERS } from './subscriptions.ts';
 import type { Tier } from './tiers.ts';
@@ -23,7 +24,7 @@ const labelOf = (c: 'free' | 'pro' | 'vip', viewer: Tier) => {
 
 test('guest: Free is a sign-up, paid plans are purchases', () => {
   assert.equal(kindOf('free', 'guest'), 'signIn');
-  assert.equal(labelOf('pro', 'guest'), 'Try PRO for FREE');
+  assert.equal(labelOf('pro', 'guest'), TRIAL_CTA_TEXT);
   assert.equal(labelOf('vip', 'guest'), 'Choose VIP');
 });
 

@@ -28,6 +28,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 // the arithmetic lives in one place so a mid-term upgrade can never grant a fresh year again.
 import { PRINTS_PER_MONTH, termPrintAllocation } from '../../../src/data/proration.ts';
 import { secretKey } from '../_shared/keys.ts';
+import { grantExpiryMs, type SubShape } from '../_shared/grantExpiry.ts';
+import { deactivatePrintCodes, mintPrintCodes } from '../_shared/printCodes.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   httpClient: Stripe.createFetchHttpClient(),
@@ -216,7 +218,6 @@ async function upsertOneGrant(sub: Stripe.Subscription, userId: string, product:
 
   const periodEnd = periodEndSeconds(sub);
   const periodStartSec = periodStartSeconds(sub);
-  const GRACE_MS = 3 * 24 * 60 * 60 * 1000;
   // GRACE IS FOR PEOPLE WHO HAVE PAID. Narrowed 2026-10-19 after a trial's first charge was
   // declined (insufficient funds) and the row still read trial end + 3 days: six days of PRO
   // for a card that never worked. The grace exists so a paying customer's renewal hiccup does
@@ -227,36 +228,8 @@ async function upsertOneGrant(sub: Stripe.Subscription, userId: string, product:
   //   - a subscription that never completed its first payment ('incomplete'): no access at all.
   // Stripe's retries still run. If one succeeds, invoice.paid routes through the active branch
   // and the full term is granted then.
-  const trialEndSec = typeof sub.trial_end === 'number' ? sub.trial_end : null;
-  const inTrial = sub.status === 'trialing';
-  const firstTermAfterTrial =
-    trialEndSec !== null && periodStartSec !== null && periodStartSec === trialEndSec;
-  let expiresAtMs: number;
-  if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
-    // Hard-ended: lapse at the recorded end (or immediately).
-    expiresAtMs = (sub.ended_at ?? sub.canceled_at ?? Math.floor(Date.now() / 1000)) * 1000;
-  } else if (sub.status === 'incomplete') {
-    // First payment never went through. Checkout grants nothing until it does.
-    expiresAtMs = Date.now();
-  } else if ((sub.status === 'past_due' || sub.status === 'unpaid') && periodStartSec) {
-    // DUNNING: the renewal payment failed, but Stripe has already rolled the period — so
-    // periodEnd is the end of a term nobody has paid for. The active branch below would grant
-    // that whole year (caught live on the test-clock rig: a declined renewal produced a full
-    // year of access + a fresh print allocation on an open invoice). Access is held at
-    // PAID-THROUGH — the unpaid term's start, which is exactly where the old term ended — plus
-    // the grace ONLY when an earlier term was actually paid for. invoice.paid on recovery
-    // routes through the active branch and restores the full term.
-    expiresAtMs = periodStartSec * 1000 + (firstTermAfterTrial ? 0 : GRACE_MS);
-  } else if (sub.cancel_at_period_end && periodEnd) {
-    // User cancelled but the term is paid through — lapse exactly at period end.
-    expiresAtMs = periodEnd * 1000;
-  } else if (periodEnd) {
-    // Active and paid: period end + grace. In trial: trial end, exactly. (Dunning no longer
-    // reaches this branch — see past_due above.)
-    expiresAtMs = periodEnd * 1000 + (inTrial ? 0 : GRACE_MS);
-  } else {
-    expiresAtMs = Date.now();
-  }
+  // The rules live in _shared/grantExpiry.ts (pure, tested in src/data/grantExpiry.test.ts).
+  const expiresAtMs = grantExpiryMs(sub as unknown as SubShape, periodStartSec, periodEnd ?? null, Date.now());
 
   // Term anchor + interval. `period_start` moves forward with `expires_at` on every renewal;
   // together they define the window the included-print meter counts over (src/data/printWindow.ts),
@@ -431,6 +404,33 @@ Deno.serve(async (req: Request) => {
                 },
                 { onConflict: 'user_id,product' },
               );
+            // MIC-069: a free print code used on this order is recorded as redeemed on its
+            // owner's /invite list. Fail-soft: the unlock above is what this event is for.
+            try {
+              const promoIds = new Set<string>();
+              const take = (p: unknown) => {
+                const id = typeof p === 'string' ? p : (p as { id?: string } | null)?.id;
+                if (id) promoIds.add(id);
+              };
+              for (const d of (session as unknown as { discounts?: { promotion_code?: unknown }[] }).discounts ?? []) {
+                take(d.promotion_code);
+              }
+              if (!promoIds.size && (session.total_details?.amount_discount ?? 0) > 0) {
+                const full = await stripe.checkout.sessions.retrieve(session.id, { expand: ['total_details.breakdown'] });
+                for (const d of full.total_details?.breakdown?.discounts ?? []) {
+                  take((d.discount as unknown as { promotion_code?: unknown }).promotion_code);
+                }
+              }
+              for (const id of promoIds) {
+                const { error } = await service().rpc('print_code_mark_redeemed', {
+                  p_promotion_code_id: id,
+                  p_user_id: userId,
+                });
+                if (error) console.error('print code redemption not recorded', error.message);
+              }
+            } catch (e) {
+              console.error('print code redemption not read', (e as Error).message);
+            }
           }
         } else if (session.mode === 'subscription' && session.subscription) {
           const sub = await stripe.subscriptions.retrieve(
@@ -467,6 +467,17 @@ Deno.serve(async (req: Request) => {
             } catch (e) {
               console.error('checkout trial not recorded', sub.id, (e as Error).message);
             }
+            // MIC-069: the invited friend's card trial started, so the referrer earns 1 print.
+            // Idempotent in SQL (pending -> trialled once). Isolated like the ledger write above.
+            if (sub.metadata?.referral_id) {
+              const { error } = await service().rpc('referral_mark_trialled', {
+                p_referral_id: sub.metadata.referral_id,
+                p_subscription_id: sub.id,
+              });
+              if (error) console.error('referral trial not recorded', sub.id, error.message);
+              // The granted print gets its checkout code now (fail-soft; /invite mints any left).
+              else await mintPrintCodes(stripe, service());
+            }
           }
         }
         break;
@@ -487,13 +498,55 @@ Deno.serve(async (req: Request) => {
         if (subId) {
           const sub = await stripe.subscriptions.retrieve(subId);
           await upsertSubscriptionGrant(sub);
+          // MIC-069: the invited friend's FIRST real payment (the $0 trial-start invoice does not
+          // count) gives the referrer and the friend 1 print each. Later renewals find the
+          // referral already 'paid' and grant nothing. A lost write costs prints, never access,
+          // so it is logged rather than failing the event.
+          if (sub.metadata?.referral_id && (invoice.amount_paid ?? 0) > 0) {
+            const { error } = await service().rpc('referral_mark_paid', {
+              p_referral_id: sub.metadata.referral_id,
+              p_subscription_id: sub.id,
+            });
+            if (error) console.error('referral payment not recorded', sub.id, error.message);
+            else await mintPrintCodes(stripe, service());
+          }
         }
         break;
       }
 
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
-        await upsertSubscriptionGrant(event.data.object as Stripe.Subscription);
+        let sub = event.data.object as Stripe.Subscription;
+        // HOLIDAY TRIALS ARE GRANTED FROM STRIPE'S CURRENT STATE, not the event's snapshot. Stripe
+        // does not promise order: a late "updated" (trialing, set to cancel) arriving after the
+        // "deleted" would otherwise write a Jan 1 expiry back onto a cancelled trial and hand PRO
+        // back. Re-reading the subscription makes every event land on the latest truth.
+        if (sub.metadata?.holiday_trial === 'true') {
+          try {
+            sub = await stripe.subscriptions.retrieve(sub.id);
+          } catch (e) {
+            console.error('holiday trial not re-read, using the event snapshot', sub.id, (e as Error).message);
+          }
+        }
+        // MIC-073 (owner, 2026-11-25): "cancelling the trial [should] immediately revert the account
+        // to free user tier". Stripe's portal cancels a trial at its end, so a HOLIDAY trial that is
+        // still trialing and has been set to cancel is cancelled now; the grant below then ends PRO
+        // (status 'canceled' expires the row at ended_at). Only holiday trials: a paying member's
+        // cancel keeps what they paid for, and a 3-day trial keeps today's rule.
+        const cancelling = sub.cancel_at_period_end || (sub as unknown as { cancel_at?: number | null }).cancel_at;
+        if (
+          event.type === 'customer.subscription.updated' &&
+          sub.status === 'trialing' &&
+          sub.metadata?.holiday_trial === 'true' &&
+          cancelling
+        ) {
+          try {
+            sub = await stripe.subscriptions.cancel(sub.id);
+          } catch (e) {
+            console.error('holiday trial not cancelled now', sub.id, (e as Error).message);
+          }
+        }
+        await upsertSubscriptionGrant(sub);
         break;
       }
 
@@ -510,6 +563,29 @@ Deno.serve(async (req: Request) => {
         if (!intent) break;
         const sessions = await stripe.checkout.sessions.list({ payment_intent: intent, limit: 1 });
         const session = sessions.data[0];
+        // MIC-069: A REFUNDED SUBSCRIPTION PAYMENT VOIDS THE INVITE PRINTS IT EARNED. A one-time
+        // purchase (a PDF, a Founder) has a payment-mode Checkout Session on its intent; a
+        // subscription invoice's charge has none. So no session = a subscription payment, and the
+        // customer's account loses the unspent prints its referral's payment earned (both sides).
+        // The trial print stays ("069 A") and spent prints stay spent. Fail-soft.
+        if (!session) {
+          const customer = typeof charge.customer === 'string' ? charge.customer : charge.customer?.id;
+          if (customer) {
+            const { data: map } = await service()
+              .from('billing_customers')
+              .select('user_id')
+              .eq('stripe_customer_id', customer)
+              .maybeSingle();
+            const invitee = (map as { user_id?: string } | null)?.user_id;
+            if (invitee) {
+              const { data, error } = await service().rpc('referral_void_for_invitee', { p_invitee_id: invitee });
+              if (error) console.error('referral void failed', error.message);
+              // The voided codes stop working at checkout too.
+              else await deactivatePrintCodes(stripe, (data as string[] | null) ?? []);
+            }
+          }
+          break;
+        }
         const product = session?.metadata?.michi_product;
         const userId = session?.client_reference_id ?? session?.metadata?.supabase_user_id;
         if (!session || session.metadata?.founder !== 'true' || !userId) break;

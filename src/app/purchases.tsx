@@ -37,6 +37,7 @@ import { useAuth } from '@/store/auth';
 import { flag } from '@/lib/flags';
 import { StatePanel } from 'tcgscan-ui';
 import { AuthSheet } from '@/components/auth/AuthSheet';
+import { HolidayCancelWarning, RefundPrintWarning } from '@/components/monetization/RefundPrintWarning';
 
 /** MIC-045 M3 ('dev'): signed out, the page is one StatePanel inside the shell. */
 const STATE_PANEL = flag('state-panel');
@@ -390,6 +391,9 @@ export default function PurchasesScreen() {
               failed={printsFailed}
             />
 
+            {/* MIC-069: the refund warning for an invited friend, before the cancel link. */}
+            {CHECKOUT_OPEN && isPaid ? <RefundPrintWarning /> : null}
+            {CHECKOUT_OPEN && isPaid ? <HolidayCancelWarning /> : null}
             {CHECKOUT_OPEN && isPaid ? (
               <ThemedText
                 type="linkPrimary"

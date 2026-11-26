@@ -131,6 +131,79 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    // MIC-041 Want/Trade (+ 041b instant circle), MIC-077 chips, MIC-069 + MIC-073 holiday launch.
+    // Featured rotation (owner, 2026-11-26): holiday, Invite Friends, Want and Trade, Set Binders.
+    date: '2026-11-26',
+    title: 'Want and Trade lists, and a holiday gift',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Happy Holidays! PRO is free until Jan 1',
+        kind: 'new',
+        area: 'account',
+        big: true,
+        pinned: true,
+        featured: true,
+        body: 'Start the free trial today and keep PRO through the holidays, even if you tried PRO before and never subscribed. Cancelling during the trial ends PRO right away. After Jan 1, $2.99 a month or $24.99 a year.',
+      },
+      {
+        products: ['michi'],
+        head: 'Invite Friends, earn free prints',
+        kind: 'new',
+        area: 'sharing',
+        big: true,
+        pinned: true,
+        featured: true,
+        body: 'Share your link from “Invite Friends”. When your friend starts the trial, you get 1 code for a free print unlock. When that friend becomes a paying subscriber, you each get 1 additional code, for a total of 3 free prints. Enter a code under “Add promotion code” at checkout and the binder PDF is free.',
+      },
+      {
+        products: ['michi'],
+        head: 'A holiday gift code for every account',
+        kind: 'new',
+        area: 'account',
+        body: 'Every account gets one free binder PDF code, good until Jan 31. Your codes, and whether each one is used, are on the “Invite Friends” page.',
+      },
+      {
+        products: ['michi'],
+        head: 'Want and Trade lists',
+        kind: 'new',
+        area: 'collection',
+        big: true,
+        pinned: true,
+        featured: true,
+        body: 'Tap a card’s corner circle in a binder to move it through ♥ Want, ✓ Owned and ⇄ Trade. “My lists” on My Binders shows owned, want and trade for every card, with a “For trade” switch on each copy, so a graded copy can stay off the list.',
+      },
+      {
+        products: ['michi'],
+        head: '“Mark all ♥”',
+        kind: 'new',
+        area: 'collection',
+        body: 'In a binder’s View settings, “Mark all ♥” adds every card you don’t own to your Want list, after one confirm.',
+      },
+      {
+        products: ['michi'],
+        head: 'Share your lists on your profile',
+        kind: 'new',
+        area: 'sharing',
+        body: 'Turn on “Show my lists on my profile” in My lists, and other collectors see your Want and Trade lists. It stays off until you turn it on.',
+      },
+      {
+        products: ['michi'],
+        head: 'The owned circle answers right away',
+        kind: 'fix',
+        area: 'binders',
+        body: 'Tapping a card’s circle now jumps straight to its next state, with no blank or owned flash in between.',
+      },
+      {
+        products: ['michi'],
+        head: 'View chips switch again',
+        kind: 'fix',
+        area: 'binders',
+        body: '“Owned”, “Prices” and the other view chips turn on and off at once again, without a reload.',
+      },
+    ],
+  },
+  {
     // MIC-072 (ships with mic-072-view-bar; this update's ship runs after it), MIC-068 colour words,
     // MIC-070 search privacy fix.
     date: '2026-11-25',
@@ -226,7 +299,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'collection',
         big: true,
         pinned: true,
-        featured: true,
+        // featured until 2026-11-26 (rotation), still pinned
         body: 'Once you own a card, each binder in “My Binders” (with “Owned” on in the bar at the top) and each set in My collection’s “By set” view shows how many of its cards you have, with a percentage and a bar; turn on “Owned” in a binder (Settings, “My view”) to count the whole binder and the page you are on. Cards you scan in BiBoScan count, and so do cards you tick in a binder.',
       },
     ],
@@ -258,7 +331,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'binders',
         big: true,
         pinned: true,
-        featured: true,
+        // featured until 2026-11-26 (rotation), still pinned
         body: 'Home opens on your last binder with Keep going, and on a computer it sits beside today’s puzzle and the latest from this page. The side menu is plainer, with bigger words and no icons.',
       },
       {
@@ -952,7 +1025,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         big: true,
-        pinned: true,
+        // unpinned 2026-11-26 (owner: pinned rotation)
         body:
           'In the page tools, Arrange reads a page’s cards and proposes seatings: rows by depth, '
           + 'evolution lines in order, frame colours grouped, lookalikes side by side, connected art '
@@ -978,7 +1051,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         products: ['michi'],
         head: 'Eight card games in michi-maker',
         pinned: true,
-        featured: true,
+        // featured until 2026-11-26 (rotation), still pinned
         kind: 'new',
         area: 'cards',
         big: true,
@@ -1884,7 +1957,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'A public binder can be duplicated, when you say so',
-        pinned: true,
+        // unpinned 2026-11-26 (owner: pinned rotation)
         kind: 'new',
         area: 'sharing',
         big: true,
@@ -1986,7 +2059,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Page materials: stitched fabric, a zip, sleeves and art backing',
-        pinned: true,
+        // unpinned 2026-11-26 (owner: pinned rotation)
         kind: 'new',
         area: 'binders',
         big: true,

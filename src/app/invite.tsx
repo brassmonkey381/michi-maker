@@ -90,7 +90,7 @@ export default function InvitePage() {
     <PageShell
       title={TITLE}
       description={DESCRIPTION}
-      heading="Invite friends, earn free prints"
+      heading="Invite Friends"
       lede="Share your link. When a friend starts the free trial, you get a free PDF print. If they stay on and pay, you each get one more.">
       <InviteBody
         summary={summary}

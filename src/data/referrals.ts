@@ -7,7 +7,7 @@
  * checkout, and anyone can use it. A refund of the friend's payment turns off the unused codes that
  * payment earned; cancelling the trial takes back nothing.
  *
- * Everything that grants is on the server (supabase/migrations/20261126120000_referrals_print_credits.sql,
+ * Everything that grants is on the server (supabase/migrations/20261126110000_referrals_print_credits.sql,
  * stripe-checkout, payments-webhook). This file only:
  *   - remembers the invite code a browser arrived with, so checkout can carry it;
  *   - reads the caller's invite page data and code;

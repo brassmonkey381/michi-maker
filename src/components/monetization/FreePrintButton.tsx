@@ -54,6 +54,40 @@ export function FreePrintButton({ binderId, onRedeemed }: { binderId: string; on
   };
 
   return (
+    <FreePrintView
+      left={left}
+      confirming={confirming}
+      busy={busy}
+      error={error}
+      onUse={() => setConfirming(true)}
+      onConfirm={() => void redeem()}
+      onCancel={() => setConfirming(false)}
+      onMore={() => router.push('/invite' as Href)}
+    />
+  );
+}
+
+/** The button and its inline confirm, with no data access (the preview draws this with demo data). */
+export function FreePrintView({
+  left,
+  confirming,
+  busy,
+  error,
+  onUse,
+  onConfirm,
+  onCancel,
+  onMore,
+}: {
+  left: number;
+  confirming: boolean;
+  busy: boolean;
+  error: string | null;
+  onUse: () => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  onMore: () => void;
+}) {
+  return (
     <View style={styles.box} testID="free-print">
       {confirming ? (
         <>
@@ -64,14 +98,14 @@ export function FreePrintButton({ binderId, onRedeemed }: { binderId: string; on
           </ThemedText>
           <View style={styles.row}>
             <Pressable
-              onPress={() => void redeem()}
+              onPress={onConfirm}
               disabled={busy}
               testID="free-print-confirm"
               style={({ pressed }) => [styles.btn, (pressed || busy) && styles.dim]}>
               {busy ? <ActivityIndicator color={Palette.accentText} /> : <Text style={styles.btnText}>Use 1 free print</Text>}
             </Pressable>
             <Pressable
-              onPress={() => setConfirming(false)}
+              onPress={onCancel}
               disabled={busy}
               style={({ pressed }) => [styles.btnQuiet, pressed && styles.dim]}>
               <Text style={styles.btnQuietText}>Not now</Text>
@@ -80,7 +114,7 @@ export function FreePrintButton({ binderId, onRedeemed }: { binderId: string; on
         </>
       ) : (
         <Pressable
-          onPress={() => setConfirming(true)}
+          onPress={onUse}
           testID="free-print-use"
           style={({ pressed }) => [styles.btn, pressed && styles.dim]}>
           <Text style={styles.btnText}>{`Use a free print (${left} left)`}</Text>
@@ -91,7 +125,7 @@ export function FreePrintButton({ binderId, onRedeemed }: { binderId: string; on
           {error}
         </ThemedText>
       ) : null}
-      <ThemedText type="linkPrimary" style={styles.small} onPress={() => router.push('/invite' as Href)}>
+      <ThemedText type="linkPrimary" style={styles.small} onPress={onMore}>
         Free prints come from inviting friends ›
       </ThemedText>
     </View>

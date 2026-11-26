@@ -103,7 +103,8 @@ import { shareVisibility, visibilityChip } from '@/data/shareVisibility';
 import { useAuth } from '@/store/auth';
 import { EntryChangedElsewhereError, invalidateOwnedEntries, markOwned, setEntryVariant, unmarkOwned } from '@/data/collectionRepo';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
-import { pocketStateOf, stepsFor, tradeCopyFor, type PocketStep } from '@/data/collectionLists';
+import { applyPending, nextPocketState, pocketStateOf, stepsFor, tradeCopyFor, unsettled, type PocketState, type PocketStep } from '@/data/collectionLists';
+import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useCollectionLists } from '@/hooks/use-collection-lists';
 import { usePriceSummaryWhen } from '@/lib/prices';
 import { chipFor, effectiveFinish, finishIsAskable, nextFinish } from '@/constants/printVariant';
@@ -280,6 +281,19 @@ export function BinderScreen({
   );
   // MIC-041: the Want and Trade lists. A card shows TRADE when one of its copies is offered.
   const lists = useCollectionLists();
+  // INSTANT TAPS (owner, 2026-11-26: "it first goes to blank and then a second later goes to owned").
+  // A tapped circle shows its target at once and holds it until the real state agrees
+  // (collectionLists.applyPending); a failed or refused write drops it and shows the truth.
+  const [pendingMarks, setPendingMarks] = useState<Map<string, PocketState>>(() => new Map());
+  const dropPending = useCallback((cardId: string, target?: PocketState) => {
+    setPendingMarks((m) => {
+      if (!m.has(cardId) || (target && m.get(cardId) !== target)) return m;
+      const next = new Map(m);
+      next.delete(cardId);
+      return next;
+    });
+  }, []);
+  const ownedNow = useOwnedCards();
   const tradeCardIds = useMemo(() => {
     const out = new Set<string>();
     for (const t of lists.trades) {
@@ -288,6 +302,13 @@ export function BinderScreen({
     }
     return out;
   }, [lists.trades, entryById]);
+  // A pending tap is done once the real state reaches its target.
+  useEffect(() => {
+    if (!pendingMarks.size || !ownedNow) return;
+    const left = unsettled(pendingMarks, ownedNow, lists.wantedIds, tradeCardIds);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reconciling with the server's answer
+    if (left.size !== pendingMarks.size) setPendingMarks(left);
+  }, [pendingMarks, ownedNow, lists.wantedIds, tradeCardIds]);
   const theme = useTheme();
   const { width, height: windowH } = useWindowDimensions();
   /**
@@ -2028,10 +2049,15 @@ export function BinderScreen({
     if (owningBusy.has(cardId)) return;
     owningBusy.add(cardId);
     const name = resolveCard(cardId)?.name ?? 'This card';
-    const owned = ownedSet.has(cardId);
-    const steps: PocketStep[] = user.is_anonymous
-      ? [{ kind: owned ? 'unmarkOwned' : 'markOwned' }]
-      : stepsFor(pocketStateOf(cardId, ownedSet, lists.wantedIds, tradeCardIds));
+    // From what the pocket SHOWS (a pending tap included), to the next state, drawn at once.
+    const shown = applyPending(ownedSet, lists.wantedIds, tradeCardIds, pendingMarks);
+    const from = pocketStateOf(cardId, shown.owned, shown.wanted, shown.traded);
+    const owned = from === 'owned' || from === 'trade';
+    const target: PocketState = user.is_anonymous ? (owned ? 'no' : 'owned') : nextPocketState(from);
+    const steps: PocketStep[] = user.is_anonymous ? [{ kind: owned ? 'unmarkOwned' : 'markOwned' }] : stepsFor(from);
+    setPendingMarks((m) => new Map(m).set(cardId, target));
+    // Never stuck: if the feed never confirms, the real state shows again after 10 seconds.
+    setTimeout(() => dropPending(cardId, target), 10000);
     (async () => {
       try {
         let said = '';
@@ -2047,6 +2073,7 @@ export function BinderScreen({
           } else if (step.kind === 'markTrade') {
             const copy = tradeCopyFor(cardId, slot.sourceEntryId, ownedCopies ?? []);
             if (!copy) {
+              dropPending(cardId);
               refreshAllOwnedCopies();
               said = `${name} is still loading, try again in a moment`;
               break;
@@ -2059,6 +2086,8 @@ export function BinderScreen({
             said = `${name} is no longer for trade`;
           } else {
             const r = await unmarkOwned(cardId);
+            // Still owned through a tcgscan portfolio: the target cannot happen, show the truth.
+            if (r !== 'removed') dropPending(cardId);
             said =
               r === 'elsewhere'
                 ? `${name} is still in a tcgscan portfolio, so it stays owned. Remove it there.`
@@ -2073,6 +2102,7 @@ export function BinderScreen({
           refreshAllOwnedCopies();
         }
       } catch (e) {
+        dropPending(cardId);
         showToast(e instanceof Error ? e.message : 'That did not save');
       } finally {
         owningBusy.delete(cardId);
@@ -2931,6 +2961,8 @@ export function BinderScreen({
     scanUrlOf?: (slot: DemoSlot) => string | undefined;
     decorative?: boolean;
   }) => {
+    // What each pocket's circle shows: the real sets with any just-tapped card at its target.
+    const marks = ownedIds ? applyPending(ownedIds, lists.wantedIds, tradeCardIds, pendingMarks) : null;
     // A COPY FOR THE PAGE TURN IS INERT. Every editable branch below attaches prevRef / nextRef and
     // registers drop targets, so handing the animation a live grid let a decorative duplicate take
     // the ref the editor was holding — the reason turning misbehaved in one's own binders only.
@@ -2943,7 +2975,7 @@ export function BinderScreen({
           outerEdge={outerEdgeOf(p)}
           editable={false}
           captionFields={captionFields}
-          ownedIds={ownedIds} wantIds={ownedIds ? lists.wantedIds : undefined} tradeIds={ownedIds ? tradeCardIds : undefined}
+          ownedIds={marks?.owned ?? ownedIds} wantIds={marks?.wanted} tradeIds={marks?.traded}
           scanUrlOf={scanUrlOf}
           variantOf={variantOf}
           instantImages
@@ -2952,7 +2984,7 @@ export function BinderScreen({
     }
     if (!editing) {
       return (
-        <BinderGrid page={p} width={width} pageStyle={binder.pageStyle} cutLines={view.cutLines} outerEdge={outerEdgeOf(p)} editable={false} captionFields={captionFields} ownedIds={ownedIds} wantIds={ownedIds ? lists.wantedIds : undefined} tradeIds={ownedIds ? tradeCardIds : undefined} scanUrlOf={scanUrlOf} onOwnedPress={ownedToggle(ownedIds)} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} eagerImages={role !== 'prev' && role !== 'next'} />
+        <BinderGrid page={p} width={width} pageStyle={binder.pageStyle} cutLines={view.cutLines} outerEdge={outerEdgeOf(p)} editable={false} captionFields={captionFields} ownedIds={marks?.owned ?? ownedIds} wantIds={marks?.wanted} tradeIds={marks?.traded} scanUrlOf={scanUrlOf} onOwnedPress={ownedToggle(ownedIds)} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} eagerImages={role !== 'prev' && role !== 'next'} />
       );
     }
     if (role === 'prev' || role === 'next') {
@@ -2966,7 +2998,7 @@ export function BinderScreen({
           outerEdge={outerEdgeOf(p)}
           editable
           captionFields={captionFields}
-          ownedIds={ownedIds} wantIds={ownedIds ? lists.wantedIds : undefined} tradeIds={ownedIds ? tradeCardIds : undefined} scanUrlOf={scanUrlOf}
+          ownedIds={marks?.owned ?? ownedIds} wantIds={marks?.wanted} tradeIds={marks?.traded} scanUrlOf={scanUrlOf}
           onOwnedPress={ownedToggle(ownedIds)}
           variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
           // A tray slice reaches the neighbours too: show its legal pockets here, and let an
@@ -2999,7 +3031,7 @@ export function BinderScreen({
           outerEdge={outerEdgeOf(p)}
           editable={!arrangePreview}
           captionFields={captionFields}
-          ownedIds={ownedIds} wantIds={ownedIds ? lists.wantedIds : undefined} tradeIds={ownedIds ? tradeCardIds : undefined} scanUrlOf={scanUrlOf}
+          ownedIds={marks?.owned ?? ownedIds} wantIds={marks?.wanted} tradeIds={marks?.traded} scanUrlOf={scanUrlOf}
           onOwnedPress={ownedToggle(ownedIds)}
           variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
           // The facing page is a first-class drop surface for tray slices too.
@@ -3042,7 +3074,7 @@ export function BinderScreen({
         outerEdge={outerEdgeOf(p)}
         editable={!arrangePreview}
         captionFields={captionFields}
-        ownedIds={ownedIds} wantIds={ownedIds ? lists.wantedIds : undefined} tradeIds={ownedIds ? tradeCardIds : undefined} scanUrlOf={scanUrlOf}
+        ownedIds={marks?.owned ?? ownedIds} wantIds={marks?.wanted} tradeIds={marks?.traded} scanUrlOf={scanUrlOf}
         onOwnedPress={ownedToggle(ownedIds)}
         variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
         selectedSlotId={selectedSlotId}

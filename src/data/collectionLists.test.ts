@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  applyPending,
   collectionTable,
   filterTable,
   nextPocketState,
@@ -10,6 +11,7 @@ import {
   tradeCopyFor,
   publicRows,
   unownedToWant,
+  unsettled,
 } from './collectionLists.ts';
 
 test('the circle cycles NO > WANT > OWNED > TRADE > NO', () => {
@@ -76,4 +78,27 @@ test('a public profile table counts wants and trades per card, never owned', () 
     trades: [{ card_id: 'a', quantity: 1 }, { card_id: 'b', quantity: 1 }],
   });
   assert.deepEqual(rows.map((r) => [r.cardId, r.owned, r.want, r.trade]), [['a', 0, 2, 1], ['b', 0, 0, 1]]);
+});
+
+test('a tap shows its target at once and never an in-between state, then settles on the real one', () => {
+  // WANT -> OWNED: the device drops the want at once, the owned copy arrives a second later.
+  const pending = new Map([['c', 'owned' as const]]);
+  const steps = [
+    { owned: new Set<string>(), wanted: new Set(['c']), traded: new Set<string>() }, // tap
+    { owned: new Set<string>(), wanted: new Set<string>(), traded: new Set<string>() }, // want removed
+    { owned: new Set(['c']), wanted: new Set<string>(), traded: new Set<string>() }, // owned arrived
+  ];
+  for (const real of steps) {
+    const shown = applyPending(real.owned, real.wanted, real.traded, pending);
+    assert.equal(pocketStateOf('c', shown.owned, shown.wanted, shown.traded), 'owned');
+  }
+  const last = steps[2];
+  assert.equal(unsettled(pending, last.owned, last.wanted, last.traded).size, 0);
+  assert.equal(unsettled(pending, steps[1].owned, steps[1].wanted, steps[1].traded).size, 1);
+});
+
+test('TRADE -> NO never flashes OWNED while the copy is being removed', () => {
+  const pending = new Map([['c', 'no' as const]]);
+  const midway = applyPending(new Set(['c']), new Set<string>(), new Set<string>(), pending);
+  assert.equal(pocketStateOf('c', midway.owned, midway.wanted, midway.traded), 'no');
 });

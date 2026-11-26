@@ -78,6 +78,7 @@ import type { BinderCover, CoverDecoration, DemoBinder, DemoPage, DemoSlot } fro
 import { allocateScanFaces } from '@/data/scanFaces';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useScanImages } from '@/hooks/use-scan-images';
+import { WantRestButton } from '@/components/binder/WantRestButton';
 import { useTheme } from '@/hooks/use-theme';
 
 /** MIC-017 B5-A ('dev'): Settings in two tabs. */
@@ -1614,7 +1615,9 @@ export function BinderPages({
                 Collection
               </ThemedText>
               <View style={styles.settingsRowControls}>
-                <OwnedPriceToggles owned={showOwned} onOwned={setShowOwned} labels={labelsProp ?? ownLabels} />
+                <OwnedPriceToggles owned={showOwned} onOwned={setShowOwned} labels={labelsProp ?? ownLabels} compact />
+                {/* MIC-041: "Mark all ♥" fills the Want list from this binder, inline with Owned and Prices. */}
+                <WantRestButton cardIds={binder.pages.flatMap(pageCardIds)} owned={ownedCards} />
               </View>
             </View>
           ) : null}

@@ -1,0 +1,201 @@
+/**
+ * MIC-041: the My lists table, drawn from data handed in (the route loads it; the review preview
+ * hands in samples). See src/app/lists.tsx.
+ */
+import { Image } from 'expo-image';
+import { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+
+import { ThemedText } from '@/components/themed-text';
+import { DropdownSelect, type DropdownOption } from '@/components/ui/DropdownSelect';
+import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { filterTable, type TableFilter, type TableRow } from '@/data/collectionLists';
+import { resolveCardWith } from '@/data/cardResolver';
+import type { Catalog } from '@/lib/catalog';
+import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
+
+const SHOW: readonly DropdownOption<TableFilter>[] = [
+  { id: 'all', label: 'All' },
+  { id: 'owned', label: 'Owned' },
+  { id: 'want', label: 'Want' },
+  { id: 'trade', label: 'Trade' },
+];
+
+export interface ListsActions {
+  setWantQuantity: (cardId: string, quantity: number) => Promise<void>;
+  markTrade: (entryId: string, quantity?: number) => Promise<void>;
+  unmarkTrade: (entryIds: string[]) => Promise<void>;
+}
+
+export function ListsView({
+  rows,
+  ready,
+  catalog,
+  share,
+  actions,
+  initialShow = 'all',
+  initialOpen = null,
+  readOnly = false,
+}: {
+  rows: TableRow[];
+  ready: boolean;
+  catalog: Catalog | null;
+  share?: { on: boolean; busy: boolean; set: (on: boolean) => void };
+  actions?: ListsActions;
+  /** A visitor on someone's profile: Want and Trade only, no owned counts, nothing to change. */
+  readOnly?: boolean;
+  initialShow?: TableFilter;
+  initialOpen?: string | null;
+}) {
+  // The manifest flag is read here and used in the thumb lookup so the React Compiler recomputes
+  // the URL when the manifest lands (cardThumbUrl reads module state it cannot track).
+  const manifestReady = useImageManifest();
+  const [show, setShow] = useState<TableFilter>(initialShow);
+  const [open, setOpen] = useState<string | null>(initialOpen);
+  const shown = useMemo(() => {
+    const name = (r: TableRow) => resolveCardWith(catalog, r.cardId)?.name ?? r.cardId;
+    return filterTable(rows, show).sort((a, b) => name(a).localeCompare(name(b)));
+  }, [rows, show, catalog]);
+  const totals = useMemo(
+    () => rows.reduce((t, r) => ({ owned: t.owned + r.owned, want: t.want + r.want, trade: t.trade + r.trade }), { owned: 0, want: 0, trade: 0 }),
+    [rows],
+  );
+  return (
+    <View>
+      <View style={styles.bar}>
+        <View style={styles.totals} testID="lists-totals">
+          {readOnly ? null : <Text style={styles.total}>{`${totals.owned} owned`}</Text>}
+          <Text style={[styles.total, styles.wantText]}>{`♥ ${totals.want} want`}</Text>
+          <Text style={[styles.total, styles.tradeText]}>{`⇄ ${totals.trade} trade`}</Text>
+        </View>
+        <DropdownSelect label="Show" value={show} options={readOnly ? SHOW.filter((o) => o.id !== 'owned') : SHOW} onChange={setShow} testID="lists-show" />
+      </View>
+
+      {share && !readOnly ? (
+      <View style={styles.shareRow} testID="lists-share">
+        <View style={styles.shareText}>
+          <ThemedText type="smallBold">Show my lists on my profile</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Other collectors see your Want and Trade lists. Off by default.
+          </ThemedText>
+        </View>
+        <Switch value={share.on} onValueChange={share.set} disabled={share.busy} accessibilityLabel="Show my lists on my profile" />
+      </View>
+      ) : null}
+
+      <View style={styles.head}>
+        <Text style={[styles.th, styles.cardCol]}>Card</Text>
+        {readOnly ? null : <Text style={styles.th}>Owned</Text>}
+        <Text style={styles.th}>Want</Text>
+        <Text style={styles.th}>Trade</Text>
+      </View>
+      {!ready ? (
+        <ThemedText type="small" themeColor="textSecondary">Loading your lists...</ThemedText>
+      ) : shown.length === 0 ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
+          {readOnly ? 'Nothing here yet.' : show === 'want'
+            ? 'Nothing on your Want list yet. In a binder, tap a card’s corner circle once, or use "Mark every card I don’t own as WANT" in the binder’s settings.'
+            : show === 'trade'
+              ? 'Nothing marked for trade yet. Tap an owned card’s green check in a binder, or open a card below and switch on "For trade".'
+              : 'No cards yet. Mark cards as owned or wanted in a binder.'}
+        </ThemedText>
+      ) : (
+        shown.map((r) => {
+          const card = resolveCardWith(catalog, r.cardId);
+          const isOpen = open === r.cardId;
+          return (
+            <View key={r.cardId} style={styles.rowWrap} testID={`lists-row-${r.cardId}`}>
+              <Pressable
+                onPress={readOnly ? undefined : () => setOpen(isOpen ? null : r.cardId)}
+                disabled={readOnly}
+                accessibilityRole={readOnly ? undefined : 'button'}
+                accessibilityState={readOnly ? undefined : { expanded: isOpen }}
+                accessibilityLabel={`${card?.name ?? r.cardId}: ${r.owned} owned, ${r.want} wanted, ${r.trade} for trade`}
+                style={styles.row}>
+                <View style={[styles.cardCol, styles.cardCell]}>
+                  <Image source={{ uri: (manifestReady ? cardThumbUrl(r.cardId, 245) : '') || undefined }} style={styles.thumb} contentFit="contain" />
+                  <View style={styles.cardText}>
+                    <Text style={styles.name} numberOfLines={1}>{card?.name ?? r.cardId}</Text>
+                    <Text style={styles.sub} numberOfLines={1}>{card?.setName ?? ''}</Text>
+                  </View>
+                </View>
+                {readOnly ? null : <Text style={styles.td}>{r.owned || ''}</Text>}
+                <Text style={[styles.td, styles.wantText]}>{r.want ? `♥ ${r.want}` : ''}</Text>
+                <Text style={[styles.td, styles.tradeText]}>{r.trade ? `⇄ ${r.trade}` : ''}</Text>
+              </Pressable>
+              {isOpen && actions && !readOnly ? <RowDetail row={r} actions={actions} /> : null}
+            </View>
+          );
+        })
+      )}
+    </View>
+  );
+}
+
+/** One card, opened: its want quantity, and every copy with its own "For trade" switch. */
+function RowDetail({ row, actions: lists }: { row: TableRow; actions: ListsActions }) {
+  const [err, setErr] = useState<string | null>(null);
+  const run = (p: Promise<void>) => p.then(() => setErr(null)).catch((e) => setErr(e instanceof Error ? e.message : 'That did not save'));
+  return (
+    <View style={styles.detail}>
+      <View style={styles.wantLine}>
+        <ThemedText type="smallBold">Want</ThemedText>
+        <Pressable onPress={() => run(lists.setWantQuantity(row.cardId, row.want - 1))} disabled={row.want === 0} accessibilityRole="button" accessibilityLabel="Want one fewer" style={styles.step}>
+          <Text style={styles.stepText}>-</Text>
+        </Pressable>
+        <Text style={[styles.qty, styles.wantText]}>{row.want}</Text>
+        <Pressable onPress={() => run(lists.setWantQuantity(row.cardId, Math.min(99, row.want + 1)))} accessibilityRole="button" accessibilityLabel="Want one more" style={styles.step}>
+          <Text style={styles.stepText}>+</Text>
+        </Pressable>
+      </View>
+      {row.copies.length === 0 ? (
+        <ThemedText type="small" themeColor="textSecondary">You don&apos;t own a copy yet.</ThemedText>
+      ) : (
+        row.copies.map((c) => (
+          <View key={c.entryId} style={styles.copy} testID={`lists-copy-${c.entryId}`}>
+            <View style={styles.copyText}>
+              <ThemedText type="small">{`${c.quantity > 1 ? `${c.quantity} x ` : ''}${c.variant}${c.hasScan ? ', scanned' : ''}`}</ThemedText>
+            </View>
+            <ThemedText type="small" themeColor="textSecondary">For trade</ThemedText>
+            <Switch
+              value={c.trade > 0}
+              onValueChange={(on) => run(on ? lists.markTrade(c.entryId, c.quantity) : lists.unmarkTrade([c.entryId]))}
+              accessibilityLabel={`For trade: ${c.variant}`}
+            />
+          </View>
+        ))
+      )}
+      {err ? <ThemedText type="small" style={styles.err}>{err}</ThemedText> : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  bar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two, marginBottom: Spacing.two },
+  totals: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
+  total: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
+  wantText: { color: '#2f7fc1' },
+  tradeText: { color: '#b07400' },
+  shareRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.two, marginBottom: Spacing.two, minHeight: 44 },
+  shareText: { flex: 1, minWidth: 0, gap: 2 },
+  head: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderColor: Palette.hairline },
+  th: { width: 64, textAlign: 'center', fontSize: 13, fontWeight: Weight.bold, color: Palette.muted },
+  cardCol: { flex: 1, minWidth: 0, textAlign: 'left' },
+  rowWrap: { borderBottomWidth: 1, borderColor: Palette.hairline },
+  row: { flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingVertical: 4 },
+  cardCell: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  thumb: { width: 34, height: 47, borderRadius: 3 },
+  cardText: { flex: 1, minWidth: 0 },
+  name: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.ink },
+  sub: { fontSize: 13, color: Palette.muted },
+  td: { width: 64, textAlign: 'center', fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
+  detail: { paddingLeft: 42, paddingBottom: Spacing.two, gap: 4 },
+  wantLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  step: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.control, borderWidth: 1, borderColor: Palette.hairline },
+  stepText: { fontSize: FontSize.md, fontWeight: Weight.bold, color: Palette.ink },
+  qty: { minWidth: 24, textAlign: 'center', fontSize: FontSize.label, fontWeight: Weight.bold },
+  copy: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, minHeight: 44 },
+  copyText: { flex: 1, minWidth: 0 },
+  empty: { paddingVertical: Spacing.three },
+  err: { color: '#c0392b' },
+});

@@ -85,7 +85,7 @@
       ]
     },
     {
-      "source": "/(u/.*|my-binders|purchases|account|studio|subscriptions|wishlist|auth-callback|kit|welcome_v2|app)",
+      "source": "/(u/.*|my-binders|lists|purchases|account|studio|subscriptions|wishlist|auth-callback|kit|welcome_v2|app)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -323,7 +323,7 @@
       "destination": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/:path*"
     },
     {
-      "source": "/(browse|collect|contest|contest-binders|coverage|daily|discover|feedback|kit|my-binders|new-binder|plans|pricing|purchases|search-guide|studio|subscriptions|whats-new|wishlist|auth-callback)",
+      "source": "/(browse|collect|contest|contest-binders|coverage|daily|discover|feedback|kit|lists|my-binders|new-binder|plans|pricing|purchases|search-guide|studio|subscriptions|whats-new|wishlist|auth-callback)",
       "destination": "/app"
     },
     {

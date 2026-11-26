@@ -26,6 +26,7 @@ import { PocketsArt, StatePanel } from 'tcgscan-ui';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { ReportSheet } from '@/components/binder/ReportSheet';
 import { PageShell } from '@/components/layout/PageShell';
+import { PublicListsSection } from '@/components/people/PublicListsSection';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { fetchPublicBinders } from '@/data/binderRepo';
@@ -318,6 +319,9 @@ export default function ProfileRoute() {
                 />
               )}
             </View>
+
+            {/* MIC-041: their Want and Trade lists, only when they switched sharing on. */}
+            <PublicListsSection userId={state.profile.id} />
 
             {/* The takedown intake for profile content (bio, avatar), the same flow as reporting a
                 binder, filed with profile_id instead. Hidden on your own page. */}

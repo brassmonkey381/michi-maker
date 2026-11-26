@@ -103,6 +103,8 @@ import { shareVisibility, visibilityChip } from '@/data/shareVisibility';
 import { useAuth } from '@/store/auth';
 import { EntryChangedElsewhereError, invalidateOwnedEntries, markOwned, setEntryVariant, unmarkOwned } from '@/data/collectionRepo';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
+import { pocketStateOf, stepsFor, tradeCopyFor, type PocketStep } from '@/data/collectionLists';
+import { useCollectionLists } from '@/hooks/use-collection-lists';
 import { usePriceSummaryWhen } from '@/lib/prices';
 import { chipFor, effectiveFinish, finishIsAskable, nextFinish } from '@/constants/printVariant';
 import { ThemedText } from '@/components/themed-text';
@@ -276,6 +278,16 @@ export function BinderScreen({
     () => new Map((ownedCopies ?? []).map((c) => [c.entryId, c])),
     [ownedCopies],
   );
+  // MIC-041: the Want and Trade lists. A card shows TRADE when one of its copies is offered.
+  const lists = useCollectionLists();
+  const tradeCardIds = useMemo(() => {
+    const out = new Set<string>();
+    for (const t of lists.trades) {
+      const c = entryById.get(t.entryId)?.cardId;
+      if (c) out.add(c);
+    }
+    return out;
+  }, [lists.trades, entryById]);
   const theme = useTheme();
   const { width, height: windowH } = useWindowDimensions();
   /**
@@ -2008,28 +2020,58 @@ export function BinderScreen({
    * (collectionRepo.markOwned). The tick itself follows the `user_cards` realtime feed, so nothing
    * is set optimistically here; the toast says what happened, and why a tick stayed lit.
    */
-  const onOwnedPress = (slot: DemoSlot, owned: boolean) => {
+  // MIC-041: one tap moves the circle one step, NO > WANT > OWNED > TRADE > NO (collectionLists).
+  // Guests have no lists to keep, so for them it stays the old owned on/off.
+  const onOwnedPress = (slot: DemoSlot, ownedSet: ReadonlySet<string>) => {
     if (!slot.cardId || !user) return;
     const cardId = slot.cardId;
     if (owningBusy.has(cardId)) return;
     owningBusy.add(cardId);
     const name = resolveCard(cardId)?.name ?? 'This card';
+    const owned = ownedSet.has(cardId);
+    const steps: PocketStep[] = user.is_anonymous
+      ? [{ kind: owned ? 'unmarkOwned' : 'markOwned' }]
+      : stepsFor(pocketStateOf(cardId, ownedSet, lists.wantedIds, tradeCardIds));
     (async () => {
       try {
-        if (owned) {
-          const r = await unmarkOwned(cardId);
-          showToast(
-            r === 'elsewhere'
-              ? `${name} is still in a tcgscan portfolio, so it stays owned. Remove it there.`
-              : r === 'removed'
-                ? `${name} unmarked`
-                : `${name} is owned through a tcgscan portfolio. Remove it there.`,
-          );
-        } else {
-          await markOwned(cardId);
-          showToast(`${name} marked as owned`);
+        let said = '';
+        for (const step of steps) {
+          if (step.kind === 'addWant') {
+            await lists.addWant([cardId]);
+            said = `${name} added to your Want list`;
+          } else if (step.kind === 'removeWant') {
+            await lists.removeWant(cardId);
+          } else if (step.kind === 'markOwned') {
+            await markOwned(cardId);
+            said = `${name} marked as owned`;
+          } else if (step.kind === 'markTrade') {
+            const copy = tradeCopyFor(cardId, slot.sourceEntryId, ownedCopies ?? []);
+            if (!copy) {
+              refreshAllOwnedCopies();
+              said = `${name} is still loading, try again in a moment`;
+              break;
+            }
+            await lists.markTrade(copy.entryId);
+            said = `${name} marked for trade`;
+          } else if (step.kind === 'unmarkTrade') {
+            const ids = (ownedCopies ?? []).filter((c) => c.cardId === cardId).map((c) => c.entryId);
+            await lists.unmarkTrade(ids);
+            said = `${name} is no longer for trade`;
+          } else {
+            const r = await unmarkOwned(cardId);
+            said =
+              r === 'elsewhere'
+                ? `${name} is still in a tcgscan portfolio, so it stays owned. Remove it there.`
+                : r === 'removed'
+                  ? `${name} unmarked`
+                  : `${name} is owned through a tcgscan portfolio. Remove it there.`;
+          }
         }
-        invalidateOwnedEntries(user.id);
+        if (said) showToast(said);
+        if (steps.some((s) => s.kind === 'markOwned' || s.kind === 'unmarkOwned')) {
+          invalidateOwnedEntries(user.id);
+          refreshAllOwnedCopies();
+        }
       } catch (e) {
         showToast(e instanceof Error ? e.message : 'That did not save');
       } finally {
@@ -2039,7 +2081,7 @@ export function BinderScreen({
   };
   /** The grid prop: only while the Owned view is on and someone is signed in. */
   const ownedToggle = (ids: ReadonlySet<string> | undefined) =>
-    ids && user ? (slot: DemoSlot) => onOwnedPress(slot, !!slot.cardId && ids.has(slot.cardId)) : undefined;
+    ids && user ? (slot: DemoSlot) => onOwnedPress(slot, ids) : undefined;
 
   const openVariantPicker = (slot: DemoSlot) => {
     if (!slot.sourceEntryId || !slot.cardId) return;
@@ -2901,7 +2943,7 @@ export function BinderScreen({
           outerEdge={outerEdgeOf(p)}
           editable={false}
           captionFields={captionFields}
-          ownedIds={ownedIds}
+          ownedIds={ownedIds} wantIds={ownedIds ? lists.wantedIds : undefined} tradeIds={ownedIds ? tradeCardIds : undefined}
           scanUrlOf={scanUrlOf}
           variantOf={variantOf}
           instantImages
@@ -2910,7 +2952,7 @@ export function BinderScreen({
     }
     if (!editing) {
       return (
-        <BinderGrid page={p} width={width} pageStyle={binder.pageStyle} cutLines={view.cutLines} outerEdge={outerEdgeOf(p)} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} onOwnedPress={ownedToggle(ownedIds)} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} eagerImages={role !== 'prev' && role !== 'next'} />
+        <BinderGrid page={p} width={width} pageStyle={binder.pageStyle} cutLines={view.cutLines} outerEdge={outerEdgeOf(p)} editable={false} captionFields={captionFields} ownedIds={ownedIds} wantIds={ownedIds ? lists.wantedIds : undefined} tradeIds={ownedIds ? tradeCardIds : undefined} scanUrlOf={scanUrlOf} onOwnedPress={ownedToggle(ownedIds)} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} eagerImages={role !== 'prev' && role !== 'next'} />
       );
     }
     if (role === 'prev' || role === 'next') {
@@ -2924,7 +2966,7 @@ export function BinderScreen({
           outerEdge={outerEdgeOf(p)}
           editable
           captionFields={captionFields}
-          ownedIds={ownedIds} scanUrlOf={scanUrlOf}
+          ownedIds={ownedIds} wantIds={ownedIds ? lists.wantedIds : undefined} tradeIds={ownedIds ? tradeCardIds : undefined} scanUrlOf={scanUrlOf}
           onOwnedPress={ownedToggle(ownedIds)}
           variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
           // A tray slice reaches the neighbours too: show its legal pockets here, and let an
@@ -2957,7 +2999,7 @@ export function BinderScreen({
           outerEdge={outerEdgeOf(p)}
           editable={!arrangePreview}
           captionFields={captionFields}
-          ownedIds={ownedIds} scanUrlOf={scanUrlOf}
+          ownedIds={ownedIds} wantIds={ownedIds ? lists.wantedIds : undefined} tradeIds={ownedIds ? tradeCardIds : undefined} scanUrlOf={scanUrlOf}
           onOwnedPress={ownedToggle(ownedIds)}
           variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
           // The facing page is a first-class drop surface for tray slices too.
@@ -3000,7 +3042,7 @@ export function BinderScreen({
         outerEdge={outerEdgeOf(p)}
         editable={!arrangePreview}
         captionFields={captionFields}
-        ownedIds={ownedIds} scanUrlOf={scanUrlOf}
+        ownedIds={ownedIds} wantIds={ownedIds ? lists.wantedIds : undefined} tradeIds={ownedIds ? tradeCardIds : undefined} scanUrlOf={scanUrlOf}
         onOwnedPress={ownedToggle(ownedIds)}
         variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
         selectedSlotId={selectedSlotId}

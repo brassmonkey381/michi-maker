@@ -1,14 +1,14 @@
 /**
- * MIC-041 (owner, 2026-11-26): the public profile's Want and Trade lists, browsed. One search box,
- * All / Want / Trade, a sort, and a Filters sheet (set, type, rarity), shared by both profile
- * layouts (A: a compact carousel top right; B: a full-width grid). Pure, so it is tested alone.
+ * MIC-041 (owner, 2026-11-26): Want and Trade lists browsed as a card grid, on a profile and on the
+ * owner's /lists. One search box, All / (Owned /) Want / Trade, a sort, and a Filters sheet (set,
+ * type, rarity). Pure, so it is tested alone.
  *
  * "Newest" is the order the lists arrive in: public_collection_lists returns each list by
  * updated_at, newest first, so a row's index is its age rank (wants first, then trades merged).
  */
 import type { TableRow } from '@/data/collectionLists';
 
-export type ListShow = 'all' | 'want' | 'trade';
+export type ListShow = 'all' | 'owned' | 'want' | 'trade';
 export type ListSort = 'newest' | 'name' | 'set';
 
 /** What the browser needs to know about a card; anything missing reads as ''. */
@@ -74,6 +74,7 @@ export function applyListQuery(rows: readonly BrowseRow[], query: ListQuery): Br
   const words = norm(query.q).split(/\s+/).filter(Boolean);
   const { set, type, rarity } = query.filters;
   const out = rows.filter((r) => {
+    if (query.show === 'owned' && r.owned <= 0) return false;
     if (query.show === 'want' && r.want <= 0) return false;
     if (query.show === 'trade' && r.trade <= 0) return false;
     if (set && r.info.setName !== set) return false;

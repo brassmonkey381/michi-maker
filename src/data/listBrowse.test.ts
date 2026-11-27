@@ -51,3 +51,11 @@ test('a card the catalog does not know still shows, by id', () => {
   const r = browseRows(publicRows({ wants: [{ card_id: 'zz-1', quantity: 1 }], trades: [] }), () => cardInfo(null));
   assert.deepEqual(applyListQuery(r, { q: 'zz', show: 'all', sort: 'name', filters: NO_FILTERS }).map((x) => x.cardId), ['zz-1']);
 });
+
+test('Owned (the owner\'s /lists) keeps only cards with a copy', () => {
+  const r = browseRows([
+    { cardId: 'a', owned: 2, want: 0, trade: 1, copies: [] },
+    { cardId: 'b', owned: 0, want: 1, trade: 0, copies: [] },
+  ], (id) => INFO[id]);
+  assert.deepEqual(applyListQuery(r, { q: '', show: 'owned', sort: 'newest', filters: NO_FILTERS }).map((x) => x.cardId), ['a']);
+});

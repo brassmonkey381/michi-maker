@@ -11,6 +11,7 @@ import { AccountButton } from '@/components/auth/AccountButton';
 import { PageShell } from '@/components/layout/PageShell';
 import { ListsView } from '@/components/lists/ListsView';
 import { ThemedText } from '@/components/themed-text';
+import { MaxContentWidthWide } from '@/constants/theme';
 import { collectionTable } from '@/data/collectionLists';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useCollectionLists } from '@/hooks/use-collection-lists';
@@ -38,14 +39,14 @@ export default function ListsScreen() {
 
   if (!user || user.is_anonymous) {
     return (
-      <PageShell title="My lists" heading="My lists" lede="Owned, Want and Trade, card by card.">
+      <PageShell title="My lists" heading="My lists" lede="Owned, Want and Trade, card by card." maxWidth={MaxContentWidthWide}>
         <ThemedText>Create an account to keep a Want list and a Trade list.</ThemedText>
         <AccountButton />
       </PageShell>
     );
   }
   return (
-    <PageShell title="My lists" heading="My lists" lede="Owned, Want and Trade, card by card.">
+    <PageShell title="My lists" heading="My lists" lede="Owned, Want and Trade, card by card." maxWidth={MaxContentWidthWide}>
       <ListsView rows={rows} ready={lists.ready && copies !== undefined} catalog={catalog} share={share} actions={lists} />
     </PageShell>
   );

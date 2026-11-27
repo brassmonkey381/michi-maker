@@ -68,7 +68,21 @@ import type { Profile } from '@/types/domain';
  * (owner, 2026-11-06: Try PRO as a guest makes the account, then goes straight to checkout). The
  * email-confirmation and OAuth paths leave the page instead; those return through auth-callback.
  */
-export function AuthSheet({ visible, onClose, onAuthed }: { visible: boolean; onClose: () => void; onAuthed?: () => void }) {
+/**
+ * `pitch`: why this visitor is asked for an account right now (the holiday offer on /plans). With
+ * one, the sheet opens on Create account for guests and signed-out visitors alike, and says it.
+ */
+export function AuthSheet({
+  visible,
+  onClose,
+  onAuthed,
+  pitch,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onAuthed?: () => void;
+  pitch?: string;
+}) {
   const auth = useAuth();
   // THE CAP IS THE WINDOW, NOT A PERCENTAGE. maxHeight: '90%' was 90% of the card's wrapper, and the
   // wrapper is only as tall as the card's content, so the card was always 10% shorter than what it
@@ -92,7 +106,7 @@ export function AuthSheet({ visible, onClose, onAuthed }: { visible: boolean; on
               type="background"
               style={[styles.sheet, { paddingBottom: kbInset ? 0 : safe.bottom }]}
               accessibilityViewIsModal>
-              <AuthForm onClose={onClose} onAuthed={onAuthed} isGuest={auth.isGuest} phone />
+              <AuthForm onClose={onClose} onAuthed={onAuthed} isGuest={auth.isGuest} pitch={pitch} phone />
             </ThemedView>
           </Pressable>
         </Pressable>
@@ -114,7 +128,7 @@ export function AuthSheet({ visible, onClose, onAuthed }: { visible: boolean; on
               {auth.isSignedIn ? (
                 <ProfileView onClose={onClose} />
               ) : (
-                <AuthForm onClose={onClose} onAuthed={onAuthed} isGuest={auth.isGuest} />
+                <AuthForm onClose={onClose} onAuthed={onAuthed} isGuest={auth.isGuest} pitch={pitch} />
               )}
             </ThemedView>
           </Pressable>
@@ -134,11 +148,13 @@ function AuthForm({
   onClose,
   onAuthed,
   isGuest,
+  pitch,
   phone = false,
 }: {
   onClose: () => void;
   onAuthed?: () => void;
   isGuest: boolean;
+  pitch?: string;
   /** KEEP only: drawn as the phone's bottom sheet (grab handle, the strip's one-line perks). */
   phone?: boolean;
 }) {
@@ -147,7 +163,9 @@ function AuthForm({
 
   const [method, setMethod] = useState<Method>('password');
   // A guest opens on Create account: that is the step they are at (owner, 2026-10-29).
-  const [isCreate, setIsCreate] = useState(isGuest);
+  // With a pitch (the holiday offer) a signed-out visitor opens there too: the offer needs a new account.
+  const [isCreate, setIsCreate] = useState(isGuest || !!pitch);
+  const pitchLine = isCreate && pitch ? pitch : null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -290,7 +308,7 @@ function AuthForm({
       onFocus: () => setFocused(key),
       onBlur: () => setFocused((cur) => (cur === key ? null : cur)),
     });
-    const sub = keeping
+    const sub = keeping || pitchLine
       ? null
       : isCreate
         ? 'Create an account to sync your binders across devices.'
@@ -325,6 +343,11 @@ function AuthForm({
           <CloseButton onPress={onClose} />
         </View>
 
+        {pitchLine ? (
+          <ThemedText type="smallBold" style={styles.pitch} testID="auth-pitch">
+            {pitchLine}
+          </ThemedText>
+        ) : null}
         {keeping ? <KeepBinderStrip compact={phone} /> : null}
         {sub ? (
           <ThemedText type="small" themeColor="textSecondary">
@@ -560,7 +583,9 @@ function AuthForm({
       </View>
       )}
       <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-        {isCreate
+        {pitchLine
+          ? pitchLine
+          : isCreate
           ? isGuest
             ? 'The binders you’ve made come with you.'
             : 'Create an account to sync your binders across devices.'
@@ -1153,6 +1178,7 @@ function OAuthButton({
 }
 
 const styles = StyleSheet.create({
+  pitch: { color: Palette.accent, fontSize: FontSize.md },
   backdrop: {
     flex: 1,
     backgroundColor: Palette.scrim45,

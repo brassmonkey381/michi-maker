@@ -47,5 +47,11 @@ export const HOLIDAY_BANNER = {
   body: 'Start your free trial today and keep PRO through the holidays. After that, $2.99 a month or $24.99 a year.',
 } as const;
 
+/**
+ * The account sheet's line when a guest or signed-out visitor picks a plan during the holiday offer
+ * (owner, 2026-11-26: 4 popup taps, 0 checkouts; the sheet said only "sync your binders").
+ */
+export const HOLIDAY_SIGNUP_PITCH = 'Create a free account to start PRO free until Jan 1.';
+
 /** Said at checkout and above "Manage billing" during a holiday trial. */
 export const HOLIDAY_CANCEL_NOTE = 'Cancelling during the free trial ends PRO right away.';

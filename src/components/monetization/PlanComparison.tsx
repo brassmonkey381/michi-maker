@@ -46,6 +46,7 @@ import { useTier } from '@/hooks/use-tier';
 import { rememberAuthReturn } from '@/lib/authReturn';
 import { useTrial } from '@/hooks/use-trial';
 import { useHolidayTrial } from '@/hooks/use-holiday-trial';
+import { HOLIDAY_SIGNUP_PITCH } from '@/data/holiday';
 import { useAuth } from '@/store/auth';
 import { flag } from '@/lib/flags';
 
@@ -664,7 +665,12 @@ export function PlanComparison({ resumeKey }: { resumeKey?: string | null } = {}
       </View>
       <AuthSheet
         visible={authOpen}
-        onClose={() => setAuthOpen(false)}
+        onClose={() => {
+          setAuthOpen(false);
+          setPendingKey(null);
+        }}
+        // A plan was picked during the holiday offer: say what the account is for, open on Create.
+        pitch={pendingKey && holiday.active && holiday.eligible ? HOLIDAY_SIGNUP_PITCH : undefined}
         onAuthed={() => {
           const key = pendingKey;
           setPendingKey(null);
